@@ -49,63 +49,13 @@ class Terrain {
       }
       */
 
-      shaderProgram = glCreateProgram();
-      const char* vertexSrc = R"glsl(
-          #version 330
-
-          in vec3 position;
-          in vec3 color;
-          in vec2 uv;
-          out vec2 tex_uv;
-          out vec3 tex_hue;
-          uniform mat4 mvp;
-
-          void main()
-          {
-              tex_uv = uv;
-              tex_hue = color;
-              gl_Position = mvp * vec4(position, 1.0);
-          }
-      )glsl";
-      const char* fragmentSrc = R"glsl(
-          #version 330
-
-          in vec2 tex_uv;
-          in vec3 tex_hue;
-          out vec4 outColor;
-
-          uniform sampler2D tex;
-
-          void main()
-          {
-              outColor = texture(tex, tex_uv) * vec4(tex_hue, 1.0);
-          }
-      )glsl";
-      GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);
-      glShaderSource(vertexShader, 1, &vertexSrc, NULL);
-      glCompileShader(vertexShader);
-      GLuint fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-      glShaderSource(fragmentShader, 1, &fragmentSrc, NULL);
-      glCompileShader(fragmentShader);
-      glAttachShader(shaderProgram, vertexShader);
-      glAttachShader(shaderProgram, fragmentShader);
-      glLinkProgram(shaderProgram);
-
-      posAttrib = glGetAttribLocation(shaderProgram, "position");
-      colorAttrib = glGetAttribLocation(shaderProgram, "color");
-      uvAttrib = glGetAttribLocation(shaderProgram, "uv");
-      mvpUniform = glGetUniformLocation(shaderProgram, "mvp");
-      tex = glGetUniformLocation(shaderProgram, "tex");
-
       glGenVertexArrays(1, &vao);
       glGenBuffers(1, &vbo);
       glGenBuffers(1, &ebo);
+
       glBindVertexArray(vao);
       glBindBuffer(GL_ARRAY_BUFFER, vbo);
       glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-      glEnableVertexAttribArray(posAttrib);
-      glEnableVertexAttribArray(colorAttrib);
-      glEnableVertexAttribArray(uvAttrib);
 
       if (dynamicsWorld != NULL) {
         btQuaternion qtn;
@@ -126,19 +76,24 @@ class Terrain {
       delete[] elements;
     }
 
-    void render(glm::mat4 pvmMatrix, int drawMode) {
-      glUseProgram(shaderProgram);
-      glPolygonMode(GL_FRONT_AND_BACK, drawMode);
-      
-      glm::mat4 mvp = pvmMatrix * _transform;
-      glUniformMatrix4fv(mvpUniform, 1, GL_FALSE, &mvp[0][0]);
-      glUniform1i(tex, 1);
+    void render(glm::mat4 pvmMatrix, int drawMode, Shader* shader) {
+
       glBindVertexArray(vao);
       glBufferData(GL_ARRAY_BUFFER, numVertices*sizeof(float), vertices, GL_STATIC_DRAW);
-      glVertexAttribPointer(posAttrib, 3, GL_FLOAT, GL_FALSE, 8*sizeof(float), (void*)0);
-      glVertexAttribPointer(colorAttrib, 3, GL_FLOAT, GL_FALSE, 8*sizeof(float), (void*)(3*sizeof(float)));
-      glVertexAttribPointer(uvAttrib, 2, GL_FLOAT, GL_FALSE, 8*sizeof(float), (void*)(6*sizeof(float)));
       glBufferData(GL_ELEMENT_ARRAY_BUFFER, numElements*sizeof(GLushort), elements, GL_STATIC_DRAW);
+
+      glEnableVertexAttribArray(shader->getAttribLocation("position"));
+      glEnableVertexAttribArray(shader->getAttribLocation("color"));
+      glEnableVertexAttribArray(shader->getAttribLocation("uv")); 
+      glVertexAttribPointer(shader->getAttribLocation("position"), 3, GL_FLOAT, GL_FALSE, 8*sizeof(float), (void*)0);
+      glVertexAttribPointer(shader->getAttribLocation("color"), 3, GL_FLOAT, GL_FALSE, 8*sizeof(float), (void*)(3*sizeof(float)));
+      glVertexAttribPointer(shader->getAttribLocation("uv"), 2, GL_FLOAT, GL_FALSE, 8*sizeof(float), (void*)(6*sizeof(float)));
+
+      glm::mat4 mvp = pvmMatrix * _transform;
+      glUniformMatrix4fv(shader->getUniformLocation("mvp"), 1, GL_FALSE, &mvp[0][0]);
+      glUniform1i(shader->getUniformLocation("tex"), 1);
+
+      glPolygonMode(GL_FRONT_AND_BACK, drawMode);
       glDrawElements(GL_TRIANGLE_STRIP, numElements, GL_UNSIGNED_SHORT, 0);
     }
 
@@ -146,8 +101,7 @@ class Terrain {
     float* vertices;
     GLushort* elements;
     int numVertices, numElements;
-    GLuint shaderProgram, vao, vbo, ebo;
-    GLint posAttrib, colorAttrib, uvAttrib, mvpUniform, tex;
+    GLuint vao, vbo, ebo;
 
     glm::mat4 _transform = glm::mat4(1.0f);
     btRigidBody* _rigidbody;

@@ -27,65 +27,14 @@ class Cube {
         std::cout << elements[i] << ' ';
       }
       */
-      shaderProgram = glCreateProgram();
-      const char* vertexSrc = R"glsl(
-          #version 330
-
-          in vec3 position;
-          in vec3 color;
-          in vec2 uv;
-          out vec2 tex_uv;
-          out vec3 obj_color;
-          uniform mat4 mvp;
-
-          void main()
-          {
-              tex_uv = uv;
-              obj_color = color;
-              gl_Position = mvp * vec4(position, 1.0);
-          }
-      )glsl";
-      const char* fragmentSrc = R"glsl(
-          #version 330
-
-          uniform sampler2D tex;
-          uniform vec3 light_color;
-
-          in vec2 tex_uv;
-          in vec3 obj_color;
-          out vec4 color;
-
-          void main()
-          {
-              color = 0.5 * texture(tex, tex_uv) * vec4(obj_color, 1.0);
-          }
-      )glsl";
-
-      GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);
-      glShaderSource(vertexShader, 1, &vertexSrc, NULL);
-      glCompileShader(vertexShader);
-      GLuint fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-      glShaderSource(fragmentShader, 1, &fragmentSrc, NULL);
-      glCompileShader(fragmentShader);
-      glAttachShader(shaderProgram, vertexShader);
-      glAttachShader(shaderProgram, fragmentShader);
-      glLinkProgram(shaderProgram);
 
       glGenVertexArrays(1, &vao);
       glGenBuffers(1, &vbo);
       glGenBuffers(1, &ebo);
+
       glBindVertexArray(vao);
       glBindBuffer(GL_ARRAY_BUFFER, vbo);
       glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-
-      posAttrib = glGetAttribLocation(shaderProgram, "position");
-      colorAttrib = glGetAttribLocation(shaderProgram, "color");
-      uvAttrib = glGetAttribLocation(shaderProgram, "uv");
-      mvpUniform = glGetUniformLocation(shaderProgram, "mvp");
-      texUniform = glGetUniformLocation(shaderProgram, "tex");
-      glEnableVertexAttribArray(posAttrib);
-      glEnableVertexAttribArray(colorAttrib);
-      glEnableVertexAttribArray(uvAttrib);
       
       if (dynamicsWorld != NULL) {
         btQuaternion qtn;
@@ -121,23 +70,22 @@ class Cube {
       return transform;
     }
 
-    void render(glm::mat4 pvmMatrix) {
-      glUseProgram(shaderProgram);
-
+    void render(glm::mat4 pvmMatrix, Shader* shader) {
       //vertex data
       glBindVertexArray(vao);
-      //glBindBuffer(GL_ARRAY_BUFFER, vbo);
-      //glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
       glBufferData(GL_ARRAY_BUFFER, numVertices*sizeof(float), vertices, GL_STATIC_DRAW);
       glBufferData(GL_ELEMENT_ARRAY_BUFFER, numElements*sizeof(GLushort), elements, GL_STATIC_DRAW);
       //vertex attribute
-      glVertexAttribPointer(posAttrib, 3, GL_FLOAT, GL_FALSE, 8*sizeof(float), (void*)0);
-      glVertexAttribPointer(colorAttrib, 3, GL_FLOAT, GL_FALSE, 8*sizeof(float), (void*)(3*sizeof(float)));
-      glVertexAttribPointer(uvAttrib, 2, GL_FLOAT, GL_FALSE, 8*sizeof(float), (void*)(6*sizeof(float)));
+      glEnableVertexAttribArray(shader->getAttribLocation("position"));
+      glEnableVertexAttribArray(shader->getAttribLocation("color"));
+      glEnableVertexAttribArray(shader->getAttribLocation("uv")); 
+      glVertexAttribPointer(shader->getAttribLocation("position"), 3, GL_FLOAT, GL_FALSE, 8*sizeof(float), (void*)0);
+      glVertexAttribPointer(shader->getAttribLocation("color"), 3, GL_FLOAT, GL_FALSE, 8*sizeof(float), (void*)(3*sizeof(float)));
+      glVertexAttribPointer(shader->getAttribLocation("uv"), 2, GL_FLOAT, GL_FALSE, 8*sizeof(float), (void*)(6*sizeof(float)));
       //uniform
       glm::mat4 mvp = pvmMatrix * _transform;
-      glUniformMatrix4fv(mvpUniform, 1, GL_FALSE, &mvp[0][0]);
-      glUniform1i(texUniform, _texIndex);
+      glUniformMatrix4fv(shader->getUniformLocation("mvp"), 1, GL_FALSE, &mvp[0][0]);
+      glUniform1i(shader->getUniformLocation("tex"), _texIndex);
       
       glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
       glDrawElements(GL_TRIANGLES, numElements, GL_UNSIGNED_SHORT, 0); //glDrawArrays(GL_TRIANGLES, 0, 24);
@@ -193,8 +141,7 @@ class Cube {
     int numVertices = 24 * 8;
     int numElements = 36;
 
-    GLuint shaderProgram, vao, vbo, ebo;
-    GLint posAttrib, colorAttrib, uvAttrib, mvpUniform, texUniform;    
+    GLuint vao, vbo, ebo;
 
     glm::mat4 _transform;
     btRigidBody* _rigidbody;

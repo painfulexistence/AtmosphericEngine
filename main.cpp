@@ -15,6 +15,7 @@
 #include <thread>
 #include <iostream>
 #include "stb_image.h"
+#include "shader.hpp"
 #include "terrain.hpp"
 #include "cube.hpp"
 #include "camera.hpp"
@@ -158,6 +159,13 @@ int main() {
 
     initPhysics();
 
+
+      Shader* shader = new Shader();
+      shader->load();
+      shader->attach(0);
+      shader->attach(1);
+      shader->activate();
+
     /*
         Create camera
     */
@@ -231,18 +239,18 @@ int main() {
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        t->render(camera->getProjectionViewMatrix() * glm::mat4(1.0f), terrainDrawMode);
+        t->render(camera->getProjectionViewMatrix() * glm::mat4(1.0f), terrainDrawMode, shader);
 
         glm::mat4 model = glm::rotate(glm::mat4(1.0f), (float)(glfwGetTime() * glm::radians(10.0f)), glm::vec3(0, 1, 0));
-        skybox->render(camera->getProjectionViewMatrix() * model);
+        skybox->render(camera->getProjectionViewMatrix() * model, shader);
 
         for (Cube* cube : mazeBlocks) {
-            cube->render(camera->getProjectionViewMatrix() * cube->getDynamicsTransform());
+            cube->render(camera->getProjectionViewMatrix() * cube->getDynamicsTransform(), shader);
         }
 
-        box1->render(camera->getProjectionViewMatrix() * box1->getDynamicsTransform());
-        box2->render(camera->getProjectionViewMatrix() * box2->getDynamicsTransform());
-        box3->render(camera->getProjectionViewMatrix() * box3->getDynamicsTransform());
+        box1->render(camera->getProjectionViewMatrix() * box1->getDynamicsTransform(), shader);
+        box2->render(camera->getProjectionViewMatrix() * box2->getDynamicsTransform(), shader);
+        box3->render(camera->getProjectionViewMatrix() * box3->getDynamicsTransform(), shader);
 
         glfwSwapBuffers(window);
 

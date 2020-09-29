@@ -1,3 +1,6 @@
+#ifndef CAMERA_H
+#define CAMERA_H
+
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
@@ -53,12 +56,14 @@ class Camera {
             glm::vec3 direction = glm::vec3(glm::cos(_hAngle) * glm::cos(_vAngle), glm::sin(_vAngle), glm::sin(_hAngle) * glm::cos(_vAngle));
             glm::vec3 velocity = sign * glm::normalize(glm::cross(direction, glm::vec3(0, 1, 0))) * SPEED;
             //_position += velocity * dt;
+            _rigidbody->activate();
             _rigidbody->setLinearVelocity(btVector3(velocity.x, _rigidbody->getLinearVelocity().y(), velocity.z));
         }
 
         void verticallyMove(float sign, float dt) {
             glm::vec3 velocity = sign * glm::vec3(0, 1, 0) * SPEED;
             //_position += velocity * dt;
+            _rigidbody->activate();
             _rigidbody->setLinearVelocity(btVector3(_rigidbody->getLinearVelocity().x(), velocity.y, _rigidbody->getLinearVelocity().z()));
         }
 
@@ -94,6 +99,11 @@ class Camera {
             return _projection * _view;
         }
 
+        bool isFreezing() {
+            bool isFreezing = abs(_rigidbody->getLinearVelocity().y()) <= 0.0001;
+            return true;
+        }
+
         glm::vec3 getPosition() {
             glm::vec4 transformed_position_4d = getDynamicsTransform() * glm::vec4(_position, 1.0);
             glm::vec3 transformed_position = glm::vec3(transformed_position_4d.x, transformed_position_4d.y, transformed_position_4d.z);
@@ -118,3 +128,5 @@ class Camera {
 
         btRigidBody* _rigidbody;
 };
+
+#endif

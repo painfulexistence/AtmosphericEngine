@@ -1,3 +1,6 @@
+#ifndef SHADER_H
+#define SHADER_H
+
 #include <GL/glew.h>
 #include <fstream>
 #include <string>
@@ -84,3 +87,5 @@ class Shader {
         GLuint program;
         GLuint shaders[NUM_SHADERS];
 };
+
+#endif

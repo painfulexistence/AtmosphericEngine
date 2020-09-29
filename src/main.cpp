@@ -1,8 +1,9 @@
-#define GLEW_STATIC
+
 #define STB_IMAGE_IMPLEMENTATION
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
+
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <btBulletDynamicsCommon.h>
@@ -16,18 +17,22 @@
 #include <iostream>
 #include "stb_image.h"
 #include "shader.hpp"
+#include "mesh.hpp"
 #include "terrain.hpp"
 #include "cube.hpp"
 #include "camera.hpp"
+#include "light.hpp"
+
 
 //#define DEBUG 0
 
 const float SCREEN_W = 800.0f;
 const float SCREEN_H = 600.0f;
-const int MAZE_SIZE = 20;
-const int TILES_TO_REMOVE = 150;
+const int MAZE_SIZE = 50;
+const int TILES_TO_REMOVE = 1000;
 GLFWwindow* window;
 btDiscreteDynamicsWorld* dynamicsWorld;
+glm::vec3 winPosition = glm::vec3(0, 0, 0);
 
 int initGL() {
     glfwInit();
@@ -49,14 +54,12 @@ int initGL() {
 }
 
 void loadGlobalTextures() {
-    std::array<std::string, 7> textures = {
-      "textures/grass.png",
-      "textures/starnight.jpg",
-      "textures/beach.png",
-      "textures/brick.jpg",
-      "textures/skybox/bottom.bmp",
-      "textures/skybox/top.bmp",
-      "textures/skybox/front.bmp",
+    std::array<std::string, 5> textures = {
+        "textures/grass.png",
+        "textures/starnight.jpg", //0
+        "textures/beach.png", //1
+        "textures/brick.jpg", //2
+        "textures/metal.jpg", //3
     };
     for (int i = 0; i < textures.size(); i++) {
       GLuint tex;
@@ -90,7 +93,6 @@ bool** generateMazeData(int size) {
     int mazeY = 1;
 
     bool** data = new bool*[size];
-
     for (int i = 0; i < size; i++) {
         data[i] = new bool[size];
         for (int j = 0; j < size; j++) {
@@ -121,30 +123,46 @@ bool** generateMazeData(int size) {
     return data;
 }
 
-void createMaze(bool** maze, std::list<Cube*>& mazeBlocks, Camera* camera, int b_size = 1, bool hasRoof = false) {
+void createMaze(bool** maze, std::list<Mesh*>& mazeBlocks, Camera* camera, Light* light, int b_size = 1, bool hasRoof = false) {
     bool characterPlaced = false;
+    mazeBlocks.clear();
 
     for (int x = 0; x < MAZE_SIZE; x++) {
         for (int z = 0; z < MAZE_SIZE; z++) {
+            if (hasRoof) {
+                mazeBlocks.push_back(new Cube(b_size, (float)b_size * glm::vec3(x - MAZE_SIZE / 2.f, 3, z - MAZE_SIZE / 2.f), 2, dynamicsWorld, 0.f));
+            }
             if (maze[x][z]) {
                 mazeBlocks.push_back(new Cube(b_size, (float)b_size * glm::vec3(x - MAZE_SIZE / 2.f, 0, z - MAZE_SIZE / 2.f), 2, dynamicsWorld, 0.f));
                 mazeBlocks.push_back(new Cube(b_size, (float)b_size * glm::vec3(x - MAZE_SIZE / 2.f, 1, z - MAZE_SIZE / 2.f), 2, dynamicsWorld, 0.f));
                 mazeBlocks.push_back(new Cube(b_size, (float)b_size * glm::vec3(x - MAZE_SIZE / 2.f, 2, z - MAZE_SIZE / 2.f), 2, dynamicsWorld, 0.f));
             } else {
+                if (rand() % 100 < 20) {
+                    continue;
+                }
                 if (!characterPlaced) {
-                    camera->setPosition((float)b_size * glm::vec3(x - MAZE_SIZE / 2.f, 1, z - MAZE_SIZE / 2.f));
+                    glm::vec3 characterPosition = (float)b_size * glm::vec3(x - MAZE_SIZE / 2.f, 1, z - MAZE_SIZE / 2.f);
+                    camera->setPosition(characterPosition);
+                    printf("CharPos: (%.2f, %.2f)\n", characterPosition.x, characterPosition.z);
                     characterPlaced = true;
                 }
+                winPosition = (float)b_size * glm::vec3(x - MAZE_SIZE / 2.f, 0, z - MAZE_SIZE / 2.f);
+                light->setPosition(winPosition);                
             }
-            if (hasRoof) {
-                mazeBlocks.push_back(new Cube(b_size, (float)b_size * glm::vec3(x - MAZE_SIZE / 2.f, 3, z - MAZE_SIZE / 2.f), 2, dynamicsWorld, 0.f));
-            }
-
+            mazeBlocks.push_back(new Cube(b_size, (float)b_size * glm::vec3(x - MAZE_SIZE / 2.f, -1, z - MAZE_SIZE / 2.f), 2, dynamicsWorld, 0.f));
         }
     }
+    printf("WinPos: (%.2f, %.2f)\n", winPosition.x, winPosition.z);
+
     #ifdef DEBUG
         printf("Maze created successfully!\n");
     #endif
+}
+
+void restart(std::list<Mesh*>& mazeBlocks, Camera*& camera, Light*& light) {
+    initPhysics();
+    camera = new Camera(glm::vec3(0, 2, 0), 0.f, 0.f, glm::radians(45.0f), SCREEN_W / SCREEN_H, dynamicsWorld);
+    createMaze(generateMazeData(MAZE_SIZE), mazeBlocks, camera, light, 3, true);
 }
 
 int main() {
@@ -157,40 +175,44 @@ int main() {
 
     loadGlobalTextures();
 
+    Shader* shader = new Shader();
+    shader->load();
+    shader->attach(0);
+    shader->attach(1);
+    shader->activate();
+
     initPhysics();
-
-
-      Shader* shader = new Shader();
-      shader->load();
-      shader->attach(0);
-      shader->attach(1);
-      shader->activate();
-
+    
     /*
         Create camera
     */
     Camera* camera = new Camera(glm::vec3(0, 2, 0), 0.f, 0.f, glm::radians(45.0f), SCREEN_W / SCREEN_H, dynamicsWorld);
-    Camera* camera2D = new Camera(glm::vec3(SCREEN_W / 2, SCREEN_H / 2, 0), 0.f, 0.f);
-
+    //Camera* camera2D = new Camera(glm::vec3(SCREEN_W / 2, SCREEN_H / 2, 0), 0.f, 0.f);
+    /* 
+        Create light source
+    */
+    glm::vec3 lightColor = glm::vec3(1.0, 0.5, 0.25);
+    bool isLightFlashing = false;
+    Light* light = new Light(glm::vec3(20, 100, 20), lightColor);
     /*
         Set property & create object
     */
-    int cubeTexIndex = 2;
-    std::list<Cube*> mazeBlocks;
-    createMaze(generateMazeData(MAZE_SIZE), mazeBlocks, camera, 3, false);
+    int cubeTexIndex = 3;
+    std::list<Mesh*> mazeBlocks;
+    createMaze(generateMazeData(MAZE_SIZE), mazeBlocks, camera, light, 3, true);
 
-    int terrainDrawMode = GL_FILL;
+    int terrainDrawMode = GL_LINE;
     float hills[100] = {
-      1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f,
-      2.0f, 3.0f, 6.0f, 8.0f, 5.0f, 3.0f, 5.0f, 8.0f, 10.0f, 6.0f,
-      5.0f, 7.0f, 5.0f, 18.0f, 30.0f, 50.0f, 7.0f, 5.0f, 18.0f, 10.0f,
-      20.0f, 23.0f, 6.0f, 20.0f, 50.0f, 2.0f, 3.0f, 6.0f, 8.0f, 5.0f,
-      30.0f, 5.0f, 8.0f, 30.0f, 60.0f, 80.0f, 100.0f, 6.0f, 8.0f, 5.0f,
-      52.0f, 7.0f, 5.0f, 18.0f, 10.0f, 50.0f, 100.0f, 6.0f, 8.0f, 5.0f,
-      75.0f, 52.0f, 30.0f, 12.0f, 10.0f, 30.0f, 2.0f, -3.0f, 0.0f, 5.0f,
-      20.0f, 30.0f, 6.0f, 8.0f, 5.0f, 3.0f, -5.0f, -18.0f, -10.0f, 1.0f,
-      50.0f, 70.0f, 5.0f, 18.0f, 10.0f, 5.0f, -17.0f, -5.0f, 18.0f, 20.0f,
-      20.0f, 30.0f, 6.0f, 8.0f, 5.0f, 1.0f, 2.0f, 30.0f, 40.0f, 50.0f
+        1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f,
+        2.0f, 3.0f, 6.0f, 8.0f, 5.0f, 3.0f, 5.0f, 8.0f, 10.0f, 6.0f,
+        5.0f, 7.0f, 5.0f, 18.0f, 30.0f, 50.0f, 7.0f, 5.0f, 18.0f, 10.0f,
+        20.0f, 23.0f, 6.0f, 20.0f, 50.0f, 2.0f, 3.0f, 6.0f, 8.0f, 5.0f,
+        30.0f, 5.0f, 8.0f, 30.0f, 60.0f, 80.0f, 100.0f, 6.0f, 8.0f, 5.0f,
+        52.0f, 7.0f, 5.0f, 18.0f, 10.0f, 50.0f, 100.0f, 6.0f, 8.0f, 5.0f,
+        75.0f, 52.0f, 30.0f, 12.0f, 10.0f, 30.0f, 2.0f, -3.0f, 0.0f, 5.0f,
+        20.0f, 30.0f, 6.0f, 8.0f, 5.0f, 3.0f, -5.0f, -18.0f, -10.0f, 1.0f,
+        50.0f, 70.0f, 5.0f, 18.0f, 10.0f, 5.0f, -17.0f, -5.0f, 18.0f, 20.0f,
+        20.0f, 30.0f, 6.0f, 8.0f, 5.0f, 1.0f, 2.0f, 30.0f, 40.0f, 50.0f
     };
     float plane[100] = {0};
     Cube* skybox = new Cube(800, glm::vec3(0, 0, 0), 0);
@@ -214,6 +236,13 @@ int main() {
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LESS);
 
+    /*
+        Set up input
+    */
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
+    if (glfwRawMouseMotionSupported())
+        glfwSetInputMode(window, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
+
     while(!glfwWindowShouldClose(window))
     {
         /*
@@ -223,6 +252,8 @@ int main() {
             printf("Before simulation steps...\n");
         #endif
         while (timeAccumulator >= timeDelta) {
+            if (isLightFlashing)
+                light->setColor(abs(glm::cos((float)(glfwGetTime() * glm::radians(10.0f)))) * (float)(rand() % 2 / 2.0 + 0.5) * lightColor);
             if(dynamicsWorld != NULL) {
                 dynamicsWorld->stepSimulation(timeDelta, 120);
             }
@@ -233,24 +264,47 @@ int main() {
         #endif
 
         /*
+            Dead condition
+        */
+        if (camera->getPosition().y <= -5.0) {
+            glClearColor(1.0f, 0.1f, 0.1f, 1.0f);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+            glfwSwapBuffers(window);
+            
+            light->setColor(lightColor);
+            restart(mazeBlocks, camera, light);
+        }
+
+        /*
+            Win condition
+        */
+        if (glm::distance(camera->getPosition(), winPosition) <= 3.0) {
+            glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+            glfwSwapBuffers(window);
+            restart(mazeBlocks, camera, light);
+        }
+
+        /*
             Rendering
         */
-        //clear screen
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        t->render(camera->getProjectionViewMatrix() * glm::mat4(1.0f), terrainDrawMode, shader);
+        t->setDrawMode(terrainDrawMode);
+        t->render(glm::mat4(1.0f), shader, light, camera);
 
         glm::mat4 model = glm::rotate(glm::mat4(1.0f), (float)(glfwGetTime() * glm::radians(10.0f)), glm::vec3(0, 1, 0));
-        skybox->render(camera->getProjectionViewMatrix() * model, shader);
+        skybox->render(model, shader, light, camera);
 
-        for (Cube* cube : mazeBlocks) {
-            cube->render(camera->getProjectionViewMatrix() * cube->getDynamicsTransform(), shader);
+        for (Mesh* cube : mazeBlocks) {
+            cube->setTexture(cubeTexIndex);
+            cube->render(cube->getDynamicsTransform(), shader, light, camera);
         }
 
-        box1->render(camera->getProjectionViewMatrix() * box1->getDynamicsTransform(), shader);
-        box2->render(camera->getProjectionViewMatrix() * box2->getDynamicsTransform(), shader);
-        box3->render(camera->getProjectionViewMatrix() * box3->getDynamicsTransform(), shader);
+        box1->render(box1->getDynamicsTransform(), shader, light, camera);
+        box2->render(box2->getDynamicsTransform(), shader, light, camera);
+        box3->render(box3->getDynamicsTransform(), shader, light, camera);
 
         glfwSwapBuffers(window);
 
@@ -283,16 +337,33 @@ int main() {
             camera->pitch(1.0, dt);
         if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
             camera->pitch(-1.0, dt);
-        if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
-            camera->verticallyMove(1.0, dt);
-        if (glfwGetKey(window, GLFW_KEY_L) == GLFW_PRESS)
+        if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
+            if (camera->isFreezing())
+                camera->verticallyMove(1.0, dt);
+        }
+        if (glfwGetKey(window, GLFW_KEY_Z) == GLFW_PRESS)
             terrainDrawMode = terrainDrawMode == GL_FILL ? GL_LINE : GL_FILL;
-        if (glfwGetKey(window, GLFW_KEY_T) == GLFW_PRESS) {
+        if (glfwGetKey(window, GLFW_KEY_X) == GLFW_PRESS)
             cubeTexIndex = cubeTexIndex >= 5 ? 0 : cubeTexIndex + 1;
-            for (Cube* cube : mazeBlocks) {
-                cube->setTexture(cubeTexIndex);
-            }
+        if (glfwGetKey(window, GLFW_KEY_C) == GLFW_PRESS)
+            isLightFlashing = !isLightFlashing;
+        if (glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS)
+            restart(mazeBlocks, camera, light);
+
+        if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
+            double xPos, yPos; // 0 <= xPos <= SCREEN_W, 0 <= yPos <= SCREEN_H
+            glfwGetCursorPos(window, &xPos, &yPos);
+            lightColor = glm::vec3(1.0, xPos / SCREEN_W, yPos / SCREEN_H);
+            light->setColor(lightColor);
         }
     }
     glfwTerminate();
+    delete t;
+    delete skybox;
+    delete light;
+    delete camera;
+    delete box1;
+    delete box2;
+    delete box3;
+
 }

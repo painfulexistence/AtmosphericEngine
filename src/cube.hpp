@@ -1,3 +1,6 @@
+#ifndef CUBE_H
+#define CUBE_H
+
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
@@ -8,13 +11,16 @@
 #include <LinearMath/btTransform.h>
 #include <iostream>
 #include <assert.h>
+#include "mesh.hpp"
+#include "camera.hpp"
+#include "light.hpp"
 
-class Cube {
+class Cube : public Mesh {
   public:
     Cube(int size, glm::vec3 position, int texIndex, btDiscreteDynamicsWorld* dynamicsWorld = NULL, float mass = 0.f) {
       _size = size;
       _texIndex = texIndex;
-      _transform = glm::scale(glm::mat4(1.0f), glm::vec3(size * 0.5f, size * 0.5f, size * 0.5f));
+      _localTransform = glm::scale(glm::mat4(1.0f), glm::vec3(size * 0.5f, size * 0.5f, size * 0.5f));
       /*
       for (int i = 0; i < numVertices; i++) {
         if (i % 8 == 0 && i != 0)
@@ -52,39 +58,32 @@ class Cube {
       }
     }
 
-    void setTexture(int newTexIndex) {
-      _texIndex = newTexIndex;
-    }
-
-    glm::mat4 getDynamicsTransform() {
-      btTransform trans;
-      _rigidbody->getMotionState()->getWorldTransform(trans);
-      btScalar mat[16] = { 0.0f };
-      trans.getOpenGLMatrix(mat);
-      glm::mat4 transform = glm::mat4(
-        mat[0], mat[1], mat[2], mat[3],
-        mat[4], mat[5], mat[6], mat[7],
-        mat[8], mat[9], mat[10], mat[11],
-        mat[12], mat[13], mat[14], mat[15]
-      );
-      return transform;
-    }
-
-    void render(glm::mat4 pvmMatrix, Shader* shader) {
+    void render(glm::mat4 mMatrix, Shader* shader, Light* light, Camera* camera) {
       //vertex data
       glBindVertexArray(vao);
       glBufferData(GL_ARRAY_BUFFER, numVertices*sizeof(float), vertices, GL_STATIC_DRAW);
       glBufferData(GL_ELEMENT_ARRAY_BUFFER, numElements*sizeof(GLushort), elements, GL_STATIC_DRAW);
       //vertex attribute
       glEnableVertexAttribArray(shader->getAttribLocation("position"));
-      glEnableVertexAttribArray(shader->getAttribLocation("color"));
+      glEnableVertexAttribArray(shader->getAttribLocation("normal"));
       glEnableVertexAttribArray(shader->getAttribLocation("uv")); 
       glVertexAttribPointer(shader->getAttribLocation("position"), 3, GL_FLOAT, GL_FALSE, 8*sizeof(float), (void*)0);
-      glVertexAttribPointer(shader->getAttribLocation("color"), 3, GL_FLOAT, GL_FALSE, 8*sizeof(float), (void*)(3*sizeof(float)));
+      glVertexAttribPointer(shader->getAttribLocation("normal"), 3, GL_FLOAT, GL_FALSE, 8*sizeof(float), (void*)(3*sizeof(float)));
       glVertexAttribPointer(shader->getAttribLocation("uv"), 2, GL_FLOAT, GL_FALSE, 8*sizeof(float), (void*)(6*sizeof(float)));
       //uniform
-      glm::mat4 mvp = pvmMatrix * _transform;
-      glUniformMatrix4fv(shader->getUniformLocation("mvp"), 1, GL_FALSE, &mvp[0][0]);
+      glm::mat4 PV = camera->getProjectionViewMatrix();
+      glm::mat4 M = mMatrix * _localTransform;
+      glm::vec3 lightColor = light->getColor();
+      glm::vec3 lightPosition = light->getPosition();  
+      glm::vec3 lightDirection = light->getDirection();
+      glm::vec3 cameraPosition = camera->getPosition();
+
+      glUniformMatrix4fv(shader->getUniformLocation("PV"), 1, GL_FALSE, &PV[0][0]);
+      glUniformMatrix4fv(shader->getUniformLocation("M"), 1, GL_FALSE, &M[0][0]);
+      glUniform3fv(shader->getUniformLocation("light_pos"), 1, &lightPosition[0]);
+      glUniform3fv(shader->getUniformLocation("light_color"), 1, &lightColor[0]);      
+      glUniform3fv(shader->getUniformLocation("light_dir"), 1, &lightDirection[0]);
+      glUniform3fv(shader->getUniformLocation("view_pos"), 1, &cameraPosition[0]);
       glUniform1i(shader->getUniformLocation("tex"), _texIndex);
       
       glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
@@ -94,35 +93,35 @@ class Cube {
   private:
     float vertices[192] = {
       //top
-      -1.0f, -1.0f, 1.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f,
-      1.0f, -1.0f, 1.0f, 1.0f, 0.0f, 1.0f, 1.0f, 0.0f,
-      1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f, 1.0f, 1.0f,
-      -1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f,
+      -1.0f, -1.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f,
+      1.0f, -1.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0.0f,
+      1.0f, 1.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f,
+      -1.0f, 1.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f,
       //bottom
-      -1.0f, -1.0f, -1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f,
-      1.0f, -1.0f, -1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0.0f,
-      1.0f, 1.0f, -1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f,
-      -1.0f, 1.0f, -1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f,
+      -1.0f, -1.0f, -1.0f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f,
+      1.0f, -1.0f, -1.0f, 0.0f, 0.0f, -1.0f, 1.0f, 0.0f,
+      1.0f, 1.0f, -1.0f, 0.0f, 0.0f, -1.0f, 1.0f, 1.0f,
+      -1.0f, 1.0f, -1.0f, 0.0f, 0.0f, -1.0f, 0.0f, 1.0f,
       //left
-      -1.0f, 1.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f,
-      -1.0f, 1.0f, -1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f,
-      -1.0f, -1.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f,
-      -1.0f, -1.0f, -1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f,
+      -1.0f, 1.0f, 1.0f, -1.0f, 0.0f, 0.0f, 1.0f, 1.0f,
+      -1.0f, 1.0f, -1.0f, -1.0f, 0.0f, 0.0f, 1.0f, 0.0f,
+      -1.0f, -1.0f, 1.0f, -1.0f, 0.0f, 0.0f, 0.0f, 1.0f,
+      -1.0f, -1.0f, -1.0f, -1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
       //right
-      1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f, 1.0f,
-      1.0f, 1.0f, -1.0f, 1.0f, 1.0f, 0.0f, 1.0f, 0.0f,
-      1.0f, -1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f, 1.0f,
-      1.0f, -1.0f, -1.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f,
+      1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f,
+      1.0f, 1.0f, -1.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f,
+      1.0f, -1.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f,
+      1.0f, -1.0f, -1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
       //front
-      1.0f, 1.0f, 1.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-      1.0f, 1.0f, -1.0f, 0.0f, 1.0f, 1.0f, 1.0f, 0.0f,
-      -1.0f, 1.0f, 1.0f, 0.0f, 1.0f, 1.0f, 0.0f, 1.0f,
-      -1.0f, 1.0f, -1.0f, 0.0f, 1.0f, 1.0f, 0.0f, 0.0f,
+      1.0f, 1.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f,
+      1.0f, 1.0f, -1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f,
+      -1.0f, 1.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f,
+      -1.0f, 1.0f, -1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f,
       //back
-      1.0f, -1.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f,
-      1.0f, -1.0f, -1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0.0f,
-      -1.0f, -1.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f,
-      -1.0f, -1.0f, -1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f
+      1.0f, -1.0f, 1.0f, 0.0f, -1.0f, 0.0f, 1.0f, 1.0f,
+      1.0f, -1.0f, -1.0f, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f,
+      -1.0f, -1.0f, 1.0f, 0.0f, -1.0f, 0.0f, 0.0f, 1.0f,
+      -1.0f, -1.0f, -1.0f, 0.0f, -1.0f, 0.0f, 0.0f, 0.0f
     };
     GLushort elements[36] = {
       0, 1, 3,
@@ -140,12 +139,7 @@ class Cube {
     };
     int numVertices = 24 * 8;
     int numElements = 36;
-
-    GLuint vao, vbo, ebo;
-
-    glm::mat4 _transform;
-    btRigidBody* _rigidbody;
-
     int _size = 2;
-    int _texIndex = 0;
 };
+
+#endif

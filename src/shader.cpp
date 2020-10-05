@@ -1,6 +1,6 @@
 #include "shader.hpp"
 
-std::string get_file_content(const char* filename) {
+static std::string get_file_content(const char* filename) {
     std::ifstream ifs(filename);
     std::string content(
         (std::istreambuf_iterator<char>(ifs)), //start of stream iterator
@@ -9,53 +9,37 @@ std::string get_file_content(const char* filename) {
     return content;
 }
 
-void load_shader(GLuint shader, const std::string &shader_string) {
+static void load_shader(GLuint shader, const std::string &shader_string) {
     const char* shader_src = shader_string.c_str();
     const int shader_len = shader_string.size();
     glShaderSource(shader, 1, &shader_src, &shader_len);
 }
 
-void Shader::Load() {
-    program = glCreateProgram();
+Shader::Shader(const char* filename, GLenum type)
+{
+    _shader = glCreateShader(type);
+    load_shader(_shader, get_file_content(filename));
+}
     
-    shaders[SHADER_V] = glCreateShader(GL_VERTEX_SHADER);
-    load_shader(shaders[SHADER_V], get_file_content("shaders/simple.vert"));
-    glCompileShader(shaders[SHADER_V]);
+Shader::~Shader() { }
 
-    shaders[SHADER_F] = glCreateShader(GL_FRAGMENT_SHADER);
-    load_shader(shaders[SHADER_F], get_file_content("shaders/simple.frag"));
-    glCompileShader(shaders[SHADER_F]);
+GLuint Shader::Compile()
+{
 
-    shaders[SHADER_2D_V] = glCreateShader(GL_VERTEX_SHADER);
-    load_shader(shaders[SHADER_2D_V], get_file_content("shaders/simple2D.vert"));
-    glCompileShader(shaders[SHADER_2D_V]);
+    glCompileShader(_shader);
 
-    shaders[SHADER_2D_F] = glCreateShader(GL_FRAGMENT_SHADER);
-    load_shader(shaders[SHADER_2D_F], get_file_content("shaders/simple2D.frag"));
-    glCompileShader(shaders[SHADER_2D_F]);
-}
+    GLint isCompiled;
+    glGetShaderiv(_shader, GL_COMPILE_STATUS, &isCompiled);
+    if (isCompiled == GL_FALSE)
+    {
+        GLint maxLength = 0;
+        glGetShaderiv(_shader, GL_INFO_LOG_LENGTH, &maxLength);
+        
+        GLchar* log = new GLchar[maxLength];
+        glGetShaderInfoLog(_shader, maxLength, &maxLength, log);
+                
+        std::cout << "Shader error:\n" << (char*)log << std::endl;
+    }
 
-void Shader::Attach(int shader_id) {
-    glAttachShader(program, shaders[shader_id]);
-}
-
-void Shader::Detach(int shader_id) {
-    glAttachShader(program, shaders[shader_id]);
-}
-
-void Shader::Activate() {
-    glLinkProgram(program);
-    glUseProgram(program);
-}
-
-void Shader::Deactivate() {
-    glUseProgram(0);
-}
-
-GLint Shader::GetAttrib(const char* attrib) {
-    return glGetAttribLocation(program, attrib);
-}
-
-GLint Shader::GetUniform(const char* uniform) {
-    return glGetUniformLocation(program, uniform);
+    return _shader;
 }

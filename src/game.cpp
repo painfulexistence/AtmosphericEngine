@@ -1,8 +1,8 @@
 #include "game.hpp"
-#define MAZE_SIZE 50
-#define TILES_TO_REMOVE 1000
-#define MAZE_ROOFED false
-#define TILE_SIZE 3
+#define MAZE_SIZE 30
+#define TILES_TO_REMOVE 600
+#define MAZE_ROOFED true
+#define TILE_SIZE 5
 
 bool** generateMazeData(int size) {
     int mazeX = 1;
@@ -39,9 +39,8 @@ bool** generateMazeData(int size) {
     return data;
 }
 
-glm::vec3 createMaze(bool** maze, std::list<Mesh*>& mazeBlocks, Camera*& camera, Light*& light, btDiscreteDynamicsWorld* world, Shader* shader) {
-    
-    mazeBlocks.clear();
+glm::vec3 createMaze(bool** maze, std::vector<Cube*>& cubes, Camera*& camera, Light*& light, btDiscreteDynamicsWorld* world) 
+{    
     bool characterPlaced = false;
     glm::vec3 charPos = glm::vec3(0, 0, 0);
     glm::vec3 winPos = glm::vec3(0, 0, 0);
@@ -50,21 +49,21 @@ glm::vec3 createMaze(bool** maze, std::list<Mesh*>& mazeBlocks, Camera*& camera,
     for (int x = 0; x < MAZE_SIZE; x++) {
         for (int z = 0; z < MAZE_SIZE; z++) {
             if (MAZE_ROOFED) {
-                tile = new Cube(TILE_SIZE, shader);
-                mazeBlocks.push_back(tile);
+                tile = new Cube(TILE_SIZE);
+                cubes.push_back(tile);
                 tile->AddRigidBody((float)TILE_SIZE * glm::vec3(x - MAZE_SIZE / 2.f, 3, z - MAZE_SIZE / 2.f), world, 0.f);
             }
             if (maze[x][z]) {
-                tile = new Cube(TILE_SIZE, shader);
-                mazeBlocks.push_back(tile);
+                tile = new Cube(TILE_SIZE);
+                cubes.push_back(tile);
                 tile->AddRigidBody((float)TILE_SIZE * glm::vec3(x - MAZE_SIZE / 2.f, 0, z - MAZE_SIZE / 2.f), world, 0.f);
                 
-                tile = new Cube(TILE_SIZE, shader);
-                mazeBlocks.push_back(tile);
+                tile = new Cube(TILE_SIZE);
+                cubes.push_back(tile);
                 tile->AddRigidBody((float)TILE_SIZE * glm::vec3(x - MAZE_SIZE / 2.f, 1, z - MAZE_SIZE / 2.f), world, 0.f);
 
-                tile = new Cube(TILE_SIZE, shader);
-                mazeBlocks.push_back(tile);
+                tile = new Cube(TILE_SIZE);
+                cubes.push_back(tile);
                 tile->AddRigidBody((float)TILE_SIZE * glm::vec3(x - MAZE_SIZE / 2.f, 2, z - MAZE_SIZE / 2.f), world, 0.f);
             } else {
                 if (rand() % 100 < 20) {
@@ -77,36 +76,98 @@ glm::vec3 createMaze(bool** maze, std::list<Mesh*>& mazeBlocks, Camera*& camera,
                 }
                 winPos = (float)TILE_SIZE * glm::vec3(x - MAZE_SIZE / 2.f, 0, z - MAZE_SIZE / 2.f);
             }                
-            tile = new Cube(TILE_SIZE, shader);
-            mazeBlocks.push_back(tile);
+            tile = new Cube(TILE_SIZE);
+            cubes.push_back(tile);
             tile->AddRigidBody((float)TILE_SIZE * glm::vec3(x - MAZE_SIZE / 2.f, -1, z - MAZE_SIZE / 2.f), world, 0.f);
         }
     }
     camera->setPosition(charPos);
-    light->setPosition(winPos);
-
     return winPos;
 }
 
-glm::vec3 restart(std::list<Mesh*>& mazeBlocks, Camera*& camera, Light*& light, btDiscreteDynamicsWorld* world, Shader* shader) {
-    camera = new Camera(glm::vec3(0, 2, 0), 0.f, 0.f, glm::radians(45.0f), SCREEN_W / SCREEN_H, world);
-    return createMaze(generateMazeData(MAZE_SIZE), mazeBlocks, camera, light, world, shader);
-}
-
-Game::Game(GLFWwindow* window, Shader* shader, btDiscreteDynamicsWorld* world)
+Game::Game(GLFWwindow* window, btDiscreteDynamicsWorld* world)
 {
     _window = window;
-    _shader = shader;
     _world = world;
 }
 
 void Game::Init()
 {
+    //Terrain material
+    {
+        std::vector<Shader*> shaders = {
+            new Shader("shaders/simple.vert", GL_VERTEX_SHADER),
+            new Shader("shaders/glitched_diffuse.frag", GL_FRAGMENT_SHADER)
+        };
+        Program* program = new Program(shaders);
+        _materials.push_back(
+            new Material(
+                program, (GLuint)4,
+                glm::vec3(.25, .20725, .20725),
+                glm::vec3(1, .829, .829),
+                glm::vec3(.296648, .296648, .296648),
+                0.088
+            )
+        );
+    }
+    //Skybox material
+    {
+        std::vector<Shader*> shaders = {
+            new Shader("shaders/simple.vert", GL_VERTEX_SHADER),
+            new Shader("shaders/glitched_diffuse.frag", GL_FRAGMENT_SHADER)
+        };
+        Program* program = new Program(shaders);
+        
+        _materials.push_back(
+            new Material(
+                program, (GLuint)1,
+                glm::vec3(.1, .18725, .1745),
+                glm::vec3(.396, .74151, .69102),
+                glm::vec3(.992157, .941176, .807843),
+                0.1
+            )
+        );
+    }
+    //Cube material
+    {
+        std::vector<Shader*> shaders = {
+            new Shader("shaders/instanced.vert", GL_VERTEX_SHADER),
+            new Shader("shaders/glitched_diffuse.frag", GL_FRAGMENT_SHADER)
+        };
+        Program* program = new Program(shaders);
+        
+        _materials.push_back(
+            new Material(
+                program, (GLuint)4,
+                glm::vec3(0.19225, 0.19225, 0.19225),
+                glm::vec3(0.50754, 0.50754, 0.50754),
+                glm::vec3(0.508273, 0.508273, 0.508273),
+                0.4
+            )
+        );
+    }
+    //Green plastic
+    {
+        std::vector<Shader*> shaders = {
+            new Shader("shaders/simple.vert", GL_VERTEX_SHADER),
+            new Shader("shaders/glitched_diffuse.frag", GL_FRAGMENT_SHADER)
+        };
+        Program* program = new Program(shaders);
+        _materials.push_back(
+            new Material(
+                program, (GLuint)3,
+                glm::vec3(.0, .0, .0),
+                glm::vec3(.5, .0, .0),
+                glm::vec3(.7, .6, .6),
+                0.25
+            )
+        );
+    }
     camera = new Camera(glm::vec3(0, 2, 0), 0.f, 0.f, glm::radians(45.0f), SCREEN_W / SCREEN_H, _world);
-    light = new Light(glm::vec3(20, 100, 20), lightColor);    
-    skybox = new Cube(800, _shader);
-    terrain = new Terrain(256, 10, new float[100]{0}, _shader);
-    winPosition = createMaze(generateMazeData(MAZE_SIZE), mazeBlocks, camera, light, _world, _shader);
+    light = new Light(glm::vec3(10, 50, 10), lightColor);
+    terrain = new Terrain(256, 10, new float[100]{0});
+    skybox = new Cube(800);
+    winPosition = createMaze(generateMazeData(MAZE_SIZE), cubes, camera, light, _world);
     timeAccumulator = 0;
 }
 
@@ -142,25 +203,20 @@ int Game::Update(float dt)
             if (camera->isFreezing())
                 camera->verticallyMove(1.0, timeDelta);
         }
-        if (glfwGetKey(_window, GLFW_KEY_Z) == GLFW_PRESS)
-            terrainDrawMode = terrainDrawMode == GL_FILL ? GL_LINE : GL_FILL;
-        if (glfwGetKey(_window, GLFW_KEY_C) == GLFW_PRESS)
-            isLightFlashing = !isLightFlashing;
-        if (glfwGetKey(_window, GLFW_KEY_R) == GLFW_PRESS)
-            winPosition = restart(mazeBlocks, camera, light, _world, _shader);
-        
-        if (glfwGetMouseButton(_window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
+        if (glfwGetKey(_window, GLFW_KEY_L) == GLFW_PRESS) {
             double xPos, yPos; // 0 <= xPos <= SCREEN_W, 0 <= yPos <= SCREEN_H
             glfwGetCursorPos(_window, &xPos, &yPos);
-            light->setColor(glm::vec3(1.0, xPos / SCREEN_W, yPos / SCREEN_H));
+            light->SetDiffuse(glm::vec3(1.0, xPos / SCREEN_W, yPos / SCREEN_H));
         }
+        if (glfwGetKey(_window, GLFW_KEY_F) == GLFW_PRESS)
+            isLightFlashing = !isLightFlashing;
 
         _world->stepSimulation(timeDelta, 0);
         timeAccumulator -= timeDelta;
     }    
 
     if (isLightFlashing)
-        light->setColor(abs(glm::cos((float)(glfwGetTime() * glm::radians(10.0f)))) * (float)(rand() % 2 / 2.0 + 0.5) * lightColor);
+        light->SetDiffuse(abs(glm::cos((float)(glfwGetTime() * glm::radians(10.0f)))) * (float)(rand() % 2 / 2.0 + 0.5) * lightColor);
     
     /*
         Dead condition
@@ -182,10 +238,119 @@ int Game::Update(float dt)
 
 void Game::Render()
 {
-    for (Mesh* mesh : mazeBlocks) {
-        mesh->Render(mesh->getDynamicsTransform(), light, camera);
+    // Show a custom window
+    {
+        int tiles = MAZE_SIZE * MAZE_SIZE + 3 * (MAZE_SIZE * MAZE_SIZE - TILES_TO_REMOVE);
+
+        ImGui::Begin("Game Rendering");
+        //ImGui::Text("Draw calls estimate %d", tiles);
+        ImGui::Text("Vertices estimate %.1fk", (tiles * 12 + 320 + 24) / 1000.0);
+        ImGui::Text("Triangles estimate %.1fk", (tiles * 6 + 200 + 12) / 1000.0);
+        ImGui::End();
     }
-    terrain->Render(glm::mat4(1.0f), light, camera);
-    glm::mat4 model = glm::rotate(glm::mat4(1.0f), (float)(glfwGetTime() * glm::radians(10.0f)), glm::vec3(0, 1, 0));
-    skybox->Render(model, light, camera);
+
+    glEnable(GL_PRIMITIVE_RESTART);
+    glPrimitiveRestartIndex(0xFFFF);
+    glEnable(GL_CULL_FACE);
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LESS);
+    glEnable(GL_STENCIL_TEST);
+    glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+    glStencilFunc(GL_ALWAYS, 1, 0xFF); 
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT); 
+
+    glm::vec3 cameraPosition = camera->getPosition();
+    glm::mat4 PV = camera->getProjectionViewMatrix();
+    glm::vec3 lightPosition = light->GetPosition();  
+    glm::vec3 lightDirection = light->GetDirection();
+    glm::vec3 lightAmbient = light->GetAmbient();
+    glm::vec3 lightDiffuse = light->GetDiffuse();
+    glm::vec3 lightSpecular = light->GetSpecular();
+
+    {
+        Material* mat = _materials[0];
+        Program* prog = mat->GetProgram();
+        prog->Activate();
+
+        glm::mat4 worldMatrix = glm::mat4(1.0f);
+        glUniformMatrix4fv(prog->GetUniform("World"), 1, GL_FALSE, &worldMatrix[0][0]);
+        glUniformMatrix4fv(prog->GetUniform("ProjectionView"), 1, GL_FALSE, &PV[0][0]);
+        glUniform3fv(prog->GetUniform("view_pos"), 1, &cameraPosition[0]);
+        glUniform3fv(prog->GetUniform("light.position"), 1, &lightPosition[0]);
+        glUniform3fv(prog->GetUniform("light.direction"), 1, &lightDirection[0]);
+        glUniform3fv(prog->GetUniform("light.ambient"), 1, &lightAmbient[0]); 
+        glUniform3fv(prog->GetUniform("light.diffuse"), 1, &lightDiffuse[0]); 
+        glUniform3fv(prog->GetUniform("light.specular"), 1, &lightSpecular[0]); 
+        glUniform3fv(prog->GetUniform("surf.ambient"), 1, &mat->GetAmbient()[0]);
+        glUniform3fv(prog->GetUniform("surf.diffuse"), 1, &mat->GetDiffuse()[0]);
+        glUniform3fv(prog->GetUniform("surf.specular"), 1, &mat->GetSpecular()[0]);
+        glUniform1f(prog->GetUniform("surf.shininess"), mat->GetShininess());
+        glUniform1i(prog->GetUniform("tex"), mat->GetMainTex());
+        glUniform1f(prog->GetUniform("time"), (GLfloat)glfwGetTime());
+        
+        //glStencilMask(0xFF);
+        //glStencilFunc(GL_ALWAYS, 1, 0xFF);
+        terrain->Render();
+
+        //glStencilMask(0x00);
+        //glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
+        //glDepthFunc(GL_ALWAYS);
+        //glUniform3fv(prog->GetUniform("surf.ambient"), 1, &glm::vec3(0.9)[0]);
+        //terrain->Render(glm::scale(glm::mat4(1.0f), glm::vec3(1.1, 1.1, 1.1)));
+        //glDepthFunc(GL_LESS);
+        
+        //glStencilMask(0xFF);
+        //glStencilFunc(GL_ALWAYS, 1, 0xFF);        
+    }
+    {    
+        Material* mat = _materials[2];
+        Program* prog = mat->GetProgram();
+        prog->Activate();
+
+        glUniformMatrix4fv(prog->GetUniform("ProjectionView"), 1, GL_FALSE, &PV[0][0]);
+        glUniform3fv(prog->GetUniform("view_pos"), 1, &cameraPosition[0]);
+        glUniform3fv(prog->GetUniform("light.position"), 1, &lightPosition[0]);
+        glUniform3fv(prog->GetUniform("light.direction"), 1, &lightDirection[0]);
+        glUniform3fv(prog->GetUniform("light.ambient"), 1, &lightAmbient[0]); 
+        glUniform3fv(prog->GetUniform("light.diffuse"), 1, &lightDiffuse[0]); 
+        glUniform3fv(prog->GetUniform("light.specular"), 1, &lightSpecular[0]);         
+        glUniform3fv(prog->GetUniform("surf.ambient"), 1, &mat->GetAmbient()[0]);
+        glUniform3fv(prog->GetUniform("surf.diffuse"), 1, &mat->GetDiffuse()[0]);
+        glUniform3fv(prog->GetUniform("surf.specular"), 1, &mat->GetSpecular()[0]);
+        glUniform1f(prog->GetUniform("surf.shininess"), mat->GetShininess());
+        glUniform1i(prog->GetUniform("tex"), mat->GetMainTex());
+        glUniform1f(prog->GetUniform("time"), (GLfloat)glfwGetTime());     
+
+        glm::mat4* worldMatrices = new glm::mat4[cubes.size()];
+        for (int i = 0; i < cubes.size(); i++) 
+        {
+            worldMatrices[i] = cubes[i]->getWorldTransform();
+        }
+        cubes[0]->RenderMultiple(worldMatrices, cubes.size());
+    }
+    {
+        glDisable(GL_CULL_FACE);
+
+        Material* mat = _materials[1];
+        Program* prog = mat->GetProgram();
+        prog->Activate();
+
+        glm::mat4 worldMatrix = glm::rotate(glm::mat4(1.0f), (float)(glfwGetTime() * glm::radians(10.0f)), glm::vec3(0, 1, 0));
+        glUniformMatrix4fv(prog->GetUniform("World"), 1, GL_FALSE, &worldMatrix[0][0]);     
+        glUniformMatrix4fv(prog->GetUniform("ProjectionView"), 1, GL_FALSE, &PV[0][0]);
+        glUniform3fv(prog->GetUniform("view_pos"), 1, &cameraPosition[0]);
+        glUniform3fv(prog->GetUniform("light.position"), 1, &lightPosition[0]);
+        glUniform3fv(prog->GetUniform("light.direction"), 1, &lightDirection[0]);
+        glUniform3fv(prog->GetUniform("light.ambient"), 1, &lightAmbient[0]); 
+        glUniform3fv(prog->GetUniform("light.diffuse"), 1, &lightDiffuse[0]); 
+        glUniform3fv(prog->GetUniform("light.specular"), 1, &lightSpecular[0]);         
+        glUniform3fv(prog->GetUniform("surf.ambient"), 1, &mat->GetAmbient()[0]);
+        glUniform3fv(prog->GetUniform("surf.diffuse"), 1, &mat->GetDiffuse()[0]);
+        glUniform3fv(prog->GetUniform("surf.specular"), 1, &mat->GetSpecular()[0]);
+        glUniform1f(prog->GetUniform("surf.shininess"), mat->GetShininess());
+        glUniform1i(prog->GetUniform("tex"), mat->GetMainTex());
+        glUniform1f(prog->GetUniform("time"), (GLfloat)glfwGetTime());     
+
+        skybox->Render();
+    }
 }

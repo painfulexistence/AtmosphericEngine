@@ -3,25 +3,34 @@
 #include <btBulletDynamicsCommon.h>
 #include <BulletCollision/CollisionDispatch/btCollisionObject.h>
 #include <LinearMath/btTransform.h>
-#include <iostream>
-#include <assert.h>
-#include "camera.hpp"
-#include "light.hpp"
-#include "shader.hpp"
+#include "material.hpp"
+#include "program.hpp"
 
-class Mesh 
+class Entity 
 {
 protected:
+    int _id;
     GLuint vao, vbo, ebo;
     float* vertices;
     GLushort* triangles;
-    Shader* _shader;
+
+    glm::mat4 _transform;
     btRigidBody* _rigidbody;
-    glm::mat4 _localTransform;
-    int _drawMode = GL_FILL;
+
 
 public:
-    glm::mat4 getDynamicsTransform() {
+    Entity()
+    {
+        _id = 1;
+    }
+
+    ~Entity()
+    {
+        _id = 0;
+    }
+
+    glm::mat4 getWorldTransform() 
+    {
         btTransform trans;
         _rigidbody->getMotionState()->getWorldTransform(trans);
         btScalar mat[16] = { 0.0f };
@@ -35,11 +44,5 @@ public:
         return transform;
     }
 
-    void setDrawMode(int drawMode) {
-        _drawMode = drawMode;
-    }
-
-    virtual void Render(glm::mat4, Light*, Camera*) {
-        //
-    }
+    virtual void Render() { }
 };

@@ -9,76 +9,48 @@
 #include <btBulletDynamicsCommon.h>
 #include <BulletCollision/CollisionDispatch/btCollisionObject.h>
 #include <LinearMath/btTransform.h>
-
-#include <stdlib.h>
 #include <time.h>
-#include <array>
-#include <list>
-#include <thread>
-#include <iostream>
 
-#include "shader.hpp"
-#include "mesh.hpp"
 #include "terrain.hpp"
 #include "cube.hpp"
 #include "camera.hpp"
 #include "light.hpp"
 #include "game.hpp"
 
-#define TEXTURES_COUNT 12
-
 GLFWwindow* window = NULL;
-GLuint gVAO = 0;
-GLuint gVBO = 0;
-
 btDiscreteDynamicsWorld* world = NULL;
-Shader* shader = NULL;
 Game* game = NULL;
 
-void LoadShaders()
-{
-    shader = new Shader();
-    shader->Load();
-    shader->Attach(0);
-    shader->Attach(1);
-    shader->Activate();
-}
 
-void LoadTextures() 
+static void LoadTextures() 
 {
-    GLuint textures[TEXTURES_COUNT];
-    glGenTextures(TEXTURES_COUNT, textures);
-    std::array<std::string, TEXTURES_COUNT> texture_paths = {
-        "resources/grass.png",
-        "resources/starnight.jpg",
+    std::vector<std::string> paths = {
         "resources/beach.png",
+        "resources/starnight.jpg",
+        "resources/grass.png",
         "resources/brick.jpg",
-        "resources/metal.jpg",
-        "resources/grass.png",
-        "resources/grass.png",
-        "resources/grass.png",
-        "resources/grass.png",
-        "resources/grass.png",
-        "resources/grass.png",
-        "resources/grass.png"
+        "resources/metal.jpg"
     };
-    for (int i = 0; i < TEXTURES_COUNT; i++) {
+    for (int i = 0; i < paths.size(); i++) 
+    {
+        GLuint tex;
+        glGenTextures(1, &tex);
+
         int width, height, nChannels;
-        unsigned char *data = stbi_load(texture_paths[i].c_str(), &width, &height, &nChannels, 0);
+        unsigned char *data = stbi_load(paths[i].c_str(), &width, &height, &nChannels, 0);
         if (data) {
+            glActiveTexture(GL_TEXTURE0 + i);
+            glBindTexture(GL_TEXTURE_2D, tex);
             glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
             glGenerateMipmap(GL_TEXTURE_2D);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_MIRRORED_REPEAT);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_MIRRORED_REPEAT);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         } else {
-            std::cout << "Failed to load image!" << std::endl;
+            std::cout << "Failed to load image " << i << std::endl;
         }
-        glActiveTexture(GL_TEXTURE0 + i);
-        glBindTexture(GL_TEXTURE_2D, textures[i]);
         stbi_image_free(data);
-        glUniform1i(shader->GetUniform(("tex_" + std::to_string(i+1)).c_str()), i);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     }
 }
 
@@ -114,19 +86,43 @@ void MainLoop() {
 
         // Show a custom window
         {
-            ImGui::Begin("Graphics");
+            ImGui::Begin("General Graphics");
+            
+            ImGui::Text("OpenGL version: %s", glGetString(GL_VERSION));
+            ImGui::Text("GLSL version: %s", glGetString(GL_SHADING_LANGUAGE_VERSION));
+            ImGui::Text("Vendor: %s", glGetString(GL_VENDOR));
+            ImGui::Text("Renderer: %s", glGetString(GL_RENDERER));
+            
+            GLint depth, stencil;
+            glGetFramebufferAttachmentParameteriv(GL_DRAW_FRAMEBUFFER, GL_DEPTH, GL_FRAMEBUFFER_ATTACHMENT_DEPTH_SIZE, &depth);    
+            glGetFramebufferAttachmentParameteriv(GL_DRAW_FRAMEBUFFER, GL_STENCIL, GL_FRAMEBUFFER_ATTACHMENT_STENCIL_SIZE, &stencil);    
+            ImGui::Text("Depth bits: %d", depth);
+            ImGui::Text("Stencil bits: %d", stencil);
+
+            GLint maxVertUniforms, maxFragUniforms;
+            glGetIntegerv(GL_MAX_VERTEX_UNIFORM_COMPONENTS, &maxVertUniforms);
+            glGetIntegerv(GL_MAX_FRAGMENT_UNIFORM_COMPONENTS, &maxFragUniforms);
+            ImGui::Text("Max vertex uniforms: %d bytes", maxVertUniforms / 4);
+            ImGui::Text("Max fragment uniforms: %d bytes", maxFragUniforms / 4);
+
+            GLint maxVertUniBlocks, maxFragUniBlocks;
+            glGetIntegerv(GL_MAX_VERTEX_UNIFORM_BLOCKS, &maxVertUniBlocks);
+            glGetIntegerv(GL_MAX_FRAGMENT_UNIFORM_BLOCKS, &maxFragUniBlocks);
+            ImGui::Text("Max vertex uniform blocks: %d", maxVertUniBlocks);
+            ImGui::Text("Max fragment uniform blocks: %d", maxFragUniBlocks);
+
             ImGui::ColorEdit3("Clear color", (float*)&clearColor);
-            ImGui::Text("Draw time %.3f s/frame, frame rate %.1f FPS", dt, 1.0f / dt);
+            ImGui::Text("Draw time: %.3f s/frame", dt);
+            ImGui::Text("Frame rate: %.1f FPS", 1.0f / dt);
             //ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
             //ImGui::Checkbox("Options", &show_another_window);
             ImGui::End();
         }
 
-        // Show other example windows
+        // Show example windows
         /*
         if (show_demo_window)
             ImGui::ShowDemoWindow(&show_demo_window);
-        */
         if (show_another_window)
         {
             static float f = 0.0f;
@@ -143,20 +139,48 @@ void MainLoop() {
                 show_another_window = false;
             ImGui::End();
         }
+        */
 
         // Rendering
-        glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        
+        glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);   
+
         game->Render();
+        
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         
         glfwSwapBuffers(window);
+
+        GLenum errorCode;
+        while ((errorCode = glGetError()) != GL_NO_ERROR) {
+            std::string error;
+            switch (errorCode)
+            {
+                // Reference: https://learnopengl.com/In-Practice/Debugging
+                case GL_INVALID_ENUM:                  
+                error = "INVALID_ENUM"; break;
+                case GL_INVALID_VALUE:                 
+                error = "INVALID_VALUE"; break;
+                case GL_INVALID_OPERATION:             
+                error = "INVALID_OPERATION"; break;
+                case GL_STACK_OVERFLOW:                
+                error = "STACK_OVERFLOW"; break;
+                case GL_STACK_UNDERFLOW:               
+                error = "STACK_UNDERFLOW"; break;
+                case GL_OUT_OF_MEMORY:                 
+                error = "OUT_OF_MEMORY"; break;
+                case GL_INVALID_FRAMEBUFFER_OPERATION: 
+                error = "INVALID_FRAMEBUFFER_OPERATION"; break;
+            }
+            std::cout << "OpenGL Error " << error << std::endl;
+        }
     }
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glfwSwapBuffers(window);
     glfwTerminate();
+}
+
+void OnError(int errorCode, const char* msg) {
+    std::cout << "GLFW Error " << msg << std::endl;
 }
 
 int main(int argc, char *argv[]){
@@ -164,11 +188,13 @@ int main(int argc, char *argv[]){
     setbuf(stdout, NULL); //Cancel output stream buffering so that output can be seen immediately
     
     //Setup GL Framework
+    glfwSetErrorCallback(OnError);
     if (!glfwInit())
         return 1;
     const char* glsl_version = "#version 410";
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
+    glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 
@@ -187,32 +213,24 @@ int main(int argc, char *argv[]){
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO(); (void)io;
-    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
+    //io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
 
     // Setup Dear ImGui style
     ImGui::StyleColorsDark();
-    //ImGui::StyleColorsClassic();
 
     // Setup Platform/Renderer bindings
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init(glsl_version);
 
-    glEnable(GL_PRIMITIVE_RESTART);
-    glPrimitiveRestartIndex(0xFFFF);
-    glEnable(GL_DEPTH_TEST);
-    glDepthFunc(GL_LESS);
-    glEnable(GL_CULL_FACE);
-
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
     if (glfwRawMouseMotionSupported())
         glfwSetInputMode(window, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
     
-    LoadShaders();
-    LoadTextures();
+    LoadTextures();    
     InitPhysics();
 
-    game = new Game(window, shader, world);
-    game->Init();
+    game = new Game(window, world);
+    game->Init(); // Construct the scene
 
     MainLoop();    
     return 0;

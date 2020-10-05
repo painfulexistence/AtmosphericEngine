@@ -1,12 +1,8 @@
 #include "terrain.hpp"
 
-Terrain::Terrain(int size, int vnum, float heightmap[], Shader* shader)
+Terrain::Terrain(int size, int vnum, float heightmap[])
 {
-    _size = size;
-    _localTransform = glm::mat4(1.0f);
-    _shader = shader;
-    
-    _drawMode = GL_FILL;
+    _size = size;    
     numVertices = vnum * vnum * 8;
     vertices = new float[numVertices];      
     float c_size = float(size)/float(vnum-1);
@@ -45,9 +41,9 @@ Terrain::Terrain(int size, int vnum, float heightmap[], Shader* shader)
     glBufferData(GL_ARRAY_BUFFER, numVertices*sizeof(float), vertices, GL_STATIC_DRAW);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, numElements*sizeof(GLushort), triangles, GL_STATIC_DRAW);
 
-    glVertexAttribPointer(shader->GetAttrib("position"), 3, GL_FLOAT, GL_FALSE, 8*sizeof(float), (void*)0);
-    glVertexAttribPointer(shader->GetAttrib("normal"), 3, GL_FLOAT, GL_FALSE, 8*sizeof(float), (void*)(3*sizeof(float)));
-    glVertexAttribPointer(shader->GetAttrib("uv"), 2, GL_FLOAT, GL_FALSE, 8*sizeof(float), (void*)(6*sizeof(float)));
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8*sizeof(float), (void*)0);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8*sizeof(float), (void*)(3*sizeof(float)));
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8*sizeof(float), (void*)(6*sizeof(float)));
     glEnableVertexAttribArray(0);
     glEnableVertexAttribArray(1);
     glEnableVertexAttribArray(2);
@@ -76,26 +72,10 @@ void Terrain::AddRigidBody(btDiscreteDynamicsWorld* dynamicsWorld)
     dynamicsWorld->addRigidBody(_rigidbody);
 }
 
-void Terrain::Render(glm::mat4 mMatrix, Light* light, Camera* camera) 
-{
+void Terrain::Render() 
+{    
     glBindVertexArray(vao);
-
-    glm::mat4 PV = camera->getProjectionViewMatrix();
-    glm::mat4 M = mMatrix * _localTransform;
-    glm::vec3 lightColor = light->getColor();
-    glm::vec3 lightPosition = light->getPosition();  
-    glm::vec3 lightDirection = light->getDirection();
-    glm::vec3 cameraPosition = camera->getPosition();
-
-    glUniformMatrix4fv(_shader->GetUniform("PV"), 1, GL_FALSE, &PV[0][0]);
-    glUniformMatrix4fv(_shader->GetUniform("M"), 1, GL_FALSE, &M[0][0]);
-    glUniform3fv(_shader->GetUniform("light_pos"), 1, &lightPosition[0]);
-    glUniform3fv(_shader->GetUniform("light_color"), 1, &lightColor[0]);      
-    glUniform3fv(_shader->GetUniform("light_dir"), 1, &lightDirection[0]);
-    glUniform3fv(_shader->GetUniform("view_pos"), 1, &cameraPosition[0]);
-
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
     glDrawElements(GL_TRIANGLE_STRIP, numElements, GL_UNSIGNED_SHORT, 0);
-
     glBindVertexArray(0);
 }

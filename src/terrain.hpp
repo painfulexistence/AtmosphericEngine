@@ -1,25 +1,21 @@
 #pragma once
 #include "globals.h"
-#include <iostream>
 #include <btBulletDynamicsCommon.h>
 #include <BulletCollision/CollisionDispatch/btCollisionObject.h>
 #include <LinearMath/btTransform.h>
-#include "light.hpp"
-#include "camera.hpp"
-#include "mesh.hpp"
-#include "shader.hpp"
+#include "entity.hpp"
 
-class Terrain : public Mesh
+class Terrain : public Entity
 {
 private:
     int _size, numVertices, numElements;
 
 public:
-    Terrain(int size, int vnum, float heightmap[], Shader* shader);
+    Terrain(int size, int vnum, float heightmap[]);
 
     ~Terrain();
 
-    void AddRigidBody(btDiscreteDynamicsWorld* dynamicsWorld);
+    void AddRigidBody(btDiscreteDynamicsWorld*);
 
-    void Render(glm::mat4 mMatrix, Light* light, Camera* camera);
+    void Render();
 };

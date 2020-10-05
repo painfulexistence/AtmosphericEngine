@@ -1,9 +1,8 @@
 #pragma once
 #include "globals.h"
 #include <btBulletDynamicsCommon.h>
-#include <list>
-#include "shader.hpp"
-#include "mesh.hpp"
+#include "material.hpp"
+#include "entity.hpp"
 #include "camera.hpp"
 #include "light.hpp"
 #include "cube.hpp"
@@ -11,29 +10,31 @@
 
 class Game
 {
-    private:
+private:
     GLFWwindow* _window;
-    Shader* _shader;
     btDiscreteDynamicsWorld* _world;
+    std::vector<Material*> _materials;
     Camera* camera;
     Light* light;
     Cube* skybox;
     Terrain* terrain;
-    std::list<Mesh*> mazeBlocks;
+    std::vector<Cube*> cubes;
 
-    glm::vec3 lightColor = glm::vec3(1.0, 0.5, 0.25);
+    glm::vec3 lightColor = glm::vec3(1, 1, 1);
     bool isLightFlashing = false;
-    int terrainDrawMode = GL_LINE;
     glm::vec3 winPosition;
 
     double timeAccumulator;
     const double timeDelta = 1.f / 60.f;
-        
-    public:
-    Game(GLFWwindow* window, Shader* shader, btDiscreteDynamicsWorld* world);
+    
+public:
+    Game(GLFWwindow*, btDiscreteDynamicsWorld*);
+    
     ~Game();
 
     void Init();
-    int Update(float dt);
+
+    int Update(float);
+
     void Render();
 };

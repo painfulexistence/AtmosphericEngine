@@ -1,42 +1,39 @@
 #include "cube.hpp"
 
-Cube::Cube(int size, Shader* shader)
+Cube::Cube(int size)
 {
     _size = size;
-    _localTransform = glm::scale(glm::mat4(1.0f), glm::vec3(size * 0.5f, size * 0.5f, size * 0.5f));
-    _shader = shader;
-
     vertices = new float[192] {
         //left
-        1.0f, 1.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f,
-        1.0f, -1.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0.0f,
-        -1.0f, 1.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f,
-        -1.0f, -1.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f,
+        .5f * _size, .5f * _size, .5f * _size, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f,
+        .5f * _size, -.5f * _size, .5f * _size, 0.0f, 0.0f, 1.0f, 1.0f, 0.0f,
+        -.5f * _size, .5f * _size, .5f * _size, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f,
+        -.5f * _size, -.5f * _size, .5f * _size, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f,
         //right
-        1.0f, 1.0f, -1.0f, 0.0f, 0.0f, -1.0f, 1.0f, 1.0f,
-        1.0f, -1.0f, -1.0f, 0.0f, 0.0f, -1.0f, 1.0f, 0.0f,
-        -1.0f, 1.0f, -1.0f, 0.0f, 0.0f, -1.0f, 0.0f, 1.0f,
-        -1.0f, -1.0f, -1.0f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f,
+        .5f * _size, .5f * _size, -.5f * _size, 0.0f, 0.0f, -1.0f, 1.0f, 1.0f,
+        .5f * _size, -.5f * _size, -.5f * _size, 0.0f, 0.0f, -1.0f, 1.0f, 0.0f,
+        -.5f * _size, .5f * _size, -.5f * _size, 0.0f, 0.0f, -1.0f, 0.0f, 1.0f,
+        -.5f * _size, -.5f * _size, -.5f * _size, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f,
         //back
-        -1.0f, 1.0f, 1.0f, -1.0f, 0.0f, 0.0f, 1.0f, 1.0f,
-        -1.0f, 1.0f, -1.0f, -1.0f, 0.0f, 0.0f, 1.0f, 0.0f,
-        -1.0f, -1.0f, 1.0f, -1.0f, 0.0f, 0.0f, 0.0f, 1.0f,
-        -1.0f, -1.0f, -1.0f, -1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+        -.5f * _size, .5f * _size, .5f * _size, -1.0f, 0.0f, 0.0f, 1.0f, 1.0f,
+        -.5f * _size, .5f * _size, -.5f * _size, -1.0f, 0.0f, 0.0f, 1.0f, 0.0f,
+        -.5f * _size, -.5f * _size, .5f * _size, -1.0f, 0.0f, 0.0f, 0.0f, 1.0f,
+        -.5f * _size, -.5f * _size, -.5f * _size, -1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
         //front
-        1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f,
-        1.0f, 1.0f, -1.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f,
-        1.0f, -1.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f,
-        1.0f, -1.0f, -1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+        .5f * _size, .5f * _size, .5f * _size, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f,
+        .5f * _size, .5f * _size, -.5f * _size, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f,
+        .5f * _size, -.5f * _size, .5f * _size, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f,
+        .5f * _size, -.5f * _size, -.5f * _size, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
         //top
-        1.0f, 1.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f,
-        1.0f, 1.0f, -1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f,
-        -1.0f, 1.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f,
-        -1.0f, 1.0f, -1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f,
+        .5f * _size, .5f * _size, .5f * _size, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f,
+        .5f * _size, .5f * _size, -.5f * _size, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f,
+        -.5f * _size, .5f * _size, .5f * _size, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f,
+        -.5f * _size, .5f * _size, -.5f * _size, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f,
         //bottom
-        1.0f, -1.0f, 1.0f, 0.0f, -1.0f, 0.0f, 1.0f, 1.0f,
-        1.0f, -1.0f, -1.0f, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f,
-        -1.0f, -1.0f, 1.0f, 0.0f, -1.0f, 0.0f, 0.0f, 1.0f,
-        -1.0f, -1.0f, -1.0f, 0.0f, -1.0f, 0.0f, 0.0f, 0.0f
+        .5f * _size, -.5f * _size, .5f * _size, 0.0f, -1.0f, 0.0f, 1.0f, 1.0f,
+        .5f * _size, -.5f * _size, -.5f * _size, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f,
+        -.5f * _size, -.5f * _size, .5f * _size, 0.0f, -1.0f, 0.0f, 0.0f, 1.0f,
+        -.5f * _size, -.5f * _size, -.5f * _size, 0.0f, -1.0f, 0.0f, 0.0f, 0.0f
     };
 
     triangles = new GLushort[36] {
@@ -58,23 +55,39 @@ Cube::Cube(int size, Shader* shader)
     glBindVertexArray(vao);
 
     glGenBuffers(1, &vbo);
-    glGenBuffers(1, &ebo);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
     glBufferData(GL_ARRAY_BUFFER, numVertices*sizeof(float), vertices, GL_STATIC_DRAW);
+    glGenBuffers(1, &ebo);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, numElements*sizeof(GLushort), triangles, GL_STATIC_DRAW);
 
-    glVertexAttribPointer(shader->GetAttrib("position"), 3, GL_FLOAT, GL_FALSE, 8*sizeof(float), (void*)0);
-    glVertexAttribPointer(shader->GetAttrib("normal"), 3, GL_FLOAT, GL_FALSE, 8*sizeof(float), (void*)(3*sizeof(float)));
-    glVertexAttribPointer(shader->GetAttrib("uv"), 2, GL_FLOAT, GL_FALSE, 8*sizeof(float), (void*)(6*sizeof(float)));
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8*sizeof(float), (void*)0);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8*sizeof(float), (void*)(3*sizeof(float)));
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8*sizeof(float), (void*)(6*sizeof(float)));
     glEnableVertexAttribArray(0);
     glEnableVertexAttribArray(1);
     glEnableVertexAttribArray(2);
 
+    glGenBuffers(1, &ibo);
+    glBindBuffer(GL_ARRAY_BUFFER, ibo);
+    
+    glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(glm::vec4), (void*)0);
+    glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(glm::vec4), (void*)(4 * sizeof(float)));
+    glVertexAttribPointer(5, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(glm::vec4), (void*)(8 * sizeof(float)));
+    glVertexAttribPointer(6, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(glm::vec4), (void*)(12 * sizeof(float)));
+    glEnableVertexAttribArray(3); 
+    glEnableVertexAttribArray(4); 
+    glEnableVertexAttribArray(5); 
+    glEnableVertexAttribArray(6); 
+    glVertexAttribDivisor(3, 1);
+    glVertexAttribDivisor(4, 1);
+    glVertexAttribDivisor(5, 1);
+    glVertexAttribDivisor(6, 1);
+
     glBindVertexArray(0);
 }
 
-void Cube::AddRigidBody(glm::vec3 position, btDiscreteDynamicsWorld* dynamicsWorld, float mass = 0.f)
+void Cube::AddRigidBody(glm::vec3 position, btDiscreteDynamicsWorld* dynamicsWorld, float mass = .0f)
 {
     btQuaternion qtn;
     btTransform trans;
@@ -89,26 +102,22 @@ void Cube::AddRigidBody(glm::vec3 position, btDiscreteDynamicsWorld* dynamicsWor
     dynamicsWorld->addRigidBody(_rigidbody);
 }
 
-void Cube::Render(glm::mat4 mMatrix, Light* light, Camera* camera) 
+void Cube::Render() 
+{
+    glBindVertexArray(vao);
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    glDrawElements(GL_TRIANGLES, numElements, GL_UNSIGNED_SHORT, 0); 
+    glBindVertexArray(0);
+}
+
+void Cube::RenderMultiple(glm::mat4* worldMatrices, int number)
 {
     glBindVertexArray(vao);
 
-    glm::mat4 PV = camera->getProjectionViewMatrix();
-    glm::mat4 M = mMatrix * _localTransform;
-    glm::vec3 lightColor = light->getColor();
-    glm::vec3 lightPosition = light->getPosition();  
-    glm::vec3 lightDirection = light->getDirection();
-    glm::vec3 cameraPosition = camera->getPosition();
+    glBindBuffer(GL_ARRAY_BUFFER, ibo);
+    glBufferData(GL_ARRAY_BUFFER, number * sizeof(glm::mat4), worldMatrices, GL_STATIC_DRAW);
 
-    glUniformMatrix4fv(_shader->GetUniform("PV"), 1, GL_FALSE, &PV[0][0]);
-    glUniformMatrix4fv(_shader->GetUniform("M"), 1, GL_FALSE, &M[0][0]);
-    glUniform3fv(_shader->GetUniform("light_pos"), 1, &lightPosition[0]);
-    glUniform3fv(_shader->GetUniform("light_color"), 1, &lightColor[0]);      
-    glUniform3fv(_shader->GetUniform("light_dir"), 1, &lightDirection[0]);
-    glUniform3fv(_shader->GetUniform("view_pos"), 1, &cameraPosition[0]);
-    
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-    glDrawElements(GL_TRIANGLES, numElements, GL_UNSIGNED_SHORT, 0); //glDrawArrays(GL_TRIANGLES, 0, 24);
-
+    glDrawElementsInstanced(GL_TRIANGLES, numElements, GL_UNSIGNED_SHORT, 0, number); 
     glBindVertexArray(0);
 }

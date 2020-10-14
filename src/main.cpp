@@ -1,16 +1,12 @@
 
-#include "globals.h"
+#include "Common.hpp"
 
 //Image loading
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
 //Physics
-#include <btBulletDynamicsCommon.h>
-#include <BulletCollision/CollisionDispatch/btCollisionObject.h>
-#include <LinearMath/btTransform.h>
-#include <time.h>
-
+#include "BulletMain.h"
 #include "terrain.hpp"
 #include "cube.hpp"
 #include "camera.hpp"
@@ -25,11 +21,11 @@ Game* game = NULL;
 static void LoadTextures() 
 {
     std::vector<std::string> paths = {
-        "resources/beach.png",
-        "resources/starnight.jpg",
-        "resources/grass.png",
-        "resources/brick.jpg",
-        "resources/metal.jpg"
+        "./resources/beach.png",
+        "./resources/starnight.jpg",
+        "./resources/grass.png",
+        "./resources/brick.jpg",
+        "./resources/metal.jpg"
     };
     for (int i = 0; i < paths.size(); i++) 
     {

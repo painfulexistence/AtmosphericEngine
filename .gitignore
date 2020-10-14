@@ -1,4 +1,10 @@
 .DS_Store
-dist/*
+
+.vscode/
+
+xcuserdata/
+project.xcworkspace
+
+build/*
 demo/*
 imgui.ini

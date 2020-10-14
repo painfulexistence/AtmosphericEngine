@@ -1,7 +1,5 @@
 #pragma once
-#include "globals.h"
-#include <iostream>
-#include <assert.h>
+#include "Common.hpp"
 
 class Light 
 {

@@ -96,8 +96,8 @@ void Game::Init()
     //Terrain material
     {
         std::vector<Shader*> shaders = {
-            new Shader("shaders/simple.vert", GL_VERTEX_SHADER),
-            new Shader("shaders/glitched_diffuse.frag", GL_FRAGMENT_SHADER)
+            new Shader("./shaders/simple.vert", GL_VERTEX_SHADER),
+            new Shader("./shaders/glitched_diffuse.frag", GL_FRAGMENT_SHADER)
         };
         Program* program = new Program(shaders);
         _materials.push_back(
@@ -113,8 +113,8 @@ void Game::Init()
     //Skybox material
     {
         std::vector<Shader*> shaders = {
-            new Shader("shaders/simple.vert", GL_VERTEX_SHADER),
-            new Shader("shaders/glitched_diffuse.frag", GL_FRAGMENT_SHADER)
+            new Shader("./shaders/simple.vert", GL_VERTEX_SHADER),
+            new Shader("./shaders/glitched_diffuse.frag", GL_FRAGMENT_SHADER)
         };
         Program* program = new Program(shaders);
         
@@ -131,8 +131,8 @@ void Game::Init()
     //Cube material
     {
         std::vector<Shader*> shaders = {
-            new Shader("shaders/instanced.vert", GL_VERTEX_SHADER),
-            new Shader("shaders/glitched_diffuse.frag", GL_FRAGMENT_SHADER)
+            new Shader("./shaders/instanced.vert", GL_VERTEX_SHADER),
+            new Shader("./shaders/glitched_diffuse.frag", GL_FRAGMENT_SHADER)
         };
         Program* program = new Program(shaders);
         
@@ -149,8 +149,8 @@ void Game::Init()
     //Green plastic
     {
         std::vector<Shader*> shaders = {
-            new Shader("shaders/simple.vert", GL_VERTEX_SHADER),
-            new Shader("shaders/glitched_diffuse.frag", GL_FRAGMENT_SHADER)
+            new Shader("./shaders/simple.vert", GL_VERTEX_SHADER),
+            new Shader("./shaders/glitched_diffuse.frag", GL_FRAGMENT_SHADER)
         };
         Program* program = new Program(shaders);
         _materials.push_back(

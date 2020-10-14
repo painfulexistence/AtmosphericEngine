@@ -1,6 +1,6 @@
 #pragma once
-#include "globals.h"
-#include <btBulletDynamicsCommon.h>
+#include "Common.hpp"
+#include "BulletMain.h"
 #include "material.hpp"
 #include "entity.hpp"
 #include "camera.hpp"

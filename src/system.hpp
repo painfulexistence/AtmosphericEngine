@@ -1,6 +1,5 @@
 #pragma once
-#include "globals.h"
-#include <string>
+#include "Common.hpp"
 
 class System 
 {

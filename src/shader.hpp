@@ -1,7 +1,5 @@
 #pragma once
-#include "globals.h"
-#include <fstream>
-#include <string>
+#include "Common.hpp"
 
 class Shader 
 {

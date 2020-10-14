@@ -1,16 +1,6 @@
-#ifndef CAMERA_H
-#define CAMERA_H
-
-#include <GL/glew.h>
-#include <GLFW/glfw3.h>
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/type_ptr.hpp>
-#include <btBulletDynamicsCommon.h>
-#include <BulletCollision/CollisionDispatch/btCollisionObject.h>
-#include <LinearMath/btTransform.h>
-#include <iostream>
-#include <assert.h>
+#pragma once
+#include "Common.hpp"
+#include "BulletMain.h"
 
 const float SPEED = 10.0f;
 const float ANGULAR_SPEED = 3.14f/2.0f;
@@ -128,5 +118,3 @@ class Camera {
 
         btRigidBody* _rigidbody;
 };
-
-#endif

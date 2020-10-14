@@ -1,8 +1,6 @@
 #pragma once
-#include "globals.h"
-#include <btBulletDynamicsCommon.h>
-#include <BulletCollision/CollisionDispatch/btCollisionObject.h>
-#include <LinearMath/btTransform.h>
+#include "Common.hpp"
+#include "BulletMain.h"
 #include "entity.hpp"
 
 class Terrain : public Entity

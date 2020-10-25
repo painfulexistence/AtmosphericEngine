@@ -4,8 +4,7 @@ Cube::Cube(int size)
 {
     _size = size;
 
-    numVert = 192;
-    vertices = new float[numVert] {
+    GLfloat vertices[] = {
         //left
         .5f * _size, .5f * _size, .5f * _size, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f,
         .5f * _size, -.5f * _size, .5f * _size, 0.0f, 0.0f, 1.0f, 1.0f, 0.0f,
@@ -37,9 +36,9 @@ Cube::Cube(int size)
         -.5f * _size, -.5f * _size, .5f * _size, 0.0f, -1.0f, 0.0f, 0.0f, 1.0f,
         -.5f * _size, -.5f * _size, -.5f * _size, 0.0f, -1.0f, 0.0f, 0.0f, 0.0f
     };
+    verts.assign(vertices, vertices + 192);
 
-    numTri = 36;
-    triangles = new GLushort[numTri] {
+    GLushort triangles[] = {
         0, 2, 1,
         1, 2, 3,
         4, 5, 6,
@@ -53,14 +52,14 @@ Cube::Cube(int size)
         20, 22, 21,
         21, 22, 23
     };
+    tris.assign(triangles, triangles + 36);
 }
 
-void Cube::Embody(glm::vec3 center, float mass = 0.f, btDiscreteDynamicsWorld* world = nullptr)
+void Cube::Embody(glm::vec3 center, float mass = 0.f, const std::shared_ptr<btDiscreteDynamicsWorld>& world = nullptr)
 {
     if (world == 0)
     {
-        std::runtime_error("Failed to create rigidbody");
-        return;
+        throw std::runtime_error("Failed to create rigidbody");
     }
     btQuaternion qtn;
     btTransform trans;
@@ -71,44 +70,6 @@ void Cube::Embody(glm::vec3 center, float mass = 0.f, btDiscreteDynamicsWorld* w
     btDefaultMotionState* motionState = new btDefaultMotionState(trans);
     btCollisionShape* shape = new btBoxShape(btVector3(_size / 2.f, _size / 2.f, _size / 2.f));
 
-    rigidbody = new btRigidBody(btScalar(mass), motionState, shape, btVector3(1, 1, 1));
-    world->addRigidBody(rigidbody);
-}
-
-void Cube::Render(std::vector<glm::mat4> worldMatrices)
-{
-    if (!initialized)
-        std::runtime_error("VAO uninitialized!");
-    
-    glBindVertexArray(vao);
-
-    glBindBuffer(GL_ARRAY_BUFFER, ibo);
-    glBufferData(GL_ARRAY_BUFFER, static_cast<int>(worldMatrices.size()) * sizeof(glm::mat4), worldMatrices.data(), GL_STATIC_DRAW);
-
-    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-    glDrawElementsInstanced(GL_TRIANGLES, numTri, GL_UNSIGNED_SHORT, 0, static_cast<int>(worldMatrices.size()));
-    glBindVertexArray(0);
-}
-
-void Cube::Render(glm::mat4* worldMatrices, int num)
-{
-    if (!initialized)
-        std::runtime_error("VAO uninitialized!");
-    
-    glBindVertexArray(vao);
-    
-    // Fill vertex buffer
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, numVert*sizeof(float), vertices, GL_STATIC_DRAW);
-    
-    // Fill element buffer
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, numTri*sizeof(GLushort), triangles, GL_STATIC_DRAW);
-    
-    glBindBuffer(GL_ARRAY_BUFFER, ibo);
-    glBufferData(GL_ARRAY_BUFFER, num * sizeof(glm::mat4), worldMatrices, GL_STATIC_DRAW);
-    
-    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-    glDrawElementsInstanced(GL_TRIANGLES, numTri, GL_UNSIGNED_SHORT, 0, num);
-    glBindVertexArray(0);
+    rigidbody = std::make_shared<btRigidBody>(btScalar(mass), motionState, shape, btVector3(1, 1, 1));
+    world->addRigidBody(rigidbody.get());
 }

@@ -1,12 +1,13 @@
 #include "light.hpp"
 
-Light::Light(glm::vec3 position, glm::vec3 diffuse) 
+Light::Light(glm::vec3 position, LightProperties props, glm::vec3 direction) 
 {
     _position = position;
-    _direction = glm::vec3(1, -1, 1);
-    _ambient = glm::vec3(0.8);
-    _diffuse = diffuse;
-    _specular = glm::vec3(1);
+    _type = props.type;
+    _ambient = props.ambient;
+    _diffuse = props.diffuse;
+    _specular = props.specular;
+    _direction = direction;
 }
 
 void Light::SetPosition(glm::vec3 position) 

@@ -11,9 +11,7 @@ private:
 public:
     Terrain(int, int, float[]);
 
-    void Embody(glm::vec3, float, btDiscreteDynamicsWorld*) override;
+    void Embody(glm::vec3, float, const std::shared_ptr<btDiscreteDynamicsWorld>&) override;
 
-    void Render(std::vector<glm::mat4>) override;
-    
-    void Render(glm::mat4*, int) override;
+    void Render(std::vector<glm::mat4>, GLenum) override;    
 };

@@ -2,7 +2,8 @@
 
 xcuserdata/
 project.xcworkspace
+xcode/
 
-build/*
-samples/*
+build/
+samples/
 imgui.ini

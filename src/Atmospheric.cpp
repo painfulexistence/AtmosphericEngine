@@ -1,12 +1,10 @@
 #include "app.hpp"
 
-int main(int argc, char *argv[])
+int main(int argc, char* argv[])
 {
-    Application* app = new Application();
-    
-    app->Init();
-    app->Run();
-    app->Cleanup();
+    Application app;
+    app.Init();
+    app.Run();
 
     return 0;
 }

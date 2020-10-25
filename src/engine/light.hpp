@@ -1,17 +1,34 @@
 #pragma once
 #include "../common.hpp"
 
+enum LightType
+{
+    POINT,
+    AREA,
+    DIRECT,
+    SPOT
+};
+
+struct LightProperties
+{
+    LightType type;
+    glm::vec3 ambient = glm::vec3(0.8);
+    glm::vec3 diffuse;
+    glm::vec3 specular = glm::vec3(1);
+};
+
 class Light 
 {
 private:
     glm::vec3 _position;
-    glm::vec3 _direction;
+    LightType _type;
     glm::vec3 _ambient;
     glm::vec3 _diffuse;
     glm::vec3 _specular;
+    glm::vec3 _direction;
 
 public:
-    Light(glm::vec3, glm::vec3);
+    Light(glm::vec3, LightProperties, glm::vec3 = glm::vec3(0, 0, 0));
     
     void SetPosition(glm::vec3);
 

@@ -32,7 +32,7 @@ out vec4 Color;
 
 float random(vec2 st)
 {
-    return fract(sin(dot(st, vec2(12.9898,78.233))) * 43758.5453);
+    return fract(sin(dot(st, vec2(12.9898, 78.233))) * 43758.5453);
 }
 
 float noise(vec2 p)
@@ -60,6 +60,16 @@ vec2 fbm(vec2 p)
     return vec2(0, 0);
 }
 
+vec3 Iceborne(vec3 result)
+{
+    return vec3(result.x * noise(frag_pos.xy), result.y + noise(frag_pos.yz), result.z / noise(frag_pos.zx));
+}
+
+vec3 Childhood(vec3 result)
+{
+    return vec3(result.x + noise(frag_pos.xy), result.y / noise(frag_pos.yz), result.z / noise(frag_pos.zx));
+}
+
 
 void main()
 {   
@@ -77,11 +87,8 @@ void main()
     vec3 diffuse = light.diffuse * (diff * surf.diffuse);
     vec3 specular = light.specular * pow(max(dot(viewDir, reflectDir), 0.0), surf.shininess * 128) * surf.specular;
 
-    vec3 result = mix((ambient + diffuse + specular), texture(tex, uv).xyz, 0.2);
-    
-    //Iceborne
-    //Color = vec4(result.x * noise(frag_pos.xy), result.y + noise(frag_pos.yz), result.z / noise(frag_pos.zx), 1);
-    
-    //Childhood
-    Color = vec4(result.x + noise(frag_pos.xy), result.y / noise(frag_pos.yz), result.z / noise(frag_pos.zx), 1);
+    vec3 result = mix((ambient + diffuse + specular), texture(tex, uv).xyz, 0.1);
+    result = Childhood(result);
+
+    Color = vec4(result, 1);
 }

@@ -1,21 +1,19 @@
 #pragma once
 #include "../common.hpp"
 #include "../physics/BulletMain.h"
+#include "../physics/Debugger.hpp"
 #include "material.hpp"
 #include "program.hpp"
+
 
 class Geometry 
 {
 protected:
     int _id;
     GLuint vao, vbo, ebo, ibo;
-    int numVert; // With actual number of verts is numVert * numAttr
-    int numTri; // With actual number of tris is numTri / 3
-    int numAttr; // Not used yet
-    float* vertices;
-    GLushort* triangles;
-    
-    btRigidBody* rigidbody = nullptr;
+    std::vector<GLfloat> verts;
+    std::vector<GLushort> tris;
+    std::shared_ptr<btRigidBody> rigidbody = nullptr;
     bool initialized = false;
 
 public:
@@ -25,16 +23,6 @@ public:
 
     void Init();
 
-    virtual void Embody(glm::vec3, float, btDiscreteDynamicsWorld*);
-
-    virtual void Update(float);
-
-    virtual void Render(std::vector<glm::mat4>);
-
-    virtual void Render(glm::mat4*, int);
-    
-    virtual void RenderWithOutline(glm::mat4*, int);
-    
     glm::mat4 GetTransform() 
     {
         if (rigidbody == 0)
@@ -54,4 +42,12 @@ public:
         );
         return wm;
     };
+
+    virtual void Embody(glm::vec3, float, const std::shared_ptr<btDiscreteDynamicsWorld>&);
+
+    virtual void Update(float);
+
+    virtual void Render(std::vector<glm::mat4>, GLenum = GL_TRIANGLES);
+    
+    virtual void RenderWithOutline(std::vector<glm::mat4>);
 };

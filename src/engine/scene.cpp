@@ -1,29 +1,16 @@
 #include "scene.hpp"
 
 
-Scene::Scene(Program*& program)
-{
-    _program = program;
-}
+Scene::Scene(const std::shared_ptr<Program>& program) : _program(program) {}
 
-Scene::~Scene()
-{
-    for (Material* mat : _materials)
-    {
-        delete mat;
-    }
-    for (Instantiation* ins : _instantiations)
-    {
-        delete ins;
-    }
-}
+Scene::~Scene() {}
 
 void Scene::Init()
 {
     // Setup materials
     _materials.push_back(
         //Terrain material
-        new Material(
+        Material(
             "terrainMat",
             (GLuint)4,
             glm::vec3(.25, .20725, .20725),
@@ -34,7 +21,7 @@ void Scene::Init()
     );
     _materials.push_back(
         //Skybox material
-        new Material(
+        Material(
             "skyboxMat",
             (GLuint)1,
             glm::vec3(.1, .18725, .1745),
@@ -45,7 +32,7 @@ void Scene::Init()
     );       
     _materials.push_back(
         //Cube material
-        new Material(
+        Material(
             "mazeBlockMat",
             (GLuint)4,
             glm::vec3(0.19225, 0.19225, 0.19225),
@@ -56,7 +43,7 @@ void Scene::Init()
     );
     _materials.push_back(
         //Green plastic
-        new Material(
+        Material(
             "defaultMat",
             (GLuint)3,
             glm::vec3(.0, .0, .0),
@@ -72,12 +59,12 @@ void Scene::Init()
     std::cout << "Scene initialized successfully" << std::endl;
 }
 
-void Scene::Create(Instantiation*& ins)
+void Scene::Create(const std::shared_ptr<Instantiation>& ins)
 {
     _instantiations.push_back(ins);
 }
 
-static void UpdateInstances(Instantiation*& ins, float time)
+static void UpdateInstances(const std::shared_ptr<Instantiation>& ins, float time)
 {
     for (int i = 0; i < ins->instances.size(); i++)
     {
@@ -88,30 +75,29 @@ static void UpdateInstances(Instantiation*& ins, float time)
 
 void Scene::Update(float time)
 {
-    for (Instantiation*& ins : _instantiations)
+    for (const auto& ins : _instantiations)
     {
         UpdateInstances(ins, time);
     }
 }
 
-static void RenderInstances(Instantiation*& ins)
+static void RenderInstances(const std::shared_ptr<Instantiation>& ins)
 {
     int num = ins->instances.size();
-    
-    glm::mat4* wms = new glm::mat4[num];
+
+    std::vector<glm::mat4> wms(num);
     for (int i = 0; i < num; i++)
     {
         wms[i] = ins->instances[i]->GetTransform();
     }
-    ins->prefab->Render(wms, num);
-    delete[] wms;
+    ins->prefab->Render(wms);
 }
 
 void Scene::Render()
 {
-    for (Instantiation*& ins : _instantiations) // For every instantiations
+    for (const auto& ins : _instantiations) // For every instantiations
     {
-        Material mat = *_materials[ins->materialIdx];
+        auto& mat = _materials[ins->materialIdx];
         glUniform3fv(_program->GetUniform("surf.ambient"), 1, &mat.GetAmbient()[0]);
         glUniform3fv(_program->GetUniform("surf.diffuse"), 1, &mat.GetDiffuse()[0]);
         glUniform3fv(_program->GetUniform("surf.specular"), 1, &mat.GetSpecular()[0]);

@@ -10,7 +10,7 @@ add_executable(AtmosphericEngine ${AtmosphericEngine_SRCS} ${AtmosphericEngine_E
 
 # TODO: Should add BulletPhysics/GLEW/GLFW submodules to remove external dependencies
 target_include_directories(AtmosphericEngine PUBLIC external /usr/local/include/bullet)
-target_link_libraries(AtmosphericEngine PUBLIC GLEW GLFW bulletdynamics linearmath bulletcollision "-framework OpenGL")
+target_link_libraries(AtmosphericEngine PUBLIC GLEW GLFW bulletsoftbody bulletdynamics bulletcollision linearmath "-framework OpenGL")
 
 # TODO: Copy resources file to target directory
 # configure_file(${INPUT_FILE} . COPYONLY)

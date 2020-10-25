@@ -6,13 +6,13 @@ struct Instantiation
 {
     Instantiation(int);
 
-    void Init(Geometry*&);
+    void Init(const std::shared_ptr<Geometry>&);
 
-    void Init(std::vector<Geometry*>&);
+    void Init(const std::vector<std::shared_ptr<Geometry>>&);
 
     int materialIdx;
     
-    Geometry* prefab;
+    std::shared_ptr<Geometry> prefab;
     
-    std::vector<Geometry*> instances;
+    std::vector<std::shared_ptr<Geometry>> instances;
 };

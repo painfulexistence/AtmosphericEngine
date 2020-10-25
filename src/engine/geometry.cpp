@@ -12,8 +12,10 @@ Geometry::Geometry()
 Geometry::~Geometry()
 {
     _id = 0;
-    delete[] vertices;
-    delete[] triangles;
+    glDeleteBuffers(1, &vbo);
+    glDeleteBuffers(1, &ebo);
+    glDeleteBuffers(1, &ibo);
+    glDeleteVertexArrays(1, &vao);
 }
 
 void Geometry::Init()
@@ -21,27 +23,26 @@ void Geometry::Init()
     // Bind VAO
     glBindVertexArray(vao);
 
-    // Fill vertex buffer
+    // Bind and fill vertex buffer
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, numVert*sizeof(float), vertices, GL_STATIC_DRAW);
-
-    // Fill element buffer
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, numTri*sizeof(GLushort), triangles, GL_STATIC_DRAW);
-
-    // Specify and enable vertex attributes
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8*sizeof(float), (void*)0);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8*sizeof(float), (void*)(3*sizeof(float)));
-    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8*sizeof(float), (void*)(6*sizeof(float)));
+    glBufferData(GL_ARRAY_BUFFER, verts.size() * sizeof(GLfloat), verts.data(), GL_STATIC_DRAW);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(GLfloat), (void*)0);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(GLfloat), (void*)(3 * sizeof(GLfloat)));
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(GLfloat), (void*)(6 * sizeof(GLfloat)));
     glEnableVertexAttribArray(0);
     glEnableVertexAttribArray(1);
     glEnableVertexAttribArray(2);
-    
+
+    // Bind and fill element buffer
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, tris.size() * sizeof(GLushort), tris.data(), GL_STATIC_DRAW);
+
+    // Bind and fill instance buffer
     glBindBuffer(GL_ARRAY_BUFFER, ibo);
     glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(glm::vec4), (void*)0);
-    glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(glm::vec4), (void*)(4 * sizeof(float)));
-    glVertexAttribPointer(5, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(glm::vec4), (void*)(8 * sizeof(float)));
-    glVertexAttribPointer(6, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(glm::vec4), (void*)(12 * sizeof(float)));
+    glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(glm::vec4), (void*)(4 * sizeof(GLfloat)));
+    glVertexAttribPointer(5, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(glm::vec4), (void*)(8 * sizeof(GLfloat)));
+    glVertexAttribPointer(6, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(glm::vec4), (void*)(12 * sizeof(GLfloat)));
     glEnableVertexAttribArray(3); 
     glEnableVertexAttribArray(4); 
     glEnableVertexAttribArray(5); 
@@ -57,9 +58,9 @@ void Geometry::Init()
     initialized = true;
 }
 
-void Geometry::Embody(glm::vec3 center, float mass = 0.0f, btDiscreteDynamicsWorld* world = nullptr)
+void Geometry::Embody(glm::vec3 center, float mass = 0.0f, const std::shared_ptr<btDiscreteDynamicsWorld>& world = nullptr)
 {
-    std::runtime_error("Virtual method not implemented!");
+    throw std::runtime_error("Virtual method not implemented!");
 }
 
 void Geometry::Update(float time)
@@ -67,32 +68,35 @@ void Geometry::Update(float time)
     return;
 }
 
-void Geometry::Render(std::vector<glm::mat4> worldMatrices)
+void Geometry::Render(std::vector<glm::mat4> worldMatrices, GLenum mode)
 {
-    std::runtime_error("Virtual method not implemented");
+    if (!initialized)
+        throw std::runtime_error("VAO uninitialized!");
+    
+    glBindVertexArray(vao);
+
+    glBindBuffer(GL_ARRAY_BUFFER, ibo);
+    glBufferData(GL_ARRAY_BUFFER, worldMatrices.size() * sizeof(glm::mat4), worldMatrices.data(), GL_STATIC_DRAW);
+
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    glDrawElementsInstanced(mode, tris.size(), GL_UNSIGNED_SHORT, 0, worldMatrices.size());
+    glBindVertexArray(0);
 }
 
-void Geometry::Render(glm::mat4* worldMatrices, int num)
+void Geometry::RenderWithOutline(std::vector<glm::mat4> worldsMatrices)
 {
-    std::runtime_error("Virtual method not implemented");
-}
-
-void Geometry::RenderWithOutline(glm::mat4* worldsMatrices, int num)
-{
-    std::runtime_error("Virtual method not implemented");
-
     glStencilMask(0xFF);
     glStencilFunc(GL_ALWAYS, 1, 0xFF);
     /*
-     pass 1
-     ...
+    pass 1
+    ...
      */
     glStencilMask(0x00);
     glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
     glDepthFunc(GL_ALWAYS);
     /*
-     pass 2 (scaled)
-     ...
+    pass 2 (scaled)
+    ...
      */
     glDepthFunc(GL_LESS);
     

@@ -1,36 +1,34 @@
 #include "Framework.hpp"
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb_image.h>
 
-Framework::Framework()
-{
-    
+using namespace std;
 
-}
 
-Framework::~Framework()
-{
+Framework::Framework() {}
 
-}
+Framework::~Framework() {}
 
 static void OnError(int errorCode, const char* msg)
 {
-    std::cout << "GLFW Error " << msg << std::endl;
+    cout << "GLFW Error " << msg << endl;
 }
 
 static void OnCursorMove(GLFWwindow* winodw, double xPos, double yPos)
 {
-    //std::cout << "Cursor at: (" << xPos << ", " << yPos << ")" << std::endl;
+    //cout << "Cursor at: (" << xPos << ", " << yPos << ")" << endl;
 }
 
 static void OnCursorEnterLeave(GLFWwindow* winodw, int entered)
 {
-    //std::cout << "Cursor " << (entered ? "entered" : "left") << std::endl;
+    //cout << "Cursor " << (entered ? "entered" : "left") << endl;
 }
 
 void Framework::Init()
 {
     glfwSetErrorCallback(OnError);
     if (!glfwInit())
-        throw std::runtime_error("Failed to initialize glfw!");
+        throw runtime_error("Failed to initialize glfw!");
 
     const char* glsl_version = "#version 410";
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
@@ -41,15 +39,17 @@ void Framework::Init()
 
     window = glfwCreateWindow((int)SCREEN_W, (int)SCREEN_H, "Atmospheric", NULL, NULL);
     if (window == nullptr)
-        throw std::runtime_error("Failed to initialize glfw!");
+        throw runtime_error("Failed to initialize window!");
 
     glfwMakeContextCurrent(window);
+    #ifdef VSYNC_ON
     glfwSwapInterval(1);
+    #endif
 
     // Setup OpenGL extension loader
     glewExperimental = GL_TRUE;
     if (glewInit() != GLEW_OK)
-        throw std::runtime_error("Failed to initialize window!");
+        throw runtime_error("Failed to initialize glew!");
 
     // Setup input module
     if (glfwRawMouseMotionSupported())
@@ -63,7 +63,8 @@ void Framework::Init()
     // Setup Dear ImGui context
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
-    ImGuiIO& io = ImGui::GetIO(); (void)io;
+    ImGuiIO& io = ImGui::GetIO(); 
+    (void)io;
     //io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
 
     // Setup Dear ImGui style
@@ -72,6 +73,30 @@ void Framework::Init()
     // Setup platform/renderer bindings
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init(glsl_version);
+}
+
+void Framework::Textures(const vector<string>& paths)
+{
+    for (int i = 0; i < paths.size(); ++i)
+    {
+        GLuint tex;
+        glGenTextures(1, &tex);
+        int width, height, nChannels;
+        unsigned char* data = stbi_load(paths[i].c_str(), &width, &height, &nChannels, 0);
+        if (data) {
+            glActiveTexture(GL_TEXTURE0 + i);
+            glBindTexture(GL_TEXTURE_2D, tex);
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+            glGenerateMipmap(GL_TEXTURE_2D);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_MIRRORED_REPEAT);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_MIRRORED_REPEAT);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        } else {
+            throw runtime_error(string("Failed to load image ") + to_string(i));
+        }
+        stbi_image_free(data);
+    }
 }
     
 void Framework::Swap()

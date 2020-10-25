@@ -1,7 +1,7 @@
 #include "game.hpp"
 
 #define MAZE_SIZE 50
-#define TILES_TO_REMOVE 2000
+#define TILES_TO_REMOVE 2200
 #define MAZE_ROOFED false
 #define TILE_SIZE 4
 #define CHISM_PROBABILITY 10
@@ -9,15 +9,20 @@
 #define AUTO_CLOSE false
 #define FIXED_TIME_STEP 1.0 / 60.0
 
-static bool** generateMazeData(int size) {
+using namespace std;
+
+
+static vector<vector<bool>> generateMazeData(int size) {
     int mazeX = 1;
     int mazeY = 1;
 
-    bool** data = new bool*[size];
-    for (int i = 0; i < size; i++) {
-        data[i] = new bool[size];
-        for (int j = 0; j < size; j++) {
-            data[i][j] = true;
+    vector<vector<bool>> data(size);
+    for (int i = 0; i < data.size(); ++i)
+    {
+        for (int j = 0; j < size; ++j)
+        {
+
+            data[i].push_back(true);
         }
     }
 
@@ -30,44 +35,34 @@ static bool** generateMazeData(int size) {
         } else {
             yDir = rand() % 2 < 0.5 ? 1 : -1;
         }
-        
         int moves = rand() % (size - 1) + 1;
-        for (int i = 0; i < moves; i++) {
-            mazeX = std::max(1, std::min(mazeX + xDir, size - 2));
-            mazeY = std::max(1, std::min(mazeY + yDir, size - 2));
-            if (data[mazeX][mazeY]) {
+        for (int i = 0; i < moves; i++) 
+        {
+            mazeX = max(1, min(mazeX + xDir, size - 2));
+            mazeY = max(1, min(mazeY + yDir, size - 2));
+            if (data[mazeX][mazeY]) 
+            {
                 data[mazeX][mazeY] = false;
                 tilesConsumed++;
             }
         }
     }
+
     return data;
 }
 
-Game::Game(Framework* framework)
+Game::Game(const shared_ptr<Framework>& framework) : _framework(framework), _program(make_shared<Program>()), _scene(Scene(_program))
 {
-    _framework = framework;
+    btCollisionConfiguration* config = new btDefaultCollisionConfiguration();
+    btCollisionDispatcher* dispatcher = new btCollisionDispatcher(config);
+    btBroadphaseInterface* broadphase = new btDbvtBroadphase();
+    btConstraintSolver* solver = new btSequentialImpulseConstraintSolver();
     
-    btDefaultCollisionConfiguration* config = new btDefaultCollisionConfiguration();
-    btAxisSweep3* broadphase = new btAxisSweep3(btVector3(-100,-100,-100), btVector3(100,100,100), 16384); //will limit maximum number of collidable objects
-    btSequentialImpulseConstraintSolver* solver = new btSequentialImpulseConstraintSolver;
-    
-    _world = new btDiscreteDynamicsWorld(new btCollisionDispatcher(config), broadphase, solver, config);
+    _world = make_shared<btDiscreteDynamicsWorld>(dispatcher, broadphase, solver, config);
     _world->setGravity(btVector3(0, -GRAVITY, 0));
-    
-    config = nullptr;
-    broadphase = nullptr;
-    solver = nullptr;
 }
 
-Game::~Game()
-{
-    delete camera;
-    delete light;
-    delete _scene;
-    delete _program;
-    delete _world;
-}
+Game::~Game() {}
 
 void Game::Init()
 {
@@ -75,59 +70,88 @@ void Game::Init()
     _state.lightColor = glm::vec3(1, 1, 1);
     _state.isLightFlashing = false;
     _state.winPosition = glm::vec3(0, 0, 0);
-    
-    _program = new Program();
+
     _program->Init();
+    _scene.Init();
+    LoadResources();
 
-    _scene = new Scene(_program);
-    _scene->Init();
-
-    std::cout << "Game initialized successfully" << std::endl;
+    cout << "Game initialized successfully" << endl;
 }
 
 void Game::Start()
 {
-    camera = new Camera(glm::vec3(0, 2, 0), 0.f, 0.f, glm::radians(45.0f), SCREEN_W / SCREEN_H, _world);
-    light = new Light(glm::vec3(10, 50, 10), _state.lightColor);
+    CameraProperties cProps;
+    cProps.aspectRatio = SCREEN_W / (float)SCREEN_H;
+    cProps.farClipPlane = 3000.0f;
+    camera = new Camera(glm::vec3(0, 2, 0), glm::vec2(0.f, 0.f), cProps);
+    camera->Embody(_world);
 
-    Instantiation* terrain = new Instantiation(0);
-    Geometry* t = new Terrain(MAZE_SIZE * TILE_SIZE, 10, new float[100]{0});
+    LightProperties lProps;
+    lProps.diffuse = _state.lightColor;
+    light = new Light(glm::vec3(10, 50, 10), lProps, glm::vec3(1, -1, 1));
+    
+    unique_ptr<Instantiation> rain(new Instantiation(1));
+    vector<shared_ptr<Geometry>> spheres(500);
+    for (int i = 0; i < spheres.size(); i++)
+    {
+        shared_ptr<Geometry> s = make_shared<Sphere>((float)(rand() % 9));
+        s->Embody(glm::vec3(rand() % 10 - 5, rand() % 100 + 20, rand() % 10 - 5), 1.0f, _world);
+        spheres[i] = s;
+    }
+    rain->Init(spheres);
+    _scene.Create(move(rain));
+
+    unique_ptr<Instantiation> terrain(new Instantiation(0));
+    auto t = make_shared<Terrain>(MAZE_SIZE * TILE_SIZE, 10, new float[100]{0});
     t->Embody(glm::vec3(0.0f, -15.0f, 0.0f), 0.0f, _world);
     terrain->Init(t);
-    _scene->Create(terrain);
+    _scene.Create(move(terrain));
 
-    Instantiation* skybox = new Instantiation(1);
-    Geometry* s = new Cube(800);
-    skybox->Init(s);
-    _scene->Create(skybox);
+    unique_ptr<Instantiation> skybox(new Instantiation(1));
+    auto b = make_shared<Cube>(800);
+    skybox->Init(b);
+    _scene.Create(move(skybox));
 
-    Instantiation* maze = new Instantiation(2);
-    std::vector<Geometry*> cubes;
+    unique_ptr<Instantiation> maze(new Instantiation(2));
+    vector<shared_ptr<Geometry>> cubes;
     CreateMaze(generateMazeData(MAZE_SIZE), cubes);
     maze->Init(cubes);
-    _scene->Create(maze);
+    _scene.Create(move(maze));
 }
 
-void Game::CreateMaze(bool** maze, std::vector<Geometry*>& cubes) 
+void Game::LoadResources()
+{
+    // Load textures
+    std::vector<std::string> paths = {
+        "./resources/beach.png",
+        "./resources/starnight.jpg",
+        "./resources/grass.png",
+        "./resources/brick.jpg",
+        "./resources/metal.jpg"
+    };
+    _framework->Textures(paths);
+}
+
+void Game::CreateMaze(const vector<vector<bool>>& maze, vector<shared_ptr<Geometry>>& cubes) 
 {    
     bool characterPlaced = false;
     
-    Geometry* tile;
+    shared_ptr<Geometry> tile;
     for (int x = 0; x < MAZE_SIZE; x++) {
         for (int z = 0; z < MAZE_SIZE; z++) {
             if (MAZE_ROOFED) 
             {
-                tile = new Cube(TILE_SIZE);
+                tile = make_shared<Cube>(TILE_SIZE);
                 tile->Embody((float)TILE_SIZE * glm::vec3(x - MAZE_SIZE / 2.f, 3, z - MAZE_SIZE / 2.f), 0.f, _world);
-                cubes.push_back(tile);
+                cubes.push_back(move(tile));
             }
             if (maze[x][z]) 
             {
                 for (int h = 0; h < 3; h++)
                 {
-                    tile = new Cube(TILE_SIZE);
+                    tile = make_shared<Cube>(TILE_SIZE);
                     tile->Embody((float)TILE_SIZE * glm::vec3(x - MAZE_SIZE / 2.f, h, z - MAZE_SIZE / 2.f), 0.f, _world);
-                    cubes.push_back(tile);
+                    cubes.push_back(move(tile));
                 }
             } 
             else 
@@ -145,15 +169,12 @@ void Game::CreateMaze(bool** maze, std::vector<Geometry*>& cubes)
                 glm::vec3 winPos = (float)TILE_SIZE * glm::vec3(x - MAZE_SIZE / 2.f, 0, z - MAZE_SIZE / 2.f);
                 _state.winPosition = winPos;
             }
-            tile = new Cube(TILE_SIZE);
+            tile = make_shared<Cube>(TILE_SIZE);
             tile->Embody((float)TILE_SIZE * glm::vec3(x - MAZE_SIZE / 2.f, -1, z - MAZE_SIZE / 2.f), 0.f, _world);
-            cubes.push_back(tile);
+            cubes.push_back(move(tile));
         }
     }
-    tile = nullptr;
-    //TODO: delete maze
-    
-    std::cout << "Maze created successfully(length: " << cubes.size() << ")"  << std::endl;
+    cout << "Maze created successfully(length: " << cubes.size() << ")"  << endl;
 }
 
 void Game::Update(float dt)
@@ -173,7 +194,7 @@ void Game::Update(float dt)
     if (_state.isLightFlashing)
         light->SetDiffuse(abs(glm::cos((float)(_framework->GetTime() * glm::radians(10.0f)))) * (float)(rand() % 2 / 2.0 + 0.5) * _state.lightColor);
     if (camera->getPosition().y <= -5.0) {
-        //std::cout << "You lose!" << std::endl;
+        //cout << "You lose!" << endl;
         if (AUTO_CLOSE)
         {
             _framework->CloseWindow();
@@ -181,7 +202,7 @@ void Game::Update(float dt)
         }
     }
     if (glm::distance(camera->getPosition(), _state.winPosition) <= 3.0) {
-        //std::cout << "You win!" << std::endl;
+        //cout << "You win!" << endl;
         if (AUTO_CLOSE)
         {
             _framework->CloseWindow();
@@ -208,7 +229,7 @@ void Game::Update(float dt)
     glUniform3fv(_program->GetUniform("light.specular"), 1, &lightSpecular[0]);
     glUniform1f(_program->GetUniform("time"), (GLfloat)time);
     
-    _scene->Update(time);
+    _scene.Update(time);
     
     Render(dt);
     RenderGUI(dt);
@@ -269,7 +290,7 @@ void Game::Render(float dt)
     // Rendering
     glEnable(GL_PRIMITIVE_RESTART);
     glPrimitiveRestartIndex(0xFFFF);
-    glEnable(GL_CULL_FACE);
+    //glEnable(GL_CULL_FACE);
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LESS);
     //glEnable(GL_STENCIL_TEST);
@@ -278,7 +299,7 @@ void Game::Render(float dt)
     glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);    
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT); 
     
-    _scene->Render();
+    _scene.Render();
 }
 
 void Game::RenderGUI(float dt)
@@ -312,6 +333,12 @@ void Game::RenderGUI(float dt)
     glGetIntegerv(GL_MAX_FRAGMENT_UNIFORM_BLOCKS, &maxFragUniBlocks);
     ImGui::Text("Max vertex uniform blocks: %d", maxVertUniBlocks);
     ImGui::Text("Max fragment uniform blocks: %d", maxFragUniBlocks);
+
+    GLint maxElementIndices, maxElementVertices;
+    glGetIntegerv(GL_MAX_ELEMENTS_INDICES, &maxElementIndices);
+    glGetIntegerv(GL_MAX_ELEMENTS_VERTICES, &maxElementVertices);
+    ImGui::Text("Max element indices: %d", maxElementIndices);
+    ImGui::Text("Max element vertices: %d", maxElementVertices);
 
     ImGui::ColorEdit3("Clear color", (float*)&clearColor);
     ImGui::Text("Draw time: %.3f s/frame", dt);

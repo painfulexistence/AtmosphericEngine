@@ -28,3 +28,5 @@
 
 //#define ATTR_PROJECTION_VIEW_MATRIX 0
 //#define ATTR_WORLD_MATRIX 4
+
+#define PI 3.1416

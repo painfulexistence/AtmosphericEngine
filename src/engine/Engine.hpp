@@ -4,4 +4,5 @@
 #include "camera.hpp"
 #include "light.hpp"
 #include "cube.hpp"
+#include "sphere.hpp"
 #include "terrain.hpp"

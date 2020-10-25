@@ -31,24 +31,23 @@ const int KEY_SPACE = GLFW_KEY_SPACE;
 
 class Game
 {
-private:
     struct GameState {
         double timeAccumulator;
         glm::vec3 lightColor;
         bool isLightFlashing;
         glm::vec3 winPosition;
     };
-    Framework* _framework;
-    Program* _program;
-    btDiscreteDynamicsWorld* _world;
-    Scene* _scene;
+    std::shared_ptr<Framework> _framework;
+    std::shared_ptr<btDiscreteDynamicsWorld> _world;
+    std::shared_ptr<Program> _program;
+    Scene _scene;
     GameState _state;
 
     Camera* camera;
     Light* light;
     
 public:
-    Game(Framework*);
+    Game(const std::shared_ptr<Framework>&);
     
     ~Game();
 
@@ -56,7 +55,9 @@ public:
 
     void Start();
 
-    void CreateMaze(bool**, std::vector<Geometry*>&);
+    void LoadResources();
+    
+    void CreateMaze(const std::vector<std::vector<bool>>&, std::vector<std::shared_ptr<Geometry>>&);
 
     void Update(float);
 

@@ -3,13 +3,15 @@
 #include "../physics/BulletMain.h"
 #include "geometry.hpp"
 
-class Cube : public Geometry 
+class Sphere : public Geometry 
 {
-private:
-    int _size = 2;
+    float _radius = 0.5f;
 
 public:
-    Cube(int);
+    Sphere(float);
 
     void Embody(glm::vec3, float, const std::shared_ptr<btDiscreteDynamicsWorld>&) override;
+
+    void Render(std::vector<glm::mat4>, GLenum) override;
+
 };

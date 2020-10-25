@@ -3,23 +3,13 @@
 #include "graphics/Framework.hpp"
 #include "engine/game.hpp"
 
-
 class Application
 {
-private:
-    Framework* framework;
-    Game* game;
-    double pastTime;
+    std::shared_ptr<Framework> framework;
+
 public:
     Application();
-
     ~Application();
-
     void Init();
-
     void Run();
-
-    void MainLoop();
-
-    void Cleanup();
 };

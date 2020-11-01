@@ -21,8 +21,7 @@ struct Light
 uniform Surface surf;
 uniform Light light;
 uniform vec3 cam_pos;
-uniform sampler2D tex;
-uniform float time;
+uniform sampler2D tex_unit;
 
 in vec3 frag_pos;
 in vec3 frag_normal;

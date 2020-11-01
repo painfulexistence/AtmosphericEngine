@@ -1,21 +1,28 @@
 #include "light.hpp"
 
-Light::Light(glm::vec3 position, LightProperties props, glm::vec3 direction) 
+Light::Light(LightProperties props, int type) : _type(type)
 {
-    _position = position;
-    _type = props.type;
+    _position = props.position;
+    _direction = props.direction;
     _ambient = props.ambient;
     _diffuse = props.diffuse;
     _specular = props.specular;
-    _direction = direction;
+    _intensity = props.intensity;
+    _attenuation = props.attenuation;
 }
 
-void Light::SetPosition(glm::vec3 position) 
+glm::mat4 Light::GetProjectionViewMatrix()    
 {
-    _position = position;
-}
-
-void Light::SetDirection(glm::vec3 direction) 
-{
-    _direction = direction;
+    if (_type == DIR_LIGHT)
+    {
+        float nearPlane = -200.0f, farPlane = 200.0f;
+        glm::mat4 projection = glm::ortho(-200.0f, 200.0f, -200.0f, 200.0f, nearPlane, farPlane);  
+        glm::mat4 view = glm::lookAt(-GetDirection(), glm::vec3(0.f), glm::vec3(0, 1, 0));
+        return projection * view;
+    }
+    else
+    {
+        std::cout << "Omnidirectional light shadow not supported!" << std::endl;
+        return glm::mat4(0.0f);
+    }
 }

@@ -5,7 +5,7 @@
 #include "Engine.hpp"
 
 //ImGui
-const ImVec4 clearColor = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+const ImVec4 clearColor = ImVec4(0.15f, 0.183f, 0.2f, 1.0f);
 
 //Key mapping
 const int KEY_UP = GLFW_KEY_UP;
@@ -39,31 +39,24 @@ class Game
     };
     std::shared_ptr<Framework> _framework;
     std::shared_ptr<btDiscreteDynamicsWorld> _world;
-    std::shared_ptr<Program> _program;
     Scene _scene;
     GameState _state;
 
-    Camera* camera;
-    Light* light;
+    Camera camera;
+    Light mainLight;
+    std::vector<Light> auxLights = {};
+    Program colorProgram;
+    Program depthProgram;
+
+
+    void CreateMaze(const std::vector<std::vector<bool>>&, std::vector<std::shared_ptr<Geometry>>&);
+    void Update(float);
+    void HandleInput();
+    void Render(float);
+    void RenderGUI(float);
     
 public:
     Game(const std::shared_ptr<Framework>&);
-    
     ~Game();
-
-    void Init();
-
-    void Start();
-
-    void LoadResources();
-    
-    void CreateMaze(const std::vector<std::vector<bool>>&, std::vector<std::shared_ptr<Geometry>>&);
-
-    void Update(float);
-
-    void HandleInput();
-
-    void Render(float);
-
-    void RenderGUI(float);
+    void Run();
 };

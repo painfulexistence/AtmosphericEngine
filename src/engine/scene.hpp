@@ -10,12 +10,11 @@
 
 class Scene 
 {
-    std::shared_ptr<Program> _program;
     std::vector<Material> _materials;
     std::list<std::shared_ptr<Instantiation>> _instantiations;
 
 public:
-    Scene(const std::shared_ptr<Program>&);
+    Scene();
     
     ~Scene();
 
@@ -25,5 +24,5 @@ public:
 
     void Update(float time);
 
-    void Render();    
+    void Render(Program&);    
 };

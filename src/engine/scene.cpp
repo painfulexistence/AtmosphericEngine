@@ -1,11 +1,6 @@
 #include "scene.hpp"
 
-
-Scene::Scene(const std::shared_ptr<Program>& program) : _program(program) {}
-
-Scene::~Scene() {}
-
-void Scene::Init()
+Scene::Scene()
 {
     // Setup materials
     _materials.push_back(
@@ -52,12 +47,9 @@ void Scene::Init()
             0.25
         )
     );
-    
-    // Setup render pipeline
-    _program->Activate();
-    
-    std::cout << "Scene initialized successfully" << std::endl;
 }
+
+Scene::~Scene() {}
 
 void Scene::Create(const std::shared_ptr<Instantiation>& ins)
 {
@@ -93,16 +85,16 @@ static void RenderInstances(const std::shared_ptr<Instantiation>& ins)
     ins->prefab->Render(wms);
 }
 
-void Scene::Render()
+void Scene::Render(Program& program)
 {
     for (const auto& ins : _instantiations) // For every instantiations
     {
         auto& mat = _materials[ins->materialIdx];
-        glUniform3fv(_program->GetUniform("surf.ambient"), 1, &mat.GetAmbient()[0]);
-        glUniform3fv(_program->GetUniform("surf.diffuse"), 1, &mat.GetDiffuse()[0]);
-        glUniform3fv(_program->GetUniform("surf.specular"), 1, &mat.GetSpecular()[0]);
-        glUniform1f(_program->GetUniform("surf.shininess"), mat.GetShininess());
-        glUniform1i(_program->GetUniform("tex"), mat.GetMainTex());
+        program.SetUniform(std::string("surf.ambient"), mat.GetAmbient());
+        program.SetUniform(std::string("surf.diffuse"), mat.GetDiffuse());
+        program.SetUniform(std::string("surf.specular"), mat.GetSpecular());
+        program.SetUniform(std::string("surf.shininess"), mat.GetShininess());
+        program.SetUniform(std::string("tex_unit"), (int)mat.GetTexUnit());
         
         RenderInstances(ins);
     }

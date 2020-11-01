@@ -4,10 +4,10 @@
 static const float maxVAngle = PI / 2.0f - 0.01f;
 static const float minVAngle = -PI / 2.0f + 0.01f;
 
-Camera::Camera(glm::vec3 position, glm::vec2 vhAngle, CameraProperties props) {
-    _position = position;
-    _vhAngle = vhAngle;
+Camera::Camera(CameraProperties props, glm::vec2 vhAngle) {
+    _origin = props.origin;
     _projection = glm::perspective(props.fov, props.aspectRatio, props.nearClipPlane, props.farClipPlane);
+    _vhAngle = vhAngle;
 }
 
 void Camera::Embody(const std::shared_ptr<btDiscreteDynamicsWorld>& world)
@@ -15,7 +15,7 @@ void Camera::Embody(const std::shared_ptr<btDiscreteDynamicsWorld>& world)
     if (world == 0)
         return;
 
-    btTransform trans = btTransform(btQuaternion(0, 0, 0), btVector3(_position.x, _position.y, _position.z));
+    btTransform trans = btTransform(btQuaternion(0, 0, 0), btVector3(_origin.x, _origin.y, _origin.z));
     btMotionState* motionState = new btDefaultMotionState(trans);
     btCollisionShape* shape = new btCapsuleShape(btScalar(0.5), btScalar(1.5));
 
@@ -81,7 +81,7 @@ glm::mat4 Camera::getDynamicsTransform() {
 }
 
 glm::mat4 Camera::getProjectionViewMatrix() {
-    glm::vec3 pos = getPosition();
+    glm::vec3 pos = GetOrigin();
     glm::mat4 view = glm::lookAt(pos, pos + CalculateDirection(_vhAngle.x, _vhAngle.y), glm::vec3(0, 1, 0));
     return _projection * view;
 }

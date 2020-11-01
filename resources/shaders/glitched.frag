@@ -11,17 +11,17 @@ struct Surface
 
 struct Light
 {
-    vec3 position;
     vec3 direction;
     vec3 ambient;
     vec3 diffuse;
     vec3 specular;
+    float intensity;
 };
 
 uniform Surface surf;
-uniform Light light;
+uniform Light main_light;
 uniform vec3 cam_pos;
-uniform sampler2D tex;
+uniform sampler2D tex_unit;
 uniform float time;
 
 in vec3 frag_pos;
@@ -29,6 +29,8 @@ in vec3 frag_normal;
 in vec2 tex_uv;
 out vec4 Color;
 
+const float lightPower = 1.0;
+const float gamma = 2.2;
 
 float random(vec2 st)
 {
@@ -77,18 +79,18 @@ void main()
 
     vec3 norm = normalize(frag_normal);
     vec3 viewDir = normalize(cam_pos - frag_pos);
-    vec3 lightDir = normalize(light.position - frag_pos);
-    // Light type switch (when length(normalize(light.direction)) = 1, it means directional light)
-    lightDir = mix(lightDir, -normalize(light.direction), length(normalize(light.direction)));
-    vec3 reflectDir = reflect(-lightDir, norm);
+    vec3 lightDir = normalize(-main_light.direction);
+    lightDir = mix(lightDir, -normalize(main_light.direction), length(normalize(main_light.direction)));
+    vec3 halfway = normalize(lightDir + viewDir);
 
-    vec3 ambient = 2 * light.ambient * surf.ambient;
+    vec3 ambient = main_light.ambient * 3.0 * surf.ambient;
     float diff = max(dot(norm, lightDir), 0.0);
-    vec3 diffuse = light.diffuse * (diff * surf.diffuse);
-    vec3 specular = light.specular * pow(max(dot(viewDir, reflectDir), 0.0), surf.shininess * 128) * surf.specular;
+    vec3 diffuse = main_light.diffuse * lightPower * (diff * surf.diffuse);
+    vec3 specular = main_light.specular * lightPower * pow(max(dot(halfway, norm), 0.0), surf.shininess) * surf.specular;
 
-    vec3 result = mix((ambient + diffuse + specular), texture(tex, uv).xyz, 0.1);
+    vec3 result = mix((ambient + diffuse + specular), texture(tex_unit, uv).xyz, 0.1);
     result = Childhood(result);
+    result = pow(result, vec3(1.0 / gamma));
 
     Color = vec4(result, 1);
 }

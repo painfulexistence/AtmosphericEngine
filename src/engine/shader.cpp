@@ -21,7 +21,7 @@ Shader::Shader(const char* filename, GLenum type)
     load_shader(_shader, get_file_content(filename));
 }
     
-Shader::~Shader() { }
+Shader::~Shader() {}
 
 GLuint Shader::Compile()
 {

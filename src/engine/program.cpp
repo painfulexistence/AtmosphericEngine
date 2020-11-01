@@ -1,31 +1,14 @@
 #include "program.hpp"
 
-Program::Program()
-{
-    _program = glCreateProgram();
-}
+Program::Program() : _program(glCreateProgram()) {}
 
-void Program::Init()
+Program::Program(std::vector<Shader>& shaders) : _program(glCreateProgram())
 {
-    std::vector<Shader*> shaders = {
-        new Shader("./resources/shaders/normal.vert", GL_VERTEX_SHADER),
-        new Shader("./resources/shaders/glitched.frag", GL_FRAGMENT_SHADER)
-    };
     for (int i = shaders.size() - 1; i >= 0; i--)
     {
-        glAttachShader(_program, shaders[i]->Compile());
-        delete shaders[i];
+        glAttachShader(_program, shaders[i].Compile());
     }
-
     glLinkProgram(_program);
-}
-
-GLint Program::GetAttrib(const char* attrib) {
-    return glGetAttribLocation(_program, attrib);
-}
-
-GLint Program::GetUniform(const char* uniform) {
-    return glGetUniformLocation(_program, uniform);
 }
 
 void Program::Activate() {

@@ -1,38 +1,35 @@
 #pragma once
 #include "../common.hpp"
 
-enum LightType
-{
-    POINT,
-    AREA,
-    DIRECT,
-    SPOT
-};
-
 struct LightProperties
 {
-    LightType type;
-    glm::vec3 ambient = glm::vec3(0.8);
-    glm::vec3 diffuse;
+    //Color reference: http://planetpixelemporium.com/tutorialpages/light.html
+    //Attenuation reference: http://wiki.ogre3d.org/tiki-index.php?page=-Point+Light+Attenuation
+    glm::vec3 ambient = glm::vec3(0.2);
+    glm::vec3 diffuse = glm::vec3(0.5, 0.5, 0.5);
     glm::vec3 specular = glm::vec3(1);
+    glm::vec3 direction = glm::vec3(0, -1, 0);
+    glm::vec3 position = glm::vec3(0, 0, 0);
+    glm::vec3 attenuation = glm::vec3(1, 0.045, 0.0075);
+    float intensity = 1.0;
 };
 
 class Light 
 {
 private:
+    int _type;
+    glm::vec3 _direction;
     glm::vec3 _position;
-    LightType _type;
+    glm::vec3 _attenuation;
     glm::vec3 _ambient;
     glm::vec3 _diffuse;
     glm::vec3 _specular;
-    glm::vec3 _direction;
+    float _intensity;
 
 public:
-    Light(glm::vec3, LightProperties, glm::vec3 = glm::vec3(0, 0, 0));
-    
-    void SetPosition(glm::vec3);
+    Light(LightProperties = LightProperties(), int = POINT_LIGHT);
 
-    void SetDirection(glm::vec3);
+    glm::mat4 GetProjectionViewMatrix();
     
     glm::vec3 GetPosition() { return _position; }
 
@@ -44,9 +41,32 @@ public:
 
     glm::vec3 GetSpecular() { return _specular; }
 
-    void SetAmbient(glm::vec3 ambient) { _ambient = ambient; }
+    glm::vec3 GetAttenuation() { return _attenuation; }
 
-    void SetDiffuse(glm::vec3 diffuse) { _diffuse = diffuse; }
+    float GetIntensity() { return _intensity; }
 
-    void SetSpecular(glm::vec3 specular) { _specular = specular; }
+    void SetPosition(glm::vec3 position) 
+    {
+        _position = position;
+    }
+
+    void SetDirection(glm::vec3 direction) 
+    {
+        _direction = direction;
+    }
+
+    void SetAmbient(glm::vec3 ambient) 
+    { 
+        _ambient = ambient; 
+    }
+
+    void SetDiffuse(glm::vec3 diffuse) 
+    { 
+        _diffuse = diffuse; 
+    }
+
+    void SetSpecular(glm::vec3 specular) 
+    { 
+        _specular = specular; 
+    }
 };

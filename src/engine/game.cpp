@@ -7,7 +7,7 @@
 #define CHISM_PROBABILITY 10
 #define GRAVITY 10
 #define AUTO_CLOSE false
-#define FIXED_TIME_STEP 1.0 / 60.0
+#define CHECK_FRAMEWORK_ERRORS false
 
 using namespace std;
 
@@ -51,7 +51,7 @@ static vector<vector<bool>> generateMazeData(int size) {
     return data;
 }
 
-Game::Game(const shared_ptr<Framework>& framework) : _framework(framework), _program(make_shared<Program>()), _scene(Scene(_program))
+Game::Game(const shared_ptr<Framework>& framework) : _framework(framework), _scene(Scene())
 {
     btCollisionConfiguration* config = new btDefaultCollisionConfiguration();
     btCollisionDispatcher* dispatcher = new btCollisionDispatcher(config);
@@ -60,41 +60,73 @@ Game::Game(const shared_ptr<Framework>& framework) : _framework(framework), _pro
     
     _world = make_shared<btDiscreteDynamicsWorld>(dispatcher, broadphase, solver, config);
     _world->setGravity(btVector3(0, -GRAVITY, 0));
-}
 
-Game::~Game() {}
+    std::vector<Shader> colorShaders = {
+        Shader("./resources/shaders/multilight_shadow.vert", GL_VERTEX_SHADER),
+        Shader("./resources/shaders/multilight_shadow.frag", GL_FRAGMENT_SHADER)
+    };
+    std::vector<Shader> depthShaders = {
+        Shader("./resources/shaders/depth_simple.vert", GL_VERTEX_SHADER),
+        Shader("./resources/shaders/depth_simple.frag", GL_FRAGMENT_SHADER)
+    };
+    colorProgram = Program(colorShaders);
+    depthProgram = Program(depthShaders);
 
-void Game::Init()
-{
+    // Setup render pipeline
+    colorProgram.Activate();
+
     _state.timeAccumulator = 0;
-    _state.lightColor = glm::vec3(1, 1, 1);
+    _state.lightColor = glm::vec3(1.0, 0.067, 1.0);
     _state.isLightFlashing = false;
     _state.winPosition = glm::vec3(0, 0, 0);
-
-    _program->Init();
-    _scene.Init();
-    LoadResources();
 
     cout << "Game initialized successfully" << endl;
 }
 
-void Game::Start()
+Game::~Game() {}
+
+void Game::Run()
 {
     CameraProperties cProps;
+    cProps.origin = glm::vec3(0, 2, 0);
     cProps.aspectRatio = SCREEN_W / (float)SCREEN_H;
     cProps.farClipPlane = 3000.0f;
-    camera = new Camera(glm::vec3(0, 2, 0), glm::vec2(0.f, 0.f), cProps);
-    camera->Embody(_world);
+    camera = Camera(cProps);
+    camera.Embody(_world);
 
     LightProperties lProps;
-    lProps.diffuse = _state.lightColor;
-    light = new Light(glm::vec3(10, 50, 10), lProps, glm::vec3(1, -1, 1));
     
+    lProps.intensity = 0.5;
+    lProps.direction = glm::vec3(-0.21, -0.72, -0.5);
+    lProps.diffuse = _state.lightColor;
+    mainLight = Light(lProps, DIR_LIGHT);
+    
+    lProps.intensity = 4.0;
+    lProps.position = glm::vec3(-rand() % 50, 20, -rand() % 50);
+    lProps.diffuse = glm::vec3(1, 1, 0);
+    auxLights.push_back(Light(lProps, POINT_LIGHT));    
+    lProps.position = glm::vec3(-rand() % 50, 20, -rand() % 50);
+    auxLights.push_back(Light(lProps, POINT_LIGHT));
+
+    lProps.intensity = 4.0;
+    lProps.position = glm::vec3(rand() % 50, 20, rand() % 50);
+    lProps.diffuse = glm::vec3(1, 0, 1);
+    auxLights.push_back(Light(lProps, POINT_LIGHT));
+    lProps.position = glm::vec3(rand() % 50, 20, rand() % 50);
+    auxLights.push_back(Light(lProps, POINT_LIGHT));
+    
+    lProps.intensity = 4.0;
+    lProps.position = glm::vec3(rand() % 50, 20, -rand() % 50);
+    lProps.diffuse = glm::vec3(0, 1, 1);
+    auxLights.push_back(Light(lProps, POINT_LIGHT));    
+    lProps.position = glm::vec3(rand() % 50, 20, -rand() % 50);
+    auxLights.push_back(Light(lProps, POINT_LIGHT));
+
     unique_ptr<Instantiation> rain(new Instantiation(1));
-    vector<shared_ptr<Geometry>> spheres(500);
+    vector<shared_ptr<Geometry>> spheres(100);
     for (int i = 0; i < spheres.size(); i++)
     {
-        shared_ptr<Geometry> s = make_shared<Sphere>((float)(rand() % 9));
+        shared_ptr<Geometry> s = make_shared<Sphere>(5.0f);
         s->Embody(glm::vec3(rand() % 10 - 5, rand() % 100 + 20, rand() % 10 - 5), 1.0f, _world);
         spheres[i] = s;
     }
@@ -117,19 +149,17 @@ void Game::Start()
     CreateMaze(generateMazeData(MAZE_SIZE), cubes);
     maze->Init(cubes);
     _scene.Create(move(maze));
-}
 
-void Game::LoadResources()
-{
-    // Load textures
-    std::vector<std::string> paths = {
-        "./resources/beach.png",
-        "./resources/starnight.jpg",
-        "./resources/grass.png",
-        "./resources/brick.jpg",
-        "./resources/metal.jpg"
-    };
-    _framework->Textures(paths);
+    double pastTime = _framework->GetTime();
+    while(!_framework->IsWindowOpen())
+    {
+        double currentTime = _framework->GetTime();
+        Update(float(currentTime - pastTime));
+        pastTime = currentTime;
+        #if CHECK_FRAMEWORK_ERRORS
+        _framework->CheckErrors();
+        #endif
+    }
 }
 
 void Game::CreateMaze(const vector<vector<bool>>& maze, vector<shared_ptr<Geometry>>& cubes) 
@@ -163,7 +193,7 @@ void Game::CreateMaze(const vector<vector<bool>>& maze, vector<shared_ptr<Geomet
                 if (!characterPlaced)
                 {
                     glm::vec3 charPos = (float)TILE_SIZE * glm::vec3(x - MAZE_SIZE / 2.f, 1, z - MAZE_SIZE / 2.f);
-                    camera->setPosition(charPos);
+                    camera.SetOrigin(charPos);
                     characterPlaced = true;
                 }
                 glm::vec3 winPos = (float)TILE_SIZE * glm::vec3(x - MAZE_SIZE / 2.f, 0, z - MAZE_SIZE / 2.f);
@@ -192,8 +222,8 @@ void Game::Update(float dt)
 
     // Normal update
     if (_state.isLightFlashing)
-        light->SetDiffuse(abs(glm::cos((float)(_framework->GetTime() * glm::radians(10.0f)))) * (float)(rand() % 2 / 2.0 + 0.5) * _state.lightColor);
-    if (camera->getPosition().y <= -5.0) {
+        mainLight.SetDiffuse(abs(glm::cos((float)(_framework->GetTime() * glm::radians(10.0f)))) * (float)(rand() % 2 / 2.0 + 0.5) * _state.lightColor);
+    if (camera.GetOrigin().y <= -5.0) {
         //cout << "You lose!" << endl;
         if (AUTO_CLOSE)
         {
@@ -201,7 +231,7 @@ void Game::Update(float dt)
             return;
         }
     }
-    if (glm::distance(camera->getPosition(), _state.winPosition) <= 3.0) {
+    if (glm::distance(camera.GetOrigin(), _state.winPosition) <= 3.0) {
         //cout << "You win!" << endl;
         if (AUTO_CLOSE)
         {
@@ -210,96 +240,135 @@ void Game::Update(float dt)
         }
     }
     
+    colorProgram.SetUniform(string("ProjectionView"), camera.getProjectionViewMatrix());
+    colorProgram.SetUniform(string("cam_pos"), camera.GetOrigin());
+
+    colorProgram.SetUniform(string("main_light.direction"), mainLight.GetDirection());
+    colorProgram.SetUniform(string("main_light.ambient"), mainLight.GetAmbient());
+    colorProgram.SetUniform(string("main_light.diffuse"), mainLight.GetDiffuse());
+    colorProgram.SetUniform(string("main_light.specular"), mainLight.GetSpecular());
+    colorProgram.SetUniform(string("main_light.intensity"), mainLight.GetIntensity());
+
+    int auxLightCount = min((int)auxLights.size(), MAX_NUM_AUX_LIGHTS);
+    for (int i = 0; i < auxLightCount; ++i)
+    {
+        Light& l = auxLights[i];
+        colorProgram.SetUniform(string("aux_lights[") + to_string(i) + string("].position"), l.GetPosition());
+        colorProgram.SetUniform(string("aux_lights[") + to_string(i) + string("].ambient"), l.GetAmbient());
+        colorProgram.SetUniform(string("aux_lights[") + to_string(i) + string("].diffuse"), l.GetDiffuse());
+        colorProgram.SetUniform(string("aux_lights[") + to_string(i) + string("].specular"), l.GetSpecular());
+        colorProgram.SetUniform(string("aux_lights[") + to_string(i) + string("].attenuation"), l.GetAttenuation());
+        colorProgram.SetUniform(string("aux_lights[") + to_string(i) + string("].intensity"), l.GetIntensity());
+    }
+    colorProgram.SetUniform(string("aux_light_count"), auxLightCount);
+    
     float time = (float)_framework->GetTime();
-    
-    glm::vec3 cameraPosition = camera->getPosition();
-    glm::mat4 PV = camera->getProjectionViewMatrix();
-    glm::vec3 lightPosition = light->GetPosition();
-    glm::vec3 lightDirection = light->GetDirection();
-    glm::vec3 lightAmbient = light->GetAmbient();
-    glm::vec3 lightDiffuse = light->GetDiffuse();
-    glm::vec3 lightSpecular = light->GetSpecular();
-    
-    glUniformMatrix4fv(_program->GetUniform("ProjectionView"), 1, GL_FALSE, &PV[0][0]);
-    glUniform3fv(_program->GetUniform("cam_pos"), 1, &cameraPosition[0]);
-    glUniform3fv(_program->GetUniform("light.position"), 1, &lightPosition[0]);
-    glUniform3fv(_program->GetUniform("light.direction"), 1, &lightDirection[0]);
-    glUniform3fv(_program->GetUniform("light.ambient"), 1, &lightAmbient[0]);
-    glUniform3fv(_program->GetUniform("light.diffuse"), 1, &lightDiffuse[0]);
-    glUniform3fv(_program->GetUniform("light.specular"), 1, &lightSpecular[0]);
-    glUniform1f(_program->GetUniform("time"), (GLfloat)time);
+    colorProgram.SetUniform(string("time"), time);
     
     _scene.Update(time);
     
     Render(dt);
     RenderGUI(dt);
 
-    _framework->Swap();    
+    _framework->SwapBuffers();    
 }
 
 void Game::HandleInput()
 {
-    _framework->Poll();
+    _framework->PollEvents();
     
-    camera->damp();
+    camera.damp();
 
-    if (_framework->KeyDown(KEY_UP))
-        camera->backAndForthMove(CAMERA_SPEED);
+    if (_framework->IsKeyDown(KEY_W))
+        camera.backAndForthMove(CAMERA_SPEED);
 
-    if (_framework->KeyDown(KEY_DOWN))
-        camera->backAndForthMove(-CAMERA_SPEED);
-
-    if (_framework->KeyDown(KEY_RIGHT))
-        camera->yaw(CAMERA_ANGULAR_OFFSET);
-
-    if (_framework->KeyDown(KEY_LEFT))
-        camera->yaw(-CAMERA_ANGULAR_OFFSET);
-
-    if (_framework->KeyDown(KEY_SPACE)) 
+    if (_framework->IsKeyDown(KEY_S))
     {
-        if (camera->isFreezing()) 
-            camera->verticallyMove(CAMERA_VERTICAL_SPEED);
+        camera.backAndForthMove(-CAMERA_SPEED);
     }
-
-    if (_framework->KeyDown(KEY_D))
-        camera->yaw(CAMERA_ANGULAR_OFFSET);
-
-    if (_framework->KeyDown(KEY_A))
-        camera->yaw(-CAMERA_ANGULAR_OFFSET);
-
-    if (_framework->KeyDown(KEY_W))
-        camera->pitch(CAMERA_ANGULAR_OFFSET);
-
-    if (_framework->KeyDown(KEY_S))
-        camera->pitch(-CAMERA_ANGULAR_OFFSET);
-
-    if (_framework->KeyDown(KEY_Z)) 
+    if (_framework->IsKeyDown(KEY_D))
     {
-        glm::vec2 pos = _framework->CursorUV();
+        camera.horizontallyMove(CAMERA_SPEED);
+        camera.yaw(0.3 * CAMERA_ANGULAR_OFFSET);
+    }
+    if (_framework->IsKeyDown(KEY_A))
+    {
+        camera.horizontallyMove(-CAMERA_SPEED);
+        camera.yaw(-0.3 * CAMERA_ANGULAR_OFFSET);
+    }
+    if (_framework->IsKeyDown(KEY_UP))
+    {
+        camera.pitch(CAMERA_ANGULAR_OFFSET);
+    }
+    if (_framework->IsKeyDown(KEY_DOWN))
+    {
+        camera.pitch(-CAMERA_ANGULAR_OFFSET);
+    }
+    if (_framework->IsKeyDown(KEY_RIGHT))
+    {
+        camera.yaw(CAMERA_ANGULAR_OFFSET);
+    }
+    if (_framework->IsKeyDown(KEY_LEFT))
+    {
+        camera.yaw(-CAMERA_ANGULAR_OFFSET);
+    }
+    if (_framework->IsKeyDown(KEY_SPACE)) 
+    {
+        if (camera.isFreezing()) 
+            camera.verticallyMove(CAMERA_VERTICAL_SPEED);
+    }
+    if (_framework->IsKeyDown(KEY_Z)) 
+    {
+        glm::vec2 pos = _framework->GetCursorUV();
         glm::vec3 diff = glm::vec3(1.0, pos.x, pos.y);
 
-        light->SetDiffuse(diff);
+        mainLight.SetDiffuse(diff);
     }
-
-    if (_framework->KeyDown(KEY_X))
+    if (_framework->IsKeyDown(KEY_X))
+    {
         _state.isLightFlashing = !_state.isLightFlashing;
+    }
 }
 
 void Game::Render(float dt)
 {
-    // Rendering
+    // 0. Preparing
     glEnable(GL_PRIMITIVE_RESTART);
     glPrimitiveRestartIndex(0xFFFF);
-    //glEnable(GL_CULL_FACE);
+    glEnable(GL_CULL_FACE);
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LESS);
     //glEnable(GL_STENCIL_TEST);
     //glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
     //glStencilFunc(GL_ALWAYS, 1, 0xFF);
+
+    // 1. Depth Pass
+    glViewport(0, 0, SHADOW_W, SHADOW_H);
+    glBindFramebuffer(GL_FRAMEBUFFER, _framework->GetShadowFramebuffer());
+    glClear(GL_DEPTH_BUFFER_BIT);
+    depthProgram.Activate();
+    depthProgram.SetUniform(string("LightProjectionView"), mainLight.GetProjectionViewMatrix());
+    _scene.Render(depthProgram);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    // 2. Color Pass
+    glViewport(0, 0, SCREEN_W, SCREEN_H);
     glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);    
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT); 
-    
-    _scene.Render();
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, _framework->GetShadowMap());
+    const vector<GLuint>& textures = _framework->GetTextures();
+    for (int i = 0; i < textures.size(); ++i)
+    {
+        glActiveTexture(GL_TEXTURE0 + NUM_MAP_TEXS + i);
+        glBindTexture(GL_TEXTURE_2D, textures[i]);
+    }
+
+    colorProgram.Activate();
+    colorProgram.SetUniform(string("LightProjectionView"), mainLight.GetProjectionViewMatrix());
+    colorProgram.SetUniform(string("shadow_map_unit"), (int)0);
+    _scene.Render(colorProgram);
 }
 
 void Game::RenderGUI(float dt)
@@ -345,14 +414,6 @@ void Game::RenderGUI(float dt)
     ImGui::Text("Frame rate: %.1f FPS", 1.0f / dt);
     //ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 
-    ImGui::End();
-
-    ImGui::Begin("Game Rendering");
-
-    int tiles = MAZE_SIZE * MAZE_SIZE + 3 * (MAZE_SIZE * MAZE_SIZE - TILES_TO_REMOVE);
-    ImGui::Text("Vertices estimate %.1fk", (tiles * 12 + 320 + 24) / 1000.0);
-    ImGui::Text("Triangles estimate %.1fk", (tiles * 6 + 200 + 12) / 1000.0);
-    
     ImGui::End();
     
     ImGui::Render();

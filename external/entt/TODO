@@ -1,0 +1,27 @@
+* long term feature: shared_ptr less locator and resource cache
+* custom allocators and EnTT allocator-aware in general (long term feature, I don't actually need it at the moment) - see #22
+* debugging tools (#60): the issue online already contains interesting tips on this, look at it
+* work stealing job system (see #100) + mt scheduler based on const awareness for types
+* meta: sort of meta view based on meta stuff to iterate entities, void * and meta info objects (remove runtime views, welcome reflection)
+* allow to replace std:: with custom implementations
+* add examples (and credits) from @alanjfs :)
+* static reflection, hint: template<> meta_type_t<Type>: meta_descriptor<name, func..., props..., etc...> (see #342)
+* update documentation for meta, it contains less than half of the actual feature
+
+WIP:
+* pagination doesn't work nicely across boundaries probably, give it a look. RO operations are fine, adding components maybe not.
+* make it easier to hook into the type system and describe how to do that to eg auto-generate meta types on first use
+* add observer functions aside observer class
+* introduce the component iterators for non-contiguous collections of entities (multi component views, observers, user defined collections)
+* snapshot: support for range-based archives
+* update snapshot documentation to describe alternatives
+* custom pools.
+* the Perfect Model.
+* page size 0 -> page less mode
+* add ::reach and rev iterators to proxy objects for faster and unsafe iterations
+* add example: 64 bit ids with 32 bits reserved for users' purposes
+* composable views and "faster views", deprecate non-owning groups
+* offset instead of pages in the sparse set? top level mask for sparse sets?
+* add meta dynamic cast (search base for T in parent, we have the meta type already)
+* make meta base/conv node work with storage/any
+* deprecate/remove meta_base, meta_conv, ...

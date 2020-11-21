@@ -4,6 +4,8 @@
 #include <LinearMath/btVector3.h>
 #include <LinearMath/btDefaultMotionState.h>
 #include <LinearMath/btIDebugDraw.h>
+#define FIXED_TIME_STEP 1.0 / 60.0
+#define GRAVITY 9.8
 
 // Forward declare classes which will be used for pointer rather than include all-in-one headers (eg. btBulletCollisionsCommon.h)
 class btCollisionConfiguration;

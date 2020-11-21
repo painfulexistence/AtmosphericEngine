@@ -1,5 +1,6 @@
 #pragma once
 #include "../common.hpp"
+#include "../io/file.hpp"
 
 class Shader 
 {
@@ -7,9 +8,7 @@ private:
     GLuint _shader;
 
 public:
-    Shader(const char*, GLenum);
+    Shader(const std::string& filename, GLenum type);
     
-    ~Shader();
-
     GLuint Compile();
 };

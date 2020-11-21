@@ -1,28 +1,39 @@
 #pragma once
 #include "../common.hpp"
-#include "geometry.hpp"
-#include "instantiation.hpp"
+#include "../physics/BulletMain.h"
+#include "../physics/Debugger.hpp"
 #include "material.hpp"
 #include "program.hpp"
-#include "camera.hpp"
-#include "light.hpp"
+#include "mesh.hpp"
+#include "geometry.hpp"
 
-
-class Scene 
+class Scene
 {
-    std::vector<Material> _materials;
-    std::list<std::shared_ptr<Instantiation>> _instantiations;
+private:
+    std::map<std::uint64_t, std::unique_ptr<Geometry>> _geometries;
 
 public:
-    Scene();
-    
-    ~Scene();
+    static std::map<std::string, std::shared_ptr<Mesh>> MeshTable;
 
-    void Init();
+    std::uint64_t CreateGhostGeometry();
 
-    void Create(const std::shared_ptr<Instantiation>&);
+    std::uint64_t CreateMeshGeometry(const std::string& entry, glm::mat4 modelTransform = glm::mat4(1.0f));
 
-    void Update(float time);
+    bool GetGeometryModelTransform(std::uint64_t id, glm::mat4& transform) const;
 
-    void Render(Program&);    
+    void SetGeometryModelTransform(std::uint64_t id, const glm::mat4& transform);
+
+    bool GetGeometryModelWorldTransform(std::uint64_t id, glm::mat4& transform) const;
+
+    void SetGeometryModelWorldTransform(std::uint64_t id, const glm::mat4& transform);
+
+    glm::mat4 GetGeometryWorldMatrix(std::uint64_t id)
+    {
+        if (_geometries.count(id) == 0)
+            throw std::runtime_error("Cannot find the geometry!");
+        
+        return _geometries.find(id)->second->GetWorldMatrix();
+    }
+
+    void Render(Program&);
 };

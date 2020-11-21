@@ -1,28 +1,15 @@
 #include "shader.hpp"
 
-static std::string get_file_content(const char* filename) {
-    std::ifstream ifs(filename);
-    std::string content(
-        (std::istreambuf_iterator<char>(ifs)), //start of stream iterator
-        (std::istreambuf_iterator<char>()) //end of stream iterator
-    );
-    return content;
-}
-
-static void load_shader(GLuint shader, const std::string &shader_string) {
-    const char* shader_src = shader_string.c_str();
-    const int shader_len = shader_string.size();
-    glShaderSource(shader, 1, &shader_src, &shader_len);
-}
-
-Shader::Shader(const char* filename, GLenum type)
+Shader::Shader(const std::string& filename, GLenum type)
 {
+    const auto& shaderSrc = File(filename).GetContent();
+    const char* src = shaderSrc.c_str();
+    const int len = shaderSrc.size();
+
     _shader = glCreateShader(type);
-    load_shader(_shader, get_file_content(filename));
+    glShaderSource(_shader, 1, &src, &len);
 }
     
-Shader::~Shader() {}
-
 GLuint Shader::Compile()
 {
     glCompileShader(_shader);

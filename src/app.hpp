@@ -1,15 +1,17 @@
 #pragma once
 #include "common.hpp"
 #include "graphics/Framework.hpp"
-#include "engine/game.hpp"
+#include "game.hpp"
 
 class Application
 {
-    std::shared_ptr<Framework> framework;
+private:
+    Framework framework;
 
 public:
     Application();
-    ~Application();
+
     void Init();
+
     void Run();
 };

@@ -1,4 +1,10 @@
 function init()
+    camera = {
+
+    }
+    lights = {
+        
+    }
     maze = {
         size = 50,
         roofed = false,
@@ -9,7 +15,7 @@ function init()
     }
     game_state = {
         is_light_flashing = false,
-        light_color = {1.0, 0.067, 1.0},
+        light_color = {1.0, 1.0, 1.0},
     }
     print('[Script] Game state initialized.')
 end

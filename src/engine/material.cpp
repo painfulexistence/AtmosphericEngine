@@ -10,7 +10,7 @@ Material::Material(int texIdx, glm::vec3 ambient, glm::vec3 diffuse, glm::vec3 s
 }
 
 Material Material::Pearl = Material(
-    (GLuint)4,
+    (GLuint)2,
     glm::vec3(.25, .20725, .20725),
     glm::vec3(1, .829, .829),
     glm::vec3(.296648, .296648, .296648),
@@ -18,7 +18,7 @@ Material Material::Pearl = Material(
 );
 
 Material Material::Night = Material(
-    (GLuint)1,
+    (GLuint)0,
     glm::vec3(.1, .18725, .1745),
     glm::vec3(.396, .74151, .69102),
     glm::vec3(.992157, .941176, .807843),
@@ -26,7 +26,7 @@ Material Material::Night = Material(
 );
 
 Material Material::Ivory = Material(
-    (GLuint)4,
+    (GLuint)3,
     glm::vec3(0.19225, 0.19225, 0.19225),
     glm::vec3(0.50754, 0.50754, 0.50754),
     glm::vec3(0.508273, 0.508273, 0.508273),
@@ -34,7 +34,7 @@ Material Material::Ivory = Material(
 );
 
 Material Material::GreenPlastic = Material(
-    (GLuint)3,
+    (GLuint)1,
     glm::vec3(.0, .0, .0),
     glm::vec3(.5, .0, .0),
     glm::vec3(.7, .6, .6),

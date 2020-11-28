@@ -65,10 +65,13 @@ void Scene::Render(Program& program)
     {
         const auto& mesh = entry.second;
         const auto& instances = mesh->GetInstances();
-        std::list<uint64_t> culled = instances;
-        //TODO: Cull
-        std::vector<glm::mat4> wms(culled.size());
         
+        std::list<uint64_t> culled;
+        for (auto it = instances.cbegin(); it != instances.cend(); ++it)
+        {
+            culled.push_back(*it);
+        }
+        std::vector<glm::mat4> wms(culled.size());
         int k = 0;
         for (auto it = culled.cbegin(); it != culled.cend(); ++it, ++k)
         {

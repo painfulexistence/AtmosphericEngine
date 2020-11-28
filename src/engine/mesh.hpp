@@ -11,15 +11,15 @@ private:
     std::vector<GLushort> tris;
     Material _mat;
     std::list<std::uint64_t> _instances;
-
-    bool _initialized = false;
     GLenum _primitiveType = GL_TRIANGLES;
-    GLenum _drawMode = GL_FILL;
-    GLenum _cullFaceMode = GL_BACK;
+    bool _initialized = false;
 
     void BufferData();
     
 public:
+    bool cullFaceEnabled = true;
+    GLenum drawMode = GL_FILL;
+
     Mesh();
 
     ~Mesh();
@@ -39,10 +39,6 @@ public:
     void AsSphere(const GLfloat& radius = 0.5f, const GLint& division = 18);
 
     void AsTerrain(const GLfloat& size, const GLint& vnum, const std::vector<GLfloat>& heightmap);
-
-    void SetDrawMode(GLenum mode) { _drawMode = mode; }
-
-    void SetCullFaceMode(GLenum mode) { _cullFaceMode = mode; }
 
     void Render(Program& program, const std::vector<glm::mat4>& worldMatrices) const;
 

@@ -7,9 +7,9 @@ struct CameraProperties
 {
     glm::vec3 origin = glm::vec3(0, 0, 0);
     float fov = glm::radians(60.0f);
-    float aspectRatio = 4.0f / 3.0f;
+    float aspectRatio = 4.f / 3.f;
     float nearClipPlane = 0.1f;
-    float farClipPlane = 1000.0f;
+    float farClipPlane = 1000.f;
 };
 
 class Camera : public Entity

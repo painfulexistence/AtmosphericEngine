@@ -23,12 +23,13 @@
 
 #define PI 3.1416
 #define SCREEN_W 1440
-#define SCREEN_H 900
-#define SHADOW_W 4096
-#define SHADOW_H 4096
-#define VSYNC_ON true
-#define MAX_NUM_AUX_LIGHTS 6
-#define NUM_MAP_TEXS 6
+#define SCREEN_H 810
+#define SHADOW_W 2048
+#define SHADOW_H 2048
+#define AUX_SHADOW_COUNT 4
+#define SHADOW_CASCADES 3
+#define VSYNC_ON false
+#define NUM_MAP_UNITS 6
 #define CAMERA_ANGULAR_OFFSET 0.05
 #define CAMERA_SPEED 15
 #define CAMERA_VERTICAL_SPEED 8

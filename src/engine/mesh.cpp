@@ -31,13 +31,13 @@ void Mesh::AsCube(const GLfloat& size)
         -.5f * size, -.5f * size, -.5f * size, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f,
         //back
         -.5f * size, .5f * size, .5f * size, -1.0f, 0.0f, 0.0f, 1.0f, 1.0f,
-        -.5f * size, .5f * size, -.5f * size, -1.0f, 0.0f, 0.0f, 1.0f, 0.0f,
-        -.5f * size, -.5f * size, .5f * size, -1.0f, 0.0f, 0.0f, 0.0f, 1.0f,
+        -.5f * size, .5f * size, -.5f * size, -1.0f, 0.0f, 0.0f, 0.0f, 1.0f,
+        -.5f * size, -.5f * size, .5f * size, -1.0f, 0.0f, 0.0f, 1.0f, 0.0f,
         -.5f * size, -.5f * size, -.5f * size, -1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
         //front
         .5f * size, .5f * size, .5f * size, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f,
-        .5f * size, .5f * size, -.5f * size, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f,
-        .5f * size, -.5f * size, .5f * size, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f,
+        .5f * size, .5f * size, -.5f * size, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f,
+        .5f * size, -.5f * size, .5f * size, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f,
         .5f * size, -.5f * size, -.5f * size, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
         //top
         .5f * size, .5f * size, .5f * size, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f,
@@ -218,15 +218,15 @@ void Mesh::Render(Program& program, const std::vector<glm::mat4>& worldMatrices)
         throw std::runtime_error("VAO not initialized");
     
     glEnable(GL_PRIMITIVE_RESTART);
-    glPrimitiveRestartIndex(0xFFFF);
-    
-    glEnable(GL_CULL_FACE);
-    glCullFace(_cullFaceMode);
-
+    if (cullFaceEnabled) {
+        glEnable(GL_CULL_FACE);
+    } else {
+        glDisable(GL_CULL_FACE);
+    }
     glEnable(GL_DEPTH_TEST);
-    glDepthFunc(GL_LESS);
-    
     //glEnable(GL_STENCIL_TEST);
+
+    glDepthFunc(GL_LESS);
     //glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
     //glStencilFunc(GL_ALWAYS, 1, 0xFF);
 
@@ -242,7 +242,7 @@ void Mesh::Render(Program& program, const std::vector<glm::mat4>& worldMatrices)
     glBindBuffer(GL_ARRAY_BUFFER, ibo);
     glBufferData(GL_ARRAY_BUFFER, worldMatrices.size() * sizeof(glm::mat4), worldMatrices.data(), GL_STATIC_DRAW);
 
-    glPolygonMode(GL_FRONT_AND_BACK, _drawMode);
+    glPolygonMode(GL_FRONT_AND_BACK, drawMode);
     glDrawElementsInstanced(_primitiveType, tris.size(), GL_UNSIGNED_SHORT, 0, worldMatrices.size());
     glBindVertexArray(0);
 }

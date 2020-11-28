@@ -39,7 +39,9 @@ class Game
     Light mainLight;
     std::vector<Light> auxLights = {};
     Program colorProgram;
-    Program depthProgram;
+    Program depthTextureProgram;
+    Program depthCubemapProgram;
+    Program hdrProgram;
 
     Lua lua;
     std::list<Entity>& entities;

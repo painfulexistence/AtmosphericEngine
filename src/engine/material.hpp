@@ -24,7 +24,7 @@ public:
         float shininess = .25
     );
 
-    int GetTexUnit() const { return NUM_MAP_TEXS + _texIdx; }
+    int GetTexUnit() const { return NUM_MAP_UNITS + _texIdx; }
 
     glm::vec3 GetAmbient() const { return _ambient; }
 

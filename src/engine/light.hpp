@@ -28,8 +28,6 @@ private:
 
 public:
     Light(LightProperties = LightProperties(), int = POINT_LIGHT);
-
-    glm::mat4 GetProjectionViewMatrix();
     
     glm::vec3 GetPosition() { return _position; }
 
@@ -45,28 +43,19 @@ public:
 
     float GetIntensity() { return _intensity; }
 
-    void SetPosition(glm::vec3 position) 
-    {
-        _position = position;
-    }
+    glm::mat4 GetProjectionMatrix(int cascadedIndex = 0);
 
-    void SetDirection(glm::vec3 direction) 
-    {
-        _direction = direction;
-    }
+    glm::mat4 GetViewMatrix(GLenum facing = GL_TEXTURE_CUBE_MAP_POSITIVE_X);
 
-    void SetAmbient(glm::vec3 ambient) 
-    { 
-        _ambient = ambient; 
-    }
+    glm::mat4 GetProjectionViewMatrix(int cascadedIndex = 0, GLenum facing = GL_TEXTURE_CUBE_MAP_POSITIVE_X);
 
-    void SetDiffuse(glm::vec3 diffuse) 
-    { 
-        _diffuse = diffuse; 
-    }
+    void SetPosition(glm::vec3 position) { _position = position; }
 
-    void SetSpecular(glm::vec3 specular) 
-    { 
-        _specular = specular; 
-    }
+    void SetDirection(glm::vec3 direction) { _direction = direction; }
+
+    void SetAmbient(glm::vec3 ambient) { _ambient = ambient; }
+
+    void SetDiffuse(glm::vec3 diffuse) { _diffuse = diffuse; }
+
+    void SetSpecular(glm::vec3 specular) { _specular = specular; }
 };

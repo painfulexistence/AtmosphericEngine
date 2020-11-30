@@ -1,7 +1,7 @@
 #version 410
 
 uniform sampler2D color_map_unit;
-uniform float exposure = 0.1;
+uniform float exposure = 0.5;
 
 in vec2 tex_uv;
 out vec4 Color;

@@ -1,14 +1,9 @@
 #pragma once
 #include "../common.hpp"
-#include "../io/file.hpp"
 
-class Shader 
+struct Shader 
 {
-private:
-    GLuint _shader;
+    GLuint shader;
 
-public:
-    Shader(const std::string& filename, GLenum type);
-    
-    GLuint Compile();
+    Shader(const std::string& path, GLenum type);    
 };

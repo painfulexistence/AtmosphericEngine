@@ -151,32 +151,29 @@ void Framework::Init()
     glBindVertexArray(0);
 }
 
-void Framework::AddTextures(const vector<string>& paths)
-{
-    for (int i = 0; i < paths.size(); ++i)
-    {   
-        GLuint tex;
-        glGenTextures(1, &tex);
-        textures.push_back(tex);    
-        
-        glBindTexture(GL_TEXTURE_2D, tex);
-        float border[] = {1.f, 1.f, 1.f, 1.f};
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, border);  
-        
-        int width, height, nChannels;
-        unsigned char* data = stbi_load(paths[i].c_str(), &width, &height, &nChannels, 0);
-        if (data) {
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
-            glGenerateMipmap(GL_TEXTURE_2D);
-        } else {
-            cout << string("Failed to load texture ") + to_string(i) << endl;
-        }
-        stbi_image_free(data);
+void Framework::CreateTexture(const string& path)
+{ 
+    GLuint tex;
+    glGenTextures(1, &tex);
+    textures.push_back(tex);    
+    
+    glBindTexture(GL_TEXTURE_2D, tex);
+    float border[] = {1.f, 1.f, 1.f, 1.f};
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, border);  
+    
+    int width, height, nChannels;
+    unsigned char* data = stbi_load(path.c_str(), &width, &height, &nChannels, 0);
+    if (data) {
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+        glGenerateMipmap(GL_TEXTURE_2D);
+    } else {
+        cout << string("Failed to load texture at ") + path << endl;
     }
+    stbi_image_free(data);
 }
 
 void Framework::Blit()

@@ -60,7 +60,6 @@ void Game::Run()
     Lua::Lib();
     Lua::Source("./resources/scripts/config.lua");
     Lua::Source("./resources/scripts/main.lua");
-    Lua::Run("init()");
     Lua::L.set_function("get_cursor_uv", &Framework::GetCursorUV, framework);
     Lua::L.set_function("swap_buffers", &Framework::SwapBuffers, framework);
     Lua::L.set_function("check_errors", &Framework::CheckErrors, framework);
@@ -69,84 +68,63 @@ void Game::Run()
     Lua::L.set_function("is_window_open", &Framework::IsWindowOpen, framework);
     Lua::L.set_function("is_key_down", &Framework::IsKeyDown, framework);
     Lua::L.set_function("close_window", &Framework::CloseWindow, framework);
-    
-    //Add textures
-    vector<string> paths = {
-        "./resources/textures/plaster.jpg",
-        "./resources/textures/snow.jpg",
-        "./resources/textures/grassy.jpg",
-        "./resources/textures/brick.jpg",
-        "./resources/textures/metal.jpg"
-    };
-    framework.AddTextures(paths);
+    Lua::Run("init()");
 
-    // Create shader programs
-    const auto& s = Lua::L["shaders"];
-    vector<Shader> colorShaders = {
-        Shader(string(s["color"]["vert"]), GL_VERTEX_SHADER),
-        Shader(string(s["color"]["frag"]), GL_FRAGMENT_SHADER)
-    };
-    vector<Shader> depthTextureShaders = {
-        Shader(string(s["depth"]["texture"]["vert"]), GL_VERTEX_SHADER),
-        Shader(string(s["depth"]["texture"]["frag"]), GL_FRAGMENT_SHADER)
-    };
-    vector<Shader> depthCubemapShaders = {
-        Shader(string(s["depth"]["cubemap"]["vert"]), GL_VERTEX_SHADER),
-        Shader(string(s["depth"]["cubemap"]["frag"]), GL_FRAGMENT_SHADER)
-    };
-    vector<Shader> hdrShaders = {
-        Shader(string(s["hdr"]["vert"]), GL_VERTEX_SHADER),
-        Shader(string(s["hdr"]["frag"]), GL_FRAGMENT_SHADER)
-    };
-    colorProgram = Program(colorShaders);
-    depthTextureProgram = Program(depthTextureShaders);
-    depthCubemapProgram = Program(depthCubemapShaders);
-    hdrProgram = Program(hdrShaders);
+    // Create cameras
+    sol::table cameras = Lua::L["cameras"].force();
+    for (const auto& kv : cameras)
+    {
+        Camera cam = Camera((sol::table)kv.second);
+        cam.SetGraphicsId(scene.CreateGhostGeometry());
+        cam.SetPhysicsId(world.CreateCapsuleImpostor(btVector3(0.f, 2.f, 0.f), 1.0f, 4.0f, 10.0f));
+        _cameras.push_back(cam);
 
-    // Create camera 
-    CameraProperties cProps;
-    cProps.origin = glm::vec3(0, 2, 0);
-    cProps.aspectRatio = SCREEN_W / (float)SCREEN_H;
-    cProps.farClipPlane = 2000.f;
-    camera = Camera(cProps);
-    camera.SetGraphicsId(scene.CreateGhostGeometry());
-    camera.SetPhysicsId(world.CreateCapsuleImpostor(btVector3(0.f, 2.f, 0.f), 1.0f, 4.0f, 10.0f));
-    world.SetImpostorLinearFactor(camera.GetPhysicsId(), btVector3(1, 1, 1));
-    world.SetImpostorAngularFactor(camera.GetPhysicsId(), btVector3(0, 0, 0));
-    entities.push_back(camera);
+        world.SetImpostorLinearFactor(cam.GetPhysicsId(), btVector3(1, 1, 1));
+        world.SetImpostorAngularFactor(cam.GetPhysicsId(), btVector3(0, 0, 0));
+        entities.push_back(cam);
+    }
+    Lua::Print("[Engine] Cameras initialized.");
 
     // Create lights
-    LightProperties lProps;
+    sol::table lights = Lua::L["lights"].force();
+    for (const auto& kv : lights)
+    {
+        Light light = Light((sol::table)kv.second);
+        _lights.push_back(light); 
+    }
+    Lua::Print("[Engine] Lights initialized.");
 
-    lProps.intensity = 1.0f;
-    lProps.direction = glm::vec3(-0.168, -0.576, -0.8);
-    lProps.diffuse = glm::vec3(Lua::L["game_state"]["light_color"][1], Lua::L["game_state"]["light_color"][2], Lua::L["game_state"]["light_color"][3]);
-    mainLight = Light(lProps, DIR_LIGHT);
-    
-    lProps.intensity = 5.0f;
-    lProps.position = glm::vec3(0, 10, 0);
-    lProps.diffuse = glm::vec3(1, 1, 1);
-    auxLights.push_back(Light(lProps, POINT_LIGHT));  
+    //Create textures
+    sol::table textures = Lua::L["textures"].force();
+    for (const auto& kv : textures)
+    {
+        Texture texture = Texture((sol::table)kv.second);
+        framework.CreateTexture(texture.path);
+    }
+    Lua::Print("[Engine] Textures initialized.");
 
-    lProps.intensity = 5.0f;
-    lProps.position = glm::vec3(-rand() % 50, 10, -rand() % 50);
-    lProps.diffuse = glm::vec3(1, 1, 0);
-    auxLights.push_back(Light(lProps, POINT_LIGHT));    
+    // Create material
+    sol::table materials = Lua::L["materials"].force();
+    for (const auto& kv : materials)
+    {
+        Material mat = Material((sol::table)kv.second);
+        _materials.push_back(mat);
+    }
+    Lua::Print("[Engine] Materials initialized.");
 
-    lProps.intensity = 5.0f;
-    lProps.position = glm::vec3(rand() % 50, 10, rand() % 50);
-    lProps.diffuse = glm::vec3(1, 0, 1);
-    auxLights.push_back(Light(lProps, POINT_LIGHT));
-    
-    lProps.intensity = 5.0f;
-    lProps.position = glm::vec3(rand() % 50, 10, -rand() % 50);
-    lProps.diffuse = glm::vec3(0, 1, 1);
-    auxLights.push_back(Light(lProps, POINT_LIGHT));  
-    
+    // Create shader programs
+    sol::table shaders = Lua::L["shaders"].force();
+    colorProgram = ShaderProgram((sol::table)shaders["color"]);
+    depthTextureProgram = ShaderProgram((sol::table)shaders["depth"]["texture"]);
+    depthCubemapProgram = ShaderProgram((sol::table)shaders["depth"]["cubemap"]);
+    hdrProgram = ShaderProgram((sol::table)shaders["hdr"]);
+    Lua::Print("[Engine] Shader programs initialized.");
+
+    // Create meshes
     {
         auto mesh = make_shared<Mesh>();
         mesh->AsCube(800.0f);
-        mesh->SetMaterial(Material::Night);
+        mesh->SetMaterial(_materials[1]);
         mesh->cullFaceEnabled = false;
         Scene::MeshTable.insert({"Skybox", mesh});
         
@@ -157,7 +135,7 @@ void Game::Run()
     {
         auto mesh = make_shared<Mesh>();
         mesh->AsSphere();
-        mesh->SetMaterial(Material::GreenPlastic);
+        mesh->SetMaterial(_materials[0]);
         Scene::MeshTable.insert({"Sphere", mesh});
 
         for (int i = 0; i < 50; ++i)
@@ -171,8 +149,9 @@ void Game::Run()
         }
     }
     CreateMaze();
-    Lua::Run("load()");
+    Lua::Print("[Engine] Scene & world initialized.");
 
+    // Start main game loop
     double pastTime = framework.GetTime();
     while(!framework.IsWindowOpen())
     {
@@ -199,7 +178,7 @@ void Game::CreateMaze()
     {
         auto mesh = make_shared<Mesh>();
         mesh->AsCube((float)TILE_SIZE);
-        mesh->SetMaterial(Material::Ivory);
+        mesh->SetMaterial(_materials[2]);
         Scene::MeshTable.insert({"Cube", mesh});
 
         bool characterPlaced = false;
@@ -231,7 +210,7 @@ void Game::CreateMaze()
                     }
                     if (!characterPlaced)
                     {
-                        scene.SetGeometryModelWorldTransform(camera.GetGraphicsId(), glm::translate(glm::mat4(1.0f), TILE_SIZE * glm::vec3(x - MAZE_SIZE / 2.f, 1, z - MAZE_SIZE / 2.f)));
+                        scene.SetGeometryModelWorldTransform(_cameras[0].GetGraphicsId(), glm::translate(glm::mat4(1.0f), TILE_SIZE * glm::vec3(x - MAZE_SIZE / 2.f, 1, z - MAZE_SIZE / 2.f)));
                         characterPlaced = true;
                     }
                     WIN_COORD[1] = TILE_SIZE * (x - MAZE_SIZE / 2.f);
@@ -250,7 +229,7 @@ void Game::CreateMaze()
 
         auto mesh = make_shared<Mesh>();
         mesh->AsTerrain(size, 10, std::vector<GLfloat>(100, 0.0f));
-        mesh->SetMaterial(Material::Pearl);
+        mesh->SetMaterial(_materials[1]);
         Scene::MeshTable.insert({"Terrain", mesh});
 
         auto ent = Entity();
@@ -263,25 +242,25 @@ void Game::CreateMaze()
 void Game::Update(float dt, float time)
 {    
     world.Update(dt);
-    world.DampenImpostor(camera.GetPhysicsId());
+    world.DampenImpostor(_cameras[0].GetPhysicsId());
     for (const auto& ent : Entity::WithPhysicsComponent())
     {
         const glm::mat4& m2w = ConvertPhysicalMatrix(world.GetImpostorTransform(ent.GetPhysicsId()));
         scene.SetGeometryModelWorldTransform(ent.GetGraphicsId(), m2w);
     }
 
-    glm::mat4 cameraTransform = scene.GetGeometryWorldMatrix(camera.GetGraphicsId());
-    glm::vec3 eyePos = camera.GetEye(cameraTransform);
+    glm::mat4 cameraTransform = scene.GetGeometryWorldMatrix(_cameras[0].GetGraphicsId());
+    glm::vec3 eyePos = _cameras[0].GetEye(cameraTransform);
 
     colorProgram.Activate();
     colorProgram.SetUniform(string("cam_pos"), eyePos);
-    colorProgram.SetUniform(string("ProjectionView"), camera.GetProjectionMatrix() * camera.GetViewMatrix(cameraTransform));
+    colorProgram.SetUniform(string("ProjectionView"), _cameras[0].GetProjectionMatrix() * _cameras[0].GetViewMatrix(cameraTransform));
     colorProgram.SetUniform(string("time"), time);
 
     if ((bool)Lua::L["game_state"]["is_light_flashing"])
     {
         glm::vec3 col = glm::vec3(Lua::L["game_state"]["light_color"][1], Lua::L["game_state"]["light_color"][2], Lua::L["game_state"]["light_color"][3]);
-        mainLight.SetDiffuse(abs(glm::cos(glm::radians(10.0f) * time)) * (float)(rand() % 2 / 2.0 + 0.5) * col);
+        _lights[0].diffuse = abs(glm::cos(glm::radians(10.0f) * time)) * (float)(rand() % 2 / 2.0 + 0.5) * col;
     }
     if (eyePos.y <= -5.0) 
     {
@@ -297,7 +276,7 @@ void Game::Update(float dt, float time)
 
 void Game::HandleInput()
 {
-    const std::uint64_t& impostor = camera.GetPhysicsId();
+    const std::uint64_t& impostor = _cameras[0].GetPhysicsId();
 
     btVector3 currentVel;    
     if (!world.GetImpostorLinearVelocity(impostor, currentVel)) 
@@ -307,46 +286,46 @@ void Game::HandleInput()
 
     if (framework.IsKeyDown(KEY_W))
     {
-        glm::vec3 v = camera.CreateLinearVelocity(Axis::FRONT);
+        glm::vec3 v = _cameras[0].CreateLinearVelocity(Axis::FRONT);
         world.SetImpostorLinearVelocity(impostor, btVector3(v.x, currentVel.y(), v.z));
     }
     if (framework.IsKeyDown(KEY_S))
     {
-        glm::vec3 v = camera.CreateLinearVelocity(Axis::FRONT);
+        glm::vec3 v = _cameras[0].CreateLinearVelocity(Axis::FRONT);
         world.SetImpostorLinearVelocity(impostor, btVector3(-v.x, currentVel.y(), -v.z));
     }
     if (framework.IsKeyDown(KEY_D))
     {
-        camera.yaw(0.3 * CAMERA_ANGULAR_OFFSET);
-        glm::vec3 v = camera.CreateLinearVelocity(Axis::RIGHT);
+        _cameras[0].yaw(0.3 * CAMERA_ANGULAR_OFFSET);
+        glm::vec3 v = _cameras[0].CreateLinearVelocity(Axis::RIGHT);
         world.SetImpostorLinearVelocity(impostor, btVector3(v.x, currentVel.y(), v.z));
     }
     if (framework.IsKeyDown(KEY_A))
     {
-        camera.yaw(-0.3 * CAMERA_ANGULAR_OFFSET);
-        glm::vec3 v = camera.CreateLinearVelocity(Axis::RIGHT);
+        _cameras[0].yaw(-0.3 * CAMERA_ANGULAR_OFFSET);
+        glm::vec3 v = _cameras[0].CreateLinearVelocity(Axis::RIGHT);
         world.SetImpostorLinearVelocity(impostor, btVector3(-v.x, currentVel.y(), -v.z));
     }
     if (framework.IsKeyDown(KEY_UP))
     {
-        camera.pitch(CAMERA_ANGULAR_OFFSET);
+        _cameras[0].pitch(CAMERA_ANGULAR_OFFSET);
     }
     if (framework.IsKeyDown(KEY_DOWN))
     {
-        camera.pitch(-CAMERA_ANGULAR_OFFSET);
+        _cameras[0].pitch(-CAMERA_ANGULAR_OFFSET);
     }
     if (framework.IsKeyDown(KEY_RIGHT))
     {
-        camera.yaw(CAMERA_ANGULAR_OFFSET);
+        _cameras[0].yaw(CAMERA_ANGULAR_OFFSET);
     }
     if (framework.IsKeyDown(KEY_LEFT))
     {
-        camera.yaw(-CAMERA_ANGULAR_OFFSET);
+        _cameras[0].yaw(-CAMERA_ANGULAR_OFFSET);
     }
     if (framework.IsKeyDown(KEY_SPACE)) 
     {
         world.GetImpostorLinearVelocity(impostor, currentVel); // update velcoity to reflect current horizontal speed
-        glm::vec3 v = camera.CreateLinearVelocity(Axis::UP);
+        glm::vec3 v = _cameras[0].CreateLinearVelocity(Axis::UP);
         world.SetImpostorLinearVelocity(impostor, btVector3(currentVel.x(), v.y, currentVel.z()));
     }
     if (framework.IsKeyDown(KEY_Z)) 
@@ -354,7 +333,7 @@ void Game::HandleInput()
         glm::vec2 pos = framework.GetCursorUV();
         glm::vec3 diff = glm::vec3(1.0, pos.x, pos.y);
 
-        mainLight.SetDiffuse(diff);
+        _lights[0].diffuse = diff;
     }
     if (framework.IsKeyDown(KEY_X))
     {
@@ -364,7 +343,8 @@ void Game::HandleInput()
 
 void Game::Render(float dt)
 {
-    const int auxLightCount = (int)auxLights.size();
+    const int mainLightCount = 1;
+    const int auxLightCount = (int)_lights.size() - mainLightCount;
     const int auxShadowCount = min(auxLightCount, AUX_SHADOW_COUNT);
 
     // 1. Shadow Pass
@@ -374,20 +354,20 @@ void Game::Render(float dt)
     depthTextureProgram.Activate();
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, framework.GetShadowMap(DIR_LIGHT, 0), 0);
     glClear(GL_DEPTH_BUFFER_BIT);
-    depthTextureProgram.SetUniform(string("LightProjectionView"), mainLight.GetProjectionMatrix(0) * mainLight.GetViewMatrix());
+    depthTextureProgram.SetUniform(string("LightProjectionView"), _lights[0].GetProjectionMatrix(0) * _lights[0].GetViewMatrix());
     scene.Render(depthTextureProgram);
 
     depthCubemapProgram.Activate();
     for (int i = 0; i < auxShadowCount; ++i)
     {
-        Light& l = auxLights[i];
+        Light& l = _lights[i + mainLightCount];
         for (int f = 0; f < 6; ++f)
         {
             GLenum face = GL_TEXTURE_CUBE_MAP_POSITIVE_X + f;
             glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, face, framework.GetShadowMap(POINT_LIGHT, i), 0);
             glClear(GL_DEPTH_BUFFER_BIT);
             depthCubemapProgram.SetUniform(string("LightProjectionView"), l.GetProjectionMatrix(0) * l.GetViewMatrix(face));
-            depthCubemapProgram.SetUniform(string("LightPosition"), l.GetPosition());
+            depthCubemapProgram.SetUniform(string("LightPosition"), l.position);
             scene.Render(depthCubemapProgram);
         }
     }
@@ -402,7 +382,7 @@ void Game::Render(float dt)
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, framework.GetShadowMap(DIR_LIGHT, 0));
-    for (int i = 0; i < (int)auxLights.size(); ++i)
+    for (int i = 0; i < auxLightCount; ++i)
     {
         glActiveTexture(GL_TEXTURE1 + i);
         glBindTexture(GL_TEXTURE_CUBE_MAP, framework.GetShadowMap(POINT_LIGHT, i));
@@ -416,21 +396,21 @@ void Game::Render(float dt)
 
     glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);    
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    colorProgram.SetUniform(string("main_light.direction"), mainLight.GetDirection());
-    colorProgram.SetUniform(string("main_light.ambient"), mainLight.GetAmbient());
-    colorProgram.SetUniform(string("main_light.diffuse"), mainLight.GetDiffuse());
-    colorProgram.SetUniform(string("main_light.specular"), mainLight.GetSpecular());
-    colorProgram.SetUniform(string("main_light.intensity"), mainLight.GetIntensity());
-    colorProgram.SetUniform(string("main_light.ProjectionView"), mainLight.GetProjectionViewMatrix(0));
+    colorProgram.SetUniform(string("main_light.direction"), _lights[0].direction);
+    colorProgram.SetUniform(string("main_light.ambient"), _lights[0].ambient);
+    colorProgram.SetUniform(string("main_light.diffuse"), _lights[0].diffuse);
+    colorProgram.SetUniform(string("main_light.specular"), _lights[0].specular);
+    colorProgram.SetUniform(string("main_light.intensity"), _lights[0].intensity);
+    colorProgram.SetUniform(string("main_light.ProjectionView"), _lights[0].GetProjectionViewMatrix(0));
     for (int i = 0; i < auxLightCount; ++i)
     {
-        Light& l = auxLights[i];
-        colorProgram.SetUniform(string("aux_lights[") + to_string(i) + string("].position"), l.GetPosition());
-        colorProgram.SetUniform(string("aux_lights[") + to_string(i) + string("].ambient"), l.GetAmbient());
-        colorProgram.SetUniform(string("aux_lights[") + to_string(i) + string("].diffuse"), l.GetDiffuse());
-        colorProgram.SetUniform(string("aux_lights[") + to_string(i) + string("].specular"), l.GetSpecular());
-        colorProgram.SetUniform(string("aux_lights[") + to_string(i) + string("].attenuation"), l.GetAttenuation());
-        colorProgram.SetUniform(string("aux_lights[") + to_string(i) + string("].intensity"), l.GetIntensity());
+        Light& l = _lights[i + mainLightCount];
+        colorProgram.SetUniform(string("aux_lights[") + to_string(i) + string("].position"), l.position);
+        colorProgram.SetUniform(string("aux_lights[") + to_string(i) + string("].ambient"), l.ambient);
+        colorProgram.SetUniform(string("aux_lights[") + to_string(i) + string("].diffuse"), l.diffuse);
+        colorProgram.SetUniform(string("aux_lights[") + to_string(i) + string("].specular"), l.specular);
+        colorProgram.SetUniform(string("aux_lights[") + to_string(i) + string("].attenuation"), l.attenuation);
+        colorProgram.SetUniform(string("aux_lights[") + to_string(i) + string("].intensity"), l.intensity);
         for (int f = 0; f < 6; ++f)
         {
             GLenum face = GL_TEXTURE_CUBE_MAP_POSITIVE_X + f;

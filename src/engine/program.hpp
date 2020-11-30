@@ -2,22 +2,22 @@
 #include "../common.hpp"
 #include "shader.hpp"
 
-class Program 
+struct ShaderProgram
 {
-private:
-    GLuint _program;
+    GLuint program;
 
-public:
-    Program();
+    ShaderProgram();
+
+    ShaderProgram(sol::table);
     
-    Program(std::vector<Shader>&);
+    ShaderProgram(std::vector<Shader>&);
     
     GLint GetAttrib(const char* attrib) {
-        return glGetAttribLocation(_program, attrib);
+        return glGetAttribLocation(program, attrib);
     };
 
     GLint GetUniform(std::string uniform) {
-        return glGetUniformLocation(_program, uniform.c_str());
+        return glGetUniformLocation(program, uniform.c_str());
     };
 
     void SetUniform(std::string uniform, const glm::mat4& val)

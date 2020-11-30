@@ -23,7 +23,7 @@ class Framework
 
 public:
     void Init();
-    void AddTextures(const std::vector<std::string>&);
+    void CreateTexture(const std::string&);
     void Blit();
     void SwapBuffers();
     void PollEvents();

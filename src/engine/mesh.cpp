@@ -212,7 +212,7 @@ void Mesh::BufferData()
     glBindVertexArray(0);    
 }
 
-void Mesh::Render(Program& program, const std::vector<glm::mat4>& worldMatrices) const
+void Mesh::Render(ShaderProgram& program, const std::vector<glm::mat4>& worldMatrices) const
 {
     if (!_initialized)
         throw std::runtime_error("VAO not initialized");
@@ -231,10 +231,10 @@ void Mesh::Render(Program& program, const std::vector<glm::mat4>& worldMatrices)
     //glStencilFunc(GL_ALWAYS, 1, 0xFF);
 
     const auto& mat = GetMaterial();
-    program.SetUniform(std::string("surf.ambient"), mat.GetAmbient());
-    program.SetUniform(std::string("surf.diffuse"), mat.GetDiffuse());
-    program.SetUniform(std::string("surf.specular"), mat.GetSpecular());
-    program.SetUniform(std::string("surf.shininess"), mat.GetShininess());
+    program.SetUniform(std::string("surf.ambient"), mat.ambient);
+    program.SetUniform(std::string("surf.diffuse"), mat.diffuse);
+    program.SetUniform(std::string("surf.specular"), mat.specular);
+    program.SetUniform(std::string("surf.shininess"), mat.shininess);
     program.SetUniform(std::string("tex_unit"), (int)mat.GetTexUnit());
 
     glBindVertexArray(vao);
@@ -247,7 +247,7 @@ void Mesh::Render(Program& program, const std::vector<glm::mat4>& worldMatrices)
     glBindVertexArray(0);
 }
 
-void Mesh::Render(Program& program, const std::vector<glm::mat4>& worldsMatrices, float outline) const
+void Mesh::Render(ShaderProgram& program, const std::vector<glm::mat4>& worldsMatrices, float outline) const
 {
     if (!_initialized)
         throw std::runtime_error("VAO not initialized");

@@ -2,7 +2,6 @@
 #include "../common.hpp"
 #include "../physics/BulletMain.h"
 #include "../physics/Debugger.hpp"
-#include "material.hpp"
 #include "program.hpp"
 #include "mesh.hpp"
 #include "geometry.hpp"
@@ -35,5 +34,5 @@ public:
         return _geometries.find(id)->second->GetWorldMatrix();
     }
 
-    void Render(Program&);
+    void Render(ShaderProgram&);
 };

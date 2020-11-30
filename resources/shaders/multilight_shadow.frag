@@ -53,13 +53,12 @@ const float gamma = 2.2;
 vec3 SurfDiffuse(vec3 surfColor)
 {
     vec3 texColor = pow(texture(tex_unit, tex_uv).rgb, vec3(gamma));
-    return mix(surfColor, texColor, 1.0);
+    return mix(surfColor, texColor, 0.9);
 }
 
 float ShadowBias(vec3 norm, vec3 lightDir)
 {
     return 0.0025 * (1.0 - abs(1.0 - 2.0 * abs(dot(norm, lightDir))));
-
 }
 
 float DirectionalShadow(vec3 shadowCoords, float bias)

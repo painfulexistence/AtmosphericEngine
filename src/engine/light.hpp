@@ -14,48 +14,24 @@ struct LightProperties
     float intensity = 1.0;
 };
 
-class Light 
+struct Light 
 {
-private:
-    int _type;
-    glm::vec3 _direction;
-    glm::vec3 _position;
-    glm::vec3 _attenuation;
-    glm::vec3 _ambient;
-    glm::vec3 _diffuse;
-    glm::vec3 _specular;
-    float _intensity;
+    int type;
+    glm::vec3 direction;
+    glm::vec3 position;
+    glm::vec3 attenuation;
+    glm::vec3 ambient;
+    glm::vec3 diffuse;
+    glm::vec3 specular;
+    float intensity;
 
-public:
-    Light(LightProperties = LightProperties(), int = POINT_LIGHT);
+    Light(sol::table);
     
-    glm::vec3 GetPosition() { return _position; }
-
-    glm::vec3 GetDirection() { return _direction; }
-
-    glm::vec3 GetAmbient() { return _ambient; }
-
-    glm::vec3 GetDiffuse() { return _diffuse; }
-
-    glm::vec3 GetSpecular() { return _specular; }
-
-    glm::vec3 GetAttenuation() { return _attenuation; }
-
-    float GetIntensity() { return _intensity; }
+    Light(LightProperties props, int type = POINT_LIGHT);
 
     glm::mat4 GetProjectionMatrix(int cascadedIndex = 0);
 
     glm::mat4 GetViewMatrix(GLenum facing = GL_TEXTURE_CUBE_MAP_POSITIVE_X);
 
     glm::mat4 GetProjectionViewMatrix(int cascadedIndex = 0, GLenum facing = GL_TEXTURE_CUBE_MAP_POSITIVE_X);
-
-    void SetPosition(glm::vec3 position) { _position = position; }
-
-    void SetDirection(glm::vec3 direction) { _direction = direction; }
-
-    void SetAmbient(glm::vec3 ambient) { _ambient = ambient; }
-
-    void SetDiffuse(glm::vec3 diffuse) { _diffuse = diffuse; }
-
-    void SetSpecular(glm::vec3 specular) { _specular = specular; }
 };

@@ -4,10 +4,26 @@
 static const float maxVAngle = PI / 2.0f - 0.01f;
 static const float minVAngle = -PI / 2.0f + 0.01f;
 
-Camera::Camera(CameraProperties props, glm::vec2 vhAngle) {
-    _eyeOffset = props.origin;
-    _projection = glm::perspective(props.fov, props.aspectRatio, props.nearClipPlane, props.farClipPlane);
-    _vhAngle = vhAngle;
+Camera::Camera(sol::table t)
+{
+    _eyeOffset = glm::vec3(t["eyeOffset"][1], t["eyeOffset"][2], t["eyeOffset"][3]);
+    _vhAngle = glm::vec2((float)t.get_or("vAngle", 0.f), t.get_or("hAngle", 0.f));
+
+    fov = (float)t.get_or("fov", glm::radians(60.f));
+    aspectRatio = (float)t.get_or("aspectRatio", (float)SCREEN_W / (float)SCREEN_H);
+    nearZ = (float)t.get_or("nearZ", 0.1f);
+    farZ = (float)t.get_or("farZ", 2000.0f);
+}
+
+Camera::Camera(CameraProperties props) 
+{
+    _eyeOffset = props.eyeOffset;
+    _vhAngle = glm::vec2(props.vAngle, props.hAngle);
+
+    fov = props.fov;
+    aspectRatio = props.aspectRatio;
+    nearZ = props.nearClipPlane;
+    farZ = props.farClipPlane;
 }
 
 static glm::vec3 CalculateDirection(float vAngle, float hAngle)
@@ -28,7 +44,7 @@ glm::mat4 Camera::GetViewMatrix(const glm::mat4& cameraTransform)
 
 glm::mat4 Camera::GetProjectionMatrix()
 {
-    return _projection;
+    return glm::perspective(fov, aspectRatio, nearZ, farZ);
 }
 
 glm::vec3 Camera::CreateLinearVelocity(Axis axis)

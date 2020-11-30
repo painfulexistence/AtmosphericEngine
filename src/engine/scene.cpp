@@ -59,7 +59,7 @@ void Scene::SetGeometryModelWorldTransform(std::uint64_t id, const glm::mat4& tr
     _geometries.find(id)->second->SetModelWorldTransform(transform);
 }
 
-void Scene::Render(Program& program)
+void Scene::Render(ShaderProgram& program)
 {
     for (const auto& entry : MeshTable)
     {

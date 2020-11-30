@@ -2,8 +2,14 @@
 #include "common.hpp"
 #include "physics/BulletMain.h"
 #include "graphics/Framework.hpp"
-#include "engine/Engine.hpp"
-#include "scripting/lua.hpp"
+#include "engine/scene.hpp"
+#include "engine/camera.hpp"
+#include "engine/light.hpp"
+#include "engine/material.hpp"
+#include "engine/texture.hpp"
+#include "engine/mesh.hpp"
+#include "engine/geometry.hpp"
+#include "engine/entity.hpp"
 //#include <entt/entity/registry.hpp>
 
 //ImGui
@@ -35,13 +41,13 @@ class Game
     Framework& framework;
     PhysicsWorld world;
     Scene scene;
-    Camera camera;
-    Light mainLight;
-    std::vector<Light> auxLights = {};
-    Program colorProgram;
-    Program depthTextureProgram;
-    Program depthCubemapProgram;
-    Program hdrProgram;
+    std::vector<Camera> _cameras = {};
+    std::vector<Light> _lights = {};
+    std::vector<Material> _materials = {};
+    ShaderProgram colorProgram;
+    ShaderProgram depthTextureProgram;
+    ShaderProgram depthCubemapProgram;
+    ShaderProgram hdrProgram;
 
     Lua lua;
     std::list<Entity>& entities;

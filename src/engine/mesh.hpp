@@ -1,7 +1,7 @@
 #pragma once
 #include "../common.hpp"
-#include "material.hpp"
 #include "program.hpp"
+#include "material.hpp"
 
 class Mesh
 {
@@ -40,7 +40,7 @@ public:
 
     void AsTerrain(const GLfloat& size, const GLint& vnum, const std::vector<GLfloat>& heightmap);
 
-    void Render(Program& program, const std::vector<glm::mat4>& worldMatrices) const;
+    void Render(ShaderProgram& program, const std::vector<glm::mat4>& worldMatrices) const;
 
-    void Render(Program& program, const std::vector<glm::mat4>& worldMatrices, float outline) const;
+    void Render(ShaderProgram& program, const std::vector<glm::mat4>& worldMatrices, float outline) const;
 };

@@ -1,20 +1,27 @@
 #include "program.hpp"
 
-Program::Program() : _program(glCreateProgram()) {}
+ShaderProgram::ShaderProgram() {}
 
-Program::Program(std::vector<Shader>& shaders) : _program(glCreateProgram())
+ShaderProgram::ShaderProgram(sol::table t) : program(glCreateProgram())
+{
+    glAttachShader(program, Shader(std::string(t["vert"]), GL_VERTEX_SHADER).shader);
+    glAttachShader(program, Shader(std::string(t["frag"]), GL_FRAGMENT_SHADER).shader);
+    glLinkProgram(program);
+}
+
+ShaderProgram::ShaderProgram(std::vector<Shader>& shaders) : program(glCreateProgram())
 {
     for (int i = shaders.size() - 1; i >= 0; i--)
     {
-        glAttachShader(_program, shaders[i].Compile());
+        glAttachShader(program, shaders[i].shader);
     }
-    glLinkProgram(_program);
+    glLinkProgram(program);
 }
 
-void Program::Activate() {
-    glUseProgram(_program);
+void ShaderProgram::Activate() {
+    glUseProgram(program);
 }
 
-void Program::Deactivate() {
+void ShaderProgram::Deactivate() {
     glUseProgram(0);
 }

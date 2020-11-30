@@ -16,8 +16,8 @@ vec3 CalculateToneMapping(vec3 hdrColor)
 
 void main()
 {
-    vec3 hdrCcolor = pow(texture(color_map_unit, tex_uv).rgb, vec3(2.2));
-    vec3 result = CalculateToneMapping(hdrCcolor);
+    vec3 hdrColor = pow(texture(color_map_unit, tex_uv).rgb, vec3(gamma));
+    vec3 result = CalculateToneMapping(hdrColor);
     result = pow(result, vec3(1.0 / gamma));
 
     Color = vec4(result, 1.0);

@@ -13,7 +13,7 @@ function init()
             fov = 3.14 / 3.0,
             nearZ = 0.1,
             farZ = 2000.0,
-            eyeOffset = {0, 0, 0},
+            eyeOffset = {0, 2, 0},
             applyGravity = true,
             checkCollisions = true
         }
@@ -91,15 +91,15 @@ function init()
         },
         {
             name = "Brick",
-            textureIdx = 0,
+            textureIdx = 3,
             ambient = {0.19225, 0.19225, 0.19225},
             diffuse = {0.50754, 0.50754, 0.50754},
             specular = {0.508273, 0.508273, 0.508273},
             shininess = 0.4
         },
         {
-            name = "Plastic",
-            textureIdx = 2,
+            name = "Plaster",
+            textureIdx = 0,
             ambient = {.0, .0, .0},
             diffuse = {.5, .0, .0},
             specular = {.7, .6, .6},
@@ -140,7 +140,7 @@ function init()
         },
         hdr = {
             vert = "./resources/shaders/hdr.vert",
-            frag = "./resources/shaders/hdr.frag"
+            frag = "./resources/shaders/hdr_ca.frag"
         }
     }
     geometries = {

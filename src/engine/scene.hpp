@@ -34,5 +34,5 @@ public:
         return _geometries.find(id)->second->GetWorldMatrix();
     }
 
-    void Render(ShaderProgram&);
+    void Render(ShaderProgram& program, glm::mat4 projection, glm::mat4 view);
 };

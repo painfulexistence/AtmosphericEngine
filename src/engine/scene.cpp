@@ -1,4 +1,5 @@
 #include "scene.hpp"
+#include "frustum.hpp"
 
 std::map<std::string, std::shared_ptr<Mesh>> Scene::MeshTable = std::map<std::string, std::shared_ptr<Mesh>>();
 
@@ -59,27 +60,33 @@ void Scene::SetGeometryModelWorldTransform(std::uint64_t id, const glm::mat4& tr
     _geometries.find(id)->second->SetModelWorldTransform(transform);
 }
 
-void Scene::Render(ShaderProgram& program)
+void Scene::Render(ShaderProgram& program, glm::mat4 projection, glm::mat4 view)
 {
+    glm::mat4 PV = projection * view;
+    program.SetUniform(std::string("ProjectionView"), PV);
+
     for (const auto& entry : MeshTable)
     {
         const auto& mesh = entry.second;
+        const auto& bb = mesh->GetBoundingBox();
         const auto& instances = mesh->GetInstances();
-        
-        std::list<uint64_t> culled;
+        std::vector<glm::mat4> wms(0);
+
         for (auto it = instances.cbegin(); it != instances.cend(); ++it)
-        {
-            culled.push_back(*it);
-        }
-        std::vector<glm::mat4> wms(culled.size());
-        int k = 0;
-        for (auto it = culled.cbegin(); it != culled.cend(); ++it, ++k)
         {
             if (_geometries.count(*it) == 0)
                 continue;
-            wms[k] = _geometries.find(*it)->second->GetWorldMatrix();
+            const auto& geo =_geometries.find(*it)->second;
+
+            glm::mat4 world = geo->GetWorldMatrix();
+            Frustum f = Frustum(PV * world);
+            if (!f.Intersects(bb))
+                continue;
+
+            wms.push_back(world);
         }
         
-        mesh->Render(program, wms);
+        if (wms.size() > 0)
+            mesh->Render(program, wms);
     }
 }

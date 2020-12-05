@@ -158,7 +158,7 @@ void main()
 {   
     vec3 result = vec3(0.0);
     result += CalculateDirectionalLight(main_light, true);
-    result += CalculatePointLight(aux_lights[0], true);
+    result += CalculatePointLight(aux_lights[0], false);
     result += CalculatePointLight(aux_lights[1], false);
     result += CalculatePointLight(aux_lights[2], false);
     result += CalculatePointLight(aux_lights[3], false);

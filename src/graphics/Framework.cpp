@@ -31,6 +31,7 @@ void Framework::Init()
     glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+    glfwWindowHint(GLFW_SAMPLES, 4);
 
     window = glfwCreateWindow((int)SCREEN_W, (int)SCREEN_H, "Atmospheric", NULL, NULL);
     if (window == nullptr)
@@ -60,7 +61,8 @@ void Framework::Init()
     ImGui_ImplGlfw_InitForOpenGL(window, true); // platform binding
     ImGui_ImplOpenGL3_Init("#version 410"); // renderer binding
 
-    // Configure graphics     
+    // Configure graphics 
+    glEnable(GL_MULTISAMPLE);      
     glPrimitiveRestartIndex(0xFFFF);
     glCullFace(GL_BACK);
     ImGui::StyleColorsDark();
@@ -69,26 +71,7 @@ void Framework::Init()
     //io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
 
     // Initialize framebuffers
-    glGenFramebuffers(1, &hdrFramebuffer);
-    glGenTextures(1, &hdrColorMap);
-    glBindTexture(GL_TEXTURE_2D, hdrColorMap);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, SCREEN_W, SCREEN_H, 0, GL_RGBA, GL_FLOAT, NULL); 
-    glGenTextures(1, &hdrDepthMap);
-    glBindTexture(GL_TEXTURE_2D, hdrDepthMap);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, SCREEN_W, SCREEN_H, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL); 
-
-    glBindFramebuffer(GL_FRAMEBUFFER, hdrFramebuffer);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, hdrColorMap, 0);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, hdrDepthMap, 0);
-    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-        runtime_error("HDR Framebuffer is incomplete!");
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-    glGenFramebuffers(1, &shadowFramebuffer);
+    glGenFramebuffers(1, &shadowFBO);
     for (int i = 0; i < 1; ++i)
     {
         GLuint map;
@@ -101,7 +84,7 @@ void Framework::Init()
         glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, SHADOW_W, SHADOW_H, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
         uniShadowMaps.push_back(map);
     }
-    for (int i = 0; i < 4; ++i)
+    for (int i = 0; i < MAX_AUX_SHADOW_COUNT; ++i)
     {
         GLuint map;
         glGenTextures(1, &map);
@@ -117,8 +100,7 @@ void Framework::Init()
         }
         omniShadowMaps.push_back(map);
     }
-    
-    glBindFramebuffer(GL_FRAMEBUFFER, shadowFramebuffer);
+    glBindFramebuffer(GL_FRAMEBUFFER, shadowFBO);
     for (int i = 0; i < (int)uniShadowMaps.size(); ++i)
     {
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, uniShadowMaps[0], 0);
@@ -133,15 +115,43 @@ void Framework::Init()
     }
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
+    glGenFramebuffers(1, &hdrFBO);
+    glGenTextures(1, &hdrColorTexture);
+    glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, hdrColorTexture);
+    glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, 4, GL_RGBA16F, SCREEN_W, SCREEN_H, GL_TRUE); 
+    glGenTextures(1, &hdrDepthTexture);
+    glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, hdrDepthTexture);
+    glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, 4, GL_DEPTH_COMPONENT, SCREEN_W, SCREEN_H, GL_TRUE); 
+    glBindFramebuffer(GL_FRAMEBUFFER, hdrFBO);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D_MULTISAMPLE, hdrColorTexture, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D_MULTISAMPLE, hdrDepthTexture, 0);
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+        runtime_error("HDR Framebuffer is incomplete!");
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    glGenFramebuffers(1, &msaaFBO);
+    glGenTextures(1, &screenTexture);
+    glBindTexture(GL_TEXTURE_2D, screenTexture);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, SCREEN_W, SCREEN_H, 0, GL_RGBA, GL_FLOAT, NULL); 
+    glBindFramebuffer(GL_FRAMEBUFFER, msaaFBO);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, screenTexture, 0);
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+        runtime_error("MSAA Framebuffer is incomplete!");
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
     vector<GLfloat> verts = {
         -1.0f,  1.0f, 0.0f, 0.0f, 1.0f,
         -1.0f, -1.0f, 0.0f, 0.0f, 0.0f,
         1.0f,  1.0f, 0.0f, 1.0f, 1.0f,
         1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
     };
+    glGenVertexArrays(1, &sceneVAO);
     glGenVertexArrays(1, &screenVAO);
-    glGenBuffers(1, &screenVBO);
+
     glBindVertexArray(screenVAO);
+    glGenBuffers(1, &screenVBO);
     glBindBuffer(GL_ARRAY_BUFFER, screenVBO);
     glBufferData(GL_ARRAY_BUFFER, verts.size() * sizeof(GLfloat), verts.data(), GL_STATIC_DRAW);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(GLfloat), (void*)0);
@@ -176,13 +186,66 @@ void Framework::CreateTexture(const string& path)
     stbi_image_free(data);
 }
 
-void Framework::Blit()
+void Framework::BindSceneVAO()
+{
+    glBindVertexArray(sceneVAO);
+}
+
+void Framework::BindScreenVAO()
 {
     glBindVertexArray(screenVAO);
+}
+
+void Framework::BeginShadowPass()
+{
+    glViewport(0, 0, SHADOW_W, SHADOW_H);
+    glBindFramebuffer(GL_FRAMEBUFFER, shadowFBO);
+}
+
+void Framework::EndShadowPass()
+{
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+void Framework::BeginColorPass()
+{
+    glViewport(0, 0, SCREEN_W, SCREEN_H);
+    glBindFramebuffer(GL_FRAMEBUFFER, hdrFBO);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, uniShadowMaps[0]);
+    for (int i = 0; i < MAX_AUX_SHADOW_COUNT; ++i)
+    {
+        glActiveTexture(GL_TEXTURE1 + i);
+        glBindTexture(GL_TEXTURE_CUBE_MAP, omniShadowMaps[i]);
+    }
+    for (int i = 0; i < textures.size(); ++i)
+    {
+        glActiveTexture(GL_TEXTURE0 + NUM_MAP_UNITS + i);
+        glBindTexture(GL_TEXTURE_2D, textures[i]);
+    }
+}
+
+void Framework::EndColorPass()
+{
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+void Framework::BeginScreenColorPass()
+{
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, hdrFBO);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, msaaFBO);
+    glBlitFramebuffer(0, 0, SCREEN_W, SCREEN_H, 0, 0, SCREEN_W, SCREEN_H, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+    
+    glViewport(0, 0, SCREEN_W, SCREEN_H);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, screenTexture);
     glBindBuffer(GL_ARRAY_BUFFER, screenVBO);
-    glBindVertexArray(screenVAO);
-    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-    glBindVertexArray(0);
+}
+
+void Framework::EndScreenColorPass()
+{
+    //glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
     
 void Framework::SwapBuffers()

@@ -14,6 +14,7 @@
 #include <ctime>
 #include <cstdint>
 #include <iostream>
+#include <array>
 #include <vector>
 #include <list>
 #include <map>
@@ -27,7 +28,7 @@
 #define SCREEN_H 810
 #define SHADOW_W 2048
 #define SHADOW_H 2048
-#define AUX_SHADOW_COUNT 4
+#define MAX_AUX_SHADOW_COUNT 0
 #define SHADOW_CASCADES 3
 #define VSYNC_ON false
 #define NUM_MAP_UNITS 6

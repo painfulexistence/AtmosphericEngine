@@ -9,24 +9,23 @@ private:
     GLuint vao, vbo, ebo, ibo;
     std::vector<GLfloat> verts;
     std::vector<GLushort> tris;
-    Material _mat;
+    std::array<glm::vec3, 8> bounds;
     std::list<std::uint64_t> _instances;
-    GLenum _primitiveType = GL_TRIANGLES;
     bool _initialized = false;
 
     void BufferData();
     
 public:
+    Material material;
     bool cullFaceEnabled = true;
+    GLenum primitiveType = GL_TRIANGLES;
     GLenum drawMode = GL_FILL;
 
     Mesh();
 
     ~Mesh();
 
-    Material GetMaterial() const { return _mat; }
-
-    void SetMaterial(const Material& mat) { _mat = mat; }
+    std::array<glm::vec3, 8> GetBoundingBox() const { return bounds; }
 
     std::list<std::uint64_t> GetInstances() const { return _instances; }
 

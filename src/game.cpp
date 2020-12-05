@@ -120,11 +120,12 @@ void Game::Run()
     hdrProgram = ShaderProgram((sol::table)shaders["hdr"]);
     Lua::Print("[Engine] Shader programs initialized.");
 
-    // Create meshes
+    framework.BindSceneVAO();
+    // Create meshes in scene
     {
         auto mesh = make_shared<Mesh>();
         mesh->AsCube(800.0f);
-        mesh->SetMaterial(_materials[1]);
+        mesh->material = _materials[1];
         mesh->cullFaceEnabled = false;
         Scene::MeshTable.insert({"Skybox", mesh});
         
@@ -135,7 +136,7 @@ void Game::Run()
     {
         auto mesh = make_shared<Mesh>();
         mesh->AsSphere();
-        mesh->SetMaterial(_materials[0]);
+        mesh->material = _materials[0];
         Scene::MeshTable.insert({"Sphere", mesh});
 
         for (int i = 0; i < 50; ++i)
@@ -160,8 +161,7 @@ void Game::Run()
         pastTime = currentTime;
 
         Update(deltaTime, (float)currentTime);
-
-        Render(deltaTime);
+        Render(deltaTime, (float)currentTime);
     }
 }
 
@@ -178,7 +178,7 @@ void Game::CreateMaze()
     {
         auto mesh = make_shared<Mesh>();
         mesh->AsCube((float)TILE_SIZE);
-        mesh->SetMaterial(_materials[2]);
+        mesh->material = _materials[2];
         Scene::MeshTable.insert({"Cube", mesh});
 
         bool characterPlaced = false;
@@ -229,7 +229,7 @@ void Game::CreateMaze()
 
         auto mesh = make_shared<Mesh>();
         mesh->AsTerrain(size, 10, std::vector<GLfloat>(100, 0.0f));
-        mesh->SetMaterial(_materials[1]);
+        mesh->material = _materials[1];
         Scene::MeshTable.insert({"Terrain", mesh});
 
         auto ent = Entity();
@@ -249,19 +249,12 @@ void Game::Update(float dt, float time)
         scene.SetGeometryModelWorldTransform(ent.GetGraphicsId(), m2w);
     }
 
-    glm::mat4 cameraTransform = scene.GetGeometryWorldMatrix(_cameras[0].GetGraphicsId());
-    glm::vec3 eyePos = _cameras[0].GetEye(cameraTransform);
-
-    colorProgram.Activate();
-    colorProgram.SetUniform(string("cam_pos"), eyePos);
-    colorProgram.SetUniform(string("ProjectionView"), _cameras[0].GetProjectionMatrix() * _cameras[0].GetViewMatrix(cameraTransform));
-    colorProgram.SetUniform(string("time"), time);
-
     if ((bool)Lua::L["game_state"]["is_light_flashing"])
     {
         glm::vec3 col = glm::vec3(Lua::L["game_state"]["light_color"][1], Lua::L["game_state"]["light_color"][2], Lua::L["game_state"]["light_color"][3]);
         _lights[0].diffuse = abs(glm::cos(glm::radians(10.0f) * time)) * (float)(rand() % 2 / 2.0 + 0.5) * col;
     }
+    /*
     if (eyePos.y <= -5.0) 
     {
         Lua::Run("on_game_over()");
@@ -270,6 +263,7 @@ void Game::Update(float dt, float time)
     {
         Lua::Run("on_complete()");
     }
+    */
 
     HandleInput();
 }
@@ -341,102 +335,87 @@ void Game::HandleInput()
     }
 }
 
-void Game::Render(float dt)
+void Game::Render(float dt, float time)
 {
     const int mainLightCount = 1;
     const int auxLightCount = (int)_lights.size() - mainLightCount;
-    const int auxShadowCount = min(auxLightCount, AUX_SHADOW_COUNT);
+    const int auxShadowCount = min(auxLightCount, MAX_AUX_SHADOW_COUNT);
 
-    // 1. Shadow Pass
-    glViewport(0, 0, SHADOW_W, SHADOW_H);
-    glBindFramebuffer(GL_FRAMEBUFFER, framework.GetShadowFramebuffer());
-
-    depthTextureProgram.Activate();
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, framework.GetShadowMap(DIR_LIGHT, 0), 0);
-    glClear(GL_DEPTH_BUFFER_BIT);
-    depthTextureProgram.SetUniform(string("LightProjectionView"), _lights[0].GetProjectionMatrix(0) * _lights[0].GetViewMatrix());
-    scene.Render(depthTextureProgram);
-
-    depthCubemapProgram.Activate();
-    for (int i = 0; i < auxShadowCount; ++i)
+    framework.BindSceneVAO();
+    
+    framework.BeginShadowPass();
     {
-        Light& l = _lights[i + mainLightCount];
-        for (int f = 0; f < 6; ++f)
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, framework.GetShadowMap(DIR_LIGHT, 0), 0);
+        glClear(GL_DEPTH_BUFFER_BIT);
+        depthTextureProgram.Activate();
+        scene.Render(depthTextureProgram, _lights[0].GetProjectionMatrix(0), _lights[0].GetViewMatrix());
+        /*
+        for (int i = 0; i < auxShadowCount; ++i)
         {
-            GLenum face = GL_TEXTURE_CUBE_MAP_POSITIVE_X + f;
-            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, face, framework.GetShadowMap(POINT_LIGHT, i), 0);
-            glClear(GL_DEPTH_BUFFER_BIT);
-            depthCubemapProgram.SetUniform(string("LightProjectionView"), l.GetProjectionMatrix(0) * l.GetViewMatrix(face));
-            depthCubemapProgram.SetUniform(string("LightPosition"), l.position);
-            scene.Render(depthCubemapProgram);
+            Light& l = _lights[i + mainLightCount];
+            for (int f = 0; f < 6; ++f)
+            {
+                GLenum face = GL_TEXTURE_CUBE_MAP_POSITIVE_X + f;
+                glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, face, framework.GetShadowMap(POINT_LIGHT, i), 0);
+                glClear(GL_DEPTH_BUFFER_BIT);
+                depthCubemapProgram.Activate();
+                depthCubemapProgram.SetUniform(string("LightPosition"), l.position);
+                scene.Render(depthCubemapProgram, l.GetProjectionMatrix(0), l.GetViewMatrix(face));
+            }
         }
+        */
     }
-
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-    // 2. HDR Color Pass
-    glViewport(0, 0, SCREEN_W, SCREEN_H);
-    glBindFramebuffer(GL_FRAMEBUFFER, framework.GetHDRFramebuffer());
-
-    colorProgram.Activate();
-
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, framework.GetShadowMap(DIR_LIGHT, 0));
-    for (int i = 0; i < auxLightCount; ++i)
+    framework.EndShadowPass();
+    
+    framework.BeginColorPass();
     {
-        glActiveTexture(GL_TEXTURE1 + i);
-        glBindTexture(GL_TEXTURE_CUBE_MAP, framework.GetShadowMap(POINT_LIGHT, i));
-    }
-    const vector<GLuint>& textures = framework.GetTextures();
-    for (int i = 0; i < textures.size(); ++i)
-    {
-        glActiveTexture(GL_TEXTURE0 + NUM_MAP_UNITS + i);
-        glBindTexture(GL_TEXTURE_2D, textures[i]);
-    }
-
-    glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);    
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    colorProgram.SetUniform(string("main_light.direction"), _lights[0].direction);
-    colorProgram.SetUniform(string("main_light.ambient"), _lights[0].ambient);
-    colorProgram.SetUniform(string("main_light.diffuse"), _lights[0].diffuse);
-    colorProgram.SetUniform(string("main_light.specular"), _lights[0].specular);
-    colorProgram.SetUniform(string("main_light.intensity"), _lights[0].intensity);
-    colorProgram.SetUniform(string("main_light.ProjectionView"), _lights[0].GetProjectionViewMatrix(0));
-    for (int i = 0; i < auxLightCount; ++i)
-    {
-        Light& l = _lights[i + mainLightCount];
-        colorProgram.SetUniform(string("aux_lights[") + to_string(i) + string("].position"), l.position);
-        colorProgram.SetUniform(string("aux_lights[") + to_string(i) + string("].ambient"), l.ambient);
-        colorProgram.SetUniform(string("aux_lights[") + to_string(i) + string("].diffuse"), l.diffuse);
-        colorProgram.SetUniform(string("aux_lights[") + to_string(i) + string("].specular"), l.specular);
-        colorProgram.SetUniform(string("aux_lights[") + to_string(i) + string("].attenuation"), l.attenuation);
-        colorProgram.SetUniform(string("aux_lights[") + to_string(i) + string("].intensity"), l.intensity);
-        for (int f = 0; f < 6; ++f)
+        glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);    
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        colorProgram.Activate();
+        glm::mat4 cameraTransform = scene.GetGeometryWorldMatrix(_cameras[0].GetGraphicsId());
+        glm::vec3 eyePos = _cameras[0].GetEye(cameraTransform);
+        colorProgram.SetUniform(string("cam_pos"), eyePos);
+        colorProgram.SetUniform(string("time"), time);
+        colorProgram.SetUniform(string("main_light.direction"), _lights[0].direction);
+        colorProgram.SetUniform(string("main_light.ambient"), _lights[0].ambient);
+        colorProgram.SetUniform(string("main_light.diffuse"), _lights[0].diffuse);
+        colorProgram.SetUniform(string("main_light.specular"), _lights[0].specular);
+        colorProgram.SetUniform(string("main_light.intensity"), _lights[0].intensity);
+        colorProgram.SetUniform(string("main_light.ProjectionView"), _lights[0].GetProjectionViewMatrix(0));
+        for (int i = 0; i < auxLightCount; ++i)
         {
-            GLenum face = GL_TEXTURE_CUBE_MAP_POSITIVE_X + f;
-            colorProgram.SetUniform(string("aux_lights[") + to_string(i) + string("].ProjectionViews[") + to_string(f) + string("]"), l.GetProjectionViewMatrix(0, face));
+            Light& l = _lights[i + mainLightCount];
+            colorProgram.SetUniform(string("aux_lights[") + to_string(i) + string("].position"), l.position);
+            colorProgram.SetUniform(string("aux_lights[") + to_string(i) + string("].ambient"), l.ambient);
+            colorProgram.SetUniform(string("aux_lights[") + to_string(i) + string("].diffuse"), l.diffuse);
+            colorProgram.SetUniform(string("aux_lights[") + to_string(i) + string("].specular"), l.specular);
+            colorProgram.SetUniform(string("aux_lights[") + to_string(i) + string("].attenuation"), l.attenuation);
+            colorProgram.SetUniform(string("aux_lights[") + to_string(i) + string("].intensity"), l.intensity);
+            for (int f = 0; f < 6; ++f)
+            {
+                GLenum face = GL_TEXTURE_CUBE_MAP_POSITIVE_X + f;
+                colorProgram.SetUniform(string("aux_lights[") + to_string(i) + string("].ProjectionViews[") + to_string(f) + string("]"), l.GetProjectionViewMatrix(0, face));
+            }
         }
+        colorProgram.SetUniform(string("aux_light_count"), auxLightCount);
+        colorProgram.SetUniform(string("shadow_map_unit"), (int)0);
+        colorProgram.SetUniform(string("omni_shadow_map_unit"), (int)1);
+        scene.Render(colorProgram, _cameras[0].GetProjectionMatrix(), _cameras[0].GetViewMatrix(cameraTransform));
     }
-    colorProgram.SetUniform(string("aux_light_count"), auxLightCount);
-    colorProgram.SetUniform(string("shadow_map_unit"), (int)0);
-    colorProgram.SetUniform(string("omni_shadow_map_unit"), (int)1);
-    scene.Render(colorProgram);
-    
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    framework.EndColorPass();
 
-    // 3. Final Color Pass
-    glViewport(0, 0, SCREEN_W, SCREEN_H);
-    
-    hdrProgram.Activate();
-    
-    glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);    
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    framework.BindScreenVAO();
 
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, framework.GetHDRColorMap());
-    hdrProgram.SetUniform(string("color_map_unit"), (int)0);
-    //hdrProgram.SetUniform(string("exposure"), (float)1.0);
-    framework.Blit();
+    framework.BeginScreenColorPass();
+    {
+        glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);    
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        hdrProgram.Activate();
+        hdrProgram.SetUniform(string("color_map_unit"), (int)0);
+        //hdrProgram.SetUniform(string("exposure"), (float)1.0);
+        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    }
+    framework.EndScreenColorPass();
 
     // 4. UI Pass
     RenderGUI(dt);

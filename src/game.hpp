@@ -65,5 +65,5 @@ public:
 
     void Update(float dt, float time);
 
-    void Render(float dt);
+    void Render(float dt, float time);
 };

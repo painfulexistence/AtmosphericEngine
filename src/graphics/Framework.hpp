@@ -6,38 +6,31 @@
 class Framework
 {
     GLFWwindow* window = nullptr;
-    GLuint shadowFramebuffer;
-    GLuint hdrFramebuffer;
-    GLuint screenVAO;
-    GLuint screenVBO;
-    
-    std::vector<GLuint> textures;
+    GLuint shadowFBO, hdrFBO, msaaFBO;
     std::vector<GLuint> uniShadowMaps;
     std::vector<GLuint> omniShadowMaps;
-    GLuint hdrColorMap;
-    GLuint hdrDepthMap;
-    GLuint normalMap;
-    GLuint diffuseMap;
-    GLuint specularMap;
-    GLuint metallicMap;
+    GLuint hdrColorTexture, hdrDepthTexture;
+    GLuint screenTexture;
+    std::vector<GLuint> textures;
+    GLuint sceneVAO, screenVAO;
+    GLuint screenVBO;
 
 public:
     void Init();
     void CreateTexture(const std::string&);
-    void Blit();
+    void BindSceneVAO();
+    void BindScreenVAO();
+    void BeginShadowPass();
+    void EndShadowPass();
+    void BeginColorPass();
+    void EndColorPass();
+    void BeginScreenColorPass();
+    void EndScreenColorPass();
     void SwapBuffers();
     void PollEvents();
     void CloseWindow();
     void Terminate();
     void CheckErrors();
-
-    std::vector<GLuint> GetTextures() { return textures; }
-
-    GLuint GetHDRFramebuffer() { return hdrFramebuffer; }
-
-    GLuint GetHDRColorMap() { return hdrColorMap; }
-
-    GLuint GetShadowFramebuffer() { return shadowFramebuffer; }
 
     GLuint GetShadowMap(int lightType, int lightIdx = 0)
     {

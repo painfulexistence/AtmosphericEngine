@@ -339,20 +339,25 @@ void Game::Render(float dt, float time)
 {
     const int mainLightCount = 1;
     const int auxLightCount = (int)_lights.size() - mainLightCount;
-    const int auxShadowCount = min(auxLightCount, MAX_AUX_SHADOW_COUNT);
 
     framework.BindSceneVAO();
     
     framework.BeginShadowPass();
     {
+        int auxShadows = 0;
+        
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, framework.GetShadowMap(DIR_LIGHT, 0), 0);
         glClear(GL_DEPTH_BUFFER_BIT);
         depthTextureProgram.Activate();
         scene.Render(depthTextureProgram, _lights[0].GetProjectionMatrix(0), _lights[0].GetViewMatrix());
-        /*
-        for (int i = 0; i < auxShadowCount; ++i)
+        for (int i = 0; i < auxLightCount; ++i)
         {
             Light& l = _lights[i + mainLightCount];
+            if (l.castShadow == 0)
+                continue;
+            if (auxShadows++ >= MAX_AUX_SHADOWS)
+                break;
+
             for (int f = 0; f < 6; ++f)
             {
                 GLenum face = GL_TEXTURE_CUBE_MAP_POSITIVE_X + f;
@@ -363,7 +368,6 @@ void Game::Render(float dt, float time)
                 scene.Render(depthCubemapProgram, l.GetProjectionMatrix(0), l.GetViewMatrix(face));
             }
         }
-        */
     }
     framework.EndShadowPass();
     
@@ -381,6 +385,7 @@ void Game::Render(float dt, float time)
         colorProgram.SetUniform(string("main_light.diffuse"), _lights[0].diffuse);
         colorProgram.SetUniform(string("main_light.specular"), _lights[0].specular);
         colorProgram.SetUniform(string("main_light.intensity"), _lights[0].intensity);
+        colorProgram.SetUniform(string("main_light.cast_shadow"), _lights[0].castShadow);
         colorProgram.SetUniform(string("main_light.ProjectionView"), _lights[0].GetProjectionViewMatrix(0));
         for (int i = 0; i < auxLightCount; ++i)
         {
@@ -391,6 +396,7 @@ void Game::Render(float dt, float time)
             colorProgram.SetUniform(string("aux_lights[") + to_string(i) + string("].specular"), l.specular);
             colorProgram.SetUniform(string("aux_lights[") + to_string(i) + string("].attenuation"), l.attenuation);
             colorProgram.SetUniform(string("aux_lights[") + to_string(i) + string("].intensity"), l.intensity);
+            colorProgram.SetUniform(string("aux_lights[") + to_string(i) + string("].cast_shadow"), l.castShadow);
             for (int f = 0; f < 6; ++f)
             {
                 GLenum face = GL_TEXTURE_CUBE_MAP_POSITIVE_X + f;

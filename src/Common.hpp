@@ -28,9 +28,9 @@
 #define SCREEN_H 810
 #define SHADOW_W 2048
 #define SHADOW_H 2048
-#define MAX_AUX_SHADOW_COUNT 0
+#define MAX_AUX_SHADOWS 0
 #define SHADOW_CASCADES 3
-#define VSYNC_ON false
+#define VSYNC_ON true
 #define NUM_MAP_UNITS 6
 #define CAMERA_ANGULAR_OFFSET 0.05
 #define CAMERA_SPEED 15

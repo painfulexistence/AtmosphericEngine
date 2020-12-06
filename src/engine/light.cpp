@@ -10,6 +10,8 @@ Light::Light(sol::table t)
     specular = glm::vec3(t["specular"][1], t["specular"][2], t["specular"][3]);
     attenuation = glm::vec3(t["attenuation"][1], t["attenuation"][2], t["attenuation"][3]);
     intensity = (float)t.get_or("intensity", 1.0);
+    castShadow = (int)t.get_or("castShadow", 0);
+
 }
 
 Light::Light(LightProperties props, int type) : type(type)
@@ -21,6 +23,7 @@ Light::Light(LightProperties props, int type) : type(type)
     specular = props.specular;
     intensity = props.intensity;
     attenuation = props.attenuation;
+    castShadow = props.castShadow;
 }
 
 static glm::vec3 Direction(GLenum face)

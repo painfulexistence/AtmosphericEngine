@@ -230,6 +230,10 @@ void Mesh::Render(ShaderProgram& program, const std::vector<glm::mat4>& worldMat
     program.SetUniform(std::string("surf.diffuse"), material.diffuse);
     program.SetUniform(std::string("surf.specular"), material.specular);
     program.SetUniform(std::string("surf.shininess"), material.shininess);
+    program.SetUniform(std::string("surf.albedo"), material.albedo);
+    program.SetUniform(std::string("surf.metallic"), material.metallic);
+    program.SetUniform(std::string("surf.roughness"), material.roughness);
+    program.SetUniform(std::string("surf.ao"), material.ao);
     program.SetUniform(std::string("tex_unit"), (int)material.GetTexUnit());
 
     glBindBuffer(GL_ARRAY_BUFFER, vbo);

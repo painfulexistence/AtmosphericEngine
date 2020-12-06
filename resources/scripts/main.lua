@@ -28,7 +28,8 @@ function init()
             diffuse = game_state.light_color,
             specular = {1, 1, 1},
             intensity = 1.0,
-            attenuation = {0, 0, 0}
+            attenuation = {0, 0, 0},
+            castShadow = 1
         },
         --Auxiliary lights 
         {
@@ -38,7 +39,7 @@ function init()
             ambient = {0.2, 0.2, 0.2},
             diffuse = {1, 1, 1},
             specular = {1, 1, 1},
-            intensity = 5.0,
+            intensity = 3.0,
             attenuation = {1, 0.045, 0.0075}
         },
         {
@@ -48,7 +49,7 @@ function init()
             ambient = {0.2, 0.2, 0.2},
             diffuse = {1, 1, 0},
             specular = {1, 1, 1},
-            intensity = 5.0,
+            intensity = 10.0,
             attenuation = {1, 0.045, 0.0075}
         },
         {
@@ -58,7 +59,7 @@ function init()
             ambient = {0.2, 0.2, 0.2},
             diffuse = {1, 0, 1},
             specular = {1, 1, 1},
-            intensity = 5.0,
+            intensity = 10.0,
             attenuation = {1, 0.045, 0.0075}
         },
         {
@@ -68,18 +69,22 @@ function init()
             ambient = {0.2, 0.2, 0.2},
             diffuse = {0, 1, 1},
             specular = {1, 1, 1},
-            intensity = 5.0,
+            intensity = 10.0,
             attenuation = {1, 0.045, 0.0075}
         }
     }
     materials = {
         {
-            name = "Pearl",
+            name = "Metal",
             textureIdx = 4,
             ambient = {.25, .20725, .20725},
             diffuse = {1, .829, .829},
             specular = {.296648, .296648, .296648},
-            shininess = 0.088
+            shininess = 0.088,
+            albedo = {0.8, 0.6, 0.4},
+            metallic = 1.0,
+            roughness = 0.0,
+            ao = 1.0
         },
         {
             name = "Sky",
@@ -87,15 +92,11 @@ function init()
             ambient = {.1, .18725, .1745},
             diffuse = {0, 0, 0},
             specular = {0, 0, 0},
-            shininess = 0.04
-        },
-        {
-            name = "Brick",
-            textureIdx = 3,
-            ambient = {0.19225, 0.19225, 0.19225},
-            diffuse = {0.50754, 0.50754, 0.50754},
-            specular = {0.508273, 0.508273, 0.508273},
-            shininess = 0.4
+            shininess = 0.04,
+            albedo = {0.9, 0.9, 0.9},
+            metallic = 0.0,
+            roughness = 0.1,
+            ao = 0.8
         },
         {
             name = "Plaster",
@@ -103,7 +104,23 @@ function init()
             ambient = {.0, .0, .0},
             diffuse = {.5, .0, .0},
             specular = {.7, .6, .6},
-            shininess = 0.25
+            shininess = 0.25,
+            albedo = {0.50754, 0.50754, 0.50754},
+            metallic = 0.1,
+            roughness = 0.1,
+            ao = 0.2
+        },
+        {
+            name = "Brick",
+            textureIdx = 3,
+            ambient = {0.19225, 0.19225, 0.19225},
+            diffuse = {0.50754, 0.50754, 0.50754},
+            specular = {0.508273, 0.508273, 0.508273},
+            shininess = 0.4,
+            albedo = {0.4, 0.3, 0.3},
+            metallic = 0.0,
+            roughness = 0.4,
+            ao = 0.5
         }
     }
     textures = {
@@ -125,8 +142,8 @@ function init()
     }
     shaders = {
         color = {
-            vert = "./resources/shaders/multilight_shadow.vert",
-            frag = "./resources/shaders/multilight_shadow.frag"
+            vert = "./resources/shaders/pbr.vert",
+            frag = "./resources/shaders/pbr.frag"
         },
         depth = {
             texture = {
@@ -140,7 +157,7 @@ function init()
         },
         hdr = {
             vert = "./resources/shaders/hdr.vert",
-            frag = "./resources/shaders/hdr_ca.frag"
+            frag = "./resources/shaders/hdr.frag"
         }
     }
     geometries = {

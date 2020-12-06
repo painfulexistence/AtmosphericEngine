@@ -84,7 +84,7 @@ void Framework::Init()
         glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, SHADOW_W, SHADOW_H, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
         uniShadowMaps.push_back(map);
     }
-    for (int i = 0; i < MAX_AUX_SHADOW_COUNT; ++i)
+    for (int i = 0; i < MAX_AUX_SHADOWS; ++i)
     {
         GLuint map;
         glGenTextures(1, &map);
@@ -213,7 +213,7 @@ void Framework::BeginColorPass()
     glBindFramebuffer(GL_FRAMEBUFFER, hdrFBO);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, uniShadowMaps[0]);
-    for (int i = 0; i < MAX_AUX_SHADOW_COUNT; ++i)
+    for (int i = 0; i < MAX_AUX_SHADOWS; ++i)
     {
         glActiveTexture(GL_TEXTURE1 + i);
         glBindTexture(GL_TEXTURE_CUBE_MAP, omniShadowMaps[i]);

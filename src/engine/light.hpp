@@ -12,6 +12,7 @@ struct LightProperties
     glm::vec3 position = glm::vec3(0, 0, 0);
     glm::vec3 attenuation = glm::vec3(1, 0.045, 0.0075);
     float intensity = 1.0;
+    bool castShadow = false;
 };
 
 struct Light 
@@ -24,6 +25,7 @@ struct Light
     glm::vec3 diffuse;
     glm::vec3 specular;
     float intensity;
+    int castShadow;
 
     Light(sol::table);
     

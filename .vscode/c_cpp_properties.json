@@ -5,8 +5,7 @@
             "includePath": [
                 "/usr/local/include/bullet",
                 "/opt/local/include",
-                "${workspaceFolder}/external",
-                "${workspaceFolder}/external/entt/src"
+                "${workspaceFolder}/**"
             ],
             "defines": [],
             "macFrameworkPath": [
@@ -14,6 +13,17 @@
                 "/Library/Frameworks"
             ],
             "compilerPath": "/usr/bin/g++",
+            "cStandard": "c11",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "${default}"
+        },
+        {
+            "name": "Win32",
+            "includePath": [
+                "${workspaceFolder}/**"
+            ],
+            "defines": [],
+            "compilerPath": "cl.exe",
             "cStandard": "c11",
             "cppStandard": "c++17",
             "intelliSenseMode": "${default}"

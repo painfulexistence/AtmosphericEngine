@@ -1,13 +1,11 @@
 #pragma once
 #include "common.hpp"
 #include "graphics/Framework.hpp"
+#include "graphics/renderer.hpp"
 #include "game.hpp"
 
 class Application
 {
-private:
-    Framework framework;
-
 public:
     Application();
 

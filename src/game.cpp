@@ -53,21 +53,21 @@ static glm::mat4 ConvertPhysicalMatrix(const btTransform& trans)
     );
 }
 
-Game::Game(Framework& framework) : framework(framework), entities(Entity::Entities) {}
+Game::Game(Framework& framework, Renderer& renderer) : framework(framework), renderer(renderer), entities(Entity::Entities) {}
 
-void Game::Run()
+void Game::Create()
 {
     Lua::Lib();
     Lua::Source("./resources/scripts/config.lua");
     Lua::Source("./resources/scripts/main.lua");
     Lua::L.set_function("get_cursor_uv", &Framework::GetCursorUV, framework);
     Lua::L.set_function("swap_buffers", &Framework::SwapBuffers, framework);
-    Lua::L.set_function("check_errors", &Framework::CheckErrors, framework);
     Lua::L.set_function("get_time", &Framework::GetTime, framework);
     Lua::L.set_function("poll_events", &Framework::PollEvents, framework);
     Lua::L.set_function("is_window_open", &Framework::IsWindowOpen, framework);
     Lua::L.set_function("is_key_down", &Framework::IsKeyDown, framework);
     Lua::L.set_function("close_window", &Framework::CloseWindow, framework);
+    Lua::L.set_function("check_errors", &Renderer::CheckErrors, renderer);
     Lua::Run("init()");
 
     // Create cameras
@@ -99,7 +99,7 @@ void Game::Run()
     for (const auto& kv : textures)
     {
         Texture texture = Texture((sol::table)kv.second);
-        framework.CreateTexture(texture.path);
+        renderer.CreateTexture(texture.path);
     }
     Lua::Print("[Engine] Textures initialized.");
 
@@ -120,7 +120,7 @@ void Game::Run()
     hdrProgram = ShaderProgram((sol::table)shaders["hdr"]);
     Lua::Print("[Engine] Shader programs initialized.");
 
-    framework.BindSceneVAO();
+    renderer.BindSceneVAO();
     // Create meshes in scene
     {
         auto mesh = make_shared<Mesh>();
@@ -151,18 +151,6 @@ void Game::Run()
     }
     CreateMaze();
     Lua::Print("[Engine] Scene & world initialized.");
-
-    // Start main game loop
-    double pastTime = framework.GetTime();
-    while(!framework.IsWindowOpen())
-    {
-        double currentTime = framework.GetTime();
-        float deltaTime = (float)currentTime - (float)pastTime;
-        pastTime = currentTime;
-
-        Update(deltaTime, (float)currentTime);
-        Render(deltaTime, (float)currentTime);
-    }
 }
 
 void Game::CreateMaze() 
@@ -340,13 +328,13 @@ void Game::Render(float dt, float time)
     const int mainLightCount = 1;
     const int auxLightCount = (int)_lights.size() - mainLightCount;
 
-    framework.BindSceneVAO();
+    renderer.BindSceneVAO();
     
-    framework.BeginShadowPass();
+    renderer.BeginShadowPass();
     {
         int auxShadows = 0;
         
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, framework.GetShadowMap(DIR_LIGHT, 0), 0);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, renderer.GetShadowMap(DIR_LIGHT, 0), 0);
         glClear(GL_DEPTH_BUFFER_BIT);
         depthTextureProgram.Activate();
         scene.Render(depthTextureProgram, _lights[0].GetProjectionMatrix(0), _lights[0].GetViewMatrix());
@@ -361,7 +349,7 @@ void Game::Render(float dt, float time)
             for (int f = 0; f < 6; ++f)
             {
                 GLenum face = GL_TEXTURE_CUBE_MAP_POSITIVE_X + f;
-                glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, face, framework.GetShadowMap(POINT_LIGHT, i), 0);
+                glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, face, renderer.GetShadowMap(POINT_LIGHT, i), 0);
                 glClear(GL_DEPTH_BUFFER_BIT);
                 depthCubemapProgram.Activate();
                 depthCubemapProgram.SetUniform(string("LightPosition"), l.position);
@@ -369,9 +357,9 @@ void Game::Render(float dt, float time)
             }
         }
     }
-    framework.EndShadowPass();
+    renderer.EndShadowPass();
     
-    framework.BeginColorPass();
+    renderer.BeginColorPass();
     {
         glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);    
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -408,11 +396,11 @@ void Game::Render(float dt, float time)
         colorProgram.SetUniform(string("omni_shadow_map_unit"), (int)1);
         scene.Render(colorProgram, _cameras[0].GetProjectionMatrix(), _cameras[0].GetViewMatrix(cameraTransform));
     }
-    framework.EndColorPass();
+    renderer.EndColorPass();
 
-    framework.BindScreenVAO();
+    renderer.BindScreenVAO();
 
-    framework.BeginScreenColorPass();
+    renderer.BeginScreenColorPass();
     {
         glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);    
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -421,7 +409,7 @@ void Game::Render(float dt, float time)
         //hdrProgram.SetUniform(string("exposure"), (float)1.0);
         glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     }
-    framework.EndScreenColorPass();
+    renderer.EndScreenColorPass();
 
     // 4. UI Pass
     RenderGUI(dt);

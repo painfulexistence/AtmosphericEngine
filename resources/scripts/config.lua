@@ -1,6 +1,6 @@
-framework = {
+config = {
     auto_close = false,
-    check_errors = true
+    check_rendering_errors = true
 }
 
 aux_shadow_count = 1

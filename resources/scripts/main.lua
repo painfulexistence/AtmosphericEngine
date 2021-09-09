@@ -196,7 +196,7 @@ function update(dt, time)
 end
 
 function draw(dt)
-    if framework.check_errors then
+    if config.check_rendering_errors then
         check_errors()
     end
     swap_buffers()
@@ -204,14 +204,14 @@ end
 
 function on_game_over()
     --print("[script] Gameplay: game over")
-    if framework.auto_close then 
+    if config.auto_close then 
         close_window() 
     end
 end
 
 function on_complete()
     --print("[script] Gameplay: game completed")
-    if framework.auto_close then 
+    if config.auto_close then 
         close_window() 
     end
 end

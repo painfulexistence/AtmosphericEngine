@@ -1,7 +1,8 @@
 #pragma once
 #include "common.hpp"
-#include "physics/BulletMain.h"
+#include "physics/PhysicsWorld.h"
 #include "graphics/Framework.hpp"
+#include "graphics/renderer.hpp"
 #include "engine/scene.hpp"
 #include "engine/camera.hpp"
 #include "engine/light.hpp"
@@ -39,6 +40,7 @@ const int KEY_SPACE = GLFW_KEY_SPACE;
 class Game
 {
     Framework& framework;
+    Renderer& renderer;
     PhysicsWorld world;
     Scene scene;
     std::vector<Camera> _cameras = {};
@@ -59,9 +61,9 @@ class Game
     void RenderGUI(float);
     
 public:
-    Game(Framework&);
+    Game(Framework&, Renderer&);
         
-    void Run();
+    void Create();
 
     void Update(float dt, float time);
 

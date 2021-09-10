@@ -1,3 +1,9 @@
+# VCPKG + MinGW specific configuration
+if(DEFINED ENV{VCPKG_ROOT})
+    set(VCPKG_TARGET_TRIPLET "x64-mingw-dynamic" CACHE STRING "target triplet" FORCE)
+    set(PKGCONFIG_INSTALL_PREFIX "$ENV{VCPKG_ROOT}/installed/x64-mingw-dynamic/lib/pkgconfig")
+endif()
+
 cmake_minimum_required(VERSION 3.10)
 project(AtmosphericEngine VERSION 0.1)
 

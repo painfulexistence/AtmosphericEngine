@@ -1,6 +1,6 @@
 #pragma once
 #include "BulletMinimal.h"
-#include <btBulletDynamicsCommon.h> // This header contains all bullet headers needed
+#include <bullet/btBulletDynamicsCommon.h> // This header contains all bullet headers needed
 #include <map>
 #include <utility>
 

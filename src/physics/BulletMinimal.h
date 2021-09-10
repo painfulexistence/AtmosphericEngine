@@ -1,9 +1,9 @@
 #pragma once
-#include <LinearMath/btQuaternion.h>
-#include <LinearMath/btTransform.h>
-#include <LinearMath/btVector3.h>
-#include <LinearMath/btDefaultMotionState.h>
-#include <LinearMath/btIDebugDraw.h>
+#include <bullet/LinearMath/btQuaternion.h>
+#include <bullet/LinearMath/btTransform.h>
+#include <bullet/LinearMath/btVector3.h>
+#include <bullet/LinearMath/btDefaultMotionState.h>
+#include <bullet/LinearMath/btIDebugDraw.h>
 #define FIXED_TIME_STEP 1.0 / 60.0
 #define GRAVITY 9.8
 

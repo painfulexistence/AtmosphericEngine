@@ -1,4 +1,15 @@
-.DS_Store
 build/
 samples/
 imgui.ini
+
+# MacOS clutter
+.DS_Store
+
+# CMake clutter
+CMakeCache.txt
+CMakeFiles
+CMakeScripts
+CMakeDoxyfile.in
+CMakeDoxygenDefaults.cmake
+cmake_install.cmake
+cmake_uninstall.cmake

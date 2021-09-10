@@ -24,7 +24,19 @@
                 "${vcpkgRoot}/x86-windows/include/"
             ],
             "defines": [],
-            "compilerPath": "C:/Program Files/mingw-w64/x86_64-8.1.0-posix-seh-rt_v6-rev0/mingw64/bin/g++.exe",
+            "compilerPath": "cl.exe",
+            "cStandard": "c11",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "${default}"
+        },
+        {
+            "name": "x64-mingw-dynamic",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "${vcpkgRoot}/x64-mingw-dynamic/include/"
+            ],
+            "defines": [],
+            "compilerPath": "E:/msys64/mingw64/bin/g++.exe",
             "cStandard": "c11",
             "cppStandard": "c++17",
             "intelliSenseMode": "${default}"

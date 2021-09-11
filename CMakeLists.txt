@@ -42,9 +42,9 @@ target_link_libraries(AtmosphericEngine PUBLIC GLEW::GLEW glfw ${GLFW_LIBRARY} $
 file(COPY resources DESTINATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
 if(DEFINED ENV{VCPKG_ROOT} AND WIN32)
     if(CMAKE_BUILD_TYPE MATCHES "" OR CMAKE_BUILD_TYPE MATCHES "Debug")
-        file(COPY "$ENV{VCPKG_ROOT}/installed/x64-mingw-dynamic/debug/bin/glew32d.dll" DESTINATION CMAKE_RUNTIME_OUTPUT_DIRECTORY)
+        file(COPY "$ENV{VCPKG_ROOT}/installed/x64-mingw-dynamic/debug/bin/glew32d.dll" DESTINATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
     else()
-        file(COPY "$ENV{VCPKG_ROOT}/installed/x64-mingw-dynamic/bin/glew32.dll" DESTINATION CMAKE_RUNTIME_OUTPUT_DIRECTORY)
+        file(COPY "$ENV{VCPKG_ROOT}/installed/x64-mingw-dynamic/bin/glew32.dll" DESTINATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
     endif()
 endif()
 

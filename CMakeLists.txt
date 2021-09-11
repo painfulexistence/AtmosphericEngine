@@ -1,7 +1,12 @@
 # VCPKG + MinGW specific configuration
-if(DEFINED ENV{VCPKG_ROOT})
+if(DEFINED ENV{VCPKG_ROOT} AND WIN32)
     set(VCPKG_TARGET_TRIPLET "x64-mingw-dynamic" CACHE STRING "target triplet" FORCE)
-    set(PKGCONFIG_INSTALL_PREFIX "$ENV{VCPKG_ROOT}/installed/x64-mingw-dynamic/lib/pkgconfig")
+    if(CMAKE_BUILD_TYPE MATCHES "" OR CMAKE_BUILD_TYPE MATCHES "Debug")
+        set(CMAKE_IGNORE_PATH "$ENV{VCPKG_ROOT}/installed/x64-mingw-dynamic/lib") # To prevent from accidentally linking the release build of a library, see https://github.com/microsoft/vcpkg/issues/1626
+        set(PKGCONFIG_INSTALL_PREFIX "$ENV{VCPKG_ROOT}/installed/x64-mingw-dynamic/debug/lib/pkgconfig")
+    else()
+        set(PKGCONFIG_INSTALL_PREFIX "$ENV{VCPKG_ROOT}/installed/x64-mingw-dynamic/lib/pkgconfig")
+    endif()
 endif()
 
 cmake_minimum_required(VERSION 3.10)
@@ -9,7 +14,9 @@ project(AtmosphericEngine VERSION 0.1)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
-set(EXECUTABLE_OUTPUT_PATH  ${PROJECT_SOURCE_DIR}/build/)
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/build/lib)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/build/lib)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/build/bin)
 
 aux_source_directory(src SOURCES_0)
 aux_source_directory(src/physics SOURCES_1)
@@ -28,8 +35,16 @@ add_subdirectory(external/bullet3)
 
 # Link and compile
 add_executable(AtmosphericEngine ${SOURCES_0} ${SOURCES_1} ${SOURCES_2} ${SOURCES_3} ${SOURCES_4} ${SOURCES_5} ${SOURCES_EXT})
-target_include_directories(AtmosphericEngine PUBLIC external ${LUA_INCLUDE_DIR} ${BULLET_INCLUDE_DIR})
-target_link_libraries(AtmosphericEngine PUBLIC GLEW::GLEW glfw ${GLFW_LIBRARY} ${GLM_LIBRARY} ${LUA_LIBRARY} sol2::sol2 ${BULLET_SOFTBODY_LIBRARY} ${BULLET_DYNAMICS_LIBRARY} ${BULLET_COLLISION_LIBRARY} ${BULLET_MATH_LIBRARY})
+target_include_directories(AtmosphericEngine PUBLIC external ${LUA_INCLUDE_DIR} external/bullet3/src)
+target_link_libraries(AtmosphericEngine PUBLIC GLEW::GLEW glfw ${GLFW_LIBRARY} ${GLM_LIBRARY} ${LUA_LIBRARIES} sol2::sol2 BulletSoftBody BulletDynamics BulletCollision LinearMath)
 
 # Copy static files to target directory
-file(COPY resources DESTINATION ${EXECUTABLE_OUTPUT_PATH})
+file(COPY resources DESTINATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
+if(DEFINED ENV{VCPKG_ROOT} AND WIN32)
+    if(CMAKE_BUILD_TYPE MATCHES "" OR CMAKE_BUILD_TYPE MATCHES "Debug")
+        file(COPY "$ENV{VCPKG_ROOT}/installed/x64-mingw-dynamic/debug/bin/glew32d.dll" DESTINATION CMAKE_RUNTIME_OUTPUT_DIRECTORY)
+    else()
+        file(COPY "$ENV{VCPKG_ROOT}/installed/x64-mingw-dynamic/bin/glew32.dll" DESTINATION CMAKE_RUNTIME_OUTPUT_DIRECTORY)
+    endif()
+endif()
+

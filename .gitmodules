@@ -5,3 +5,6 @@
 	path = external/bullet3
 	url = https://github.com/bulletphysics/bullet3
     ignore = dirty
+[submodule "external/sol2"]
+	path = external/sol2
+	url = https://github.com/ThePhD/sol2

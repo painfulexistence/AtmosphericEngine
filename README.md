@@ -10,3 +10,4 @@ https://www.foonathan.net/2016/07/cmake-dependency-handling/
 - - BUILD_BULLET_ROBOTICS_GUI_EXTRA
 - - BUILD_LUA_AS_DLL
 - - BUILD_UNIT_TESTS
+- - BUILD_SHARED_LIBS

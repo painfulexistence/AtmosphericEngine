@@ -8,7 +8,7 @@ struct ShaderProgram
 
     ShaderProgram();
 
-    ShaderProgram(sol::table);
+    ShaderProgram(std::string, std::string);
     
     ShaderProgram(std::vector<Shader>&);
     

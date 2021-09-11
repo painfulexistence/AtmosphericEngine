@@ -2,10 +2,10 @@
 
 ShaderProgram::ShaderProgram() {}
 
-ShaderProgram::ShaderProgram(sol::table t) : program(glCreateProgram())
+ShaderProgram::ShaderProgram(std::string vert, std::string frag) : program(glCreateProgram())
 {
-    glAttachShader(program, Shader(t["vert"], GL_VERTEX_SHADER).shader);
-    glAttachShader(program, Shader(t["frag"], GL_FRAGMENT_SHADER).shader);
+    glAttachShader(program, Shader(vert, GL_VERTEX_SHADER).shader);
+    glAttachShader(program, Shader(frag, GL_FRAGMENT_SHADER).shader);
     glLinkProgram(program);
 }
 

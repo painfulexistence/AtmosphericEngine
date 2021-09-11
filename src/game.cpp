@@ -114,10 +114,10 @@ void Game::Create()
 
     // Create shader programs
     sol::table shaders = Lua::L["shaders"].force();
-    colorProgram = ShaderProgram(shaders["color"].force());
-    depthTextureProgram = ShaderProgram(shaders["depth"]["texture"].force());
-    depthCubemapProgram = ShaderProgram(shaders["depth"]["cubemap"].force());
-    hdrProgram = ShaderProgram(shaders["hdr"].force());
+    colorProgram = ShaderProgram(shaders["color"]["vert"], shaders["color"]["frag"]);
+    depthTextureProgram = ShaderProgram(shaders["depth"]["vert"], shaders["depth"]["frag"]);
+    depthCubemapProgram = ShaderProgram(shaders["depth_cubemap"]["vert"], shaders["depth_cubemap"]["frag"]);
+    hdrProgram = ShaderProgram(shaders["hdr"]["vert"], shaders["hdr"]["frag"]);
     Lua::Print("[Engine] Shader programs initialized.");
 
     renderer.BindSceneVAO();

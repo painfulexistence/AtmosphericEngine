@@ -146,14 +146,12 @@ function init()
             frag = "./resources/shaders/pbr.frag"
         },
         depth = {
-            texture = {
-                vert = "./resources/shaders/depth_simple.vert",
-                frag = "./resources/shaders/depth_simple.frag"
-            },
-            cubemap = {
-                vert = "./resources/shaders/depth_cubemap.vert",
-                frag = "./resources/shaders/depth_cubemap.frag"
-            }
+            vert = "./resources/shaders/depth_simple.vert",
+            frag = "./resources/shaders/depth_simple.frag"
+        },
+        depth_cubemap = {
+            vert = "./resources/shaders/depth_cubemap.vert",
+            frag = "./resources/shaders/depth_cubemap.frag"
         },
         hdr = {
             vert = "./resources/shaders/hdr.vert",

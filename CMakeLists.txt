@@ -22,7 +22,7 @@ aux_source_directory(external SOURCES_EXT)
 find_package(GLEW REQUIRED)
 find_package(GLM REQUIRED)
 find_package(Lua REQUIRED)
-find_package(sol2 REQUIRED)
+add_subdirectory(external/sol2)
 add_subdirectory(external/glfw)
 add_subdirectory(external/bullet3)
 

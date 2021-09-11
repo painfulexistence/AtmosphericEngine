@@ -3,7 +3,7 @@
         {
             "name": "Mac",
             "includePath": [
-                "/usr/local/include",
+                "/usr/local/include/bullet",
                 "/opt/local/include",
                 "${workspaceFolder}/**"
             ],

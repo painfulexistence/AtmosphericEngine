@@ -34,8 +34,6 @@ void Application::Run()
 
         game.Render(deltaTime, (float)currentTime);
         double rt = framework.GetTime();
-
-        if (currentTime < 10.0)
-            std::cout << "Update cost: " << (float)ut - (float)currentTime << "secs, " << "render cost: " << (float)rt - (float)ut << "secs" << std::endl;
+        //std::cout << "Update cost: " << (float)ut - (float)currentTime << "secs, " << "render cost: " << (float)rt - (float)ut << "secs" << std::endl;
     }  
 }

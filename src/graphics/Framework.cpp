@@ -43,7 +43,7 @@ Framework::Framework()
     // Setup input module
     if (glfwRawMouseMotionSupported())
     {
-        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+        //glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
         glfwSetInputMode(window, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
     }
     glfwSetCursorPosCallback(window, OnCursorMove);

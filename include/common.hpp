@@ -20,6 +20,8 @@
 #include <vector>
 #include <list>
 #include <map>
+#include <queue>
+#include <stack>
 #include <string>
 #include <memory>
 #include <utility>

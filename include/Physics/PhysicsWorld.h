@@ -1,9 +1,7 @@
 #pragma once
+#include "common.hpp"
 #include "Physics/BulletMinimal.h"
 #include <btBulletDynamicsCommon.h> // This header contains all bullet headers needed
-#include <map>
-#include <utility>
-#include <stdexcept>
 
 class PhysicsWorld
 {

@@ -1,4 +1,4 @@
-#include "Debugger.hpp"
+#include "Physics/Debugger.hpp"
 
 
 Debugger::Debugger()

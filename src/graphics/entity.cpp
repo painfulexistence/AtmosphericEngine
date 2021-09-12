@@ -1,4 +1,4 @@
-#include "entity.hpp"
+#include "Graphics/entity.hpp"
 
 
 bool nonGraphical (const Entity& ent) { return (ent.GetGraphicsId() == 0); }

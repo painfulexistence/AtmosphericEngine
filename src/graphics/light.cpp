@@ -1,4 +1,4 @@
-#include "light.hpp"
+#include "Graphics/light.hpp"
 
 Light::Light(sol::table t)
 {

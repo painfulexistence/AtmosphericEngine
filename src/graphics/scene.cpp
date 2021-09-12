@@ -1,5 +1,5 @@
-#include "scene.hpp"
-#include "frustum.hpp"
+#include "Graphics/scene.hpp"
+#include "Graphics/frustum.hpp"
 
 std::map<std::string, std::shared_ptr<Mesh>> Scene::MeshTable = std::map<std::string, std::shared_ptr<Mesh>>();
 

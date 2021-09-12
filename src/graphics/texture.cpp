@@ -1,4 +1,5 @@
-#include "texture.hpp"
+#include "Graphics/texture.hpp"
+#include "Scripting/lua.hpp"
 
 Texture::Texture(sol::table t)
 {

@@ -18,24 +18,18 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/build/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/build/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/build/bin)
 
-aux_source_directory(src SOURCES_0)
-aux_source_directory(src/physics SOURCES_1)
-aux_source_directory(src/graphics SOURCES_2)
-aux_source_directory(src/io SOURCES_3)
-aux_source_directory(src/scripting SOURCES_4)
-aux_source_directory(src/engine SOURCES_5)
 aux_source_directory(external SOURCES_EXT)
-
+add_executable(AtmosphericEngine ${PROJECT_SOURCE_DIR}/src/Atmospheric.cpp ${SOURCES_EXT})
 find_package(GLEW REQUIRED)
 find_package(GLM REQUIRED)
 find_package(Lua REQUIRED)
 add_subdirectory(external/sol2)
 add_subdirectory(external/glfw)
 add_subdirectory(external/bullet3)
+add_subdirectory(src)
 
 # Link and compile
-add_executable(AtmosphericEngine ${SOURCES_0} ${SOURCES_1} ${SOURCES_2} ${SOURCES_3} ${SOURCES_4} ${SOURCES_5} ${SOURCES_EXT})
-target_include_directories(AtmosphericEngine PUBLIC external ${LUA_INCLUDE_DIR} external/bullet3/src)
+target_include_directories(AtmosphericEngine PUBLIC include external ${LUA_INCLUDE_DIR} external/bullet3/src)
 target_link_libraries(AtmosphericEngine PUBLIC GLEW::GLEW glfw ${GLFW_LIBRARY} ${GLM_LIBRARY} ${LUA_LIBRARIES} sol2::sol2 BulletSoftBody BulletDynamics BulletCollision LinearMath)
 
 # Copy static files to target directory

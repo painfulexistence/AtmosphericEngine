@@ -1,5 +1,5 @@
-#include "shader.hpp"
-#include "../io/file.hpp"
+#include "Graphics/shader.hpp"
+#include "System/file.hpp"
 
 static void Compile(GLuint shader)
 {

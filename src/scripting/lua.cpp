@@ -1,4 +1,4 @@
-#include "lua.hpp"
+#include "Scripting/lua.hpp"
 
 using namespace sol;
 

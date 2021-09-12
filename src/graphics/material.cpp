@@ -1,4 +1,4 @@
-#include "material.hpp"
+#include "Graphics/material.hpp"
 
 Material::Material(sol::table t)
 {

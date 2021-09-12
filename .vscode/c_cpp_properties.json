@@ -3,9 +3,10 @@
         {
             "name": "Mac",
             "includePath": [
-                "/usr/local/include/bullet",
                 "/opt/local/include",
-                "${workspaceFolder}/**"
+                "/usr/local/include/bullet",
+                "${workspaceFolder}/include",
+                "${workspaceFolder}/external"
             ],
             "defines": [],
             "macFrameworkPath": [

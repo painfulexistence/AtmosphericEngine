@@ -1,5 +1,3 @@
-#include "../common.hpp"
-
 class GUI
 {
     void Update()

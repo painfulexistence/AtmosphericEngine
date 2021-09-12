@@ -1,4 +1,4 @@
-#include "frustum.hpp"
+#include "Graphics/frustum.hpp"
 
 Frustum::Frustum(glm::mat4 viewingMatrix)
 {

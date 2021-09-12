@@ -1,5 +1,6 @@
 #pragma once
 #include "../common.hpp"
+#include "Physics/BulletMinimal.h"
 
 class Debugger : public btIDebugDraw 
 {

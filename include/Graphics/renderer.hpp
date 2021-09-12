@@ -1,6 +1,6 @@
 #pragma once
 #include "../common.hpp"
-#include "Framework.hpp"
+#include "Window/Framework.hpp"
 
 class Renderer
 {

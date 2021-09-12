@@ -1,7 +1,7 @@
 #pragma once
 #include "../common.hpp"
 #include "entity.hpp"
-#include "../physics/PhysicsWorld.h"
+#include "Physics/PhysicsWorld.h"
 
 struct CameraProperties
 {

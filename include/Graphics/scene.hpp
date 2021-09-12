@@ -1,7 +1,7 @@
 #pragma once
 #include "../common.hpp"
-#include "../physics/PhysicsWorld.h"
-#include "../physics/Debugger.hpp"
+#include "Physics/PhysicsWorld.h"
+#include "Physics/Debugger.hpp"
 #include "program.hpp"
 #include "mesh.hpp"
 #include "geometry.hpp"

@@ -1,8 +1,6 @@
 #pragma once
 #include "../common.hpp"
-#include "../io/file.hpp"
-//#define SOL_ALL_SAFETIES_ON 1
-#include "sol/sol.hpp"
+#include "System/file.hpp"
 
 class Lua
 {

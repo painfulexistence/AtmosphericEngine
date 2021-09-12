@@ -2,6 +2,7 @@
 #add_subdirectory(Console)
 add_subdirectory(Graphics)
 #add_subdirectory(GUI)
+add_subdirectory(Messaging)
 add_subdirectory(Physics)
 add_subdirectory(Scripting)
 add_subdirectory(System)

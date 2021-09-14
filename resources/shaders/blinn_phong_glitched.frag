@@ -68,10 +68,13 @@ vec3 Childhood(vec3 result)
     return vec3(result.x + noise(frag_pos.xy), result.y / noise(frag_pos.yz), result.z / noise(frag_pos.zx));
 }
 
+vec2 DistortUV(vec2 uv)
+{
+    return uv + noise2d(uv + noise2d(uv + noise2d(vec2(frag_pos.x * frag_pos.y, frag_pos.z * frag_pos.y))));
+}
+
 void main()
 {   
-    vec2 uv = tex_uv + noise2d(tex_uv + noise2d(tex_uv + noise2d(vec2(frag_pos.x * frag_pos.y, frag_pos.z * frag_pos.y))));
-
     vec3 norm = normalize(frag_normal);
     vec3 viewDir = normalize(cam_pos - frag_pos);
     vec3 lightDir = normalize(-main_light.direction);
@@ -83,7 +86,8 @@ void main()
     vec3 diffuse = main_light.diffuse * lightPower * (diff * surf.diffuse);
     vec3 specular = main_light.specular * lightPower * pow(max(dot(halfway, norm), 0.0), surf.shininess) * surf.specular;
 
-    vec3 result = mix((ambient + diffuse + specular), texture(tex_unit, uv).xyz, 0.1);
+    tex_uv = DistortUV(tex_uv);
+    vec3 result = mix((ambient + diffuse + specular), texture(tex_unit, tex_uv).xyz, 0.1);
     result = Childhood(result);
     result = pow(result, vec3(1.0 / gamma));
 

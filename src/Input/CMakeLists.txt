@@ -1,5 +1,4 @@
 set(SOURCES
-    src/Physics/Debugger.cpp
-    src/Physics/World.cpp
+    src/Input/Input.cpp
 )
 target_sources(AtmosphericEngine PRIVATE ${SOURCES})

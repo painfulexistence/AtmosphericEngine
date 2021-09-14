@@ -1,112 +1,12 @@
-#pragma once
-#include "common.hpp"
-#include "Physics/PhysicsWorld.h"
-#include "Window/Framework.hpp"
-#include "Graphics/renderer.hpp"
-#include "Graphics/scene.hpp"
-#include "Graphics/camera.hpp"
-#include "Graphics/light.hpp"
-#include "Graphics/material.hpp"
-#include "Graphics/texture.hpp"
-#include "Graphics/mesh.hpp"
-#include "Graphics/geometry.hpp"
-#include "Graphics/entity.hpp"
-#include "Scripting/lua.hpp"
-//#include <entt/entity/registry.hpp>
+#include "Runtime.hpp"
 using namespace std;
 
-//ImGui
-const ImVec4 clearColor = ImVec4(0.15f, 0.183f, 0.2f, 1.0f);
+static vector<vector<bool>> generateMazeData(int size, int shouldConsumed);
+static glm::mat4 ConvertPhysicalMatrix(const btTransform& trans);
 
-//Key mapping
-const int KEY_UP = GLFW_KEY_UP;
-const int KEY_RIGHT = GLFW_KEY_RIGHT;
-const int KEY_LEFT = GLFW_KEY_LEFT;
-const int KEY_DOWN = GLFW_KEY_DOWN;
-const int KEY_Q = GLFW_KEY_Q;
-const int KEY_W = GLFW_KEY_W;
-const int KEY_E = GLFW_KEY_E;
-const int KEY_R = GLFW_KEY_R;
-const int KEY_A = GLFW_KEY_A;
-const int KEY_S = GLFW_KEY_S;
-const int KEY_D = GLFW_KEY_D;
-const int KEY_F = GLFW_KEY_F;
-const int KEY_Z = GLFW_KEY_Z;
-const int KEY_X = GLFW_KEY_X;
-const int KEY_C = GLFW_KEY_C;
-const int KEY_V = GLFW_KEY_V;
-const int KEY_ESCAPE = GLFW_KEY_ESCAPE;
-const int KEY_ENTER = GLFW_KEY_ENTER;
-const int KEY_SPACE = GLFW_KEY_SPACE;
-
-static vector<vector<bool>> generateMazeData(int size, int shouldConsumed) {
-    int mazeX = 1;
-    int mazeY = 1;
-
-    vector<vector<bool>> data(size);
-    for (int i = 0; i < data.size(); ++i)
-    {
-        for (int j = 0; j < size; ++j)
-        {
-            data[i].push_back(true);
-        }
-    }
-
-    int tilesConsumed = 0;
-    while (tilesConsumed < shouldConsumed && tilesConsumed < (size - 2) * (size - 2)) {
-        int xDir = 0;
-        int yDir = 0;
-        if (rand() % 2 < 0.5) {
-            xDir = rand() % 2 < 0.5 ? 1 : -1;
-        } else {
-            yDir = rand() % 2 < 0.5 ? 1 : -1;
-        }
-        int moves = rand() % (size - 1) + 1;
-        for (int i = 0; i < moves; i++) 
-        {
-            mazeX = max(1, min(mazeX + xDir, size - 2));
-            mazeY = max(1, min(mazeY + yDir, size - 2));
-            if (data[mazeX][mazeY]) 
-            {
-                data[mazeX][mazeY] = false;
-                tilesConsumed++;
-            }
-        }
-    }
-
-    return data;
-}
-
-static glm::mat4 ConvertPhysicalMatrix(const btTransform& trans)
+class MazeGame : public Runtime
 {
-    btScalar mat[16] = {0.0f};
-    trans.getOpenGLMatrix(mat);
-        
-    return glm::mat4(
-        mat[0], mat[1], mat[2], mat[3],
-        mat[4], mat[5], mat[6], mat[7],
-        mat[8], mat[9], mat[10], mat[11],
-        mat[12], mat[13], mat[14], mat[15]
-    );
-}
-
-class Game
-{
-    Framework& framework;
-    Renderer& renderer;
-    PhysicsWorld world;
-    Scene scene;
-    std::vector<Camera> _cameras = {};
-    std::vector<Light> _lights = {};
-    std::vector<Material> _materials = {};
-    ShaderProgram colorProgram;
-    ShaderProgram depthTextureProgram;
-    ShaderProgram depthCubemapProgram;
-    ShaderProgram hdrProgram;
-
-    Lua lua;
-    std::list<Entity>& entities;
-
+private:
     void CreateMaze()
     {
         const auto& t = Lua::L["maze"];
@@ -189,62 +89,64 @@ class Game
         if (!world.GetImpostorLinearVelocity(impostor, currentVel)) 
             throw runtime_error("Impostor not found");
 
-        framework.PollEvents();
-
-        if (framework.IsKeyDown(KEY_W))
+        if (input.GetKeyDown(KEY_W))
         {
             glm::vec3 v = _cameras[0].CreateLinearVelocity(Axis::FRONT);
             world.SetImpostorLinearVelocity(impostor, btVector3(v.x, currentVel.y(), v.z));
         }
-        if (framework.IsKeyDown(KEY_S))
+        if (input.GetKeyDown(KEY_S))
         {
             glm::vec3 v = _cameras[0].CreateLinearVelocity(Axis::FRONT);
             world.SetImpostorLinearVelocity(impostor, btVector3(-v.x, currentVel.y(), -v.z));
         }
-        if (framework.IsKeyDown(KEY_D))
+        if (input.GetKeyDown(KEY_D))
         {
             _cameras[0].yaw(0.3 * CAMERA_ANGULAR_OFFSET);
             glm::vec3 v = _cameras[0].CreateLinearVelocity(Axis::RIGHT);
             world.SetImpostorLinearVelocity(impostor, btVector3(v.x, currentVel.y(), v.z));
         }
-        if (framework.IsKeyDown(KEY_A))
+        if (input.GetKeyDown(KEY_A))
         {
             _cameras[0].yaw(-0.3 * CAMERA_ANGULAR_OFFSET);
             glm::vec3 v = _cameras[0].CreateLinearVelocity(Axis::RIGHT);
             world.SetImpostorLinearVelocity(impostor, btVector3(-v.x, currentVel.y(), -v.z));
         }
-        if (framework.IsKeyDown(KEY_UP))
+        if (input.GetKeyDown(KEY_UP))
         {
             _cameras[0].pitch(CAMERA_ANGULAR_OFFSET);
         }
-        if (framework.IsKeyDown(KEY_DOWN))
+        if (input.GetKeyDown(KEY_DOWN))
         {
             _cameras[0].pitch(-CAMERA_ANGULAR_OFFSET);
         }
-        if (framework.IsKeyDown(KEY_RIGHT))
+        if (input.GetKeyDown(KEY_RIGHT))
         {
             _cameras[0].yaw(CAMERA_ANGULAR_OFFSET);
         }
-        if (framework.IsKeyDown(KEY_LEFT))
+        if (input.GetKeyDown(KEY_LEFT))
         {
             _cameras[0].yaw(-CAMERA_ANGULAR_OFFSET);
         }
-        if (framework.IsKeyDown(KEY_SPACE)) 
+        if (input.GetKeyDown(KEY_SPACE)) 
         {
             world.GetImpostorLinearVelocity(impostor, currentVel); // update velcoity to reflect current horizontal speed
             glm::vec3 v = _cameras[0].CreateLinearVelocity(Axis::UP);
             world.SetImpostorLinearVelocity(impostor, btVector3(currentVel.x(), v.y, currentVel.z()));
         }
-        if (framework.IsKeyDown(KEY_Z)) 
+        if (input.GetKeyDown(KEY_Z)) 
         {
-            glm::vec2 pos = framework.GetCursorUV();
+            glm::vec2 pos = input.GetCursorUV();
             glm::vec3 diff = glm::vec3(1.0, pos.x, pos.y);
 
             _lights[0].diffuse = diff;
         }
-        if (framework.IsKeyDown(KEY_X))
+        if (input.GetKeyDown(KEY_X))
         {
             Lua::L["game_state"]["is_light_flashing"] = !(bool)Lua::L["game_state"]["is_light_flashing"];
+        }
+        if (input.GetKeyDown(KEY_ESCAPE))
+        {
+            input.ReceiveMessage(MessageType::ON_QUIT);
         }
     }
         
@@ -303,26 +205,18 @@ class Game
     }
     
 public:
-    Game(Framework& framework, Renderer& renderer) : framework(framework), renderer(renderer), entities(Entity::Entities)
+    MazeGame() : Runtime()
+    {
+
+    }
+
+    ~MazeGame()
     {
 
     }
         
-    void Create()
+    void Load()
     {
-        Lua::Lib();
-        Lua::Source("./resources/scripts/config.lua");
-        Lua::Source("./resources/scripts/main.lua");
-        Lua::L.set_function("get_cursor_uv", &Framework::GetCursorUV, framework);
-        Lua::L.set_function("swap_buffers", &Framework::SwapBuffers, framework);
-        Lua::L.set_function("get_time", &Framework::GetTime, framework);
-        Lua::L.set_function("poll_events", &Framework::PollEvents, framework);
-        Lua::L.set_function("is_window_open", &Framework::IsWindowOpen, framework);
-        Lua::L.set_function("is_key_down", &Framework::IsKeyDown, framework);
-        Lua::L.set_function("close_window", &Framework::CloseWindow, framework);
-        Lua::L.set_function("check_errors", &Renderer::CheckErrors, renderer);
-        Lua::Run("init()");
-
         // Create cameras
         sol::table cameras = Lua::L["cameras"].force();
         for (const auto& kv : cameras)
@@ -530,3 +424,54 @@ public:
         Lua::Run("draw(dt)");    
     }
 };
+
+static vector<vector<bool>> generateMazeData(int size, int shouldConsumed) {
+    int mazeX = 1;
+    int mazeY = 1;
+
+    vector<vector<bool>> data(size);
+    for (int i = 0; i < data.size(); ++i)
+    {
+        for (int j = 0; j < size; ++j)
+        {
+            data[i].push_back(true);
+        }
+    }
+
+    int tilesConsumed = 0;
+    while (tilesConsumed < shouldConsumed && tilesConsumed < (size - 2) * (size - 2)) {
+        int xDir = 0;
+        int yDir = 0;
+        if (rand() % 2 < 0.5) {
+            xDir = rand() % 2 < 0.5 ? 1 : -1;
+        } else {
+            yDir = rand() % 2 < 0.5 ? 1 : -1;
+        }
+        int moves = rand() % (size - 1) + 1;
+        for (int i = 0; i < moves; i++) 
+        {
+            mazeX = max(1, min(mazeX + xDir, size - 2));
+            mazeY = max(1, min(mazeY + yDir, size - 2));
+            if (data[mazeX][mazeY]) 
+            {
+                data[mazeX][mazeY] = false;
+                tilesConsumed++;
+            }
+        }
+    }
+
+    return data;
+}
+
+static glm::mat4 ConvertPhysicalMatrix(const btTransform& trans)
+{
+    btScalar mat[16] = {0.0f};
+    trans.getOpenGLMatrix(mat);
+        
+    return glm::mat4(
+        mat[0], mat[1], mat[2], mat[3],
+        mat[4], mat[5], mat[6], mat[7],
+        mat[8], mat[9], mat[10], mat[11],
+        mat[12], mat[13], mat[14], mat[15]
+    );
+}

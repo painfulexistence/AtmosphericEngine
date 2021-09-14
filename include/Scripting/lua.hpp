@@ -1,6 +1,6 @@
 #pragma once
-#include "../common.hpp"
-#include "System/file.hpp"
+#include "common.hpp"
+#include "OS/file.hpp"
 
 class Lua
 {

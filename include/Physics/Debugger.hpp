@@ -1,8 +1,12 @@
 #pragma once
 #include "common.hpp"
-#include "Physics/BulletMinimal.h"
+#include <LinearMath/btQuaternion.h>
+#include <LinearMath/btTransform.h>
+#include <LinearMath/btVector3.h>
+#include <LinearMath/btDefaultMotionState.h>
+#include <LinearMath/btIDebugDraw.h>
 
-class Debugger : public btIDebugDraw 
+class PhysicsDebugger : public btIDebugDraw 
 {
 private:
     struct Line 
@@ -22,7 +26,7 @@ private:
     std::vector<Point> _points;
 
 public:
-    Debugger();
+    PhysicsDebugger();
         
     void setDebugMode(int mode) override
     {

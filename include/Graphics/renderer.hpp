@@ -1,6 +1,6 @@
 #pragma once
-#include "../common.hpp"
-#include "Window/Framework.hpp"
+#include "common.hpp"
+#include "Framework.hpp"
 
 class Renderer
 {
@@ -17,8 +17,6 @@ public:
     Renderer();
 
     void Configure();
-
-    void CreateGUI(const Framework&);
 
     void CreateBuffers();
 

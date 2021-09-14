@@ -180,10 +180,10 @@ function init()
         }
     }
     maze = {
-        size = 50,
+        size = 30,
         roofed = false,
-        tiles_to_remove = 2200,
-        tile_size = 4.0,
+        tiles_to_remove = 500,
+        tile_size = 3.0,
         chism_probability = 10.0,
         win_coord = {0, 0, 0}
     }
@@ -194,10 +194,10 @@ function update(dt, time)
 end
 
 function draw(dt)
-    if config.check_rendering_errors then
-        check_errors()
-    end
-    swap_buffers()
+    --if config.check_rendering_errors then
+    --    check_errors()
+    --end
+    --swap_buffers()
 end
 
 function on_game_over()

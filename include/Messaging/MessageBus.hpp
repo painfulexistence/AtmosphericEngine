@@ -1,16 +1,22 @@
 #pragma once
 #include "common.hpp"
 #include "Messaging/Message.hpp"
-#include "Messaging/Messagable.hpp"
 
+class Runtime;
+class Messagable;
 class MessageBus
 {
-private:
-    std::list<Messagable> messagables;
 public:
     MessageBus();
-    int Register(Messagable messagable);
-    void Unregister();
+    ~MessageBus();
+    void Supervise(Runtime* supervisor);
+    int Register(Messagable* receiver);
     void PostMessage(Message msg);
     void PostImmediateMessage(Message msg);
+    void Notify();
+private:
+    std::list<Runtime*> _supervisors;
+    std::list<Messagable*> _receivers;
+    std::queue<Message> _messages;
+    void OnMessageSent(Message msg);
 };

@@ -1,4 +1,4 @@
-#include "Graphics/renderer.hpp"
+#include "Graphics/Renderer.hpp"
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
@@ -16,21 +16,6 @@ void Renderer::Configure()
     glEnable(GL_MULTISAMPLE);      
     glPrimitiveRestartIndex(0xFFFF);
     glCullFace(GL_BACK);
-}
-
-void Renderer::CreateGUI(const Framework& framework)
-{
-    // Setup Dear ImGui
-    IMGUI_CHECKVERSION();
-    ImGui::CreateContext();
-    ImGui_ImplGlfw_InitForOpenGL(framework.window, true); // platform binding
-    ImGui_ImplOpenGL3_Init("#version 410"); // renderer binding
-
-    // Configure ImGui
-    ImGui::StyleColorsDark();
-    ImGuiIO& io = ImGui::GetIO(); 
-    (void)io;
-    //io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
 }
 
 void Renderer::CreateBuffers()

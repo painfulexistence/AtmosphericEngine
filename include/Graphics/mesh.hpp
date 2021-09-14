@@ -1,6 +1,6 @@
 #pragma once
-#include "../common.hpp"
-#include "program.hpp"
+#include "common.hpp"
+#include "Shader.hpp"
 #include "material.hpp"
 
 class Mesh

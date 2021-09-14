@@ -1,9 +1,14 @@
 #pragma once
 #include "common.hpp"
-#include "Physics/BulletMinimal.h"
-#include <btBulletDynamicsCommon.h> // This header contains all bullet headers needed
+#include <LinearMath/btQuaternion.h>
+#include <LinearMath/btTransform.h>
+#include <LinearMath/btVector3.h>
+#include <LinearMath/btDefaultMotionState.h>
+#include <btBulletDynamicsCommon.h>
+#include "Messaging.hpp"
+#include "Framework.hpp"
 
-class PhysicsWorld
+class PhysicsWorld : public Messagable
 {
 private:
     btCollisionConfiguration* _config;
@@ -11,6 +16,7 @@ private:
     btBroadphaseInterface* _broadphase;
     btConstraintSolver* _solver;
     btDiscreteDynamicsWorld* _world;
+    Framework* _fw;
     float _timeAccum;
     std::map<std::uint64_t, btRigidBody*> _impostors;
 
@@ -18,6 +24,10 @@ public:
     PhysicsWorld();
 
     ~PhysicsWorld();
+
+    void Init(MessageBus* mb, Framework* fw);
+
+    void HandleMessage(Message msg) override;
 
     void SetGravity(float gravity) { _world->setGravity(btVector3(0, -gravity, 0)); }
 

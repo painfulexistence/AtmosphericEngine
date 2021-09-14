@@ -1,8 +1,8 @@
 #pragma once
-#include "../common.hpp"
-#include "Physics/PhysicsWorld.h"
+#include "common.hpp"
+#include "Physics/World.hpp"
 #include "Physics/Debugger.hpp"
-#include "program.hpp"
+#include "Shader.hpp"
 #include "mesh.hpp"
 #include "geometry.hpp"
 

@@ -1,4 +1,6 @@
-#include "Physics/PhysicsWorld.h"
+#include "Physics/World.hpp"
+#include "Messaging.hpp"
+#include "Framework.hpp"
 
 PhysicsWorld::PhysicsWorld() : _timeAccum(0.0f)
 {
@@ -7,7 +9,6 @@ PhysicsWorld::PhysicsWorld() : _timeAccum(0.0f)
     _broadphase = new btDbvtBroadphase();
     _solver = new btSequentialImpulseConstraintSolver();
     _world = new btDiscreteDynamicsWorld(_dispatcher, _broadphase, _solver, _config);
-    
     _world->setGravity(btVector3(0, -GRAVITY, 0));
 }
 
@@ -18,6 +19,21 @@ PhysicsWorld::~PhysicsWorld()
     delete _broadphase;
     delete _dispatcher;
     delete _config;
+}
+
+void PhysicsWorld::Init(MessageBus* mb, Framework* fw)
+{
+    ConnectBus(mb);
+    this->_fw = fw;
+}
+
+void PhysicsWorld::HandleMessage(Message msg)
+{
+    switch (msg.type)
+    {
+        default:
+            break;
+    }
 }
 
 std::uint64_t PhysicsWorld::CreateBoxImpostor(btVector3 position, btVector3 size, float mass)

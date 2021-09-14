@@ -1,16 +1,28 @@
 #include "Messaging/Messagable.hpp"
+#include "Messaging/MessageBus.hpp"
 
 Messagable::Messagable()
 {
-    messageBuffer = std::queue<Message>();
+
+}
+
+void Messagable::ConnectBus(MessageBus* mb)
+{
+    this->messageBus = mb;
+    this->messageBus->Register(this);
 }
 
 void Messagable::SendMessage(Message msg)
 {
-    messageBuffer.push(msg);
+    this->messageBus->PostMessage(msg);
 }
 
 void Messagable::SendImmediateMessage(Message msg)
+{
+    this->messageBus->PostImmediateMessage(msg);
+}
+
+void Messagable::ReceiveMessage(Message msg)
 {
     HandleMessage(msg);
 }

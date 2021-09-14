@@ -45,6 +45,9 @@
 #define SPOT_LIGHT 2
 #define AREA_LIGHT 3
 
+#define FIXED_TIME_STEP 1.0 / 60.0
+#define GRAVITY 9.8
+
 enum Axis {
     UP, DOWN,
     BACK, FRONT,

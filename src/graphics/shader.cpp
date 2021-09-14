@@ -1,10 +1,16 @@
-#include "Graphics/shader.hpp"
-#include "System/file.hpp"
+#include "Graphics/Shader.hpp"
+#include "OS/file.hpp"
 
-static void Compile(GLuint shader)
+Shader::Shader(const std::string& path, GLenum type)
 {
-    glCompileShader(shader);
+    const auto& shaderSrc = File(path).GetContent();
+    const char* src = shaderSrc.c_str();
+    const int len = shaderSrc.size();
 
+    shader = glCreateShader(type);
+    glShaderSource(shader, 1, &src, &len);
+        
+    glCompileShader(shader);
     GLint isCompiled;
     glGetShaderiv(shader, GL_COMPILE_STATUS, &isCompiled);
     if (isCompiled == GL_FALSE)
@@ -19,13 +25,28 @@ static void Compile(GLuint shader)
     }
 }
 
-Shader::Shader(const std::string& path, GLenum type)
-{
-    const auto& shaderSrc = File(path).GetContent();
-    const char* src = shaderSrc.c_str();
-    const int len = shaderSrc.size();
+ShaderProgram::ShaderProgram() {}
 
-    shader = glCreateShader(type);
-    glShaderSource(shader, 1, &src, &len);
-    Compile(shader);
+ShaderProgram::ShaderProgram(std::string vert, std::string frag) : program(glCreateProgram())
+{
+    glAttachShader(program, Shader(vert, GL_VERTEX_SHADER).shader);
+    glAttachShader(program, Shader(frag, GL_FRAGMENT_SHADER).shader);
+    glLinkProgram(program);
+}
+
+ShaderProgram::ShaderProgram(std::vector<Shader>& shaders) : program(glCreateProgram())
+{
+    for (int i = shaders.size() - 1; i >= 0; i--)
+    {
+        glAttachShader(program, shaders[i].shader);
+    }
+    glLinkProgram(program);
+}
+
+void ShaderProgram::Activate() {
+    glUseProgram(program);
+}
+
+void ShaderProgram::Deactivate() {
+    glUseProgram(0);
 }

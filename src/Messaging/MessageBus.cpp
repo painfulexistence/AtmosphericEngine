@@ -1,35 +1,74 @@
 #include "Messaging/MessageBus.hpp"
 #include "Messaging/Messagable.hpp"
+#include "Runtime.hpp"
 
 MessageBus::MessageBus()
 {
-    messagables = std::list<Messagable>();
+
 }
 
-int MessageBus::Register(Messagable messagable)
+MessageBus::~MessageBus()
 {
-    int id = messagables.size();
-    messagables.push_back(messagable);
+
+}
+
+void MessageBus::Supervise(Runtime* supervisor)
+{
+    this->_supervisors.push_back(supervisor);
+}
+
+int MessageBus::Register(Messagable* receiver)
+{
+    int id = _receivers.size();
+    this->_receivers.push_back(receiver);
     return id;
-}
-
-void MessageBus::Unregister()
-{
-
 }
 
 void MessageBus::PostMessage(Message msg)
 {
-    for(auto m : messagables)
+    if (msg.type == MessageType::ON_QUIT)
     {
-        m.SendMessage(msg);
+        for (auto rt : _supervisors)
+        {
+            rt->Quit();
+        }
+        return;
     }
+    _messages.push(msg);
 }
 
 void MessageBus::PostImmediateMessage(Message msg)
 {
-    for(auto m : messagables)
+    if (msg.type == MessageType::ON_QUIT)
     {
-        m.SendImmediateMessage(msg);
+        for (auto rt : _supervisors)
+        {
+            rt->Quit();
+        }
+        return;
     }
+    for (auto m : _receivers)
+    {
+        m->ReceiveMessage(msg);
+    }
+}
+
+void MessageBus::Notify()
+{
+    while (!_messages.empty())
+    {
+        auto msg = _messages.front();
+        for (auto m : _receivers)
+        {
+            m->ReceiveMessage(msg);
+        }
+        OnMessageSent(msg);
+        
+        _messages.pop();
+    }
+}
+
+void MessageBus::OnMessageSent(Message msg)
+{
+    PostImmediateMessage(Message(MessageType::ON_MESSAGE_SENT));
 }

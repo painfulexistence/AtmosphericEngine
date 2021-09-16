@@ -24,7 +24,7 @@ public:
     GUIState(GUIMode mode, GUITheme theme, GUIFont font, float opacity = 1.0f);
     ~GUIState();
     void Render() const;
-    GUIWindow CreateWindow(std::string name);
+    GUIWindow* CreateWindow(std::string name);
     void DestroyWindow(std::string key);
     GUIWindow* FindWindow(std::string key);
 private:

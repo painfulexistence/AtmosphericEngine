@@ -6,7 +6,8 @@
                 "/opt/local/include",
                 "/usr/local/include/bullet",
                 "${workspaceFolder}/include",
-                "${workspaceFolder}/external"
+                "${workspaceFolder}/external",
+                "${workspaceFolder}/external/sol2/include"
             ],
             "defines": [],
             "macFrameworkPath": [

@@ -1,5 +1,6 @@
 #pragma once
-#include "../common.hpp"
+#include "common.hpp"
+#include "Scripting/Lua.hpp"
 
 struct LightProperties
 {

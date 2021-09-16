@@ -1,7 +1,7 @@
 #add_subdirectory(Audio)
 add_subdirectory(Console)
 add_subdirectory(Graphics)
-#add_subdirectory(GUI)
+add_subdirectory(GUI)
 add_subdirectory(Input)
 add_subdirectory(Messaging)
 add_subdirectory(Physics)

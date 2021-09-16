@@ -1,6 +1,7 @@
 #pragma once
+//#define SOL_ALL_SAFETIES_ON 1
+#include "sol/sol.hpp"
 #include "common.hpp"
-#include "OS/file.hpp"
 
 class Lua
 {
@@ -14,14 +15,4 @@ public:
     static void Print(const std::string&);
 
     static void Source(const std::string&);
-
-    Lua();
-
-    void Load();
-
-    void FixedUpdate();
-
-    void Update(float dt);
-
-    void Render(float dt);
 };

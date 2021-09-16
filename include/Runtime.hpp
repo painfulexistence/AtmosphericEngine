@@ -4,13 +4,13 @@
 #include "Messaging.hpp"
 #include "Physics.hpp"
 #include "Graphics.hpp"
+#include "GUI.hpp"
 #include "Console.hpp"
 #include "Input/Input.hpp"
-#include "Scripting/lua.hpp"
+#include "Scripting.hpp"
+#include "Framework/ImGui.hpp" //TODO: Remove this dependency
 //#include <entt/entity/registry.hpp>
 using namespace std;
-
-const ImVec4 clearColor = ImVec4(0.15f, 0.183f, 0.2f, 1.0f);
 
 class Runtime
 {
@@ -21,33 +21,29 @@ private:
     bool _quitted = false;
     Framework* _fw = new Framework();
     MessageBus* _mb = new MessageBus();
+    void Render(float dt, float time);
 
 public:
     Runtime();
 
     ~Runtime();
         
-    void Init();
-
     void Execute();
 
     void Quit();
 
-    virtual void Load();
+    virtual void Load() = 0;
 
-    virtual void Update(float dt, float time);
-
-    virtual void Render(float dt, float time);
-
-    virtual void RenderGUI(float dt);
+    virtual void Update(float dt, float time) = 0;
 
 protected:
     Renderer renderer;
     PhysicsWorld world;
     Console console;
+    GUI gui;
     Input input;
     Scene scene;
-    Lua lua;
+    Script script;
     list<Entity>& entities;
     vector<Camera> _cameras = {};
     vector<Light> _lights = {};
@@ -56,4 +52,5 @@ protected:
     ShaderProgram depthTextureProgram;
     ShaderProgram depthCubemapProgram;
     ShaderProgram hdrProgram;
+    ImVec4 clearColor = ImVec4(0.15f, 0.183f, 0.2f, 1.0f);
 };

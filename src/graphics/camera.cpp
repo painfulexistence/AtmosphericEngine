@@ -1,5 +1,5 @@
 #include "Graphics/camera.hpp"
-#include "Scripting/lua.hpp"
+#include "Scripting/Lua.hpp"
 
 static const float maxVAngle = PI / 2.0f - 0.01f;
 static const float minVAngle = -PI / 2.0f + 0.01f;

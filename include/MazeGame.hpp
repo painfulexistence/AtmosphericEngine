@@ -149,74 +149,15 @@ private:
             input.ReceiveMessage(MessageType::ON_QUIT);
         }
     }
-        
-    void RenderGUI(float dt)
-    {
-        // Start Dear ImGui frame
-        ImGui_ImplOpenGL3_NewFrame();
-        ImGui_ImplGlfw_NewFrame();
-        ImGui::NewFrame();
-
-        ImGui::Begin("General Graphics");
-        {
-            ImGui::Text("OpenGL version: %s", glGetString(GL_VERSION));
-            ImGui::Text("GLSL version: %s", glGetString(GL_SHADING_LANGUAGE_VERSION));
-            ImGui::Text("Vendor: %s", glGetString(GL_VENDOR));
-            ImGui::Text("Renderer: %s", glGetString(GL_RENDERER));
-
-            GLint depth, stencil;
-            glGetFramebufferAttachmentParameteriv(GL_DRAW_FRAMEBUFFER, GL_DEPTH, GL_FRAMEBUFFER_ATTACHMENT_DEPTH_SIZE, &depth);    
-            glGetFramebufferAttachmentParameteriv(GL_DRAW_FRAMEBUFFER, GL_STENCIL, GL_FRAMEBUFFER_ATTACHMENT_STENCIL_SIZE, &stencil);    
-            ImGui::Text("Depth bits: %d", depth);
-            ImGui::Text("Stencil bits: %d", stencil);
-
-            GLint maxVertUniforms, maxFragUniforms;
-            glGetIntegerv(GL_MAX_VERTEX_UNIFORM_COMPONENTS, &maxVertUniforms);
-            glGetIntegerv(GL_MAX_FRAGMENT_UNIFORM_COMPONENTS, &maxFragUniforms);
-            ImGui::Text("Max vertex uniforms: %d bytes", maxVertUniforms / 4);
-            ImGui::Text("Max fragment uniforms: %d bytes", maxFragUniforms / 4);
-
-            GLint maxVertUniBlocks, maxFragUniBlocks;
-            glGetIntegerv(GL_MAX_VERTEX_UNIFORM_BLOCKS, &maxVertUniBlocks);
-            glGetIntegerv(GL_MAX_FRAGMENT_UNIFORM_BLOCKS, &maxFragUniBlocks);
-            ImGui::Text("Max vertex uniform blocks: %d", maxVertUniBlocks);
-            ImGui::Text("Max fragment uniform blocks: %d", maxFragUniBlocks);
-
-            GLint maxElementIndices, maxElementVertices;
-            glGetIntegerv(GL_MAX_ELEMENTS_INDICES, &maxElementIndices);
-            glGetIntegerv(GL_MAX_ELEMENTS_VERTICES, &maxElementVertices);
-            ImGui::Text("Max element indices: %d", maxElementIndices);
-            ImGui::Text("Max element vertices: %d", maxElementVertices);
-        }
-        ImGui::End();
-
-        ImGui::Begin("Realtime Rendering");
-        {
-            ImGui::ColorEdit3("Clear color", (float*)&clearColor);
-            ImGui::Text("Entities count: %lu", entities.size());
-            ImGui::Text("Draw time: %.3f s/frame", dt);
-            ImGui::Text("Frame rate: %.1f FPS", 1.0f / dt);
-            //ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
-        }
-        ImGui::End();
-        
-        ImGui::Render();
-        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-    }
     
 public:
-    MazeGame() : Runtime()
-    {
-
-    }
-
-    ~MazeGame()
-    {
-
-    }
-        
     void Load()
     {
+        // Load game data
+        Lua::Source("./resources/scripts/config.lua");
+        Lua::Source("./resources/scripts/main.lua");
+        Lua::Run("init()");
+
         // Create cameras
         sol::table cameras = Lua::L["cameras"].force();
         for (const auto& kv : cameras)
@@ -230,7 +171,7 @@ public:
             world.SetImpostorAngularFactor(cam.GetPhysicsId(), btVector3(0, 0, 0));
             entities.push_back(cam);
         }
-        Lua::Print("[Engine] Cameras initialized.");
+        Lua::Print("Cameras initialized.");
 
         // Create lights
         sol::table lights = Lua::L["lights"].force();
@@ -239,7 +180,7 @@ public:
             Light light = Light((sol::table)kv.second);
             _lights.push_back(light); 
         }
-        Lua::Print("[Engine] Lights initialized.");
+        Lua::Print("Lights initialized.");
 
         //Create textures
         sol::table textures = Lua::L["textures"].force();
@@ -248,7 +189,7 @@ public:
             Texture texture = Texture((sol::table)kv.second);
             renderer.CreateTexture(texture.path);
         }
-        Lua::Print("[Engine] Textures initialized.");
+        Lua::Print("Textures initialized.");
 
         // Create material
         sol::table materials = Lua::L["materials"].force();
@@ -257,7 +198,7 @@ public:
             Material mat = Material((sol::table)kv.second);
             _materials.push_back(mat);
         }
-        Lua::Print("[Engine] Materials initialized.");
+        Lua::Print("Materials initialized.");
 
         // Create shader programs
         sol::table shaders = Lua::L["shaders"].force();
@@ -265,7 +206,7 @@ public:
         depthTextureProgram = ShaderProgram(shaders["depth"]["vert"], shaders["depth"]["frag"]);
         depthCubemapProgram = ShaderProgram(shaders["depth_cubemap"]["vert"], shaders["depth_cubemap"]["frag"]);
         hdrProgram = ShaderProgram(shaders["hdr"]["vert"], shaders["hdr"]["frag"]);
-        Lua::Print("[Engine] Shader programs initialized.");
+        Lua::Print("Shader programs initialized.");
 
         renderer.BindSceneVAO();
         // Create meshes in scene
@@ -297,7 +238,7 @@ public:
             }
         }
         CreateMaze();
-        Lua::Print("[Engine] Scene & world initialized.");
+        Lua::Print("Scene & world initialized.");
     }
 
     void Update(float dt, float time)
@@ -327,101 +268,6 @@ public:
         */
 
         HandleInput();
-    }
-
-    void Render(float dt, float time)
-    {
-        const int mainLightCount = 1;
-        const int auxLightCount = (int)_lights.size() - mainLightCount;
-
-        renderer.BindSceneVAO();
-        
-        renderer.BeginShadowPass();
-        {
-            int auxShadows = 0;
-            
-            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, renderer.GetShadowMap(DIR_LIGHT, 0), 0);
-            glClear(GL_DEPTH_BUFFER_BIT);
-            depthTextureProgram.Activate();
-            scene.Render(depthTextureProgram, _lights[0].GetProjectionMatrix(0), _lights[0].GetViewMatrix());
-            for (int i = 0; i < auxLightCount; ++i)
-            {
-                Light& l = _lights[i + mainLightCount];
-                if (l.castShadow == 0)
-                    continue;
-                if (auxShadows++ >= MAX_AUX_SHADOWS)
-                    break;
-
-                for (int f = 0; f < 6; ++f)
-                {
-                    GLenum face = GL_TEXTURE_CUBE_MAP_POSITIVE_X + f;
-                    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, face, renderer.GetShadowMap(POINT_LIGHT, i), 0);
-                    glClear(GL_DEPTH_BUFFER_BIT);
-                    depthCubemapProgram.Activate();
-                    depthCubemapProgram.SetUniform(string("LightPosition"), l.position);
-                    scene.Render(depthCubemapProgram, l.GetProjectionMatrix(0), l.GetViewMatrix(face));
-                }
-            }
-        }
-        renderer.EndShadowPass();
-        
-        renderer.BeginColorPass();
-        {
-            glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);    
-            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-            colorProgram.Activate();
-            glm::mat4 cameraTransform = scene.GetGeometryWorldMatrix(_cameras[0].GetGraphicsId());
-            glm::vec3 eyePos = _cameras[0].GetEye(cameraTransform);
-            colorProgram.SetUniform(string("cam_pos"), eyePos);
-            colorProgram.SetUniform(string("time"), time);
-            colorProgram.SetUniform(string("main_light.direction"), _lights[0].direction);
-            colorProgram.SetUniform(string("main_light.ambient"), _lights[0].ambient);
-            colorProgram.SetUniform(string("main_light.diffuse"), _lights[0].diffuse);
-            colorProgram.SetUniform(string("main_light.specular"), _lights[0].specular);
-            colorProgram.SetUniform(string("main_light.intensity"), _lights[0].intensity);
-            colorProgram.SetUniform(string("main_light.cast_shadow"), _lights[0].castShadow);
-            colorProgram.SetUniform(string("main_light.ProjectionView"), _lights[0].GetProjectionViewMatrix(0));
-            for (int i = 0; i < auxLightCount; ++i)
-            {
-                Light& l = _lights[i + mainLightCount];
-                colorProgram.SetUniform(string("aux_lights[") + to_string(i) + string("].position"), l.position);
-                colorProgram.SetUniform(string("aux_lights[") + to_string(i) + string("].ambient"), l.ambient);
-                colorProgram.SetUniform(string("aux_lights[") + to_string(i) + string("].diffuse"), l.diffuse);
-                colorProgram.SetUniform(string("aux_lights[") + to_string(i) + string("].specular"), l.specular);
-                colorProgram.SetUniform(string("aux_lights[") + to_string(i) + string("].attenuation"), l.attenuation);
-                colorProgram.SetUniform(string("aux_lights[") + to_string(i) + string("].intensity"), l.intensity);
-                colorProgram.SetUniform(string("aux_lights[") + to_string(i) + string("].cast_shadow"), l.castShadow);
-                for (int f = 0; f < 6; ++f)
-                {
-                    GLenum face = GL_TEXTURE_CUBE_MAP_POSITIVE_X + f;
-                    colorProgram.SetUniform(string("aux_lights[") + to_string(i) + string("].ProjectionViews[") + to_string(f) + string("]"), l.GetProjectionViewMatrix(0, face));
-                }
-            }
-            colorProgram.SetUniform(string("aux_light_count"), auxLightCount);
-            colorProgram.SetUniform(string("shadow_map_unit"), (int)0);
-            colorProgram.SetUniform(string("omni_shadow_map_unit"), (int)1);
-            scene.Render(colorProgram, _cameras[0].GetProjectionMatrix(), _cameras[0].GetViewMatrix(cameraTransform));
-        }
-        renderer.EndColorPass();
-
-        renderer.BindScreenVAO();
-
-        renderer.BeginScreenColorPass();
-        {
-            glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);    
-            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-            hdrProgram.Activate();
-            hdrProgram.SetUniform(string("color_map_unit"), (int)0);
-            //hdrProgram.SetUniform(string("exposure"), (float)1.0);
-            glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-        }
-        renderer.EndScreenColorPass();
-
-        // 4. UI Pass
-        RenderGUI(dt);
-
-        Lua::L["dt"] = dt;
-        Lua::Run("draw(dt)");    
     }
 };
 

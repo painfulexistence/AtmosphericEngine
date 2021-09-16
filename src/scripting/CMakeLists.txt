@@ -1,4 +1,5 @@
 set(SOURCES
-    src/Scripting/lua.cpp
+    src/Scripting/Script.cpp
+    src/Scripting/Lua.cpp
 )
 target_sources(AtmosphericEngine PRIVATE ${SOURCES})

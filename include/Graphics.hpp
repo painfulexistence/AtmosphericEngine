@@ -1,3 +1,4 @@
+#pragma once
 #include "Graphics/camera.hpp"
 #include "Graphics/entity.hpp"
 #include "Graphics/frustum.hpp"

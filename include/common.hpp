@@ -5,12 +5,6 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
-#include "imgui.h"
-#include "imgui_impl_glfw.h"
-#include "imgui_impl_opengl3.h"
-//#define SOL_ALL_SAFETIES_ON 1
-#include "sol/sol.hpp"
-
 #include <cstdlib>
 #include <cstdio>
 #include <ctime>
@@ -24,6 +18,7 @@
 #include <stack>
 #include <string>
 #include <memory>
+#include <functional>
 #include <utility>
 #include <stdexcept>
 

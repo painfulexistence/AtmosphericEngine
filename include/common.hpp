@@ -18,6 +18,7 @@
 #include <stack>
 #include <string>
 #include <memory>
+#include <thread>
 #include <functional>
 #include <utility>
 #include <stdexcept>

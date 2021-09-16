@@ -21,7 +21,10 @@ private:
     bool _quitted = false;
     Framework* _fw = new Framework();
     MessageBus* _mb = new MessageBus();
+    
     void Render(float dt, float time);
+
+    float Time();
 
 public:
     Runtime();

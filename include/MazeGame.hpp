@@ -243,30 +243,13 @@ public:
 
     void Update(float dt, float time)
     {
-        world.Update(dt);
-        world.DampenImpostor(_cameras[0].GetPhysicsId());
-        for (const auto& ent : Entity::WithPhysicsComponent())
-        {
-            const glm::mat4& m2w = ConvertPhysicalMatrix(world.GetImpostorTransform(ent.GetPhysicsId()));
-            scene.SetGeometryModelWorldTransform(ent.GetGraphicsId(), m2w);
-        }
-
         if ((bool)Lua::L["game_state"]["is_light_flashing"])
         {
             glm::vec3 col = glm::vec3(Lua::L["game_state"]["light_color"][1], Lua::L["game_state"]["light_color"][2], Lua::L["game_state"]["light_color"][3]);
             _lights[0].diffuse = abs(glm::cos(glm::radians(10.0f) * time)) * (float)(rand() % 2 / 2.0 + 0.5) * col;
         }
-        /*
-        if (eyePos.y <= -5.0) 
-        {
-            Lua::Run("on_game_over()");
-        }
-        if (glm::distance(glm::vec2(eyePos.x, eyePos.z), glm::vec2(Lua::L["maze"]["win_coord"][1], Lua::L["maze"]["win_coord"][3])) <= 5.0) 
-        {
-            Lua::Run("on_complete()");
-        }
-        */
-
+        //if (eyePos.y <= -5.0) 
+        //    Lua::Run("on_game_over()");
         HandleInput();
     }
 };
@@ -307,17 +290,4 @@ static vector<vector<bool>> generateMazeData(int size, int shouldConsumed) {
     }
 
     return data;
-}
-
-static glm::mat4 ConvertPhysicalMatrix(const btTransform& trans)
-{
-    btScalar mat[16] = {0.0f};
-    trans.getOpenGLMatrix(mat);
-        
-    return glm::mat4(
-        mat[0], mat[1], mat[2], mat[3],
-        mat[4], mat[5], mat[6], mat[7],
-        mat[8], mat[9], mat[10], mat[11],
-        mat[12], mat[13], mat[14], mat[15]
-    );
 }

@@ -1,5 +1,20 @@
 #include "Runtime.hpp"
+#define SINGLE_THREAD 0
+
 using namespace std;
+
+static glm::mat4 ConvertPhysicalMatrix(const btTransform& trans)
+{
+    btScalar mat[16] = {0.0f};
+    trans.getOpenGLMatrix(mat);
+        
+    return glm::mat4(
+        mat[0], mat[1], mat[2], mat[3],
+        mat[4], mat[5], mat[6], mat[7],
+        mat[8], mat[9], mat[10], mat[11],
+        mat[12], mat[13], mat[14], mat[15]
+    );
+}
 
 Runtime::Runtime() : entities(Entity::Entities)
 {
@@ -32,27 +47,45 @@ void Runtime::Execute()
     _mb->Supervise(this);
     cout << "Game fully loaded." << endl;
     
-    double lastFrameTime = this->_fw->GetTime();
+    double lastFrameTime = Time();
     while (!this->_fw->Run() && !this->_quitted)
     {
         //this->_mb->Notify();
 
-        float currentTime = this->_fw->GetTime();
+        float currentTime = Time();
         float currentFrameTime = currentTime;
         float deltaTime = currentFrameTime - lastFrameTime;
         lastFrameTime = currentFrameTime;
 
-        currentTime = this->_fw->GetTime();
-        Update(deltaTime, currentTime);
-        float ut = this->_fw->GetTime();
-        //cout << "Update cost: " << ut - currentTime << "secs" << endl;
-
-        currentTime = this->_fw->GetTime();
-        Render(deltaTime, currentTime);
-        float rt = this->_fw->GetTime();
-        //cout << "Render cost: " << rt - currentTime << "secs" << endl;
-
-        this->_fw->Draw();
+        #ifdef SINGLE_THREAD
+        #pragma region main_loop_st
+        Update(deltaTime, Time());
+        world.Update(deltaTime);
+        world.DampenImpostor(_cameras[0].GetPhysicsId());
+        for (const auto& ent : Entity::WithPhysicsComponent())
+        {
+            const glm::mat4& m2w = ConvertPhysicalMatrix(world.GetImpostorTransform(ent.GetPhysicsId()));
+            scene.SetGeometryModelWorldTransform(ent.GetGraphicsId(), m2w);
+        }
+        Render(deltaTime, Time());
+        #pragma endregion
+        #else
+        #pragma region main_loop_mt
+        // Gameplay
+        Update(deltaTime, Time());
+        std::thread simulation(&PhysicsWorld::Update, &world, deltaTime);
+        world.DampenImpostor(_cameras[0].GetPhysicsId());
+        // Graphics
+        Render(deltaTime, Time());
+        // Sync
+        simulation.join();
+        for (const auto& ent : Entity::WithPhysicsComponent())
+        {
+            const glm::mat4& m2w = ConvertPhysicalMatrix(world.GetImpostorTransform(ent.GetPhysicsId()));
+            scene.SetGeometryModelWorldTransform(ent.GetGraphicsId(), m2w);
+        }
+        #pragma endregion
+        #endif
     }
     cout << "Game quitted." << endl;
 }
@@ -153,6 +186,13 @@ void Runtime::Render(float dt, float time)
     
     gui.Render();
 
+    this->_fw->Draw();
+
     Lua::L["dt"] = dt;
     Lua::Run("draw(dt)");   
+}
+
+float Runtime::Time()
+{
+    return this->_fw->GetTime();
 }

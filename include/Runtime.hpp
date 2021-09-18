@@ -16,10 +16,10 @@ using namespace std;
 class Runtime
 {
 private:
-    // The framework needs to be constructed first so that the graphics library gets loaded earlier than other things do.
-    // Do not put the framework on the stack, otherwise it may be deconstructed unexpecedly.
     bool _initialized = false;
     bool _quitted = false;
+    // The framework needs to be initialized first before the constructor call, so that the graphics library gets loaded earlier than other things do.
+    // Do not put the framework on the stack, or try to initialize it elsewhere, otherwise segment fault may creep in unexpecedly.
     Framework* _fw = new Framework();
     MessageBus* _mb = new MessageBus(this);
     Window* _win = nullptr;
@@ -46,6 +46,7 @@ public:
     virtual void Update(float dt, float time) = 0;
 
 protected:
+    // These subsystems will be game accessible
     Renderer renderer;
     PhysicsWorld world;
     Console console;

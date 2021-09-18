@@ -97,10 +97,9 @@ void Runtime::Process(float dt)
     Update(dt, time);
     this->_mb->Process();
 
-    //console.Process(dt);
-    //gui.Process(dt);
-    //input.Process(dt);
-    //script.Process(dt);
+    console.Process(dt);
+    input.Process(dt);
+    script.Process(dt);
     world.Update(dt);
     world.DampenImpostor(_cameras[0].GetPhysicsId());
 
@@ -197,7 +196,7 @@ void Runtime::Render(float dt)
     }
     renderer.EndScreenColorPass();
     
-    gui.Render();
+    gui.Render(dt);
 
     this->_win->SwapBuffers();
 

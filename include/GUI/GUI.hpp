@@ -12,7 +12,7 @@ public:
     ~GUI();
     void Init(MessageBus* mb, Application* app);
     void HandleMessage(Message msg) override;
-    void Render();
+    void Render(float dt);
 private:
     Application* _app;
     GUIState* _state;

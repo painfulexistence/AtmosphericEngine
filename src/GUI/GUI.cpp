@@ -65,12 +65,12 @@ void GUI::Init(MessageBus* mb, Application* app)
     this->_app = app;
 }
 
+void GUI::Render(float dt)
+{    
+    this->_state->Render();
+}
+
 void GUI::HandleMessage(Message msg)
 {
 
-}
-
-void GUI::Render()
-{    
-    this->_state->Render();
 }

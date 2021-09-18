@@ -7,9 +7,15 @@ class Console : public Messagable
 {
 public:
     Console();
+    
     ~Console();
+    
     void Init(MessageBus* mb, Application* app);
+    
+    void Process(float dt);
+    
     void HandleMessage(Message msg) override;
+
 private:
     Application* _app;
 };

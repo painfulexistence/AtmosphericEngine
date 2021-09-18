@@ -7,12 +7,21 @@ class Input : public Messagable
 {
 public:
     Input();
+    
     ~Input();
+    
     void Init(MessageBus* mb, Application* app);
+    
+    void Process(float dt);
+    
     void HandleMessage(Message msg) override;
+    
     bool GetKeyDown(int key);
+    
     bool GetKeyUp(int key);
+    
     glm::vec2 GetMousePosition();
+    
     glm::vec2 GetMouseUV();
 
 private:

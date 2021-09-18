@@ -16,6 +16,11 @@ void Input::Init(MessageBus* mb, Application* app)
     this->_app = app;
 }
 
+void Input::Process(float dt)
+{
+
+}
+
 void Input::HandleMessage(Message msg)
 {
     switch (msg.type)

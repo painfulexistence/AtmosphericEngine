@@ -16,6 +16,11 @@ void Console::Init(MessageBus* mb, Application* app)
     this->_app = app;
 }
 
+void Console::Process(float dt)
+{
+    
+}
+
 void Console::HandleMessage(Message msg)
 {
 

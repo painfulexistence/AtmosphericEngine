@@ -9,7 +9,8 @@ class MazeGame : public Runtime
 private:
     void CreateMaze()
     {
-        const auto& t = Lua::L["maze"];
+        script.LuaEnv();
+        const auto& t = script.LuaEnv()["maze"];
         const int MAZE_SIZE = t["size"];
         const float TILE_SIZE = t["tile_size"];
         const bool MAZE_ROOFED = t["roofed"];
@@ -84,13 +85,8 @@ private:
 public:
     void Load()
     {
-        // Load game data
-        Lua::Source("./resources/scripts/config.lua");
-        Lua::Source("./resources/scripts/main.lua");
-        Lua::Run("init()");
-
         // Create cameras
-        sol::table cameras = Lua::L["cameras"].force();
+        sol::table cameras = script.LuaEnv()["cameras"].force();
         for (const auto& kv : cameras)
         {
             Camera cam = Camera((sol::table)kv.second);
@@ -102,42 +98,42 @@ public:
             world.SetImpostorAngularFactor(cam.GetPhysicsId(), btVector3(0, 0, 0));
             entities.push_back(cam);
         }
-        Lua::Print("Cameras initialized.");
+        script.Print("Cameras initialized.");
 
         // Create lights
-        sol::table lights = Lua::L["lights"].force();
+        sol::table lights = script.LuaEnv()["lights"].force();
         for (const auto& kv : lights)
         {
             Light light = Light((sol::table)kv.second);
             _lights.push_back(light); 
         }
-        Lua::Print("Lights initialized.");
+        script.Print("Lights initialized.");
 
         //Create textures
-        sol::table textures = Lua::L["textures"].force();
+        sol::table textures = script.LuaEnv()["textures"].force();
         for (const auto& kv : textures)
         {
             Texture texture = Texture((sol::table)kv.second);
             renderer.CreateTexture(texture.path);
         }
-        Lua::Print("Textures initialized.");
+        script.Print("Textures initialized.");
 
         // Create material
-        sol::table materials = Lua::L["materials"].force();
+        sol::table materials = script.LuaEnv()["materials"].force();
         for (const auto& kv : materials)
         {
             Material mat = Material((sol::table)kv.second);
             _materials.push_back(mat);
         }
-        Lua::Print("Materials initialized.");
+        script.Print("Materials initialized.");
 
         // Create shader programs
-        sol::table shaders = Lua::L["shaders"].force();
+        sol::table shaders = script.LuaEnv()["shaders"].force();
         colorProgram = ShaderProgram(shaders["color"]["vert"], shaders["color"]["frag"]);
         depthTextureProgram = ShaderProgram(shaders["depth"]["vert"], shaders["depth"]["frag"]);
         depthCubemapProgram = ShaderProgram(shaders["depth_cubemap"]["vert"], shaders["depth_cubemap"]["frag"]);
         hdrProgram = ShaderProgram(shaders["hdr"]["vert"], shaders["hdr"]["frag"]);
-        Lua::Print("Shader programs initialized.");
+        script.Print("Shader programs initialized.");
 
         renderer.BindSceneVAO();
         // Create meshes in scene
@@ -169,15 +165,15 @@ public:
             }
         }
         CreateMaze();
-        Lua::Print("Scene & world initialized.");
+        script.Print("Scene & world initialized.");
     }
 
     void Update(float dt, float time)
     {
         // Update environment
-        if ((bool)Lua::L["game_state"]["is_light_flashing"])
+        if ((bool)script.LuaEnv()["game_state"]["is_light_flashing"])
         {
-            glm::vec3 col = glm::vec3(Lua::L["game_state"]["light_color"][1], Lua::L["game_state"]["light_color"][2], Lua::L["game_state"]["light_color"][3]);
+            glm::vec3 col = glm::vec3(script.LuaEnv()["game_state"]["light_color"][1], script.LuaEnv()["game_state"]["light_color"][2], script.LuaEnv()["game_state"]["light_color"][3]);
             _lights[0].diffuse = abs(glm::cos(glm::radians(10.0f) * time)) * (float)(rand() % 2 / 2.0 + 0.5) * col;
         }
 
@@ -241,7 +237,7 @@ public:
         }
         if (input.GetKeyDown(KEY_X))
         {
-            Lua::L["game_state"]["is_light_flashing"] = !(bool)Lua::L["game_state"]["is_light_flashing"];
+            script.LuaEnv()["game_state"]["is_light_flashing"] = !(bool)script.LuaEnv()["game_state"]["is_light_flashing"];
         }
         if (input.GetKeyDown(KEY_ESCAPE))
         {

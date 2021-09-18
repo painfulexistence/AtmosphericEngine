@@ -1,24 +1,43 @@
 #include "Scripting/Lua.hpp"
-#include "OS/File.hpp"
 
-sol::state Lua::L = sol::state();
-
-void Lua::Lib()
+Lua::Lua()
 {
-    L.open_libraries();
+    this->_env = sol::state();
 }
 
-void Lua::Run(const std::string& str)
+Lua::~Lua()
 {
-    L.script(str);
+
 }
 
-void Lua::Print(const std::string& str)
+void Lua::Init()
 {
-    L.script(std::string("print('[Script] ") + str + std::string("')"));
+    this->_env.open_libraries();
+    Source("./resources/scripts/config.lua");
+    Source("./resources/scripts/main.lua");
+}
+
+void Lua::Bind(const std::string& func)
+{
+    //this->_env.set_function(func);
 }
 
 void Lua::Source(const std::string& path)
 {
-    L.script_file(path);
+    this->_env.script_file(path);
+}
+
+void Lua::Run(const std::string& script)
+{
+    this->_env.script(script);
+}
+
+void Lua::Print(const std::string& msg)
+{
+    Run(fmt::format("print('[Script] {}')", msg));
+}
+
+sol::state& Lua::Env()
+{
+    return this->_env;
 }

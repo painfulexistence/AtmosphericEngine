@@ -26,11 +26,12 @@ find_package(Lua REQUIRED)
 add_subdirectory(external/sol2)
 add_subdirectory(external/glfw)
 add_subdirectory(external/bullet3)
+add_subdirectory(external/fmt)
 add_subdirectory(src)
 
 # Link and compile
 target_include_directories(AtmosphericEngine PUBLIC include external ${LUA_INCLUDE_DIR} external/bullet3/src)
-target_link_libraries(AtmosphericEngine PUBLIC GLEW::GLEW glfw ${GLFW_LIBRARY} ${GLM_LIBRARY} ${LUA_LIBRARIES} sol2::sol2 BulletSoftBody BulletDynamics BulletCollision LinearMath)
+target_link_libraries(AtmosphericEngine PUBLIC GLEW::GLEW glfw fmt::fmt ${GLFW_LIBRARY} ${GLM_LIBRARY} ${LUA_LIBRARIES} sol2::sol2 BulletSoftBody BulletDynamics BulletCollision LinearMath)
 
 # Copy static files to target directory
 file(COPY resources DESTINATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})

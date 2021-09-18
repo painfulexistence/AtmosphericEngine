@@ -9,7 +9,7 @@ PhysicsDebugger::PhysicsDebugger()
 
 void PhysicsDebugger::reportErrorWarning(const char* text)
 {
-    std::cout << text << std::endl;
+    
 }
 
 void PhysicsDebugger::drawLine(const btVector3& from, const btVector3& to, const btVector3& color)

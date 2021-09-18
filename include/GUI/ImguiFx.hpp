@@ -1,5 +1,5 @@
 #pragma once
-#include "Framework/ImGui.hpp"
+#include "GUI/ImGui.hpp"
 
 /*
 //Example ImGui code

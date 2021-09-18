@@ -1,6 +1,5 @@
 #include "Runtime.hpp"
-#define SINGLE_THREAD 0
-
+#include <iostream> // Note that should only use IO when debugging
 using namespace std;
 
 static glm::mat4 ConvertPhysicalMatrix(const btTransform& trans)
@@ -18,21 +17,20 @@ static glm::mat4 ConvertPhysicalMatrix(const btTransform& trans)
 
 Runtime::Runtime() : entities(Entity::Entities)
 {
-    cout << "Launching..." << endl;
+    Log("Launching...");
+    this->_win = this->_fw->GetActiveWindow(); // Multi-window not supported now
 }
 
 Runtime::~Runtime()
 {
-    cout << "Exiting..." << endl;
-    delete _mb;
-    delete _fw;
+    Log("Exiting...");
+    delete this->_mb;
+    delete this->_fw;
 }
 
 void Runtime::Execute()
 {
-    cout << "Initializing..." << endl;
-    //setbuf(stdout, NULL); //Cancel output stream buffering so that output can be seen immediately
-    srand(time(NULL)); //Dont's use glfwGetTime() bc it only starts to calculate time since window was created
+    Log("Initializing...");
     console.Init(_mb, _fw);
     gui.Init(_mb, _fw);
     input.Init(_mb, _fw);
@@ -44,39 +42,35 @@ void Runtime::Execute()
     this->_initialized = true;
     
     Load();
-    _mb->Supervise(this);
-    cout << "Game fully loaded." << endl;
+    Log("Game fully loaded.");
     
-    double lastFrameTime = Time();
-    while (!this->_fw->Run() && !this->_quitted)
+    float lastFrameTime = Time();
+    float deltaTime = 0;
+    while (!this->_quitted)
     {
-        //this->_mb->Notify();
+        this->_win->PollEvents();
+        if (this->_win->IsClosing())
+            this->_mb->PostMessage(MessageType::ON_QUIT);
 
-        float currentTime = Time();
-        float currentFrameTime = currentTime;
-        float deltaTime = currentFrameTime - lastFrameTime;
+        float currentFrameTime = Time();
+        deltaTime = currentFrameTime - lastFrameTime;
         lastFrameTime = currentFrameTime;
-
-        #ifdef SINGLE_THREAD
+        #if SINGLE_THREAD
         #pragma region main_loop_st
-        Update(deltaTime, Time());
-        world.Update(deltaTime);
-        world.DampenImpostor(_cameras[0].GetPhysicsId());
+        Process(deltaTime);
         for (const auto& ent : Entity::WithPhysicsComponent())
         {
             const glm::mat4& m2w = ConvertPhysicalMatrix(world.GetImpostorTransform(ent.GetPhysicsId()));
             scene.SetGeometryModelWorldTransform(ent.GetGraphicsId(), m2w);
         }
-        Render(deltaTime, Time());
+        Render(deltaTime);
         #pragma endregion
         #else
         #pragma region main_loop_mt
         // Gameplay
-        Update(deltaTime, Time());
-        std::thread simulation(&PhysicsWorld::Update, &world, deltaTime);
-        world.DampenImpostor(_cameras[0].GetPhysicsId());
+        std::thread simulation(&Runtime::Process, this, deltaTime);
         // Graphics
-        Render(deltaTime, Time());
+        Render(deltaTime);
         // Sync
         simulation.join();
         for (const auto& ent : Entity::WithPhysicsComponent())
@@ -87,17 +81,36 @@ void Runtime::Execute()
         #pragma endregion
         #endif
     }
-    cout << "Game quitted." << endl;
+    Log("Game quitted.");
 }
 
 void Runtime::Quit()
 {
-    cout << "Requested to quit." << endl;
+    Log("Requested to quit.");
     this->_quitted = true;
 }
 
-void Runtime::Render(float dt, float time)
+void Runtime::Process(float dt)
 {
+    float time = Time();
+    
+    Update(dt, time);
+    this->_mb->Process();
+
+    //console.Process(dt);
+    //gui.Process(dt);
+    //input.Process(dt);
+    //script.Process(dt);
+    world.Update(dt);
+    world.DampenImpostor(_cameras[0].GetPhysicsId());
+
+    Log(fmt::format("Update costs {} ms", (Time() - time) * 1000));
+}
+
+void Runtime::Render(float dt)
+{
+    float time = Time();
+
     const int mainLightCount = 1;
     const int auxLightCount = (int)_lights.size() - mainLightCount;
 
@@ -140,7 +153,7 @@ void Runtime::Render(float dt, float time)
         glm::mat4 cameraTransform = scene.GetGeometryWorldMatrix(_cameras[0].GetGraphicsId());
         glm::vec3 eyePos = _cameras[0].GetEye(cameraTransform);
         colorProgram.SetUniform(string("cam_pos"), eyePos);
-        colorProgram.SetUniform(string("time"), time);
+        colorProgram.SetUniform(string("time"), Time());
         colorProgram.SetUniform(string("main_light.direction"), _lights[0].direction);
         colorProgram.SetUniform(string("main_light.ambient"), _lights[0].ambient);
         colorProgram.SetUniform(string("main_light.diffuse"), _lights[0].diffuse);
@@ -186,13 +199,19 @@ void Runtime::Render(float dt, float time)
     
     gui.Render();
 
-    this->_fw->Draw();
+    this->_win->SwapBuffers();
 
-    Lua::L["dt"] = dt;
-    Lua::Run("draw(dt)");   
+    Log(fmt::format("Render costs {} ms", (Time() - time) * 1000));
 }
 
 float Runtime::Time()
 {
     return this->_fw->GetTime();
+}
+
+void Runtime::Log(std::string message)
+{
+    #if RUNTIME_LOG_ON
+        fmt::print("[Engine] {}\n", message);
+    #endif
 }

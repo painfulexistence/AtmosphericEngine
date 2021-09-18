@@ -1,5 +1,5 @@
 #pragma once
-#include "common.hpp"
+#include "Globals.hpp"
 #include "Messaging/Message.hpp"
 
 class MessageBus;

@@ -1,5 +1,5 @@
 #pragma once
-#include "common.hpp"
+#include "Globals.hpp"
 #include "entity.hpp"
 #include "Physics.hpp"
 #include "Scripting/Lua.hpp"

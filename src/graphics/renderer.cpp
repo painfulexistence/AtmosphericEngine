@@ -131,7 +131,7 @@ void Renderer::CreateTexture(const std::string& path)
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
         glGenerateMipmap(GL_TEXTURE_2D);
     } else {
-        std::cout << std::string("Failed to load texture at ") + path << std::endl;
+        throw std::runtime_error(fmt::format("Failed to load texture at {}\n", path));
     }
     stbi_image_free(data);
 }
@@ -221,6 +221,6 @@ void Renderer::CheckErrors()
             case GL_INVALID_FRAMEBUFFER_OPERATION: 
             error = "INVALID_FRAMEBUFFER_OPERATION"; break;
         }
-        std::cout << "OpenGL Error " << error << std::endl;
+        throw std::runtime_error(fmt::format("GL error: {}\n", error));
     }
 }

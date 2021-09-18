@@ -1,5 +1,5 @@
 #pragma once
-#include "common.hpp"
+#include "Globals.hpp"
 #include "Physics/World.hpp"
 #include "Physics/Debugger.hpp"
 #include "Shader.hpp"

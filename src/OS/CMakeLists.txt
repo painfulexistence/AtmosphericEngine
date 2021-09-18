@@ -1,4 +1,4 @@
 set(SOURCES
-    src/OS/file.cpp
+    src/OS/File.cpp
 )
 target_sources(AtmosphericEngine PRIVATE ${SOURCES})

@@ -1,5 +1,5 @@
 #pragma once
-#include "common.hpp"
+#include "Globals.hpp"
 #include "Messaging/Messagable.hpp"
 #include "Messaging/Message.hpp"
 

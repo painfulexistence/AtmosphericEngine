@@ -1,5 +1,5 @@
 #pragma once
-#include "common.hpp"
+#include "Globals.hpp"
 #include "Messaging/Message.hpp"
 
 class Runtime;
@@ -7,15 +7,15 @@ class Messagable;
 class MessageBus
 {
 public:
-    MessageBus();
+    MessageBus(Runtime* supervisor);
     ~MessageBus();
-    void Supervise(Runtime* supervisor);
     int Register(Messagable* receiver);
     void PostMessage(Message msg);
     void PostImmediateMessage(Message msg);
-    void Notify();
+    void Process();
 private:
-    std::list<Runtime*> _supervisors;
+    const int MAX_PROCESSING_NUM_MSGS = 20;
+    Runtime* _supervisor;
     std::list<Messagable*> _receivers;
     std::queue<Message> _messages;
     void OnMessageSent(Message msg);

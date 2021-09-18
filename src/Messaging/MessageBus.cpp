@@ -2,19 +2,14 @@
 #include "Messaging/Messagable.hpp"
 #include "Runtime.hpp"
 
-MessageBus::MessageBus()
+MessageBus::MessageBus(Runtime* supervisor)
 {
-
+    this->_supervisor = supervisor;
 }
 
 MessageBus::~MessageBus()
 {
 
-}
-
-void MessageBus::Supervise(Runtime* supervisor)
-{
-    this->_supervisors.push_back(supervisor);
 }
 
 int MessageBus::Register(Messagable* receiver)
@@ -26,14 +21,6 @@ int MessageBus::Register(Messagable* receiver)
 
 void MessageBus::PostMessage(Message msg)
 {
-    if (msg.type == MessageType::ON_QUIT)
-    {
-        for (auto rt : _supervisors)
-        {
-            rt->Quit();
-        }
-        return;
-    }
     _messages.push(msg);
 }
 
@@ -41,10 +28,7 @@ void MessageBus::PostImmediateMessage(Message msg)
 {
     if (msg.type == MessageType::ON_QUIT)
     {
-        for (auto rt : _supervisors)
-        {
-            rt->Quit();
-        }
+        _supervisor->Quit();
         return;
     }
     for (auto m : _receivers)
@@ -53,18 +37,17 @@ void MessageBus::PostImmediateMessage(Message msg)
     }
 }
 
-void MessageBus::Notify()
+void MessageBus::Process()
 {
-    while (!_messages.empty())
+    int processedCount = 0;
+    while (!this->_messages.empty() && processedCount < MAX_PROCESSING_NUM_MSGS)
     {
-        auto msg = _messages.front();
-        for (auto m : _receivers)
-        {
-            m->ReceiveMessage(msg);
-        }
+        auto msg = this->_messages.front();
+        PostImmediateMessage(msg);
         OnMessageSent(msg);
-        
-        _messages.pop();
+
+        processedCount++;
+        this->_messages.pop();
     }
 }
 

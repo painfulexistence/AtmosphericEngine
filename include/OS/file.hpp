@@ -1,11 +1,11 @@
 #pragma once
-#include <fstream>
-#include "../common.hpp"
+#include "Globals.hpp"
 
 class File
 {
 private:
     std::string _filename;
+    std::optional<std::string> _cached;
 
 public:
     File(const std::string&);

@@ -1,6 +1,6 @@
 #include "GUI/GUIState.hpp"
 #include "GUI/GUIWindow.hpp"
-#include "Framework/ImGui.hpp"
+#include "GUI/ImGui.hpp"
 
 GUIState::GUIState()
 {

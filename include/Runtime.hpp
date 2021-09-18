@@ -1,5 +1,5 @@
 #pragma once
-#include "common.hpp"
+#include "Globals.hpp"
 #include "Framework.hpp"
 #include "Messaging.hpp"
 #include "Physics.hpp"
@@ -8,8 +8,9 @@
 #include "Console.hpp"
 #include "Input/Input.hpp"
 #include "Scripting.hpp"
-#include "Framework/ImGui.hpp" //TODO: Remove this dependency
+#include "GUI/ImGui.hpp" //TODO: Remove this dependency
 //#include <entt/entity/registry.hpp>
+
 using namespace std;
 
 class Runtime
@@ -20,11 +21,16 @@ private:
     bool _initialized = false;
     bool _quitted = false;
     Framework* _fw = new Framework();
-    MessageBus* _mb = new MessageBus();
-    
-    void Render(float dt, float time);
+    MessageBus* _mb = new MessageBus(this);
+    Window* _win = nullptr;
+        
+    void Log(std::string message);
 
     float Time();
+
+    void Process(float dt);
+
+    void Render(float dt); // TODO: Separate rendering and drawing logic if the backend supports command buffering
 
 public:
     Runtime();

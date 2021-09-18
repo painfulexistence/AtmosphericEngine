@@ -1,5 +1,5 @@
 #include "Graphics/Shader.hpp"
-#include "OS/file.hpp"
+#include "OS/File.hpp"
 
 Shader::Shader(const std::string& path, GLenum type)
 {
@@ -20,8 +20,8 @@ Shader::Shader(const std::string& path, GLenum type)
         
         GLchar* log = new GLchar[maxLength];
         glGetShaderInfoLog(shader, maxLength, &maxLength, log);
-                
-        std::cout << "Shader error:\n" << (char*)log << std::endl;
+
+        throw std::runtime_error(fmt::format("Shader error: {}\n", (char*)log));  
     }
 }
 

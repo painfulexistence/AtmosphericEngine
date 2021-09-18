@@ -80,75 +80,6 @@ private:
             entities.push_back(ent);
         }
     }
-        
-    void HandleInput()
-    {
-        const std::uint64_t& impostor = _cameras[0].GetPhysicsId();
-
-        btVector3 currentVel;    
-        if (!world.GetImpostorLinearVelocity(impostor, currentVel)) 
-            throw runtime_error("Impostor not found");
-
-        if (input.GetKeyDown(KEY_W))
-        {
-            glm::vec3 v = _cameras[0].CreateLinearVelocity(Axis::FRONT);
-            world.SetImpostorLinearVelocity(impostor, btVector3(v.x, currentVel.y(), v.z));
-        }
-        if (input.GetKeyDown(KEY_S))
-        {
-            glm::vec3 v = _cameras[0].CreateLinearVelocity(Axis::FRONT);
-            world.SetImpostorLinearVelocity(impostor, btVector3(-v.x, currentVel.y(), -v.z));
-        }
-        if (input.GetKeyDown(KEY_D))
-        {
-            _cameras[0].yaw(0.3 * CAMERA_ANGULAR_OFFSET);
-            glm::vec3 v = _cameras[0].CreateLinearVelocity(Axis::RIGHT);
-            world.SetImpostorLinearVelocity(impostor, btVector3(v.x, currentVel.y(), v.z));
-        }
-        if (input.GetKeyDown(KEY_A))
-        {
-            _cameras[0].yaw(-0.3 * CAMERA_ANGULAR_OFFSET);
-            glm::vec3 v = _cameras[0].CreateLinearVelocity(Axis::RIGHT);
-            world.SetImpostorLinearVelocity(impostor, btVector3(-v.x, currentVel.y(), -v.z));
-        }
-        if (input.GetKeyDown(KEY_UP))
-        {
-            _cameras[0].pitch(CAMERA_ANGULAR_OFFSET);
-        }
-        if (input.GetKeyDown(KEY_DOWN))
-        {
-            _cameras[0].pitch(-CAMERA_ANGULAR_OFFSET);
-        }
-        if (input.GetKeyDown(KEY_RIGHT))
-        {
-            _cameras[0].yaw(CAMERA_ANGULAR_OFFSET);
-        }
-        if (input.GetKeyDown(KEY_LEFT))
-        {
-            _cameras[0].yaw(-CAMERA_ANGULAR_OFFSET);
-        }
-        if (input.GetKeyDown(KEY_SPACE)) 
-        {
-            world.GetImpostorLinearVelocity(impostor, currentVel); // update velcoity to reflect current horizontal speed
-            glm::vec3 v = _cameras[0].CreateLinearVelocity(Axis::UP);
-            world.SetImpostorLinearVelocity(impostor, btVector3(currentVel.x(), v.y, currentVel.z()));
-        }
-        if (input.GetKeyDown(KEY_Z)) 
-        {
-            glm::vec2 pos = input.GetCursorUV();
-            glm::vec3 diff = glm::vec3(1.0, pos.x, pos.y);
-
-            _lights[0].diffuse = diff;
-        }
-        if (input.GetKeyDown(KEY_X))
-        {
-            Lua::L["game_state"]["is_light_flashing"] = !(bool)Lua::L["game_state"]["is_light_flashing"];
-        }
-        if (input.GetKeyDown(KEY_ESCAPE))
-        {
-            input.ReceiveMessage(MessageType::ON_QUIT);
-        }
-    }
     
 public:
     void Load()
@@ -243,14 +174,79 @@ public:
 
     void Update(float dt, float time)
     {
+        // Update environment
         if ((bool)Lua::L["game_state"]["is_light_flashing"])
         {
             glm::vec3 col = glm::vec3(Lua::L["game_state"]["light_color"][1], Lua::L["game_state"]["light_color"][2], Lua::L["game_state"]["light_color"][3]);
             _lights[0].diffuse = abs(glm::cos(glm::radians(10.0f) * time)) * (float)(rand() % 2 / 2.0 + 0.5) * col;
         }
-        //if (eyePos.y <= -5.0) 
-        //    Lua::Run("on_game_over()");
-        HandleInput();
+
+        // Input handling
+        const std::uint64_t& impostor = _cameras[0].GetPhysicsId();
+
+        btVector3 currentVel;    
+        if (!world.GetImpostorLinearVelocity(impostor, currentVel)) 
+            throw runtime_error("Impostor not found");
+
+        if (input.GetKeyDown(KEY_W))
+        {
+            glm::vec3 v = _cameras[0].CreateLinearVelocity(Axis::FRONT);
+            world.SetImpostorLinearVelocity(impostor, btVector3(v.x, currentVel.y(), v.z));
+        }
+        if (input.GetKeyDown(KEY_S))
+        {
+            glm::vec3 v = _cameras[0].CreateLinearVelocity(Axis::FRONT);
+            world.SetImpostorLinearVelocity(impostor, btVector3(-v.x, currentVel.y(), -v.z));
+        }
+        if (input.GetKeyDown(KEY_D))
+        {
+            _cameras[0].yaw(0.3 * CAMERA_ANGULAR_OFFSET);
+            glm::vec3 v = _cameras[0].CreateLinearVelocity(Axis::RIGHT);
+            world.SetImpostorLinearVelocity(impostor, btVector3(v.x, currentVel.y(), v.z));
+        }
+        if (input.GetKeyDown(KEY_A))
+        {
+            _cameras[0].yaw(-0.3 * CAMERA_ANGULAR_OFFSET);
+            glm::vec3 v = _cameras[0].CreateLinearVelocity(Axis::RIGHT);
+            world.SetImpostorLinearVelocity(impostor, btVector3(-v.x, currentVel.y(), -v.z));
+        }
+        if (input.GetKeyDown(KEY_UP))
+        {
+            _cameras[0].pitch(CAMERA_ANGULAR_OFFSET);
+        }
+        if (input.GetKeyDown(KEY_DOWN))
+        {
+            _cameras[0].pitch(-CAMERA_ANGULAR_OFFSET);
+        }
+        if (input.GetKeyDown(KEY_RIGHT))
+        {
+            _cameras[0].yaw(CAMERA_ANGULAR_OFFSET);
+        }
+        if (input.GetKeyDown(KEY_LEFT))
+        {
+            _cameras[0].yaw(-CAMERA_ANGULAR_OFFSET);
+        }
+        if (input.GetKeyDown(KEY_SPACE)) 
+        {
+            world.GetImpostorLinearVelocity(impostor, currentVel); // update velcoity to reflect current horizontal speed
+            glm::vec3 v = _cameras[0].CreateLinearVelocity(Axis::UP);
+            world.SetImpostorLinearVelocity(impostor, btVector3(currentVel.x(), v.y, currentVel.z()));
+        }
+        if (input.GetKeyDown(KEY_Z)) 
+        {
+            glm::vec2 pos = input.GetMouseUV();
+            glm::vec3 diff = glm::vec3(1.0, pos.x, pos.y);
+
+            _lights[0].diffuse = diff;
+        }
+        if (input.GetKeyDown(KEY_X))
+        {
+            Lua::L["game_state"]["is_light_flashing"] = !(bool)Lua::L["game_state"]["is_light_flashing"];
+        }
+        if (input.GetKeyDown(KEY_ESCAPE))
+        {
+            input.ReceiveMessage(MessageType::ON_QUIT);
+        }
     }
 };
 

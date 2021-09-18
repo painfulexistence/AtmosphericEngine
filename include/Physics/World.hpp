@@ -1,5 +1,5 @@
 #pragma once
-#include "common.hpp"
+#include "Globals.hpp"
 #include <LinearMath/btQuaternion.h>
 #include <LinearMath/btTransform.h>
 #include <LinearMath/btVector3.h>

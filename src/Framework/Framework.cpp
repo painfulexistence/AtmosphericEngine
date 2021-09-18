@@ -1,104 +1,43 @@
 #include "Framework/Framework.hpp"
-#include "Framework/ImGui.hpp"
-using namespace std;
-
-static void OnError(int errorCode, const char* msg)
-{
-    cout << "GLFW Error " << msg << endl;
-}
-
-static void OnCursorMove(GLFWwindow* winodw, double xPos, double yPos)
-{
-    //cout << "Cursor at: (" << xPos << ", " << yPos << ")" << endl;
-}
-
-static void OnCursorEnterLeave(GLFWwindow* winodw, int entered)
-{
-    //cout << "Cursor " << (entered ? "entered" : "left") << endl;
-}
+#include "Framework/Window.hpp"
 
 Framework::Framework()
 {
-    glfwSetErrorCallback(OnError);
+    glfwSetErrorCallback([](int code, const char* msg) {
+        throw std::runtime_error(fmt::format("Error occurred: {}\n", msg));
+    });
     if (!glfwInit())
-        throw runtime_error("Failed to initialize glfw!");
+        throw std::runtime_error("Failed to initialize GLFW!");
 
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
-    glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-    glfwWindowHint(GLFW_SAMPLES, 4);
-    _window = glfwCreateWindow((int)SCREEN_W, (int)SCREEN_H, "Atmospheric", NULL, NULL);
-    if (_window == nullptr)
-        throw runtime_error("Failed to initialize window!");
-    glfwMakeContextCurrent(_window);
-    
-    #if VSYNC_ON
-    glfwSwapInterval(1);
-    #endif
-
-    // Setup Dear ImGui
-    IMGUI_CHECKVERSION();
-    ImGui::CreateContext();
-    ImGui_ImplGlfw_InitForOpenGL(_window, true); // platform binding
-    ImGui_ImplOpenGL3_Init("#version 410"); // renderer binding
-
-    // Configure Dear ImGui
-    ImGui::StyleColorsDark();
-    ImGuiIO& io = ImGui::GetIO(); 
-    (void)io;
-    //io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
-
-    // Setup input module
-    if (glfwRawMouseMotionSupported())
-    {
-        //glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-        glfwSetInputMode(_window, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
-    }
-    glfwSetCursorPosCallback(_window, OnCursorMove);
+    Window* win = new Window(this);
+    win->Init();
+    win->SetActive();
+    this->_activeWindow = win;
 }
 
 Framework::~Framework()
 {
+    delete this->_activeWindow;
     glfwTerminate();
 }
 
-bool Framework::Run()
+void Framework::Tick()
 {
-    glfwPollEvents(); // Snapshot the keyboard
-    _time = this->GetTime();
-    return glfwWindowShouldClose(_window);
+    this->_clock++;
 }
 
-void Framework::Draw()
+uint64_t Framework::GetClock()
 {
-    glfwSwapBuffers(_window);
+    return this->_clock;
 }
 
 float Framework::GetTime()
 {
-    return (float)glfwGetTime();
+    float time = (float)glfwGetTime(); // Note that glfwGetTime() only starts to calculate time after the window is created
+    return time;
 }
 
-float Framework::GetFrameTime()
+Window* Framework::GetActiveWindow()
 {
-    return (float)this->_time;
+    return this->_activeWindow;
 }
-
-glm::vec2 Framework::GetCursor() 
-{
-    double xPos, yPos;
-    glfwGetCursorPos(_window, &xPos, &yPos);
-    return glm::vec2(xPos, yPos);
-};
-
-bool Framework::IsKeyDown(int key)
-{
-    return (glfwGetKey(_window, key) == GLFW_PRESS);
-};
-
-bool Framework::IsKeyUp(int key)
-{
-    return (glfwGetKey(_window, key) == GLFW_RELEASE);
-};

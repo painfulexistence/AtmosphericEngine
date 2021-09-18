@@ -1,6 +1,6 @@
 #include "GUI/GUIWindow.hpp"
 #include "GUI/GUIDocument.hpp"
-#include "Framework/ImGui.hpp"
+#include "GUI/ImGui.hpp"
 
 GUIWindow::GUIWindow()
 {

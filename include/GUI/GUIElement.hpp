@@ -1,7 +1,7 @@
 #pragma once
-#include "common.hpp"
+#include "Globals.hpp"
 #include "GUI/ImguiFx.hpp"
-#include "Framework/ImGui.hpp"
+#include "GUI/ImGui.hpp"
 
 enum GUIElementType
 {

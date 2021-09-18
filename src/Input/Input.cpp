@@ -27,28 +27,26 @@ void Input::HandleMessage(Message msg)
 
 bool Input::GetKeyDown(int key)
 {
-    bool isDown = this->_fw->IsKeyDown(key);
+    bool isDown = this->_fw->GetActiveWindow()->GetKeyDown(key);
     if (isDown && key == KEY_ESCAPE)
     {
-        messageBus->PostImmediateMessage(MessageType::ON_QUIT);
+        messageBus->PostMessage(MessageType::ON_QUIT);
     }
     return isDown;
 }
 
 bool Input::GetKeyUp(int key)
 {
-    bool isUp = this->_fw->IsKeyUp(key);
-    return isUp;
+    return this->_fw->GetActiveWindow()->GetKeyUp(key);
 }
 
-glm::vec2 Input::GetCursorPos()
+glm::vec2 Input::GetMousePosition() // In pixel coordinate
 {
-    glm::vec2 cursor = this->_fw->GetCursor();
-    return cursor;
+    return this->_fw->GetActiveWindow()->GetMousePosition();
 };
 
-glm::vec2 Input::GetCursorUV()
+glm::vec2 Input::GetMouseUV() // In uv coordinate
 {
-    glm::vec2 pos = GetCursorPos();
+    glm::vec2 pos = GetMousePosition();
     return glm::vec2(pos.x / SCREEN_W, pos.y / SCREEN_H);
 };

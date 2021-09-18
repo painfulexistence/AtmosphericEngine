@@ -20,5 +20,5 @@ void Console::Init(MessageBus* mb, Framework* fw)
 
 void Console::HandleMessage(Message msg)
 {
-    std::cout << msg.type << std::endl;
+
 }

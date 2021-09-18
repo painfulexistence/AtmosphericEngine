@@ -1,17 +1,15 @@
 #pragma once
 #include "Globals.hpp"
-#include "Messaging/Messagable.hpp"
-#include "Messaging/Message.hpp"
+#include "Messaging.hpp"
+#include "Framework.hpp"
 
-class Framework;
-class MessageBus;
 class Console : public Messagable
 {
 public:
     Console();
     ~Console();
-    void Init(MessageBus* mb, Framework* fw);
+    void Init(MessageBus* mb, Application* app);
     void HandleMessage(Message msg) override;
 private:
-    Framework* _fw;
+    Application* _app;
 };

@@ -21,10 +21,10 @@ PhysicsWorld::~PhysicsWorld()
     delete _config;
 }
 
-void PhysicsWorld::Init(MessageBus* mb, Framework* fw)
+void PhysicsWorld::Init(MessageBus* mb, Application* app)
 {
     ConnectBus(mb);
-    this->_fw = fw;
+    this->_app = app;
 }
 
 void PhysicsWorld::HandleMessage(Message msg)

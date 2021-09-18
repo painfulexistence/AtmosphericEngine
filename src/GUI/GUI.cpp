@@ -59,10 +59,10 @@ GUI::~GUI()
     delete this->_state;
 }
 
-void GUI::Init(MessageBus* mb, Framework* fw)
+void GUI::Init(MessageBus* mb, Application* app)
 {
     ConnectBus(mb);
-    this->_fw = fw;
+    this->_app = app;
 }
 
 void GUI::HandleMessage(Message msg)

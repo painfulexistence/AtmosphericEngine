@@ -10,10 +10,10 @@ class GUI : public Messagable
 public:
     GUI();
     ~GUI();
-    void Init(MessageBus* mb, Framework* fw);
+    void Init(MessageBus* mb, Application* app);
     void HandleMessage(Message msg) override;
     void Render();
 private:
-    Framework* _fw;
+    Application* _app;
     GUIState* _state;
 };

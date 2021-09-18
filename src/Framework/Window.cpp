@@ -11,7 +11,7 @@ std::map<Window*, OnKeyPressCallback> Window::onKeyPressCallbacks = std::map<Win
 
 std::map<Window*, OnKeyReleaseCallback> Window::onKeyReleaseCallbacks = std::map<Window*, OnKeyReleaseCallback>();
 
-Window::Window(Framework* fw) : _fw(fw)
+Window::Window(Application* app) : _app(app)
 {
     #if USE_VULKAN_DRIVER 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);

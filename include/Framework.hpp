@@ -1,3 +1,3 @@
 #pragma once
-#include "Framework/Framework.hpp"
+#include "Framework/Application.hpp"
 #include "Framework/Window.hpp"

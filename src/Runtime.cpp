@@ -18,27 +18,27 @@ static glm::mat4 ConvertPhysicalMatrix(const btTransform& trans)
 Runtime::Runtime() : entities(Entity::Entities)
 {
     Log("Launching...");
-    this->_win = this->_fw->GetActiveWindow(); // Multi-window not supported now
+    this->_win = this->_app->GetActiveWindow(); // Multi-window not supported now
 }
 
 Runtime::~Runtime()
 {
     Log("Exiting...");
     delete this->_mb;
-    delete this->_fw;
+    delete this->_app;
 }
 
 void Runtime::Execute()
 {
     Log("Initializing...");
-    console.Init(_mb, _fw);
-    gui.Init(_mb, _fw);
-    input.Init(_mb, _fw);
-    world.Init(_mb, _fw);
-    //renderer.Init(_mb, _fw);
+    console.Init(_mb, _app);
+    gui.Init(_mb, _app);
+    input.Init(_mb, _app);
+    world.Init(_mb, _app);
+    //renderer.Init(_mb, _app);
     renderer.Configure();
     renderer.CreateBuffers();
-    script.Init(_mb, _fw);
+    script.Init(_mb, _app);
     this->_initialized = true;
     
     Load();
@@ -206,7 +206,7 @@ void Runtime::Render(float dt)
 
 float Runtime::Time()
 {
-    return this->_fw->GetTime();
+    return this->_app->GetTime();
 }
 
 void Runtime::Log(std::string message)

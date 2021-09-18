@@ -27,14 +27,14 @@ const int KEY_SPACE = GLFW_KEY_SPACE;
 
 class Window;
 
-class Framework
+class Application
 {
 public:
-    static std::optional<Framework> instance;
+    static std::optional<Application> instance;
 
-    Framework();
+    Application();
 
-    ~Framework();
+    ~Application();
 
     void Tick();
     

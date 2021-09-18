@@ -1,6 +1,4 @@
 #include "Console/Console.hpp"
-#include "Messaging.hpp"
-#include "Framework.hpp"
 
 Console::Console()
 {
@@ -12,10 +10,10 @@ Console::~Console()
 
 }
 
-void Console::Init(MessageBus* mb, Framework* fw)
+void Console::Init(MessageBus* mb, Application* app)
 {
     ConnectBus(mb);
-    this->_fw = fw;
+    this->_app = app;
 }
 
 void Console::HandleMessage(Message msg)

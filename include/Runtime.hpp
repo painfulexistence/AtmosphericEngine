@@ -20,7 +20,7 @@ private:
     bool _quitted = false;
     // The framework needs to be initialized first before the constructor call, so that the graphics library gets loaded earlier than other things do.
     // Do not put the framework on the stack, or try to initialize it elsewhere, otherwise segment fault may creep in unexpecedly.
-    Framework* _fw = new Framework();
+    Application* _app = new Application();
     MessageBus* _mb = new MessageBus(this);
     Window* _win = nullptr;
         

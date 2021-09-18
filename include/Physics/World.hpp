@@ -16,7 +16,7 @@ private:
     btBroadphaseInterface* _broadphase;
     btConstraintSolver* _solver;
     btDiscreteDynamicsWorld* _world;
-    Framework* _fw;
+    Application* _app;
     float _timeAccum;
     std::map<std::uint64_t, btRigidBody*> _impostors;
 
@@ -25,7 +25,7 @@ public:
 
     ~PhysicsWorld();
 
-    void Init(MessageBus* mb, Framework* fw);
+    void Init(MessageBus* mb, Application* app);
 
     void HandleMessage(Message msg) override;
 

@@ -8,7 +8,7 @@ class Input : public Messagable
 public:
     Input();
     ~Input();
-    void Init(MessageBus* mb, Framework* fw);
+    void Init(MessageBus* mb, Application* app);
     void HandleMessage(Message msg) override;
     bool GetKeyDown(int key);
     bool GetKeyUp(int key);
@@ -16,7 +16,7 @@ public:
     glm::vec2 GetMouseUV();
 
 private:
-    Framework* _fw;
+    Application* _app;
     std::vector<int> keys
     {
         KEY_UP,

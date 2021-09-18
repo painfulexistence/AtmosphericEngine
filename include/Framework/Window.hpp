@@ -1,6 +1,6 @@
 #pragma once
 #include "Globals.hpp"
-#include "Framework/Framework.hpp"
+#include "Framework/Application.hpp"
 
 #define OnMouseMoveCallback std::function<void(GLFWwindow*, float, float)>
 #define OnMouseEnterCallback std::function<void(GLFWwindow*)>
@@ -21,7 +21,7 @@ public:
 
     static  std::map<Window*, OnKeyReleaseCallback> onKeyReleaseCallbacks;
 
-    Window(Framework* fw);
+    Window(Application* app);
 
     ~Window();
     
@@ -64,7 +64,7 @@ public:
     bool IsClosing();
     
 private:
-    Framework* _fw;
+    Application* _app;
 
     GLFWwindow* _win = nullptr;
 };

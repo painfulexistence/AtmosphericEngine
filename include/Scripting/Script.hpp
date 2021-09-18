@@ -8,9 +8,9 @@ class Script : public Messagable
 public:
     Script();
     ~Script();
-    void Init(MessageBus* mb, Framework* fw);
+    void Init(MessageBus* mb, Application* app);
     void HandleMessage(Message msg) override;
 
 private:
-    Framework* _fw;
+    Application* _app;
 };

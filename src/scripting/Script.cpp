@@ -11,10 +11,10 @@ Script::~Script()
 
 }
 
-void Script::Init(MessageBus* mb, Framework* fw)
+void Script::Init(MessageBus* mb, Application* app)
 {
     ConnectBus(mb);
-    this->_fw = fw;
+    this->_app = app;
 
     Lua::Lib();
     //Lua::L.set_function("get_cursor_uv", &Input::GetCursorUV, &input);

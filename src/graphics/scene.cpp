@@ -77,12 +77,12 @@ void Scene::Render(ShaderProgram& program, glm::mat4 projection, glm::mat4 view)
             if (_geometries.count(*it) == 0)
                 continue;
             const auto& geo =_geometries.find(*it)->second;
-
             glm::mat4 world = geo->GetWorldMatrix();
+            #if FRUSTUM_CULLING_ON
             Frustum f = Frustum(PV * world);
             if (!f.Intersects(bb))
                 continue;
-
+            #endif
             wms.push_back(world);
         }
         

@@ -3,15 +3,18 @@
 #include "Messaging/Message.hpp"
 
 class MessageBus;
+
+// Should only be used as an interface(pure class)
 class Messagable
 {
 public:
     Messagable();
-    void ConnectBus(MessageBus* mb);
     void ReceiveMessage(Message msg);
 protected:
-    MessageBus* messageBus;
+    void ConnectBus(MessageBus* mb);
     void SendMessage(Message msg);
     void SendImmediateMessage(Message msg);
-    virtual void HandleMessage(Message msg);
+    virtual void OnMessage(Message msg) = 0;
+private:
+    MessageBus* messageBus;
 };

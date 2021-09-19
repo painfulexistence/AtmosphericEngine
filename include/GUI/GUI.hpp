@@ -5,15 +5,15 @@
 
 class GUIState;
 
-class GUI : public Messagable
+class GUI : public Server
 {
 public:
     GUI();
     ~GUI();
     void Init(MessageBus* mb, Application* app);
-    void HandleMessage(Message msg) override;
+    void Process(float dt) override;
+    void OnMessage(Message msg) override;
     void Render(float dt);
 private:
-    Application* _app;
     GUIState* _state;
 };

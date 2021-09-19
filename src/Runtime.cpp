@@ -35,9 +35,7 @@ void Runtime::Execute()
     gui.Init(_mb, _app);
     input.Init(_mb, _app);
     world.Init(_mb, _app);
-    //renderer.Init(_mb, _app);
-    renderer.Configure();
-    renderer.CreateBuffers();
+    renderer.Init(_mb, _app);
     script.Init(_mb, _app);
     this->_initialized = true;
     
@@ -100,7 +98,7 @@ void Runtime::Process(float dt)
     console.Process(dt);
     input.Process(dt);
     script.Process(dt);
-    world.Update(dt);
+    world.Process(dt);
     world.DampenImpostor(_cameras[0].GetPhysicsId());
 
     Log(fmt::format("Update costs {} ms", (Time() - time) * 1000));

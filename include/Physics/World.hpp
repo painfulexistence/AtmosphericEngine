@@ -8,7 +8,7 @@
 #include "Messaging.hpp"
 #include "Framework.hpp"
 
-class PhysicsWorld : public Messagable
+class PhysicsWorld : public Server
 {
 private:
     btCollisionConfiguration* _config;
@@ -25,9 +25,7 @@ public:
 
     ~PhysicsWorld();
 
-    void Init(MessageBus* mb, Application* app);
-
-    void HandleMessage(Message msg) override;
+    void Process(float dt) override;
 
     void SetGravity(float gravity) { _world->setGravity(btVector3(0, -gravity, 0)); }
 
@@ -72,6 +70,4 @@ public:
     void RotateImpostor(std::uint64_t, btQuaternion);
 
     void TranslateImpostor(std::uint64_t, btVector3);
-
-    void Update(float dt);
 };

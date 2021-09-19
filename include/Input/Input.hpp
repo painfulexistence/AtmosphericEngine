@@ -3,18 +3,12 @@
 #include "Messaging.hpp"
 #include "Framework.hpp"
 
-class Input : public Messagable
+class Input : public Server
 {
 public:
     Input();
     
     ~Input();
-    
-    void Init(MessageBus* mb, Application* app);
-    
-    void Process(float dt);
-    
-    void HandleMessage(Message msg) override;
     
     bool GetKeyDown(int key);
     
@@ -25,7 +19,6 @@ public:
     glm::vec2 GetMouseUV();
 
 private:
-    Application* _app;
     std::vector<int> keys
     {
         KEY_UP,

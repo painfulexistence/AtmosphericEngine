@@ -24,10 +24,10 @@ void Messagable::SendImmediateMessage(Message msg)
 
 void Messagable::ReceiveMessage(Message msg)
 {
-    HandleMessage(msg);
+    OnMessage(msg);
 }
 
-void Messagable::HandleMessage(Message msg)
+void Messagable::OnMessage(Message msg)
 {
     switch(msg.type)
     {

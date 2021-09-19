@@ -21,18 +21,12 @@ PhysicsWorld::~PhysicsWorld()
     delete _config;
 }
 
-void PhysicsWorld::Init(MessageBus* mb, Application* app)
-{
-    ConnectBus(mb);
-    this->_app = app;
-}
-
-void PhysicsWorld::HandleMessage(Message msg)
-{
-    switch (msg.type)
-    {
-        default:
-            break;
+void PhysicsWorld::Process(float dt)
+{    
+    _timeAccum += dt;
+    while (_timeAccum >= FIXED_TIME_STEP) {
+        _world->stepSimulation(FIXED_TIME_STEP, 0);
+        _timeAccum -= FIXED_TIME_STEP;
     }
 }
 
@@ -182,14 +176,5 @@ void PhysicsWorld::TranslateImpostor(std::uint64_t id, btVector3 translation) //
         return;
 
     _impostors.find(id)->second->proceedToTransform(btTransform(btQuaternion(0, 0, 0), translation));
-}
-
-void PhysicsWorld::Update(float dt)
-{    
-    _timeAccum += dt;
-    while (_timeAccum >= FIXED_TIME_STEP) {
-        _world->stepSimulation(FIXED_TIME_STEP, 0);
-        _timeAccum -= FIXED_TIME_STEP;
-    }
 }
 

@@ -8,17 +8,14 @@ Renderer::Renderer()
     glewExperimental = GL_TRUE;
     if (glewInit() != GLEW_OK)
         throw std::runtime_error("Failed to initialize glew!");
-}
-
-void Renderer::Configure()
-{
+    
     // Configure graphics 
     glEnable(GL_MULTISAMPLE);      
     glPrimitiveRestartIndex(0xFFFF);
     glCullFace(GL_BACK);
 }
 
-void Renderer::CreateBuffers()
+void Renderer::Init(MessageBus* mb, Application* app)
 {
     // Initialize framebuffers
     glGenFramebuffers(1, &shadowFBO);
@@ -109,6 +106,11 @@ void Renderer::CreateBuffers()
     glEnableVertexAttribArray(0);
     glEnableVertexAttribArray(1);
     glBindVertexArray(0);
+}
+
+void Renderer::OnMessage(Message msg)
+{
+
 }
 
 void Renderer::CreateTexture(const std::string& path)

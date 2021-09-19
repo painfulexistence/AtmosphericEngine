@@ -20,7 +20,7 @@ public:
     
     sol::state& LuaEnv(); // TODO: Remove this because it will expose the scripting language implementation
 
-    void HandleMessage(Message msg) override;
+    void OnMessage(Message msg) override;
 
 private:
     Application* _app;

@@ -34,7 +34,7 @@ void Script::Print(const std::string& msg)
 }
 
 
-void Script::HandleMessage(Message msg)
+void Script::OnMessage(Message msg)
 {
 
 }

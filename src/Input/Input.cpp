@@ -10,32 +10,12 @@ Input::~Input()
 
 }
 
-void Input::Init(MessageBus* mb, Application* app)
-{
-    ConnectBus(mb);
-    this->_app = app;
-}
-
-void Input::Process(float dt)
-{
-
-}
-
-void Input::HandleMessage(Message msg)
-{
-    switch (msg.type)
-    {
-        default:
-            break;
-    }
-}
-
 bool Input::GetKeyDown(int key)
 {
     bool isDown = this->_app->GetActiveWindow()->GetKeyDown(key);
     if (isDown && key == KEY_ESCAPE)
     {
-        messageBus->PostMessage(MessageType::ON_QUIT);
+        SendMessage(MessageType::ON_QUIT);
     }
     return isDown;
 }

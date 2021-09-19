@@ -3,7 +3,7 @@
 #include "Messaging.hpp"
 #include "Framework.hpp"
 
-class Renderer
+class Renderer : Server
 {
     GLuint shadowFBO, hdrFBO, msaaFBO;
     std::vector<GLuint> uniShadowMaps;
@@ -17,9 +17,9 @@ class Renderer
 public:
     Renderer();
 
-    void Configure();
+    void Init(MessageBus* mb, Application* app);
 
-    void CreateBuffers();
+    void OnMessage(Message msg) override;
 
     void CreateTexture(const std::string&);
     

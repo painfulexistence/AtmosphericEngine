@@ -60,10 +60,12 @@ GUI::~GUI()
 
 void GUI::Init(MessageBus* mb, Application* app)
 {
-    ConnectBus(mb);
-    this->_app = app;
-
     this->_state->CreateWindow("Realtime Rendering");
+}
+
+void GUI::Process(float dt)
+{
+    
 }
 
 void GUI::Render(float dt)
@@ -71,7 +73,7 @@ void GUI::Render(float dt)
     this->_state->Render();
 }
 
-void GUI::HandleMessage(Message msg)
+void GUI::OnMessage(Message msg)
 {
 
 }

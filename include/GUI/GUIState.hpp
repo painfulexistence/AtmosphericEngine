@@ -32,5 +32,5 @@ private:
     GUITheme _theme;
     GUIFont _font;
     float _opacity;
-    std::vector<GUIWindow> _windows;
+    std::vector<GUIWindow*> _windows;
 };

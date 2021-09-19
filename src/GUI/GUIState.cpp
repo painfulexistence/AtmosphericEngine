@@ -34,7 +34,7 @@ void GUIState::Render() const
     ImGui::NewFrame();
     
     for (auto win : _windows)
-        win.Render();
+        win->Render();
 
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
@@ -43,7 +43,7 @@ void GUIState::Render() const
 GUIWindow* GUIState::CreateWindow(std::string name)
 {
     auto window = new GUIWindow(name);
-    this->_windows.push_back(*window);
+    this->_windows.push_back(window);
     return window;
 }
 

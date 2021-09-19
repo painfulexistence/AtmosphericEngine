@@ -51,7 +51,6 @@ ImGui::End();
 GUI::GUI()
 {
     this->_state = new GUIState();
-    //auto win = this->_state->CreateWindow("Realtime Rendering"); //TODO: this will cause the simulation thread to never finish 
 }
 
 GUI::~GUI()
@@ -63,6 +62,8 @@ void GUI::Init(MessageBus* mb, Application* app)
 {
     ConnectBus(mb);
     this->_app = app;
+
+    this->_state->CreateWindow("Realtime Rendering");
 }
 
 void GUI::Render(float dt)

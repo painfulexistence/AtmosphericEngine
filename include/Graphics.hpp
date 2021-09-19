@@ -1,6 +1,5 @@
 #pragma once
 #include "Graphics/camera.hpp"
-#include "Graphics/entity.hpp"
 #include "Graphics/frustum.hpp"
 #include "Graphics/geometry.hpp"
 #include "Graphics/light.hpp"

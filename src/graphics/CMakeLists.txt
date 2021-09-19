@@ -1,6 +1,5 @@
 set(SOURCES
     src/Graphics/camera.cpp
-    src/Graphics/entity.cpp
     src/Graphics/frustum.cpp
     src/Graphics/light.cpp
     src/Graphics/material.cpp

@@ -9,7 +9,6 @@
 #include "Input/Input.hpp"
 #include "Scripting.hpp"
 #include "GUI/ImGui.hpp" //TODO: Remove this dependency
-//#include <entt/entity/registry.hpp>
 
 using namespace std;
 

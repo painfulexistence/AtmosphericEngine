@@ -1,7 +1,6 @@
 #pragma once
 #include "Globals.hpp"
-#include "entity.hpp"
-#include "Physics.hpp"
+#include "ECS/Entity.hpp"
 #include "Scripting/Lua.hpp"
 
 struct CameraProperties

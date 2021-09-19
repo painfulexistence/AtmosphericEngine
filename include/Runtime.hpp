@@ -7,9 +7,6 @@
 #include "Console.hpp"
 #include "Input/Input.hpp"
 #include "Scripting.hpp"
-#include "GUI/ImGui.hpp" //TODO: Remove this dependency
-
-using namespace std;
 
 class Runtime
 {
@@ -52,13 +49,13 @@ protected:
     Input input;
     Scene scene;
     Script script;
-    list<Entity>& entities;
-    vector<Camera> _cameras = {};
-    vector<Light> _lights = {};
-    vector<Material> _materials = {};
+    std::list<Entity>& entities;
+    std::vector<Camera> _cameras = {};
+    std::vector<Light> _lights = {};
+    std::vector<Material> _materials = {};
+    glm::vec4 clearColor = glm::vec4(0.15f, 0.183f, 0.2f, 1.0f);
     ShaderProgram colorProgram;
     ShaderProgram depthTextureProgram;
     ShaderProgram depthCubemapProgram;
     ShaderProgram hdrProgram;
-    ImVec4 clearColor = ImVec4(0.15f, 0.183f, 0.2f, 1.0f);
 };

@@ -45,6 +45,6 @@ public:
     Window* GetActiveWindow();
     
 private:
-    u_int64_t _clock = 0;
+    uint64_t _clock = 0;
     Window* _activeWindow = nullptr;  
 };

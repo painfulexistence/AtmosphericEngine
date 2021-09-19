@@ -1,7 +1,6 @@
 #pragma once
 #include "Globals.hpp"
 #include "Framework.hpp"
-#include "Messaging.hpp"
 #include "Physics.hpp"
 #include "Graphics.hpp"
 #include "GUI.hpp"

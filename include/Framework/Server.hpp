@@ -1,6 +1,8 @@
 #pragma once
 #include "Globals.hpp"
-#include "Messaging.hpp"
+#include "Messaging/Messagable.hpp"
+#include "Messaging/Message.hpp"
+#include "Messaging/MessageBus.hpp"
 #include "Framework/Application.hpp"
 
 class Server : public Messagable

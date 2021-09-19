@@ -5,7 +5,6 @@
 #include <LinearMath/btVector3.h>
 #include <LinearMath/btDefaultMotionState.h>
 #include <btBulletDynamicsCommon.h>
-#include "Messaging.hpp"
 #include "Framework.hpp"
 
 class PhysicsWorld : public Server

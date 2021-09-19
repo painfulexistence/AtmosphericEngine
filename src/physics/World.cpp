@@ -1,6 +1,4 @@
 #include "Physics/World.hpp"
-#include "Messaging.hpp"
-#include "Framework.hpp"
 
 PhysicsWorld::PhysicsWorld() : _timeAccum(0.0f)
 {

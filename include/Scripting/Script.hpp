@@ -1,6 +1,5 @@
 #pragma once
 #include "Globals.hpp"
-#include "Messaging.hpp"
 #include "Framework.hpp"
 #include "Scripting/IL.hpp"
 #include "Scripting/Lua.hpp"

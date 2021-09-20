@@ -17,21 +17,14 @@ struct FramebufferProps
 
 class Renderer : Server
 {
-private:
-    FramebufferProps _fbProps;
-    GLuint shadowFBO, hdrFBO, msaaFBO;
-    std::vector<GLuint> uniShadowMaps;
-    std::vector<GLuint> omniShadowMaps;
-    GLuint hdrColorTexture, hdrDepthTexture;
-    GLuint screenTexture;
-    std::vector<GLuint> textures;
-    GLuint sceneVAO, screenVAO;
-    GLuint screenVBO;
-
 public:
     Renderer();
 
+    ~Renderer();
+
     void Init(MessageBus* mb, Application* app);
+
+    void Process(float dt) override;
 
     void OnMessage(Message msg) override;
 
@@ -73,4 +66,18 @@ public:
         }
     }
 
+private:
+    FramebufferProps _fbProps;
+    GLuint shadowFBO, hdrFBO, msaaFBO;
+    std::vector<GLuint> uniShadowMaps;
+    std::vector<GLuint> omniShadowMaps;
+    GLuint hdrColorTexture, hdrDepthTexture;
+    GLuint screenTexture;
+    std::vector<GLuint> textures;
+    GLuint sceneVAO, screenVAO;
+    GLuint screenVBO;
+
+    void ResetFramebuffers();
+    
+    void ResetVertexArrays();
 };

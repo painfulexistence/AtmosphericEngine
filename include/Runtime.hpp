@@ -8,6 +8,12 @@
 #include "Input/Input.hpp"
 #include "Scripting.hpp"
 
+struct FrameData
+{
+    uint64_t number;
+    float deltaTime;
+};
+
 class Runtime
 {
 private:

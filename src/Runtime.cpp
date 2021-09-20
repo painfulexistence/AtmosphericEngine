@@ -46,6 +46,7 @@ void Runtime::Execute()
     float deltaTime = 0;
     while (!this->_quitted)
     {
+        this->_app->Tick();
         this->_win->PollEvents();
         if (this->_win->IsClosing())
             this->_mb->PostMessage(MessageType::ON_QUIT);
@@ -124,7 +125,7 @@ void Runtime::Render(float dt)
         for (int i = 0; i < auxLightCount; ++i)
         {
             Light& l = _lights[i + mainLightCount];
-            if (l.castShadow == 0)
+            if ((bool)l.castShadow)
                 continue;
             if (auxShadows++ >= MAX_AUX_SHADOWS)
                 break;

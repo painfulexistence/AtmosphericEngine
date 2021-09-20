@@ -4,7 +4,7 @@
 #include "Scripting/IL.hpp"
 #include "Scripting/Lua.hpp"
 
-class Script : public Messagable
+class Script : public Server
 {
 public:
     Script();
@@ -13,7 +13,7 @@ public:
     
     void Init(MessageBus* mb, Application* app);
     
-    void Process(float dt);
+    void Process(float dt) override;
 
     void Print(const std::string& msg);
     

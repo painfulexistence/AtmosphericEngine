@@ -13,9 +13,8 @@ Script::~Script()
 
 void Script::Init(MessageBus* mb, Application* app)
 {
-    ConnectBus(mb);
-    this->_app = app;
-
+    Server::Init(mb, app);
+    
     this->_L->Init();
     this->_L->Run("init()");
     //L->Bind("get_cursor_uv", &Input::GetCursorUV, &input);

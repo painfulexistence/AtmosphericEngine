@@ -60,6 +60,8 @@ GUI::~GUI()
 
 void GUI::Init(MessageBus* mb, Application* app)
 {
+    Server::Init(mb, app);
+    
     this->_state->CreateWindow("Realtime Rendering");
 }
 

@@ -1,4 +1,4 @@
-# VCPKG + MinGW specific configuration
+# Platform specific configurations
 if(DEFINED ENV{VCPKG_ROOT} AND WIN32)
     set(VCPKG_TARGET_TRIPLET "x64-mingw-dynamic" CACHE STRING "target triplet" FORCE)
     if(CMAKE_BUILD_TYPE MATCHES "" OR CMAKE_BUILD_TYPE MATCHES "Debug")
@@ -8,6 +8,9 @@ if(DEFINED ENV{VCPKG_ROOT} AND WIN32)
         set(PKGCONFIG_INSTALL_PREFIX "$ENV{VCPKG_ROOT}/installed/x64-mingw-dynamic/lib/pkgconfig")
     endif()
 endif()
+if(DEFINED UNIX)
+    set(PKGCONFIG_INSTALL_PREFIX "/usr/local/bin")
+endif()
 
 cmake_minimum_required(VERSION 3.10)
 project(AtmosphericEngine VERSION 0.1)
@@ -16,7 +19,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/build/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/build/lib)
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/build/bin)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/build)
 
 aux_source_directory(external SOURCES_EXT)
 add_executable(AtmosphericEngine ${PROJECT_SOURCE_DIR}/src/Atmospheric.cpp ${SOURCES_EXT})

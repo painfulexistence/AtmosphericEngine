@@ -2,8 +2,23 @@
 #include "Globals.hpp"
 #include "Framework.hpp"
 
+struct FramebufferProps
+{
+    FramebufferProps(int width = INIT_FRAMEBUFFER_WIDTH, int height = INIT_FRAMEBUFFER_HEIGHT, int numSapmples = MSAA_NUM_SAMPLES)
+    {
+        this->width = width;
+        this->height = height;
+        this->numSapmples = numSapmples;
+    };
+    int width;
+    int height;
+    int numSapmples;
+};
+
 class Renderer : Server
 {
+private:
+    FramebufferProps _fbProps;
     GLuint shadowFBO, hdrFBO, msaaFBO;
     std::vector<GLuint> uniShadowMaps;
     std::vector<GLuint> omniShadowMaps;

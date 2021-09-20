@@ -7,6 +7,36 @@
 #define OnMouseLeaveCallback std::function<void(GLFWwindow*)>
 #define OnKeyPressCallback std::function<void(GLFWwindow*, int, int, int)>
 #define OnKeyReleaseCallback std::function<void(GLFWwindow*, int, int, int)>
+#define OnViewportResizeCallback std::function<void(GLFWwindow*, int, int)>
+#define OnFramebufferResizeCallback std::function<void(GLFWwindow*, int, int)>
+
+#define OnWindowMouseMoveCallback std::function<void(float, float)>
+#define OnWindowMouseEnterCallback std::function<void()>
+#define OnWindowMouseLeaveCallback std::function<void()>
+#define OnWindowKeyPressCallback std::function<void(int, int, int)>
+#define OnWindowKeyReleaseCallback std::function<void(int, int, int)>
+#define OnWindowViewportResizeCallback std::function<void(int, int)>
+#define OnWindowFramebufferResizeCallback std::function<void(int, int)>
+
+struct ImageSize
+{
+    ImageSize(int width, int height) : x(width), y(height) {};
+    int x;
+    int y;
+};
+
+struct WindowProps
+{
+    WindowProps(std::string title = INIT_SCREEN_TITLE, int width = INIT_SCREEN_WIDTH, int height = INIT_SCREEN_HEIGHT)
+    {
+        this->title = title;
+        this->width = width;
+        this->height = height;
+    };
+    std::string title;
+    int width;
+    int height;
+};
 
 class Window
 {
@@ -21,7 +51,11 @@ public:
 
     static  std::map<Window*, OnKeyReleaseCallback> onKeyReleaseCallbacks;
 
-    Window(Application* app);
+    static  std::map<Window*, OnViewportResizeCallback> onViewportResizeCallbacks;
+
+    static  std::map<Window*, OnFramebufferResizeCallback> onFramebufferResizeCallbacks;
+
+    Window(Application* app, WindowProps props = WindowProps());
 
     ~Window();
     
@@ -35,25 +69,33 @@ public:
 
     void AddEventListener();
 
-    void SetOnMouseMove(OnMouseMoveCallback callback);
+    void SetOnMouseMove(OnWindowMouseMoveCallback callback);
     
     void SetOnMouseMove();
     
-    void SetOnMouseEnter(OnMouseEnterCallback callback);
+    void SetOnMouseEnter(OnWindowMouseEnterCallback callback);
     
     void SetOnMouseEnter();
     
-    void SetOnMouseLeave(OnMouseLeaveCallback callback);
+    void SetOnMouseLeave(OnWindowMouseLeaveCallback callback);
     
     void SetOnMouseLeave();
     
-    void SetOnKeyPress(OnKeyPressCallback callback);
+    void SetOnKeyPress(OnWindowKeyPressCallback callback);
     
     void SetOnKeyPress();
 
-    void SetOnKeyRelease(OnKeyReleaseCallback callback);
+    void SetOnKeyRelease(OnWindowKeyReleaseCallback callback);
     
     void SetOnKeyRelease();
+
+    void SetOnViewportResize(OnWindowViewportResizeCallback callback);
+
+    void SetOnViewportResize();
+
+    void SetOnFramebufferResize(OnWindowFramebufferResizeCallback callback);
+
+    void SetOnFramebufferResize();
 
     glm::vec2 GetMousePosition();
 
@@ -61,10 +103,13 @@ public:
 
     bool GetKeyUp(int key);
 
+    ImageSize GetViewportSize();
+
+    ImageSize GetFramebufferSize();
+
     bool IsClosing();
     
 private:
     Application* _app;
-
     GLFWwindow* _win = nullptr;
 };

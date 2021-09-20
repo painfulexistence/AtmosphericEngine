@@ -15,8 +15,6 @@ public:
     
     glm::vec2 GetMousePosition();
     
-    glm::vec2 GetMouseUV();
-
 private:
     std::vector<int> keys
     {

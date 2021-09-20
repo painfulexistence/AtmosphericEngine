@@ -228,13 +228,6 @@ public:
             glm::vec3 v = _cameras[0].CreateLinearVelocity(Axis::UP);
             world.SetImpostorLinearVelocity(impostor, btVector3(currentVel.x(), v.y, currentVel.z()));
         }
-        if (input.GetKeyDown(KEY_Z)) 
-        {
-            glm::vec2 pos = input.GetMouseUV();
-            glm::vec3 diff = glm::vec3(1.0, pos.x, pos.y);
-
-            _lights[0].diffuse = diff;
-        }
         if (input.GetKeyDown(KEY_X))
         {
             script.LuaEnv()["game_state"]["is_light_flashing"] = !(bool)script.LuaEnv()["game_state"]["is_light_flashing"];

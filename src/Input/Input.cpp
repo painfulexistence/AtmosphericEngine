@@ -29,9 +29,3 @@ glm::vec2 Input::GetMousePosition() // In pixel coordinate
 {
     return this->_app->GetActiveWindow()->GetMousePosition();
 };
-
-glm::vec2 Input::GetMouseUV() // In uv coordinate
-{
-    glm::vec2 pos = GetMousePosition();
-    return glm::vec2(pos.x / SCREEN_W, pos.y / SCREEN_H);
-};

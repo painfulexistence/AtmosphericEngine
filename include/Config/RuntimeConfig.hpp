@@ -1,3 +1,7 @@
 #pragma once
-#define RUNTIME_LOG_ON 1
+#define INIT_SCREEN_TITLE "Atmospheric"
+#define INIT_SCREEN_WIDTH 960
+#define INIT_SCREEN_HEIGHT 720
+#define RUNTIME_LOG_ON 0
 #define SINGLE_THREAD 0
+#define INHERITANCE_LOG_ON 0

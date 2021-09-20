@@ -4,19 +4,31 @@
 
 Renderer::Renderer()
 {
-    // Setup GL extension loader
-    glewExperimental = GL_TRUE;
-    if (glewInit() != GLEW_OK)
-        throw std::runtime_error("Failed to initialize glew!");
-    
-    // Configure graphics 
-    glEnable(GL_MULTISAMPLE);      
-    glPrimitiveRestartIndex(0xFFFF);
-    glCullFace(GL_BACK);
+
 }
 
 void Renderer::Init(MessageBus* mb, Application* app)
 {
+    Server::Init(mb, app);
+
+    // Note that OpenGL extensions must NOT be initialzed before the window creation
+    glewExperimental = GL_TRUE;
+    if (glewInit() != GLEW_OK)
+        throw std::runtime_error("Failed to initialize glew!");
+    
+    glPrimitiveRestartIndex(0xFFFF);
+    glCullFace(GL_BACK);
+    #if MSAA_ON
+    glEnable(GL_MULTISAMPLE);
+    #endif
+
+    this->_app->GetActiveWindow()->SetOnFramebufferResize([this](int width, int height) {
+    //    //glViewport(0, 0, width, height);
+    //    this->_fbProps.width = width;
+    //    this->_fbProps.height = height;
+        fmt::print("-- Framebuffer resized.");
+    });
+
     // Initialize framebuffers
     glGenFramebuffers(1, &shadowFBO);
     for (int i = 0; i < 1; ++i)
@@ -65,10 +77,10 @@ void Renderer::Init(MessageBus* mb, Application* app)
     glGenFramebuffers(1, &hdrFBO);
     glGenTextures(1, &hdrColorTexture);
     glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, hdrColorTexture);
-    glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, 4, GL_RGBA16F, SCREEN_W, SCREEN_H, GL_TRUE); 
+    glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, this->_fbProps.numSapmples, GL_RGBA16F, this->_fbProps.width, this->_fbProps.height, GL_TRUE); 
     glGenTextures(1, &hdrDepthTexture);
     glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, hdrDepthTexture);
-    glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, 4, GL_DEPTH_COMPONENT, SCREEN_W, SCREEN_H, GL_TRUE); 
+    glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, this->_fbProps.numSapmples, GL_DEPTH_COMPONENT, this->_fbProps.width, this->_fbProps.height, GL_TRUE); 
     glBindFramebuffer(GL_FRAMEBUFFER, hdrFBO);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D_MULTISAMPLE, hdrColorTexture, 0);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D_MULTISAMPLE, hdrDepthTexture, 0);
@@ -81,7 +93,7 @@ void Renderer::Init(MessageBus* mb, Application* app)
     glBindTexture(GL_TEXTURE_2D, screenTexture);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, SCREEN_W, SCREEN_H, 0, GL_RGBA, GL_FLOAT, NULL); 
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, this->_fbProps.width, this->_fbProps.height, 0, GL_RGBA, GL_FLOAT, NULL); 
     glBindFramebuffer(GL_FRAMEBUFFER, msaaFBO);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, screenTexture, 0);
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
@@ -161,7 +173,7 @@ void Renderer::EndShadowPass()
 
 void Renderer::BeginColorPass()
 {
-    glViewport(0, 0, SCREEN_W, SCREEN_H);
+    glViewport(0, 0, this->_fbProps.width, this->_fbProps.height);
     glBindFramebuffer(GL_FRAMEBUFFER, hdrFBO);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, uniShadowMaps[0]);
@@ -186,9 +198,9 @@ void Renderer::BeginScreenColorPass()
 {
     glBindFramebuffer(GL_READ_FRAMEBUFFER, hdrFBO);
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, msaaFBO);
-    glBlitFramebuffer(0, 0, SCREEN_W, SCREEN_H, 0, 0, SCREEN_W, SCREEN_H, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+    glBlitFramebuffer(0, 0, this->_fbProps.width, this->_fbProps.height, 0, 0, this->_fbProps.width, this->_fbProps.height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
     
-    glViewport(0, 0, SCREEN_W, SCREEN_H);
+    glViewport(0, 0, this->_fbProps.width, this->_fbProps.height);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, screenTexture);

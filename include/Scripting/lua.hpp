@@ -23,6 +23,8 @@ public:
 
     sol::state& Env();
 
+    void GetData(const std::string& key, sol::table& data);
+
 private:
     sol::state _env;
 };

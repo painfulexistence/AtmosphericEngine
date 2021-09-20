@@ -38,6 +38,11 @@ void Script::OnMessage(Message msg)
 
 }
 
+template<typename T> void Script::GetData(const std::string& key, T& data)
+{
+    this->_L->GetData(key, data);
+}
+
 sol::state& Script::LuaEnv()
 {
     return reinterpret_cast<Lua*>(this->_L)->Env();

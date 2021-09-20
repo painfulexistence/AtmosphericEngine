@@ -16,6 +16,8 @@ public:
     void Process(float dt) override;
 
     void Print(const std::string& msg);
+
+    template<typename T> void GetData(const std::string& key, T& data);
     
     sol::state& LuaEnv(); // TODO: Remove this because it will expose the scripting language implementation
 

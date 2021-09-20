@@ -13,4 +13,6 @@ public:
     virtual void Run(const std::string&) = 0;
 
     virtual void Print(const std::string&);
+
+    template<typename T> void GetData(const std::string& key, T& data);
 };

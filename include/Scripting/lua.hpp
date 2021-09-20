@@ -15,7 +15,7 @@ public:
 
     void Bind(const std::string& func) override;
 
-    void Source(const std::string&) override;
+    void Source(const std::string& file) override;
 
     void Run(const std::string&) override;
 

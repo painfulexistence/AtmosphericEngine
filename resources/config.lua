@@ -1,8 +1,7 @@
-config = {
-    auto_close = false,
-    check_rendering_errors = true
-}
-
-aux_shadow_count = 1
-
-print('[Script] Configured.')
+name = "Atmospheric"
+width = 1280
+height = 720
+pixel_width = 1280
+pixel_height = 720
+manifest = "manifest.lua"
+check_rendering_errors = true

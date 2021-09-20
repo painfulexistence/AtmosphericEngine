@@ -23,9 +23,9 @@ void Lua::Bind(const std::string& func)
     //this->_env.set_function(func);
 }
 
-void Lua::Source(const std::string& path)
+void Lua::Source(const std::string& file)
 {
-    this->_env.script_file(path);
+    this->_env.script_file(file);
 }
 
 void Lua::Run(const std::string& script)

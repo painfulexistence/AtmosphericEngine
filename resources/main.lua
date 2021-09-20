@@ -1,3 +1,5 @@
+
+
 function init()
     game_state = {
         is_light_flashing = false,
@@ -8,14 +10,16 @@ function init()
     clear_color = {}
     ambient_color = {0.2, 0.2, 0.2}
     cameras = {
-        --Main camera
-        {
-            fov = 3.14 / 3.0,
-            nearZ = 0.1,
-            farZ = 2000.0,
-            eyeOffset = {0, 2, 0},
-            applyGravity = true,
-            checkCollisions = true
+        ['0'] = {
+            --Main camera
+            field_of_view = 3.14 / 3.0,
+            near_clip_plane = 0.1,
+            far_clip_plane = 2000.0,
+            eye_offset = {
+                x = 0, 
+                y = 2, 
+                z = 0
+            }
         }
     }
     lights = {
@@ -194,7 +198,7 @@ function update(dt, time)
 end
 
 function draw(dt)
-    --if config.check_rendering_errors then
+    --if check_rendering_errors then
     --    check_errors()
     --end
     --swap_buffers()
@@ -202,14 +206,14 @@ end
 
 function on_game_over()
     --print("[script] Gameplay: game over")
-    if config.auto_close then 
+    if auto_close_window then 
         close_window() 
     end
 end
 
 function on_complete()
     --print("[script] Gameplay: game completed")
-    if config.auto_close then 
+    if auto_close_window then 
         close_window() 
     end
 end

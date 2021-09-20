@@ -1,31 +1,5 @@
 #include "Graphics/light.hpp"
 
-Light::Light(sol::table t)
-{
-    type = (int)t.get_or("type", 1);
-    position = glm::vec3(t["position"][1], t["position"][2], t["position"][3]);
-    direction = glm::vec3(t["direction"][1], t["direction"][2], t["direction"][3]);
-    ambient = glm::vec3(t["ambient"][1], t["ambient"][2], t["ambient"][3]);
-    diffuse = glm::vec3(t["diffuse"][1], t["diffuse"][2], t["diffuse"][3]);
-    specular = glm::vec3(t["specular"][1], t["specular"][2], t["specular"][3]);
-    attenuation = glm::vec3(t["attenuation"][1], t["attenuation"][2], t["attenuation"][3]);
-    intensity = (float)t.get_or("intensity", 1.0);
-    castShadow = (int)t.get_or("castShadow", 0);
-
-}
-
-Light::Light(LightProperties props, int type) : type(type)
-{
-    position = props.position;
-    direction = props.direction;
-    ambient = props.ambient;
-    diffuse = props.diffuse;
-    specular = props.specular;
-    intensity = props.intensity;
-    attenuation = props.attenuation;
-    castShadow = props.castShadow;
-}
-
 static glm::vec3 Direction(GLenum face)
 {
     switch (face)
@@ -69,6 +43,20 @@ static glm::vec3 WorldUp(GLenum face)
             return glm::vec3(0.f, -1.f, 0.f);
     }
 }
+
+Light::Light(LightProps props)
+{
+    type = props.type;
+    position = props.position;
+    direction = props.direction;
+    ambient = props.ambient;
+    diffuse = props.diffuse;
+    specular = props.specular;
+    intensity = props.intensity;
+    attenuation = props.attenuation;
+    castShadow = props.castShadow;
+}
+
 glm::mat4 Light::GetProjectionMatrix(int cascadedIndex)    
 {
     if (type == DIR_LIGHT)

@@ -38,12 +38,7 @@ void Lua::Print(const std::string& msg)
     Run(fmt::format("print('[Script] {}')", msg));
 }
 
-sol::state& Lua::Env()
-{
-    return this->_env;
-}
-
 void Lua::GetData(const std::string& key, sol::table& data)
 {
-    data = this->_env[key];
+    data = this->_env.globals()[key];
 }

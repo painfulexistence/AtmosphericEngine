@@ -1,22 +1,183 @@
 #include "Runtime.hpp"
+#include "Scripting/Lua.hpp"
 using namespace std;
 
 static vector<vector<bool>> generateMazeData(int size, int shouldConsumed);
 static glm::mat4 ConvertPhysicalMatrix(const btTransform& trans);
 
 class MazeGame : public Runtime
-{
+{    
+public:
+    sol::table maze, cameras, lights, textures, materials, shaders, gameState;
+
+    void Load()
+    {
+        // Read data from script
+        script.GetData(std::string("maze"), maze);
+        script.GetData(std::string("cameras"), cameras);
+        script.GetData(std::string("lights"), lights);
+        script.GetData(std::string("textures"), textures);
+        script.GetData(std::string("materials"), materials);
+        script.GetData(std::string("shaders"), shaders);
+        script.GetData(std::string("game_state"), gameState);
+
+        // Load textures
+        for (const auto& kv : textures)
+        {
+            Texture texture = Texture((sol::table)kv.second);
+            renderer.CreateTexture(texture.path);
+        }
+        script.Print("Textures loaded.");
+
+        // Create cameras
+        for (const auto& kv : cameras)
+        {
+            Camera cam = Camera(CameraProps((sol::table)kv.second));
+            cam.SetGraphicsId(scene.CreateGhostGeometry());
+            cam.SetPhysicsId(world.CreateCapsuleImpostor(btVector3(0.f, 2.f, 0.f), 1.0f, 4.0f, 10.0f));
+            _cameras.push_back(cam);
+
+            world.SetImpostorLinearFactor(cam.GetPhysicsId(), btVector3(1, 1, 1));
+            world.SetImpostorAngularFactor(cam.GetPhysicsId(), btVector3(0, 0, 0));
+            entities.push_back(cam);
+        }
+        script.Print("Cameras initialized.");
+
+        // Create lights
+        for (const auto& kv : lights)
+        {
+            Light light = Light(LightProps((sol::table)kv.second));
+            _lights.push_back(light); 
+        }
+        script.Print("Lights initialized.");
+
+        // Create material
+        for (const auto& kv : materials)
+        {
+            Material mat = Material((sol::table)kv.second);
+            _materials.push_back(mat);
+        }
+        script.Print("Materials initialized.");
+
+        // Create shader programs
+        colorProgram = ShaderProgram(shaders["color"]["vert"], shaders["color"]["frag"]);
+        depthTextureProgram = ShaderProgram(shaders["depth"]["vert"], shaders["depth"]["frag"]);
+        depthCubemapProgram = ShaderProgram(shaders["depth_cubemap"]["vert"], shaders["depth_cubemap"]["frag"]);
+        hdrProgram = ShaderProgram(shaders["hdr"]["vert"], shaders["hdr"]["frag"]);
+        script.Print("Shaders initialized.");
+
+        renderer.BindSceneVAO();
+        // Create meshes in scene
+        {
+            auto mesh = make_shared<Mesh>();
+            mesh->AsCube(800.0f);
+            mesh->material = _materials[1];
+            mesh->cullFaceEnabled = false;
+            Scene::MeshTable.insert({"Skybox", mesh});
+            
+            auto ent = Entity();
+            ent.SetGraphicsId(scene.CreateMeshGeometry("Skybox"));
+            entities.push_back(ent);
+        }
+        {
+            auto mesh = make_shared<Mesh>();
+            mesh->AsSphere();
+            mesh->material = _materials[0];
+            Scene::MeshTable.insert({"Sphere", mesh});
+
+            for (int i = 0; i < 50; ++i)
+            {
+                float diameter = (float)(rand() % 10 + 1);
+
+                auto ent = Entity();
+                ent.SetGraphicsId(scene.CreateMeshGeometry("Sphere", glm::scale(glm::mat4(1.0), glm::vec3(diameter))));
+                ent.SetPhysicsId(world.CreateSphereImpostor(btVector3(rand() % 10 - 5, rand() % 100 + 20, rand() % 10 - 5), diameter, 1.0f));
+                entities.push_back(ent);
+            }
+        }
+        CreateMaze();
+        script.Print("Scene & world loaded.");
+    }
+
+    void Update(float dt, float time)
+    {
+        // Update environment
+        if ((bool)gameState["is_light_flashing"])
+        {
+            glm::vec3 col = glm::vec3(gameState["light_color"][1], gameState["light_color"][2], gameState["light_color"][3]);
+            _lights[0].diffuse = abs(glm::cos(glm::radians(10.0f) * time)) * (float)(rand() % 2 / 2.0 + 0.5) * col;
+        }
+
+        // Input handling
+        const std::uint64_t& impostor = _cameras[0].GetPhysicsId();
+
+        btVector3 currentVel;    
+        if (!world.GetImpostorLinearVelocity(impostor, currentVel)) 
+            throw runtime_error("Impostor not found");
+
+        if (input.GetKeyDown(KEY_W))
+        {
+            glm::vec3 v = _cameras[0].CreateLinearVelocity(Axis::FRONT);
+            world.SetImpostorLinearVelocity(impostor, btVector3(v.x, currentVel.y(), v.z));
+        }
+        if (input.GetKeyDown(KEY_S))
+        {
+            glm::vec3 v = _cameras[0].CreateLinearVelocity(Axis::FRONT);
+            world.SetImpostorLinearVelocity(impostor, btVector3(-v.x, currentVel.y(), -v.z));
+        }
+        if (input.GetKeyDown(KEY_D))
+        {
+            _cameras[0].yaw(0.3 * CAMERA_ANGULAR_OFFSET);
+            glm::vec3 v = _cameras[0].CreateLinearVelocity(Axis::RIGHT);
+            world.SetImpostorLinearVelocity(impostor, btVector3(v.x, currentVel.y(), v.z));
+        }
+        if (input.GetKeyDown(KEY_A))
+        {
+            _cameras[0].yaw(-0.3 * CAMERA_ANGULAR_OFFSET);
+            glm::vec3 v = _cameras[0].CreateLinearVelocity(Axis::RIGHT);
+            world.SetImpostorLinearVelocity(impostor, btVector3(-v.x, currentVel.y(), -v.z));
+        }
+        if (input.GetKeyDown(KEY_UP))
+        {
+            _cameras[0].pitch(CAMERA_ANGULAR_OFFSET);
+        }
+        if (input.GetKeyDown(KEY_DOWN))
+        {
+            _cameras[0].pitch(-CAMERA_ANGULAR_OFFSET);
+        }
+        if (input.GetKeyDown(KEY_RIGHT))
+        {
+            _cameras[0].yaw(CAMERA_ANGULAR_OFFSET);
+        }
+        if (input.GetKeyDown(KEY_LEFT))
+        {
+            _cameras[0].yaw(-CAMERA_ANGULAR_OFFSET);
+        }
+        if (input.GetKeyDown(KEY_SPACE)) 
+        {
+            world.GetImpostorLinearVelocity(impostor, currentVel); // update velcoity to reflect current horizontal speed
+            glm::vec3 v = _cameras[0].CreateLinearVelocity(Axis::UP);
+            world.SetImpostorLinearVelocity(impostor, btVector3(currentVel.x(), v.y, currentVel.z()));
+        }
+        if (input.GetKeyDown(KEY_X))
+        {
+            gameState["is_light_flashing"] = !(bool)gameState["is_light_flashing"];
+        }
+        if (input.GetKeyDown(KEY_ESCAPE))
+        {
+            input.ReceiveMessage(MessageType::ON_QUIT);
+        }
+    }
+
 private:
     void CreateMaze()
     {
-        script.LuaEnv();
-        const auto& t = script.LuaEnv()["maze"];
-        const int MAZE_SIZE = t["size"];
-        const float TILE_SIZE = t["tile_size"];
-        const bool MAZE_ROOFED = t["roofed"];
-        const int TILES_TO_REMOVE = t["tiles_to_remove"];
-        const float CHISM_PROBABILITY = t["chism_probability"];
-        const auto& WIN_COORD = t["win_coord"];
+        const int MAZE_SIZE = maze["size"];
+        const float TILE_SIZE = maze["tile_size"];
+        const bool MAZE_ROOFED = maze["roofed"];
+        const int TILES_TO_REMOVE = maze["tiles_to_remove"];
+        const float CHISM_PROBABILITY = maze["chism_probability"];
+        const auto& WIN_COORD = maze["win_coord"];
 
         {
             auto mesh = make_shared<Mesh>();
@@ -79,162 +240,6 @@ private:
             ent.SetGraphicsId(scene.CreateMeshGeometry("Terrain"));
             ent.SetPhysicsId(world.CreateBoxImpostor(btVector3(0.0f, -10.0f, 0.0f), btVector3(size, 0.2f, size)));
             entities.push_back(ent);
-        }
-    }
-    
-public:
-    void Load()
-    {
-        // Create cameras
-        sol::table cameras = script.LuaEnv()["cameras"].force();
-        for (const auto& kv : cameras)
-        {
-            Camera cam = Camera((sol::table)kv.second);
-            cam.SetGraphicsId(scene.CreateGhostGeometry());
-            cam.SetPhysicsId(world.CreateCapsuleImpostor(btVector3(0.f, 2.f, 0.f), 1.0f, 4.0f, 10.0f));
-            _cameras.push_back(cam);
-
-            world.SetImpostorLinearFactor(cam.GetPhysicsId(), btVector3(1, 1, 1));
-            world.SetImpostorAngularFactor(cam.GetPhysicsId(), btVector3(0, 0, 0));
-            entities.push_back(cam);
-        }
-        script.Print("Cameras initialized.");
-
-        // Create lights
-        sol::table lights = script.LuaEnv()["lights"].force();
-        for (const auto& kv : lights)
-        {
-            Light light = Light((sol::table)kv.second);
-            _lights.push_back(light); 
-        }
-        script.Print("Lights initialized.");
-
-        //Create textures
-        sol::table textures = script.LuaEnv()["textures"].force();
-        for (const auto& kv : textures)
-        {
-            Texture texture = Texture((sol::table)kv.second);
-            renderer.CreateTexture(texture.path);
-        }
-        script.Print("Textures initialized.");
-
-        // Create material
-        sol::table materials = script.LuaEnv()["materials"].force();
-        for (const auto& kv : materials)
-        {
-            Material mat = Material((sol::table)kv.second);
-            _materials.push_back(mat);
-        }
-        script.Print("Materials initialized.");
-
-        // Create shader programs
-        sol::table shaders = script.LuaEnv()["shaders"].force();
-        colorProgram = ShaderProgram(shaders["color"]["vert"], shaders["color"]["frag"]);
-        depthTextureProgram = ShaderProgram(shaders["depth"]["vert"], shaders["depth"]["frag"]);
-        depthCubemapProgram = ShaderProgram(shaders["depth_cubemap"]["vert"], shaders["depth_cubemap"]["frag"]);
-        hdrProgram = ShaderProgram(shaders["hdr"]["vert"], shaders["hdr"]["frag"]);
-        script.Print("Shader programs initialized.");
-
-        renderer.BindSceneVAO();
-        // Create meshes in scene
-        {
-            auto mesh = make_shared<Mesh>();
-            mesh->AsCube(800.0f);
-            mesh->material = _materials[1];
-            mesh->cullFaceEnabled = false;
-            Scene::MeshTable.insert({"Skybox", mesh});
-            
-            auto ent = Entity();
-            ent.SetGraphicsId(scene.CreateMeshGeometry("Skybox"));
-            entities.push_back(ent);
-        }
-        {
-            auto mesh = make_shared<Mesh>();
-            mesh->AsSphere();
-            mesh->material = _materials[0];
-            Scene::MeshTable.insert({"Sphere", mesh});
-
-            for (int i = 0; i < 50; ++i)
-            {
-                float diameter = (float)(rand() % 10 + 1);
-
-                auto ent = Entity();
-                ent.SetGraphicsId(scene.CreateMeshGeometry("Sphere", glm::scale(glm::mat4(1.0), glm::vec3(diameter))));
-                ent.SetPhysicsId(world.CreateSphereImpostor(btVector3(rand() % 10 - 5, rand() % 100 + 20, rand() % 10 - 5), diameter, 1.0f));
-                entities.push_back(ent);
-            }
-        }
-        CreateMaze();
-        script.Print("Scene & world initialized.");
-    }
-
-    void Update(float dt, float time)
-    {
-        // Update environment
-        if ((bool)script.LuaEnv()["game_state"]["is_light_flashing"])
-        {
-            glm::vec3 col = glm::vec3(script.LuaEnv()["game_state"]["light_color"][1], script.LuaEnv()["game_state"]["light_color"][2], script.LuaEnv()["game_state"]["light_color"][3]);
-            _lights[0].diffuse = abs(glm::cos(glm::radians(10.0f) * time)) * (float)(rand() % 2 / 2.0 + 0.5) * col;
-        }
-
-        // Input handling
-        const std::uint64_t& impostor = _cameras[0].GetPhysicsId();
-
-        btVector3 currentVel;    
-        if (!world.GetImpostorLinearVelocity(impostor, currentVel)) 
-            throw runtime_error("Impostor not found");
-
-        if (input.GetKeyDown(KEY_W))
-        {
-            glm::vec3 v = _cameras[0].CreateLinearVelocity(Axis::FRONT);
-            world.SetImpostorLinearVelocity(impostor, btVector3(v.x, currentVel.y(), v.z));
-        }
-        if (input.GetKeyDown(KEY_S))
-        {
-            glm::vec3 v = _cameras[0].CreateLinearVelocity(Axis::FRONT);
-            world.SetImpostorLinearVelocity(impostor, btVector3(-v.x, currentVel.y(), -v.z));
-        }
-        if (input.GetKeyDown(KEY_D))
-        {
-            _cameras[0].yaw(0.3 * CAMERA_ANGULAR_OFFSET);
-            glm::vec3 v = _cameras[0].CreateLinearVelocity(Axis::RIGHT);
-            world.SetImpostorLinearVelocity(impostor, btVector3(v.x, currentVel.y(), v.z));
-        }
-        if (input.GetKeyDown(KEY_A))
-        {
-            _cameras[0].yaw(-0.3 * CAMERA_ANGULAR_OFFSET);
-            glm::vec3 v = _cameras[0].CreateLinearVelocity(Axis::RIGHT);
-            world.SetImpostorLinearVelocity(impostor, btVector3(-v.x, currentVel.y(), -v.z));
-        }
-        if (input.GetKeyDown(KEY_UP))
-        {
-            _cameras[0].pitch(CAMERA_ANGULAR_OFFSET);
-        }
-        if (input.GetKeyDown(KEY_DOWN))
-        {
-            _cameras[0].pitch(-CAMERA_ANGULAR_OFFSET);
-        }
-        if (input.GetKeyDown(KEY_RIGHT))
-        {
-            _cameras[0].yaw(CAMERA_ANGULAR_OFFSET);
-        }
-        if (input.GetKeyDown(KEY_LEFT))
-        {
-            _cameras[0].yaw(-CAMERA_ANGULAR_OFFSET);
-        }
-        if (input.GetKeyDown(KEY_SPACE)) 
-        {
-            world.GetImpostorLinearVelocity(impostor, currentVel); // update velcoity to reflect current horizontal speed
-            glm::vec3 v = _cameras[0].CreateLinearVelocity(Axis::UP);
-            world.SetImpostorLinearVelocity(impostor, btVector3(currentVel.x(), v.y, currentVel.z()));
-        }
-        if (input.GetKeyDown(KEY_X))
-        {
-            script.LuaEnv()["game_state"]["is_light_flashing"] = !(bool)script.LuaEnv()["game_state"]["is_light_flashing"];
-        }
-        if (input.GetKeyDown(KEY_ESCAPE))
-        {
-            input.ReceiveMessage(MessageType::ON_QUIT);
         }
     }
 };

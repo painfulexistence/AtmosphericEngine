@@ -3,12 +3,15 @@
 
 Script::Script()
 {
-    this->_L = (IL*)new Lua();
+    // Note that upcast can be implicit
+    // But the child class must be able to access at least one virtual member function of its parent, i.e. publicly inherit its parent
+    // Otherwise segmentation fault may happen!
+    this->_L = dynamic_cast<IL*>(new Lua());
 }
 
 Script::~Script()
 {
-    delete reinterpret_cast<Lua*>(this->_L);
+    delete dynamic_cast<Lua*>(this->_L);
 }
 
 void Script::Init(MessageBus* mb, Application* app)
@@ -24,7 +27,12 @@ void Script::Init(MessageBus* mb, Application* app)
 
 void Script::Process(float dt)
 {
-    //this->_L->Run(fmt::format("Update({})", dt));
+    //this->_L->Run(fmt::format("update({})", dt));
+}
+
+void Script::OnMessage(Message msg)
+{
+
 }
 
 void Script::Print(const std::string& msg)
@@ -32,18 +40,12 @@ void Script::Print(const std::string& msg)
     this->_L->Print(msg);
 }
 
-
-void Script::OnMessage(Message msg)
-{
-
-}
-
 template<typename T> void Script::GetData(const std::string& key, T& data)
 {
     this->_L->GetData(key, data);
 }
 
-sol::state& Script::LuaEnv()
+template<> void Script::GetData(const std::string& key, sol::table& data)
 {
-    return reinterpret_cast<Lua*>(this->_L)->Env();
+    dynamic_cast<Lua*>(this->_L)->GetData(key, data);
 }

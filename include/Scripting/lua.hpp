@@ -4,7 +4,7 @@
 //#define SOL_ALL_SAFETIES_ON 1
 #include "sol/sol.hpp"
 
-class Lua : IL
+class Lua : public IL
 {
 public:
     Lua();
@@ -20,8 +20,6 @@ public:
     void Run(const std::string&) override;
 
     void Print(const std::string&) override;
-
-    sol::state& Env();
 
     void GetData(const std::string& key, sol::table& data);
 

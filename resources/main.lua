@@ -5,12 +5,8 @@ function init()
         is_light_flashing = false,
         light_color = {1.0, 1.0, 1.0},
     }
-    print('[Script] Game state initialized.')
-
-    clear_color = {}
-    ambient_color = {0.2, 0.2, 0.2}
     cameras = {
-        ['0'] = {
+        {
             --Main camera
             field_of_view = 3.14 / 3.0,
             near_clip_plane = 0.1,

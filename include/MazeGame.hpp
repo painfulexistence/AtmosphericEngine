@@ -97,6 +97,7 @@ public:
         }
         CreateMaze();
         script.Print("Scene & world loaded.");
+        script.Print(fmt::format("Game fully loaded in {:.1f} seconds", Time()));
     }
 
     void Update(float dt, float time)

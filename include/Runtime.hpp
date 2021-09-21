@@ -27,8 +27,6 @@ private:
         
     void Log(std::string message);
 
-    float Time();
-
     void Process(float dt);
 
     void Render(float dt); // TODO: Separate rendering and drawing logic if the backend supports command buffering
@@ -45,6 +43,8 @@ public:
     virtual void Load() = 0;
 
     virtual void Update(float dt, float time) = 0;
+
+    float Time();
 
 protected:
     // These subsystems will be game accessible

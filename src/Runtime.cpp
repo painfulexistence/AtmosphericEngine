@@ -39,8 +39,8 @@ void Runtime::Execute()
     script.Init(_mb, _app);
     this->_initialized = true;
     
+    Log("Loading data...");
     Load();
-    Log("Game fully loaded.");
     
     float lastFrameTime = Time();
     float deltaTime = 0;
@@ -102,7 +102,9 @@ void Runtime::Process(float dt)
     world.Process(dt);
     world.DampenImpostor(_cameras[0].GetPhysicsId());
 
+    #if SHOW_PROCESS_COST
     Log(fmt::format("Update costs {} ms", (Time() - time) * 1000));
+    #endif
 }
 
 void Runtime::Render(float dt)
@@ -199,7 +201,9 @@ void Runtime::Render(float dt)
 
     this->_win->SwapBuffers();
 
-    Log(fmt::format("Render costs {} ms", (Time() - time) * 1000));
+    #if SHOW_RENDER_AND_DRAW_COST
+    Log(fmt::format("Render & draw cost {} ms", (Time() - time) * 1000));
+    #endif
 }
 
 float Runtime::Time()

@@ -8,7 +8,8 @@
                 "${workspaceFolder}/include",
                 "${workspaceFolder}/external",
                 "${workspaceFolder}/external/sol2/include",
-                "${workspaceFolder}/external/fmt/include"
+                "${workspaceFolder}/external/fmt/include",
+                "${workspaceFolder}/external/entt/src"
             ],
             "defines": [],
             "macFrameworkPath": [

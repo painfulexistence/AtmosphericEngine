@@ -11,3 +11,6 @@
 [submodule "external/fmt"]
 	path = external/fmt
 	url = git@github.com:fmtlib/fmt.git
+[submodule "external/entt"]
+	path = external/entt
+	url = git@github.com:skypjack/entt.git

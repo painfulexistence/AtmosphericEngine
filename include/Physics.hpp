@@ -1,3 +1,3 @@
 #pragma once
-#include "Physics/World.hpp"
+#include "Physics/PhysicsServer.hpp"
 #include "Physics/Debugger.hpp"

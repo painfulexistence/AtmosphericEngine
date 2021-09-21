@@ -1,6 +1,6 @@
 #pragma once
 #include "Globals.hpp"
-#include "Physics/World.hpp"
+#include "Physics/PhysicsServer.hpp"
 #include "Physics/Debugger.hpp"
 #include "Shader.hpp"
 #include "mesh.hpp"

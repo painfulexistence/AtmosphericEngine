@@ -1,18 +1,18 @@
-#include "Graphics/Renderer.hpp"
+#include "Graphics/GraphicsServer.hpp"
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
-Renderer::Renderer()
+GraphicsServer::GraphicsServer()
 {
 
 }
 
-Renderer::~Renderer()
+GraphicsServer::~GraphicsServer()
 {
 
 }
 
-void Renderer::Init(MessageBus* mb, Application* app)
+void GraphicsServer::Init(MessageBus* mb, Application* app)
 {
     Server::Init(mb, app);
 
@@ -39,17 +39,17 @@ void Renderer::Init(MessageBus* mb, Application* app)
     this->ResetVertexArrays();
 }
 
-void Renderer::Process(float dt)
+void GraphicsServer::Process(float dt)
 {
     // TODO: Put the logic of generating command buffers here
 }
 
-void Renderer::OnMessage(Message msg)
+void GraphicsServer::OnMessage(Message msg)
 {
 
 }
 
-void Renderer::LoadTexture(const std::string& path)
+void GraphicsServer::LoadTexture(const std::string& path)
 { 
     GLuint tex;
     glGenTextures(1, &tex);
@@ -74,7 +74,7 @@ void Renderer::LoadTexture(const std::string& path)
     stbi_image_free(data);
 }
 
-void Renderer::LoadTextures(std::vector<std::string> paths)
+void GraphicsServer::LoadTextures(const std::vector<std::string>& paths)
 {
     int count = paths.size();
     textures.resize(count);
@@ -102,28 +102,28 @@ void Renderer::LoadTextures(std::vector<std::string> paths)
     }
 }
 
-void Renderer::BindSceneVAO()
+void GraphicsServer::BindSceneVAO()
 {
     glBindVertexArray(sceneVAO);
 }
 
-void Renderer::BindScreenVAO()
+void GraphicsServer::BindScreenVAO()
 {
     glBindVertexArray(screenVAO);
 }
 
-void Renderer::BeginShadowPass()
+void GraphicsServer::BeginShadowPass()
 {
     glViewport(0, 0, SHADOW_W, SHADOW_H);
     glBindFramebuffer(GL_FRAMEBUFFER, shadowFBO);
 }
 
-void Renderer::EndShadowPass()
+void GraphicsServer::EndShadowPass()
 {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
-void Renderer::BeginColorPass()
+void GraphicsServer::BeginColorPass()
 {
     glViewport(0, 0, this->_fbProps.width, this->_fbProps.height);
     glBindFramebuffer(GL_FRAMEBUFFER, hdrFBO);
@@ -141,12 +141,12 @@ void Renderer::BeginColorPass()
     }
 }
 
-void Renderer::EndColorPass()
+void GraphicsServer::EndColorPass()
 {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
-void Renderer::BeginScreenColorPass()
+void GraphicsServer::BeginScreenColorPass()
 {
     glBindFramebuffer(GL_READ_FRAMEBUFFER, hdrFBO);
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, msaaFBO);
@@ -159,12 +159,12 @@ void Renderer::BeginScreenColorPass()
     glBindBuffer(GL_ARRAY_BUFFER, screenVBO);
 }
 
-void Renderer::EndScreenColorPass()
+void GraphicsServer::EndScreenColorPass()
 {
     //glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
-void Renderer::CheckErrors()
+void GraphicsServer::CheckErrors()
 {     
     GLenum errorCode;
     while ((errorCode = glGetError()) != GL_NO_ERROR) {
@@ -191,7 +191,7 @@ void Renderer::CheckErrors()
     }
 }
 
-void Renderer::ResetFramebuffers()
+void GraphicsServer::ResetFramebuffers()
 {
     // Allocate framebuffers
     glGenFramebuffers(1, &shadowFBO);
@@ -265,7 +265,7 @@ void Renderer::ResetFramebuffers()
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
-void Renderer::ResetVertexArrays()
+void GraphicsServer::ResetVertexArrays()
 {
     std::vector<GLfloat> verts = {
         -1.0f,  1.0f, 0.0f, 0.0f, 1.0f,

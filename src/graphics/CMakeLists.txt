@@ -5,7 +5,7 @@ set(SOURCES
     src/Graphics/material.cpp
     src/Graphics/mesh.cpp
     src/Graphics/Shader.cpp
-    src/Graphics/Renderer.cpp
+    src/Graphics/GraphicsServer.cpp
     src/Graphics/scene.cpp
     src/Graphics/texture.cpp
 )

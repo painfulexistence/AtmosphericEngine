@@ -7,7 +7,7 @@
 #include <btBulletDynamicsCommon.h>
 #include "Framework.hpp"
 
-class PhysicsWorld : public Server
+class PhysicsServer : public Server
 {
 private:
     btCollisionConfiguration* _config;
@@ -20,9 +20,9 @@ private:
     std::map<std::uint64_t, btRigidBody*> _impostors;
 
 public:
-    PhysicsWorld();
+    PhysicsServer();
 
-    ~PhysicsWorld();
+    ~PhysicsServer();
 
     void Process(float dt) override;
 

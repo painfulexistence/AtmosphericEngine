@@ -15,12 +15,12 @@ struct FramebufferProps
     int numSapmples;
 };
 
-class Renderer : Server
+class GraphicsServer : Server
 {
 public:
-    Renderer();
+    GraphicsServer();
 
-    ~Renderer();
+    ~GraphicsServer();
 
     void Init(MessageBus* mb, Application* app);
 
@@ -30,7 +30,7 @@ public:
     
     void LoadTexture(const std::string& path);
 
-    void LoadTextures(std::vector<std::string> paths);
+    void LoadTextures(const std::vector<std::string>& paths);
     
     void BindSceneVAO();
     

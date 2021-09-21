@@ -1,5 +1,5 @@
 #include "Runtime.hpp"
-#include <iostream> // Note that should only use IO when debugging
+//#include <iostream> // Note that IO should only be used for debugging here
 using namespace std;
 
 static glm::mat4 ConvertPhysicalMatrix(const btTransform& trans)
@@ -34,8 +34,8 @@ void Runtime::Execute()
     console.Init(_mb, _app);
     gui.Init(_mb, _app);
     input.Init(_mb, _app);
-    world.Init(_mb, _app);
-    renderer.Init(_mb, _app);
+    physics.Init(_mb, _app);
+    graphics.Init(_mb, _app);
     script.Init(_mb, _app);
     this->_initialized = true;
     
@@ -54,27 +54,31 @@ void Runtime::Execute()
         float currentFrameTime = Time();
         deltaTime = currentFrameTime - lastFrameTime;
         lastFrameTime = currentFrameTime;
+        FrameProps currentFrame = FrameProps(this->_app->GetClock(), deltaTime);
+
         #if SINGLE_THREAD
-        #pragma region main_loop_st
-        Process(deltaTime);
+        #pragma region main_loop_single_thread
+        Process(currentFrame);
         for (const auto& ent : Entity::WithPhysicsComponent())
         {
-            const glm::mat4& m2w = ConvertPhysicalMatrix(world.GetImpostorTransform(ent.GetPhysicsId()));
+            const glm::mat4& m2w = ConvertPhysicalMatrix(physics.GetImpostorTransform(ent.GetPhysicsId()));
             scene.SetGeometryModelWorldTransform(ent.GetGraphicsId(), m2w);
         }
-        Render(deltaTime);
+        Render(currentFrame);
+        Draw(currentFrame);
         #pragma endregion
         #else
-        #pragma region main_loop_mt
+        #pragma region main_loop_double_thread
         // Gameplay
-        std::thread simulation(&Runtime::Process, this, deltaTime);
+        std::thread simulation(&Runtime::Process, this, currentFrame);
         // Graphics
-        Render(deltaTime);
+        Render(currentFrame);
+        Draw(currentFrame);
         // Sync
         simulation.join();
         for (const auto& ent : Entity::WithPhysicsComponent())
         {
-            const glm::mat4& m2w = ConvertPhysicalMatrix(world.GetImpostorTransform(ent.GetPhysicsId()));
+            const glm::mat4& m2w = ConvertPhysicalMatrix(physics.GetImpostorTransform(ent.GetPhysicsId()));
             scene.SetGeometryModelWorldTransform(ent.GetGraphicsId(), m2w);
         }
         #pragma endregion
@@ -89,8 +93,9 @@ void Runtime::Quit()
     this->_quitted = true;
 }
 
-void Runtime::Process(float dt)
+void Runtime::Process(FrameProps props)
 {
+    float dt = props.deltaTime;
     float time = Time();
     
     Update(dt, time);
@@ -99,28 +104,30 @@ void Runtime::Process(float dt)
     console.Process(dt);
     input.Process(dt);
     script.Process(dt);
-    world.Process(dt);
-    world.DampenImpostor(_cameras[0].GetPhysicsId());
+    physics.Process(dt); // TODO: Update only every entity's physics transform
+    physics.DampenImpostor(_cameras[0].GetPhysicsId());
+    graphics.Process(dt); // TODO: Generate command buffers according to entity transforms
 
     #if SHOW_PROCESS_COST
     Log(fmt::format("Update costs {} ms", (Time() - time) * 1000));
     #endif
 }
 
-void Runtime::Render(float dt)
+void Runtime::Render(FrameProps props)
 {
+    float dt = props.deltaTime;
     float time = Time();
 
     const int mainLightCount = 1;
     const int auxLightCount = (int)_lights.size() - mainLightCount;
 
-    renderer.BindSceneVAO();
+    graphics.BindSceneVAO();
     
-    renderer.BeginShadowPass();
+    graphics.BeginShadowPass();
     {
         int auxShadows = 0;
         
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, renderer.GetShadowMap(DIR_LIGHT, 0), 0);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, graphics.GetShadowMap(DIR_LIGHT, 0), 0);
         glClear(GL_DEPTH_BUFFER_BIT);
         depthTextureProgram.Activate();
         scene.Render(depthTextureProgram, _lights[0].GetProjectionMatrix(0), _lights[0].GetViewMatrix());
@@ -135,7 +142,7 @@ void Runtime::Render(float dt)
             for (int f = 0; f < 6; ++f)
             {
                 GLenum face = GL_TEXTURE_CUBE_MAP_POSITIVE_X + f;
-                glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, face, renderer.GetShadowMap(POINT_LIGHT, i), 0);
+                glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, face, graphics.GetShadowMap(POINT_LIGHT, i), 0);
                 glClear(GL_DEPTH_BUFFER_BIT);
                 depthCubemapProgram.Activate();
                 depthCubemapProgram.SetUniform(string("LightPosition"), l.position);
@@ -143,9 +150,9 @@ void Runtime::Render(float dt)
             }
         }
     }
-    renderer.EndShadowPass();
+    graphics.EndShadowPass();
     
-    renderer.BeginColorPass();
+    graphics.BeginColorPass();
     {
         glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);    
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -182,11 +189,11 @@ void Runtime::Render(float dt)
         colorProgram.SetUniform(string("omni_shadow_map_unit"), (int)1);
         scene.Render(colorProgram, _cameras[0].GetProjectionMatrix(), _cameras[0].GetViewMatrix(cameraTransform));
     }
-    renderer.EndColorPass();
+    graphics.EndColorPass();
 
-    renderer.BindScreenVAO();
+    graphics.BindScreenVAO();
 
-    renderer.BeginScreenColorPass();
+    graphics.BeginScreenColorPass();
     {
         glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);    
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -195,16 +202,21 @@ void Runtime::Render(float dt)
         //hdrProgram.SetUniform(string("exposure"), (float)1.0);
         glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     }
-    renderer.EndScreenColorPass();
+    graphics.EndScreenColorPass();
     
     gui.Render(dt);
-
-    this->_win->SwapBuffers();
 
     #if SHOW_RENDER_AND_DRAW_COST
     Log(fmt::format("Render & draw cost {} ms", (Time() - time) * 1000));
     #endif
 }
+
+void Runtime::Draw(FrameProps props)
+{
+    float dt = props.deltaTime;
+    this->_win->SwapBuffers();
+}
+
 
 float Runtime::Time()
 {

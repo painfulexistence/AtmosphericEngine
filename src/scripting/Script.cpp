@@ -22,7 +22,7 @@ void Script::Init(MessageBus* mb, Application* app)
     this->_L->Run("init()");
     //L->Bind("get_cursor_uv", &Input::GetCursorUV, &input);
     //L->Bind("get_key_down", &Input::GetKeyDown, &input);
-    //L->Bind("check_errors", &Renderer::CheckErrors, &renderer);
+    //L->Bind("check_errors", &GraphicsServer::CheckErrors, &graphics);
 }
 
 void Script::Process(float dt)

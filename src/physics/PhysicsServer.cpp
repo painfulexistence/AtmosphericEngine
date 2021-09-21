@@ -1,6 +1,6 @@
-#include "Physics/World.hpp"
+#include "Physics/PhysicsServer.hpp"
 
-PhysicsWorld::PhysicsWorld() : _timeAccum(0.0f)
+PhysicsServer::PhysicsServer() : _timeAccum(0.0f)
 {
     _config = new btDefaultCollisionConfiguration();
     _dispatcher = new btCollisionDispatcher(_config);
@@ -10,7 +10,7 @@ PhysicsWorld::PhysicsWorld() : _timeAccum(0.0f)
     _world->setGravity(btVector3(0, -GRAVITY, 0));
 }
 
-PhysicsWorld::~PhysicsWorld()
+PhysicsServer::~PhysicsServer()
 {
     delete _world;
     delete _solver;
@@ -19,7 +19,7 @@ PhysicsWorld::~PhysicsWorld()
     delete _config;
 }
 
-void PhysicsWorld::Process(float dt)
+void PhysicsServer::Process(float dt)
 {    
     _timeAccum += dt;
     while (_timeAccum >= FIXED_TIME_STEP) {
@@ -28,7 +28,7 @@ void PhysicsWorld::Process(float dt)
     }
 }
 
-std::uint64_t PhysicsWorld::CreateBoxImpostor(btVector3 position, btVector3 size, float mass)
+std::uint64_t PhysicsServer::CreateBoxImpostor(btVector3 position, btVector3 size, float mass)
 {
     btTransform trans = btTransform(btQuaternion(0, 0, 0), position);
     btMotionState* motionState = new btDefaultMotionState(trans);
@@ -42,7 +42,7 @@ std::uint64_t PhysicsWorld::CreateBoxImpostor(btVector3 position, btVector3 size
     return eid;
 }
 
-std::uint64_t PhysicsWorld::CreateSphereImpostor(btVector3 position, float diameter, float mass)
+std::uint64_t PhysicsServer::CreateSphereImpostor(btVector3 position, float diameter, float mass)
 {
     btTransform trans = btTransform(btQuaternion(0, 0, 0), position);    
     btMotionState* motionState = new btDefaultMotionState(trans);
@@ -56,7 +56,7 @@ std::uint64_t PhysicsWorld::CreateSphereImpostor(btVector3 position, float diame
     return eid;
 }
 
-std::uint64_t PhysicsWorld::CreateCapsuleImpostor(btVector3 position, float diameter, float height, float mass)
+std::uint64_t PhysicsServer::CreateCapsuleImpostor(btVector3 position, float diameter, float height, float mass)
 {
     btTransform trans = btTransform(btQuaternion(0, 0, 0), position);
     btMotionState* motionState = new btDefaultMotionState(trans);
@@ -70,7 +70,7 @@ std::uint64_t PhysicsWorld::CreateCapsuleImpostor(btVector3 position, float diam
     return eid;
 }
 
-bool PhysicsWorld::GetImpostorLinearFactor(std::uint64_t id, btVector3& fac) const
+bool PhysicsServer::GetImpostorLinearFactor(std::uint64_t id, btVector3& fac) const
 {
     if (!HasImpostor(id)) 
         return false;
@@ -79,7 +79,7 @@ bool PhysicsWorld::GetImpostorLinearFactor(std::uint64_t id, btVector3& fac) con
     return true;
 }
 
-void PhysicsWorld::SetImpostorLinearFactor(std::uint64_t id, const btVector3& fac)
+void PhysicsServer::SetImpostorLinearFactor(std::uint64_t id, const btVector3& fac)
 {
     if (!HasImpostor(id)) 
         return;
@@ -87,7 +87,7 @@ void PhysicsWorld::SetImpostorLinearFactor(std::uint64_t id, const btVector3& fa
     _impostors.find(id)->second->setLinearFactor(fac);
 }
 
-bool PhysicsWorld::GetImpostorLinearVelocity(std::uint64_t id, btVector3& vel) const
+bool PhysicsServer::GetImpostorLinearVelocity(std::uint64_t id, btVector3& vel) const
 {
     if (!HasImpostor(id)) 
         return false;
@@ -96,7 +96,7 @@ bool PhysicsWorld::GetImpostorLinearVelocity(std::uint64_t id, btVector3& vel) c
     return true;
 }
 
-void PhysicsWorld::SetImpostorLinearVelocity(std::uint64_t id, const btVector3& vel)
+void PhysicsServer::SetImpostorLinearVelocity(std::uint64_t id, const btVector3& vel)
 {
     if (!HasImpostor(id)) 
         return;
@@ -106,7 +106,7 @@ void PhysicsWorld::SetImpostorLinearVelocity(std::uint64_t id, const btVector3& 
     r->setLinearVelocity(vel);
 }
 
-bool PhysicsWorld::GetImpostorAngularFactor(std::uint64_t id, btVector3& fac) const
+bool PhysicsServer::GetImpostorAngularFactor(std::uint64_t id, btVector3& fac) const
 {
     if (!HasImpostor(id)) 
         return false;
@@ -115,7 +115,7 @@ bool PhysicsWorld::GetImpostorAngularFactor(std::uint64_t id, btVector3& fac) co
     return true;
 }
 
-void PhysicsWorld::SetImpostorAngularFactor(std::uint64_t id, const btVector3& fac)
+void PhysicsServer::SetImpostorAngularFactor(std::uint64_t id, const btVector3& fac)
 {
     if (!HasImpostor(id)) 
         return;
@@ -123,7 +123,7 @@ void PhysicsWorld::SetImpostorAngularFactor(std::uint64_t id, const btVector3& f
     _impostors.find(id)->second->setAngularFactor(fac);
 }
 
-bool PhysicsWorld::GetImpostorAngularVelocity(std::uint64_t id, btVector3& vel) const
+bool PhysicsServer::GetImpostorAngularVelocity(std::uint64_t id, btVector3& vel) const
 {
     if (!HasImpostor(id)) 
         return false;
@@ -132,7 +132,7 @@ bool PhysicsWorld::GetImpostorAngularVelocity(std::uint64_t id, btVector3& vel) 
     return true;
 }
 
-void PhysicsWorld::SetImpostorAngularVelocity(std::uint64_t id, const btVector3& vel)
+void PhysicsServer::SetImpostorAngularVelocity(std::uint64_t id, const btVector3& vel)
 {
     if (!HasImpostor(id)) 
         return;
@@ -142,7 +142,7 @@ void PhysicsWorld::SetImpostorAngularVelocity(std::uint64_t id, const btVector3&
     r->setAngularVelocity(vel);
 }
 
-void PhysicsWorld::ActivateImpostor(std::uint64_t id)
+void PhysicsServer::ActivateImpostor(std::uint64_t id)
 {
     if (!HasImpostor(id)) 
         return;
@@ -150,7 +150,7 @@ void PhysicsWorld::ActivateImpostor(std::uint64_t id)
     _impostors.find(id)->second->activate();
 }
 
-void PhysicsWorld::DampenImpostor(std::uint64_t id)
+void PhysicsServer::DampenImpostor(std::uint64_t id)
 {
     if (!HasImpostor(id)) 
         return;
@@ -160,7 +160,7 @@ void PhysicsWorld::DampenImpostor(std::uint64_t id)
     r->setLinearVelocity(btVector3(vel.x() / 2.0f, vel.y(), vel.z() / 2.0f));
 }
 
-void PhysicsWorld::RotateImpostor(std::uint64_t id, btQuaternion rotation) // Rotate to
+void PhysicsServer::RotateImpostor(std::uint64_t id, btQuaternion rotation) // Rotate to
 {
     if (!HasImpostor(id))
         return;
@@ -168,7 +168,7 @@ void PhysicsWorld::RotateImpostor(std::uint64_t id, btQuaternion rotation) // Ro
     _impostors.find(id)->second->proceedToTransform(btTransform(rotation, btVector3(0, 0, 0)));
 }
 
-void PhysicsWorld::TranslateImpostor(std::uint64_t id, btVector3 translation) // Translate to
+void PhysicsServer::TranslateImpostor(std::uint64_t id, btVector3 translation) // Translate to
 {
     if (!HasImpostor(id))
         return;

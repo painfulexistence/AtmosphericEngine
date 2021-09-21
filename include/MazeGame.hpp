@@ -22,11 +22,13 @@ public:
         script.GetData(std::string("game_state"), gameState);
 
         // Load textures
+        std::vector<std::string> paths;
         for (const auto& kv : textures)
         {
             sol::table tex = (sol::table)kv.second;
-            renderer.LoadTexture(tex["path"]);
+            paths.push_back((std::string)tex["path"]);
         }
+        graphics.LoadTextures(paths);
         script.Print("Textures loaded.");
 
         // Create cameras
@@ -34,11 +36,11 @@ public:
         {
             Camera cam = Camera(CameraProps((sol::table)kv.second));
             cam.SetGraphicsId(scene.CreateGhostGeometry());
-            cam.SetPhysicsId(world.CreateCapsuleImpostor(btVector3(0.f, 2.f, 0.f), 1.0f, 4.0f, 10.0f));
+            cam.SetPhysicsId(physics.CreateCapsuleImpostor(btVector3(0.f, 2.f, 0.f), 1.0f, 4.0f, 10.0f));
             _cameras.push_back(cam);
 
-            world.SetImpostorLinearFactor(cam.GetPhysicsId(), btVector3(1, 1, 1));
-            world.SetImpostorAngularFactor(cam.GetPhysicsId(), btVector3(0, 0, 0));
+            physics.SetImpostorLinearFactor(cam.GetPhysicsId(), btVector3(1, 1, 1));
+            physics.SetImpostorAngularFactor(cam.GetPhysicsId(), btVector3(0, 0, 0));
             entities.push_back(cam);
         }
         script.Print("Cameras initialized.");
@@ -66,7 +68,7 @@ public:
         hdrProgram = ShaderProgram(shaders["hdr"]["vert"], shaders["hdr"]["frag"]);
         script.Print("Shaders initialized.");
 
-        renderer.BindSceneVAO();
+        graphics.BindSceneVAO();
         // Create meshes in scene
         {
             auto mesh = make_shared<Mesh>();
@@ -91,7 +93,7 @@ public:
 
                 auto ent = Entity();
                 ent.SetGraphicsId(scene.CreateMeshGeometry("Sphere", glm::scale(glm::mat4(1.0), glm::vec3(diameter))));
-                ent.SetPhysicsId(world.CreateSphereImpostor(btVector3(rand() % 10 - 5, rand() % 100 + 20, rand() % 10 - 5), diameter, 1.0f));
+                ent.SetPhysicsId(physics.CreateSphereImpostor(btVector3(rand() % 10 - 5, rand() % 100 + 20, rand() % 10 - 5), diameter, 1.0f));
                 entities.push_back(ent);
             }
         }
@@ -113,30 +115,30 @@ public:
         const std::uint64_t& impostor = _cameras[0].GetPhysicsId();
 
         btVector3 currentVel;    
-        if (!world.GetImpostorLinearVelocity(impostor, currentVel)) 
+        if (!physics.GetImpostorLinearVelocity(impostor, currentVel)) 
             throw runtime_error("Impostor not found");
 
         if (input.GetKeyDown(KEY_W))
         {
             glm::vec3 v = _cameras[0].CreateLinearVelocity(Axis::FRONT);
-            world.SetImpostorLinearVelocity(impostor, btVector3(v.x, currentVel.y(), v.z));
+            physics.SetImpostorLinearVelocity(impostor, btVector3(v.x, currentVel.y(), v.z));
         }
         if (input.GetKeyDown(KEY_S))
         {
             glm::vec3 v = _cameras[0].CreateLinearVelocity(Axis::FRONT);
-            world.SetImpostorLinearVelocity(impostor, btVector3(-v.x, currentVel.y(), -v.z));
+            physics.SetImpostorLinearVelocity(impostor, btVector3(-v.x, currentVel.y(), -v.z));
         }
         if (input.GetKeyDown(KEY_D))
         {
             _cameras[0].yaw(0.3 * CAMERA_ANGULAR_OFFSET);
             glm::vec3 v = _cameras[0].CreateLinearVelocity(Axis::RIGHT);
-            world.SetImpostorLinearVelocity(impostor, btVector3(v.x, currentVel.y(), v.z));
+            physics.SetImpostorLinearVelocity(impostor, btVector3(v.x, currentVel.y(), v.z));
         }
         if (input.GetKeyDown(KEY_A))
         {
             _cameras[0].yaw(-0.3 * CAMERA_ANGULAR_OFFSET);
             glm::vec3 v = _cameras[0].CreateLinearVelocity(Axis::RIGHT);
-            world.SetImpostorLinearVelocity(impostor, btVector3(-v.x, currentVel.y(), -v.z));
+            physics.SetImpostorLinearVelocity(impostor, btVector3(-v.x, currentVel.y(), -v.z));
         }
         if (input.GetKeyDown(KEY_UP))
         {
@@ -156,9 +158,9 @@ public:
         }
         if (input.GetKeyDown(KEY_SPACE)) 
         {
-            world.GetImpostorLinearVelocity(impostor, currentVel); // update velcoity to reflect current horizontal speed
+            physics.GetImpostorLinearVelocity(impostor, currentVel); // update velcoity to reflect current horizontal speed
             glm::vec3 v = _cameras[0].CreateLinearVelocity(Axis::UP);
-            world.SetImpostorLinearVelocity(impostor, btVector3(currentVel.x(), v.y, currentVel.z()));
+            physics.SetImpostorLinearVelocity(impostor, btVector3(currentVel.x(), v.y, currentVel.z()));
         }
         if (input.GetKeyDown(KEY_X))
         {
@@ -194,7 +196,7 @@ private:
                     {
                         auto ent = Entity();
                         ent.SetGraphicsId(scene.CreateMeshGeometry("Cube"));
-                        ent.SetPhysicsId(world.CreateBoxImpostor(TILE_SIZE * btVector3(x - MAZE_SIZE / 2.f, 3, z - MAZE_SIZE / 2.f), btVector3(TILE_SIZE, TILE_SIZE, TILE_SIZE)));
+                        ent.SetPhysicsId(physics.CreateBoxImpostor(TILE_SIZE * btVector3(x - MAZE_SIZE / 2.f, 3, z - MAZE_SIZE / 2.f), btVector3(TILE_SIZE, TILE_SIZE, TILE_SIZE)));
                         entities.push_back(ent);
                     }
                     if (maze[x][z]) 
@@ -203,7 +205,7 @@ private:
                         {
                             auto ent = Entity();
                             ent.SetGraphicsId(scene.CreateMeshGeometry("Cube"));
-                            ent.SetPhysicsId(world.CreateBoxImpostor(TILE_SIZE * btVector3(x - MAZE_SIZE / 2.f, h, z - MAZE_SIZE / 2.f), btVector3(TILE_SIZE, TILE_SIZE, TILE_SIZE)));
+                            ent.SetPhysicsId(physics.CreateBoxImpostor(TILE_SIZE * btVector3(x - MAZE_SIZE / 2.f, h, z - MAZE_SIZE / 2.f), btVector3(TILE_SIZE, TILE_SIZE, TILE_SIZE)));
                             entities.push_back(ent);
                         }
                     } 
@@ -224,7 +226,7 @@ private:
                     }
                     auto ent = Entity();
                     ent.SetGraphicsId(scene.CreateMeshGeometry("Cube"));
-                    ent.SetPhysicsId(world.CreateBoxImpostor(TILE_SIZE * btVector3(x - MAZE_SIZE / 2.f, -1, z - MAZE_SIZE / 2.f), btVector3(TILE_SIZE, TILE_SIZE, TILE_SIZE)));
+                    ent.SetPhysicsId(physics.CreateBoxImpostor(TILE_SIZE * btVector3(x - MAZE_SIZE / 2.f, -1, z - MAZE_SIZE / 2.f), btVector3(TILE_SIZE, TILE_SIZE, TILE_SIZE)));
                     entities.push_back(ent);
                 }
             }
@@ -239,7 +241,7 @@ private:
 
             auto ent = Entity();
             ent.SetGraphicsId(scene.CreateMeshGeometry("Terrain"));
-            ent.SetPhysicsId(world.CreateBoxImpostor(btVector3(0.0f, -10.0f, 0.0f), btVector3(size, 0.2f, size)));
+            ent.SetPhysicsId(physics.CreateBoxImpostor(btVector3(0.0f, -10.0f, 0.0f), btVector3(size, 0.2f, size)));
             entities.push_back(ent);
         }
     }

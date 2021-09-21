@@ -8,4 +8,4 @@
 #include "Graphics/Shader.hpp"
 #include "Graphics/scene.hpp"
 #include "Graphics/texture.hpp"
-#include "Graphics/Renderer.hpp"
+#include "Graphics/GraphicsServer.hpp"

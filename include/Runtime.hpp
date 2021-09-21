@@ -5,11 +5,17 @@
 #include "Graphics.hpp"
 #include "GUI.hpp"
 #include "Console.hpp"
-#include "Input/Input.hpp"
+#include "Input.hpp"
 #include "Scripting.hpp"
+#include "ECS.hpp"
 
-struct FrameData
+struct FrameProps
 {
+    FrameProps(uint64_t number, float deltaTime)
+    {
+        this->number = number;
+        this->deltaTime = deltaTime;
+    };
     uint64_t number;
     float deltaTime;
 };
@@ -27,9 +33,11 @@ private:
         
     void Log(std::string message);
 
-    void Process(float dt);
+    void Process(FrameProps frame);
 
-    void Render(float dt); // TODO: Separate rendering and drawing logic if the backend supports command buffering
+    void Render(FrameProps frame); // TODO: Properly separate rendering and drawing logic if the backend supports command buffering
+
+    void Draw(FrameProps frame);
 
 public:
     Runtime();
@@ -48,8 +56,8 @@ public:
 
 protected:
     // These subsystems will be game accessible
-    Renderer renderer;
-    PhysicsWorld world;
+    GraphicsServer graphics;
+    PhysicsServer physics;
     Console console;
     GUI gui;
     Input input;

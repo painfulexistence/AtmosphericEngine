@@ -24,8 +24,8 @@ public:
         // Load textures
         for (const auto& kv : textures)
         {
-            Texture texture = Texture((sol::table)kv.second);
-            renderer.CreateTexture(texture.path);
+            sol::table tex = (sol::table)kv.second;
+            renderer.LoadTexture(tex["path"]);
         }
         script.Print("Textures loaded.");
 

@@ -27,8 +27,10 @@ public:
     void Process(float dt) override;
 
     void OnMessage(Message msg) override;
+    
+    void LoadTexture(const std::string& path);
 
-    void CreateTexture(const std::string&);
+    void LoadTextures(std::vector<std::string> paths);
     
     void BindSceneVAO();
     

@@ -49,8 +49,7 @@ void Renderer::OnMessage(Message msg)
 
 }
 
-// TODO: Should generate many textures at once
-void Renderer::CreateTexture(const std::string& path)
+void Renderer::LoadTexture(const std::string& path)
 { 
     GLuint tex;
     glGenTextures(1, &tex);
@@ -73,6 +72,34 @@ void Renderer::CreateTexture(const std::string& path)
         throw std::runtime_error(fmt::format("Failed to load texture at {}\n", path));
     }
     stbi_image_free(data);
+}
+
+void Renderer::LoadTextures(std::vector<std::string> paths)
+{
+    int count = paths.size();
+    textures.resize(count);
+    glGenTextures(count, textures.data());
+    
+    for (int i = 0; i < count; i++)
+    {
+        glBindTexture(GL_TEXTURE_2D, textures[i]);
+        float border[] = {1.f, 1.f, 1.f, 1.f};
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, border);  
+        
+        int width, height, nChannels;
+        unsigned char* data = stbi_load(paths[i].c_str(), &width, &height, &nChannels, 0);
+        if (data) {
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+            glGenerateMipmap(GL_TEXTURE_2D);
+        } else {
+            throw std::runtime_error(fmt::format("Failed to load texture at {}\n", paths[i]));
+        }
+        stbi_image_free(data);
+    }
 }
 
 void Renderer::BindSceneVAO()

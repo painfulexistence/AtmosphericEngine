@@ -1,5 +1,5 @@
 set(SOURCES
     src/ECS/Entity.cpp
-    src/ECS/Component.cpp
+    src/ECS/ECSServer.cpp
 )
 target_sources(AtmosphericEngine PRIVATE ${SOURCES})

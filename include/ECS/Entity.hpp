@@ -1,8 +1,5 @@
 #pragma once
 #include "Globals.hpp"
-#include "ECS/Component.hpp"
-
-class Component;
 
 class Entity
 {

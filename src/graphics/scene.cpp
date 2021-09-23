@@ -3,21 +3,21 @@
 
 std::map<std::string, std::shared_ptr<Mesh>> Scene::MeshTable = std::map<std::string, std::shared_ptr<Mesh>>();
 
-std::uint64_t Scene::CreateGhostGeometry()
+uint64_t Scene::CreateGhostGeometry()
 {
-    std::uint64_t id = _geometries.size() + 1;
+    uint64_t id = _geometries.size() + 1;
     std::unique_ptr<Geometry> geo = std::make_unique<Geometry>();
     _geometries.insert({id, std::move(geo)});
 
     return id;
 }
 
-std::uint64_t Scene::CreateMeshGeometry(const std::string& entry, glm::mat4 modelTransform)
+uint64_t Scene::CreateMeshGeometry(const std::string& entry, glm::mat4 modelTransform)
 {
     if (MeshTable.count(entry) == 0)
         throw std::runtime_error("Cannot create geometry!");
 
-    std::uint64_t id = _geometries.size() + 1;
+    uint64_t id = _geometries.size() + 1;
     std::unique_ptr<Geometry> geo = std::make_unique<Geometry>();
     geo->SetModelTransform(modelTransform);
     _geometries.insert({id, std::move(geo)});
@@ -26,7 +26,7 @@ std::uint64_t Scene::CreateMeshGeometry(const std::string& entry, glm::mat4 mode
     return id;
 }
 
-bool Scene::GetGeometryModelTransform(std::uint64_t id, glm::mat4& transform) const
+bool Scene::GetGeometryModelTransform(uint64_t id, glm::mat4& transform) const
 {
     if (_geometries.count(id) == 0)
         return false;
@@ -35,7 +35,7 @@ bool Scene::GetGeometryModelTransform(std::uint64_t id, glm::mat4& transform) co
     return true;
 }
 
-void Scene::SetGeometryModelTransform(std::uint64_t id, const glm::mat4& transform)
+void Scene::SetGeometryModelTransform(uint64_t id, const glm::mat4& transform)
 {
     if (_geometries.count(id) == 0)
         return;
@@ -43,7 +43,7 @@ void Scene::SetGeometryModelTransform(std::uint64_t id, const glm::mat4& transfo
     _geometries.find(id)->second->SetModelTransform(transform);
 }
 
-bool Scene::GetGeometryModelWorldTransform(std::uint64_t id, glm::mat4& transform) const
+bool Scene::GetGeometryModelWorldTransform(uint64_t id, glm::mat4& transform) const
 {
     if (_geometries.count(id) == 0)
         return false;
@@ -52,7 +52,7 @@ bool Scene::GetGeometryModelWorldTransform(std::uint64_t id, glm::mat4& transfor
     return true;
 }
 
-void Scene::SetGeometryModelWorldTransform(std::uint64_t id, const glm::mat4& transform)
+void Scene::SetGeometryModelWorldTransform(uint64_t id, const glm::mat4& transform)
 {
     if (_geometries.count(id) == 0)
         return;

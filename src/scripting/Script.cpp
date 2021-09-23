@@ -40,9 +40,9 @@ void Script::Print(const std::string& msg)
     this->_L->Print(msg);
 }
 
-template<typename T> void Script::GetData(const std::string& key, T& data)
+template<typename IL> auto Script::GetData(const std::string& key)
 {
-    this->_L->GetData(key, data);
+    return dynamic_cast<IL*>(this->_L)->GetData(key);
 }
 
 template<> void Script::GetData(const std::string& key, sol::table& data)

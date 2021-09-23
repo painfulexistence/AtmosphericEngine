@@ -21,6 +21,8 @@ public:
 
     void Print(const std::string&) override;
 
+    const sol::table& GetData(const std::string& key);
+
     void GetData(const std::string& key, sol::table& data);
 
 private:

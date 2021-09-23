@@ -10,7 +10,7 @@ private:
     std::vector<GLfloat> verts;
     std::vector<GLushort> tris;
     std::array<glm::vec3, 8> bounds;
-    std::list<std::uint64_t> _instances;
+    std::list<uint64_t> _instances;
     bool _initialized = false;
 
     void BufferData();
@@ -27,11 +27,11 @@ public:
 
     std::array<glm::vec3, 8> GetBoundingBox() const { return bounds; }
 
-    std::list<std::uint64_t> GetInstances() const { return _instances; }
+    std::list<uint64_t> GetInstances() const { return _instances; }
 
-    void AddInstance(const std::uint64_t& id) { _instances.push_back(id); }
+    void AddInstance(const uint64_t& id) { _instances.push_back(id); }
 
-    void RemoveInstance(const std::uint64_t& id) { _instances.remove(id); }
+    void RemoveInstance(const uint64_t& id) { _instances.remove(id); }
 
     void AsCube(const GLfloat& size = 1.0f);
 

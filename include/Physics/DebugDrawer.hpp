@@ -1,12 +1,8 @@
 #pragma once
 #include "Globals.hpp"
-#include <LinearMath/btQuaternion.h>
-#include <LinearMath/btTransform.h>
-#include <LinearMath/btVector3.h>
-#include <LinearMath/btDefaultMotionState.h>
-#include <LinearMath/btIDebugDraw.h>
+#include "Physics/LinearMath.hpp">
 
-class PhysicsDebugger : public btIDebugDraw 
+class DebugDrawer : public btIDebugDraw 
 {
 private:
     struct Line 

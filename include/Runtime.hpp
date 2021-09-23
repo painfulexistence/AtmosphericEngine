@@ -7,7 +7,6 @@
 #include "Console.hpp"
 #include "Input.hpp"
 #include "Scripting.hpp"
-#include "ECS.hpp"
 
 struct FrameProps
 {
@@ -39,6 +38,8 @@ private:
 
     void Draw(FrameProps frame);
 
+    void BroadcastMessages();
+
 public:
     Runtime();
 
@@ -64,12 +65,13 @@ protected:
     Scene scene;
     Script script;
     std::list<Entity>& entities;
-    std::vector<Camera> _cameras = {};
-    std::vector<Light> _lights = {};
-    std::vector<Material> _materials = {};
+    std::vector<Camera> cameras = {};
+    std::vector<Light> lights = {};
+    std::vector<Material> materials = {};
     glm::vec4 clearColor = glm::vec4(0.15f, 0.183f, 0.2f, 1.0f);
     ShaderProgram colorProgram;
     ShaderProgram depthTextureProgram;
     ShaderProgram depthCubemapProgram;
     ShaderProgram hdrProgram;
+    std::vector<btCollisionShape*> shapeCollection;
 };

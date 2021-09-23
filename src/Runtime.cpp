@@ -37,6 +37,7 @@ void Runtime::Execute()
     physics.Init(_mb, _app);
     graphics.Init(_mb, _app);
     script.Init(_mb, _app);
+    //ecs.Init(_mb, _app);
     this->_initialized = true;
     
     Log("Loading data...");
@@ -61,7 +62,7 @@ void Runtime::Execute()
         Process(currentFrame);
         for (const auto& ent : Entity::WithPhysicsComponent())
         {
-            const glm::mat4& m2w = ConvertPhysicalMatrix(physics.GetImpostorTransform(ent.GetPhysicsId()));
+            const glm::mat4& m2w = ConvertPhysicalMatrix(physics.World()->GetImpostorTransform(ent.GetPhysicsId()));
             scene.SetGeometryModelWorldTransform(ent.GetGraphicsId(), m2w);
         }
         Render(currentFrame);
@@ -76,9 +77,10 @@ void Runtime::Execute()
         Draw(currentFrame);
         // Sync
         simulation.join();
+        //ecs.SyncTransformWithPhysics();
         for (const auto& ent : Entity::WithPhysicsComponent())
         {
-            const glm::mat4& m2w = ConvertPhysicalMatrix(physics.GetImpostorTransform(ent.GetPhysicsId()));
+            const glm::mat4& m2w = ConvertPhysicalMatrix(physics.World()->GetImpostorTransform(ent.GetPhysicsId()));
             scene.SetGeometryModelWorldTransform(ent.GetGraphicsId(), m2w);
         }
         #pragma endregion
@@ -99,13 +101,13 @@ void Runtime::Process(FrameProps props)
     float time = Time();
     
     Update(dt, time);
-    this->_mb->Process();
-
+    //ecs.Process(dt); // Note that most of the entity manipulation logic should be put there
+    BroadcastMessages();
     console.Process(dt);
     input.Process(dt);
     script.Process(dt);
     physics.Process(dt); // TODO: Update only every entity's physics transform
-    physics.DampenImpostor(_cameras[0].GetPhysicsId());
+    physics.World()->DampenImpostor(cameras[0].GetPhysicsId());
     graphics.Process(dt); // TODO: Generate command buffers according to entity transforms
 
     #if SHOW_PROCESS_COST
@@ -119,7 +121,7 @@ void Runtime::Render(FrameProps props)
     float time = Time();
 
     const int mainLightCount = 1;
-    const int auxLightCount = (int)_lights.size() - mainLightCount;
+    const int auxLightCount = (int)lights.size() - mainLightCount;
 
     graphics.BindSceneVAO();
     
@@ -130,10 +132,10 @@ void Runtime::Render(FrameProps props)
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, graphics.GetShadowMap(DIR_LIGHT, 0), 0);
         glClear(GL_DEPTH_BUFFER_BIT);
         depthTextureProgram.Activate();
-        scene.Render(depthTextureProgram, _lights[0].GetProjectionMatrix(0), _lights[0].GetViewMatrix());
+        scene.Render(depthTextureProgram, lights[0].GetProjectionMatrix(0), lights[0].GetViewMatrix());
         for (int i = 0; i < auxLightCount; ++i)
         {
-            Light& l = _lights[i + mainLightCount];
+            Light& l = lights[i + mainLightCount];
             if ((bool)l.castShadow)
                 continue;
             if (auxShadows++ >= MAX_AUX_SHADOWS)
@@ -157,20 +159,20 @@ void Runtime::Render(FrameProps props)
         glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);    
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         colorProgram.Activate();
-        glm::mat4 cameraTransform = scene.GetGeometryWorldMatrix(_cameras[0].GetGraphicsId());
-        glm::vec3 eyePos = _cameras[0].GetEye(cameraTransform);
+        glm::mat4 cameraTransform = scene.GetGeometryWorldMatrix(cameras[0].GetGraphicsId());
+        glm::vec3 eyePos = cameras[0].GetEye(cameraTransform);
         colorProgram.SetUniform(string("cam_pos"), eyePos);
         colorProgram.SetUniform(string("time"), Time());
-        colorProgram.SetUniform(string("main_light.direction"), _lights[0].direction);
-        colorProgram.SetUniform(string("main_light.ambient"), _lights[0].ambient);
-        colorProgram.SetUniform(string("main_light.diffuse"), _lights[0].diffuse);
-        colorProgram.SetUniform(string("main_light.specular"), _lights[0].specular);
-        colorProgram.SetUniform(string("main_light.intensity"), _lights[0].intensity);
-        colorProgram.SetUniform(string("main_light.cast_shadow"), _lights[0].castShadow);
-        colorProgram.SetUniform(string("main_light.ProjectionView"), _lights[0].GetProjectionViewMatrix(0));
+        colorProgram.SetUniform(string("main_light.direction"), lights[0].direction);
+        colorProgram.SetUniform(string("main_light.ambient"), lights[0].ambient);
+        colorProgram.SetUniform(string("main_light.diffuse"), lights[0].diffuse);
+        colorProgram.SetUniform(string("main_light.specular"), lights[0].specular);
+        colorProgram.SetUniform(string("main_light.intensity"), lights[0].intensity);
+        colorProgram.SetUniform(string("main_light.cast_shadow"), lights[0].castShadow);
+        colorProgram.SetUniform(string("main_light.ProjectionView"), lights[0].GetProjectionViewMatrix(0));
         for (int i = 0; i < auxLightCount; ++i)
         {
-            Light& l = _lights[i + mainLightCount];
+            Light& l = lights[i + mainLightCount];
             colorProgram.SetUniform(string("aux_lights[") + to_string(i) + string("].position"), l.position);
             colorProgram.SetUniform(string("aux_lights[") + to_string(i) + string("].ambient"), l.ambient);
             colorProgram.SetUniform(string("aux_lights[") + to_string(i) + string("].diffuse"), l.diffuse);
@@ -187,7 +189,7 @@ void Runtime::Render(FrameProps props)
         colorProgram.SetUniform(string("aux_light_count"), auxLightCount);
         colorProgram.SetUniform(string("shadow_map_unit"), (int)0);
         colorProgram.SetUniform(string("omni_shadow_map_unit"), (int)1);
-        scene.Render(colorProgram, _cameras[0].GetProjectionMatrix(), _cameras[0].GetViewMatrix(cameraTransform));
+        scene.Render(colorProgram, cameras[0].GetProjectionMatrix(), cameras[0].GetViewMatrix(cameraTransform));
     }
     graphics.EndColorPass();
 
@@ -215,6 +217,11 @@ void Runtime::Draw(FrameProps props)
 {
     float dt = props.deltaTime;
     this->_win->SwapBuffers();
+}
+
+void Runtime::BroadcastMessages()
+{
+    this->_mb->Process();
 }
 
 

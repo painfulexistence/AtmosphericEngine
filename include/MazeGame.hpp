@@ -8,22 +8,22 @@ static glm::mat4 ConvertPhysicalMatrix(const btTransform& trans);
 class MazeGame : public Runtime
 {    
 public:
-    sol::table maze, cameras, lights, textures, materials, shaders, gameState;
+    sol::table maze, cameraTable, lightTable, textureTable, materialTable, shaderTable, gameState;
 
     void Load()
     {
         // Read data from script
         script.GetData(std::string("maze"), maze);
-        script.GetData(std::string("cameras"), cameras);
-        script.GetData(std::string("lights"), lights);
-        script.GetData(std::string("textures"), textures);
-        script.GetData(std::string("materials"), materials);
-        script.GetData(std::string("shaders"), shaders);
+        script.GetData(std::string("cameras"), cameraTable);
+        script.GetData(std::string("lights"), lightTable);
+        script.GetData(std::string("textures"), textureTable);
+        script.GetData(std::string("materials"), materialTable);
+        script.GetData(std::string("shaders"), shaderTable);
         script.GetData(std::string("game_state"), gameState);
 
         // Load textures
         std::vector<std::string> paths;
-        for (const auto& kv : textures)
+        for (const auto& kv : textureTable)
         {
             sol::table tex = (sol::table)kv.second;
             paths.push_back((std::string)tex["path"]);
@@ -32,40 +32,41 @@ public:
         script.Print("Textures loaded.");
 
         // Create cameras
-        for (const auto& kv : cameras)
+        for (const auto& kv : cameraTable)
         {
             Camera cam = Camera(CameraProps((sol::table)kv.second));
+            auto capsuleShape = new btCapsuleShape(0.5f, 3.0f);
             cam.SetGraphicsId(scene.CreateGhostGeometry());
-            cam.SetPhysicsId(physics.CreateCapsuleImpostor(btVector3(0.f, 2.f, 0.f), 1.0f, 4.0f, 10.0f));
-            _cameras.push_back(cam);
+            cam.SetPhysicsId(physics.World()->CreateImpostor(capsuleShape, btVector3(0.f, 2.f, 0.f), 10.0f));
+            cameras.push_back(cam);
 
-            physics.SetImpostorLinearFactor(cam.GetPhysicsId(), btVector3(1, 1, 1));
-            physics.SetImpostorAngularFactor(cam.GetPhysicsId(), btVector3(0, 0, 0));
+            physics.World()->SetImpostorLinearFactor(cam.GetPhysicsId(), btVector3(1, 1, 1));
+            physics.World()->SetImpostorAngularFactor(cam.GetPhysicsId(), btVector3(0, 0, 0));
             entities.push_back(cam);
         }
         script.Print("Cameras initialized.");
 
         // Create lights
-        for (const auto& kv : lights)
+        for (const auto& kv : lightTable)
         {
             Light light = Light(LightProps((sol::table)kv.second));
-            _lights.push_back(light); 
+            lights.push_back(light); 
         }
         script.Print("Lights initialized.");
 
         // Create material
-        for (const auto& kv : materials)
+        for (const auto& kv : materialTable)
         {
             Material mat = Material((sol::table)kv.second);
-            _materials.push_back(mat);
+            materials.push_back(mat);
         }
         script.Print("Materials initialized.");
 
         // Create shader programs
-        colorProgram = ShaderProgram(shaders["color"]["vert"], shaders["color"]["frag"]);
-        depthTextureProgram = ShaderProgram(shaders["depth"]["vert"], shaders["depth"]["frag"]);
-        depthCubemapProgram = ShaderProgram(shaders["depth_cubemap"]["vert"], shaders["depth_cubemap"]["frag"]);
-        hdrProgram = ShaderProgram(shaders["hdr"]["vert"], shaders["hdr"]["frag"]);
+        colorProgram = ShaderProgram(shaderTable["color"]["vert"], shaderTable["color"]["frag"]);
+        depthTextureProgram = ShaderProgram(shaderTable["depth"]["vert"], shaderTable["depth"]["frag"]);
+        depthCubemapProgram = ShaderProgram(shaderTable["depth_cubemap"]["vert"], shaderTable["depth_cubemap"]["frag"]);
+        hdrProgram = ShaderProgram(shaderTable["hdr"]["vert"], shaderTable["hdr"]["frag"]);
         script.Print("Shaders initialized.");
 
         graphics.BindSceneVAO();
@@ -73,7 +74,7 @@ public:
         {
             auto mesh = make_shared<Mesh>();
             mesh->AsCube(800.0f);
-            mesh->material = _materials[1];
+            mesh->material = materials[1];
             mesh->cullFaceEnabled = false;
             Scene::MeshTable.insert({"Skybox", mesh});
             
@@ -84,16 +85,18 @@ public:
         {
             auto mesh = make_shared<Mesh>();
             mesh->AsSphere();
-            mesh->material = _materials[0];
+            mesh->material = materials[0];
             Scene::MeshTable.insert({"Sphere", mesh});
 
             for (int i = 0; i < 50; ++i)
             {
                 float diameter = (float)(rand() % 10 + 1);
+                auto sphereShape = new btSphereShape(btScalar(diameter));
+                shapeCollection.push_back(sphereShape);
 
                 auto ent = Entity();
                 ent.SetGraphicsId(scene.CreateMeshGeometry("Sphere", glm::scale(glm::mat4(1.0), glm::vec3(diameter))));
-                ent.SetPhysicsId(physics.CreateSphereImpostor(btVector3(rand() % 10 - 5, rand() % 100 + 20, rand() % 10 - 5), diameter, 1.0f));
+                ent.SetPhysicsId(physics.World()->CreateImpostor(sphereShape, btVector3(rand() % 10 - 5, rand() % 100 + 20, rand() % 10 - 5), 1.0f));
                 entities.push_back(ent);
             }
         }
@@ -108,59 +111,59 @@ public:
         if ((bool)gameState["is_light_flashing"])
         {
             glm::vec3 col = glm::vec3(gameState["light_color"][1], gameState["light_color"][2], gameState["light_color"][3]);
-            _lights[0].diffuse = abs(glm::cos(glm::radians(10.0f) * time)) * (float)(rand() % 2 / 2.0 + 0.5) * col;
+            lights[0].diffuse = abs(glm::cos(glm::radians(10.0f) * time)) * (float)(rand() % 2 / 2.0 + 0.5) * col;
         }
 
         // Input handling
-        const std::uint64_t& impostor = _cameras[0].GetPhysicsId();
+        const uint64_t& impostor = cameras[0].GetPhysicsId();
 
         btVector3 currentVel;    
-        if (!physics.GetImpostorLinearVelocity(impostor, currentVel)) 
+        if (!physics.World()->GetImpostorLinearVelocity(impostor, currentVel)) 
             throw runtime_error("Impostor not found");
 
         if (input.GetKeyDown(KEY_W))
         {
-            glm::vec3 v = _cameras[0].CreateLinearVelocity(Axis::FRONT);
-            physics.SetImpostorLinearVelocity(impostor, btVector3(v.x, currentVel.y(), v.z));
+            glm::vec3 v = cameras[0].CreateLinearVelocity(Axis::FRONT);
+            physics.World()->SetImpostorLinearVelocity(impostor, btVector3(v.x, currentVel.y(), v.z));
         }
         if (input.GetKeyDown(KEY_S))
         {
-            glm::vec3 v = _cameras[0].CreateLinearVelocity(Axis::FRONT);
-            physics.SetImpostorLinearVelocity(impostor, btVector3(-v.x, currentVel.y(), -v.z));
+            glm::vec3 v = cameras[0].CreateLinearVelocity(Axis::FRONT);
+            physics.World()->SetImpostorLinearVelocity(impostor, btVector3(-v.x, currentVel.y(), -v.z));
         }
         if (input.GetKeyDown(KEY_D))
         {
-            _cameras[0].yaw(0.3 * CAMERA_ANGULAR_OFFSET);
-            glm::vec3 v = _cameras[0].CreateLinearVelocity(Axis::RIGHT);
-            physics.SetImpostorLinearVelocity(impostor, btVector3(v.x, currentVel.y(), v.z));
+            cameras[0].yaw(0.3 * CAMERA_ANGULAR_OFFSET);
+            glm::vec3 v = cameras[0].CreateLinearVelocity(Axis::RIGHT);
+            physics.World()->SetImpostorLinearVelocity(impostor, btVector3(v.x, currentVel.y(), v.z));
         }
         if (input.GetKeyDown(KEY_A))
         {
-            _cameras[0].yaw(-0.3 * CAMERA_ANGULAR_OFFSET);
-            glm::vec3 v = _cameras[0].CreateLinearVelocity(Axis::RIGHT);
-            physics.SetImpostorLinearVelocity(impostor, btVector3(-v.x, currentVel.y(), -v.z));
+            cameras[0].yaw(-0.3 * CAMERA_ANGULAR_OFFSET);
+            glm::vec3 v = cameras[0].CreateLinearVelocity(Axis::RIGHT);
+            physics.World()->SetImpostorLinearVelocity(impostor, btVector3(-v.x, currentVel.y(), -v.z));
         }
         if (input.GetKeyDown(KEY_UP))
         {
-            _cameras[0].pitch(CAMERA_ANGULAR_OFFSET);
+            cameras[0].pitch(CAMERA_ANGULAR_OFFSET);
         }
         if (input.GetKeyDown(KEY_DOWN))
         {
-            _cameras[0].pitch(-CAMERA_ANGULAR_OFFSET);
+            cameras[0].pitch(-CAMERA_ANGULAR_OFFSET);
         }
         if (input.GetKeyDown(KEY_RIGHT))
         {
-            _cameras[0].yaw(CAMERA_ANGULAR_OFFSET);
+            cameras[0].yaw(CAMERA_ANGULAR_OFFSET);
         }
         if (input.GetKeyDown(KEY_LEFT))
         {
-            _cameras[0].yaw(-CAMERA_ANGULAR_OFFSET);
+            cameras[0].yaw(-CAMERA_ANGULAR_OFFSET);
         }
         if (input.GetKeyDown(KEY_SPACE)) 
         {
-            physics.GetImpostorLinearVelocity(impostor, currentVel); // update velcoity to reflect current horizontal speed
-            glm::vec3 v = _cameras[0].CreateLinearVelocity(Axis::UP);
-            physics.SetImpostorLinearVelocity(impostor, btVector3(currentVel.x(), v.y, currentVel.z()));
+            physics.World()->GetImpostorLinearVelocity(impostor, currentVel); // update velcoity to reflect current horizontal speed
+            glm::vec3 v = cameras[0].CreateLinearVelocity(Axis::UP);
+            physics.World()->SetImpostorLinearVelocity(impostor, btVector3(currentVel.x(), v.y, currentVel.z()));
         }
         if (input.GetKeyDown(KEY_X))
         {
@@ -185,8 +188,10 @@ private:
         {
             auto mesh = make_shared<Mesh>();
             mesh->AsCube((float)TILE_SIZE);
-            mesh->material = _materials[2];
+            mesh->material = materials[2];
             Scene::MeshTable.insert({"Cube", mesh});
+            auto blockShape = new btBoxShape(0.5f * btVector3(TILE_SIZE, TILE_SIZE, TILE_SIZE));
+            shapeCollection.push_back(blockShape);
 
             bool characterPlaced = false;
             vector<vector<bool>> maze = generateMazeData(MAZE_SIZE, TILES_TO_REMOVE);
@@ -196,7 +201,7 @@ private:
                     {
                         auto ent = Entity();
                         ent.SetGraphicsId(scene.CreateMeshGeometry("Cube"));
-                        ent.SetPhysicsId(physics.CreateBoxImpostor(TILE_SIZE * btVector3(x - MAZE_SIZE / 2.f, 3, z - MAZE_SIZE / 2.f), btVector3(TILE_SIZE, TILE_SIZE, TILE_SIZE)));
+                        ent.SetPhysicsId(physics.World()->CreateImpostor(blockShape, TILE_SIZE * btVector3(x - MAZE_SIZE / 2.f, 3, z - MAZE_SIZE / 2.f), 0.0f));
                         entities.push_back(ent);
                     }
                     if (maze[x][z]) 
@@ -205,7 +210,7 @@ private:
                         {
                             auto ent = Entity();
                             ent.SetGraphicsId(scene.CreateMeshGeometry("Cube"));
-                            ent.SetPhysicsId(physics.CreateBoxImpostor(TILE_SIZE * btVector3(x - MAZE_SIZE / 2.f, h, z - MAZE_SIZE / 2.f), btVector3(TILE_SIZE, TILE_SIZE, TILE_SIZE)));
+                            ent.SetPhysicsId(physics.World()->CreateImpostor(blockShape, TILE_SIZE * btVector3(x - MAZE_SIZE / 2.f, h, z - MAZE_SIZE / 2.f)));
                             entities.push_back(ent);
                         }
                     } 
@@ -217,7 +222,7 @@ private:
                         }
                         if (!characterPlaced)
                         {
-                            scene.SetGeometryModelWorldTransform(_cameras[0].GetGraphicsId(), glm::translate(glm::mat4(1.0f), TILE_SIZE * glm::vec3(x - MAZE_SIZE / 2.f, 1, z - MAZE_SIZE / 2.f)));
+                            scene.SetGeometryModelWorldTransform(cameras[0].GetGraphicsId(), glm::translate(glm::mat4(1.0f), TILE_SIZE * glm::vec3(x - MAZE_SIZE / 2.f, 1, z - MAZE_SIZE / 2.f)));
                             characterPlaced = true;
                         }
                         WIN_COORD[1] = TILE_SIZE * (x - MAZE_SIZE / 2.f);
@@ -226,7 +231,7 @@ private:
                     }
                     auto ent = Entity();
                     ent.SetGraphicsId(scene.CreateMeshGeometry("Cube"));
-                    ent.SetPhysicsId(physics.CreateBoxImpostor(TILE_SIZE * btVector3(x - MAZE_SIZE / 2.f, -1, z - MAZE_SIZE / 2.f), btVector3(TILE_SIZE, TILE_SIZE, TILE_SIZE)));
+                    ent.SetPhysicsId(physics.World()->CreateImpostor(blockShape, TILE_SIZE * btVector3(x - MAZE_SIZE / 2.f, -1, z - MAZE_SIZE / 2.f)));
                     entities.push_back(ent);
                 }
             }
@@ -236,12 +241,14 @@ private:
 
             auto mesh = make_shared<Mesh>();
             mesh->AsTerrain(size, 10, std::vector<GLfloat>(100, 0.0f));
-            mesh->material = _materials[1];
+            mesh->material = materials[1];
             Scene::MeshTable.insert({"Terrain", mesh});
+            auto terrainShape = new btBoxShape(btVector3(size, 0.2f, size));
+            shapeCollection.push_back(terrainShape);
 
             auto ent = Entity();
             ent.SetGraphicsId(scene.CreateMeshGeometry("Terrain"));
-            ent.SetPhysicsId(physics.CreateBoxImpostor(btVector3(0.0f, -10.0f, 0.0f), btVector3(size, 0.2f, size)));
+            ent.SetPhysicsId(physics.World()->CreateImpostor(terrainShape, btVector3(0.0f, -10.0f, 0.0f)));
             entities.push_back(ent);
         }
     }

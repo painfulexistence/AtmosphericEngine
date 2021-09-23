@@ -4,9 +4,9 @@
             "name": "Mac",
             "includePath": [
                 "/opt/local/include",
-                "/usr/local/include/bullet",
                 "${workspaceFolder}/include",
                 "${workspaceFolder}/external",
+                "${workspaceFolder}/external/bullet3/src",
                 "${workspaceFolder}/external/sol2/include",
                 "${workspaceFolder}/external/fmt/include",
                 "${workspaceFolder}/external/entt/src"

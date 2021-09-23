@@ -12,20 +12,20 @@ public:
     
     Entity();
 
-    std::uint64_t GetEID() const { return _eid; }
+    uint64_t GetEID() const { return _eid; }
     
-    std::uint64_t GetGraphicsId() const { return _graphicsId; }
+    uint64_t GetGraphicsId() const { return _graphicsId; }
 
-    void SetGraphicsId(const std::uint64_t& gid) { _graphicsId = gid; }
+    void SetGraphicsId(const uint64_t& gid) { _graphicsId = gid; }
 
-    std::uint64_t GetPhysicsId() const { return _physicsId; }
+    uint64_t GetPhysicsId() const { return _physicsId; }
 
-    void SetPhysicsId(const std::uint64_t& pid) { _physicsId = pid; }
+    void SetPhysicsId(const uint64_t& pid) { _physicsId = pid; }
 
     inline bool operator==(const Entity& rhs) { return (GetEID() == rhs.GetEID()); };
 
 protected:
-    std::uint64_t _eid = 0;
-    std::uint64_t _graphicsId = 0;
-    std::uint64_t _physicsId = 0;
+    uint64_t _eid = 0;
+    uint64_t _graphicsId = 0;
+    uint64_t _physicsId = 0;
 };

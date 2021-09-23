@@ -18,6 +18,8 @@ public:
 
     void Print(const std::string& msg);
 
+    template<typename IL> auto GetData(const std::string& key);
+
     template<typename T> void GetData(const std::string& key, T& data);
 
 private:

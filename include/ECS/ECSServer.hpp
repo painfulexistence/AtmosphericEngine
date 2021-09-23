@@ -27,37 +27,11 @@ public:
 
     void Destroy(uint64_t eid);
 
-    void SyncWithPhysics();
+    void SyncTransformWithPhysics();
 
-    void AddGraphicsComponent(uint64_t eid)
-    {
+    template<class Component, class ComponentProps> void AddComponent(uint64_t eid, const ComponentProps& props);
 
-    }
-
-    void RemoveGraphicsComponent(uint64_t eid)
-    {
-
-    }
-
-    void AddPhysicsComponent(uint64_t eid)
-    {
-
-    }
-
-    void RemovePhysicsComponent(uint64_t eid)
-    {
-
-    }
-
-    void AddScriptComponent(uint64_t eid)
-    {
-
-    }
-
-    void RemoveScriptComponent(uint64_t eid)
-    {
-
-    }
+    template<class Component> auto GetComponent(uint64_t eid);
 
 private:
     EnttRegistry* _registry;

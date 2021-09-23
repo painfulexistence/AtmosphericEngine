@@ -13,8 +13,8 @@ public:
         entt::entity ent = this->_registry.create();
         uint64_t eid =  this->_idCounter + 1;
 
-        this->_lookup[eid] = ent;
-        this->_reverseLookup[ent] = eid;
+        this->_lookup.insert({eid, ent});
+        this->_reverseLookup.insert({ent, eid});
         this->_idCounter++;
         
         return eid;
@@ -22,14 +22,26 @@ public:
 
     void Destroy(uint64_t eid)
     {
-        entt::entity ent = this->_lookup[eid];
+        entt::entity ent = this->_lookup.find(eid)->second;
         // TODO: Delete table entries related to this entity
     }
 
+    const entt::registry& Data()
+    {
+        return this->_registry;
+    }
+
+    template<class Component, class ComponentProps> void Emplace(uint64_t eid, const ComponentProps& props)
+    {
+        this->_registry.emplace<Component>(this->_lookup.find(eid)->second, props);
+    }
+
+    /*
     template<class Component, class... Params> void Emplace(uint64_t eid, Params&&... params)
     {
-        //this->_registry.emplace<Component>(this->_lookup[eid], ...params);
+        this->_registry.emplace<Component>(this->_lookup[eid], ...params);
     }
+    */
 
     template<class... Components> void Each(std::function<void(uint64_t, Components&&...)> entityProcessor)
     {
@@ -39,7 +51,7 @@ public:
     }
     
 private:
-    entt::registry _registry;
+    entt::registry& _registry;
     std::map<uint64_t, entt::entity> _lookup;
     std::map<entt::entity, uint64_t> _reverseLookup;
     uint64_t _idCounter = 0;

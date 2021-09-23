@@ -1,10 +1,9 @@
 #include "ECS/ECSServer.hpp"
 #include "ECS/EnttRegistry.hpp"
-
-struct Transform
-{
-
-};
+#include "Physics/Impostor.hpp"
+#include "Graphics/camera.hpp"
+#include "Graphics/mesh.hpp"
+#include "Graphics/geometry.hpp"
 
 ECSServer::ECSServer()
 {
@@ -29,7 +28,7 @@ void ECSServer::OnMessage(Message msg)
 uint64_t ECSServer::Create()
 {
     uint64_t eid = this->_registry->Create();
-    this->_registry->Emplace<Transform>(eid, glm::vec3(0, 0, 0), glm::vec3(0, 0, 0), glm::vec3(1, 1, 1));
+    //this->_registry->Emplace<Geometry>(eid, glm::vec3(0, 0, 0), glm::vec3(0, 0, 0), glm::vec3(1, 1, 1));
     return eid;
 }
 
@@ -38,7 +37,16 @@ void ECSServer::Destroy(uint64_t eid)
     this->_registry->Destroy(eid);
 }
 
-void ECSServer::SyncWithPhysics()
+void ECSServer::SyncTransformWithPhysics()
 {
+    auto view = this->_registry->Data().view<Geometry&, Impostor&, Camera&>();
+    view.each([this](entt::entity ent, Geometry& geometry, Impostor& impostor, Camera& camera) {
+        if (this->_registry->Data().all_of<Geometry, Impostor>(ent))
+            geometry.SetModelWorldTransform(impostor.GetCenterOfMassWorldTransform());
+    });
+}
 
+template<class Component, class ComponentProps> void ECSServer::AddComponent(uint64_t eid, const ComponentProps& props)
+{
+    this->_registry->Emplace<Component>(eid, props);
 }

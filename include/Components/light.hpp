@@ -1,6 +1,7 @@
 #pragma once
 #include "Globals.hpp"
 #include "Scripting/Lua.hpp"
+#include "Components/Component.hpp"
 
 struct LightProps
 {
@@ -53,7 +54,7 @@ struct LightProps
     int castShadow;
 };
 
-class Light 
+class Light : public Component
 {
 public:
     int type;
@@ -66,7 +67,9 @@ public:
     float intensity;
     int castShadow;
     
-    Light(LightProps props);
+    Light(GameObject* gameObject, LightProps props);
+
+    std::string GetName() const override;
 
     glm::mat4 GetProjectionMatrix(int cascadedIndex = 0);
 

@@ -1,10 +1,15 @@
-#include "Graphics/camera.hpp"
-#include "Physics.hpp"
+#include "Components/Camera.hpp"
+#include "Components/GameObject.hpp"
 
 static const float maxVAngle = PI / 2.0f - 0.01f;
 static const float minVAngle = -PI / 2.0f + 0.01f;
 
-Camera::Camera(CameraProps props) 
+static glm::vec3 CalculateDirection(float vAngle, float hAngle)
+{
+    return glm::vec3(glm::cos(vAngle) * glm::cos(hAngle), glm::sin(vAngle), glm::sin(hAngle) * glm::cos(vAngle));
+}
+
+Camera::Camera(GameObject* gameObject, const CameraProps& props)
 {
     fov = props.fieldOfView;
     aspectRatio = props.aspectRatio;
@@ -12,11 +17,14 @@ Camera::Camera(CameraProps props)
     farZ = props.farClipPlane;
     _eyeOffset = props.eyeOffset;
     _vhAngle = glm::vec2(props.verticalAngle, props.horizontalAngle);
+    
+    this->gameObject = gameObject;
+    this->gameObject->AddComponent(this);
 }
 
-static glm::vec3 CalculateDirection(float vAngle, float hAngle)
+std::string Camera::GetName() const
 {
-    return glm::vec3(glm::cos(vAngle) * glm::cos(hAngle), glm::sin(vAngle), glm::sin(hAngle) * glm::cos(vAngle));
+    return std::string("Camera");
 }
 
 glm::vec3 Camera::GetEye(const glm::mat4& cameraTransform)

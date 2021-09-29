@@ -1,4 +1,5 @@
-#include "Graphics/light.hpp"
+#include "Components/light.hpp"
+#include "Components/GameObject.hpp"
 
 static glm::vec3 Direction(GLenum face)
 {
@@ -44,7 +45,7 @@ static glm::vec3 WorldUp(GLenum face)
     }
 }
 
-Light::Light(LightProps props)
+Light::Light(GameObject* gameObject, LightProps props)
 {
     type = props.type;
     position = props.position;
@@ -55,6 +56,14 @@ Light::Light(LightProps props)
     intensity = props.intensity;
     attenuation = props.attenuation;
     castShadow = props.castShadow;
+
+    this->gameObject = gameObject;
+    this->gameObject->AddComponent(this);
+}
+
+std::string Light::GetName() const
+{
+    return std::string("Light");
 }
 
 glm::mat4 Light::GetProjectionMatrix(int cascadedIndex)    

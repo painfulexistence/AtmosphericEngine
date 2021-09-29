@@ -1,7 +1,7 @@
 #pragma once
 #include "Globals.hpp"
-#include "ECS/Entity.hpp"
 #include "Scripting/Lua.hpp"
+#include "Components/Component.hpp"
 
 struct CameraProps
 {
@@ -28,7 +28,7 @@ struct CameraProps
     glm::vec3 eyeOffset;
 };
 
-class Camera : public Entity
+class Camera : public Component
 {
     glm::vec3 _eyeOffset;
     glm::vec2 _vhAngle;
@@ -39,7 +39,9 @@ public:
     float nearZ;
     float farZ;
 
-    Camera(CameraProps props);
+    Camera(GameObject* gameObject, const CameraProps& props);
+
+    std::string GetName() const override;
 
     glm::vec3 GetEye(const glm::mat4&);
 

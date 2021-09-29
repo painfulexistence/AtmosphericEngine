@@ -8,18 +8,31 @@ static glm::mat4 ConvertPhysicalMatrix(const btTransform& trans);
 class MazeGame : public Runtime
 {    
 public:
-    sol::table maze, cameraTable, lightTable, textureTable, materialTable, shaderTable, gameState;
+    sol::table cameraTable;
+    sol::table lightTable;
+    sol::table textureTable, materialTable, shaderTable, initState;
+    bool isLightFlashing = false;
+    glm::vec3 winCoord = glm::vec3(0, 0, 0);
+    GameObject* player = nullptr;
+    Camera* mainCamera = nullptr;
+    Light* mainLight = nullptr;
 
     void Load()
     {
         // Read data from script
-        script.GetData(std::string("maze"), maze);
         script.GetData(std::string("cameras"), cameraTable);
         script.GetData(std::string("lights"), lightTable);
         script.GetData(std::string("textures"), textureTable);
         script.GetData(std::string("materials"), materialTable);
         script.GetData(std::string("shaders"), shaderTable);
-        script.GetData(std::string("game_state"), gameState);
+        script.GetData(std::string("init_game_state"), initState);
+
+        const int MAZE_SIZE = (int)initState["maze_size"];
+        const float TILE_SIZE = (float)initState["tile_size"];
+        const int TILES_TO_REMOVE = (int)initState["tiles_to_remove"];
+        float chismProb = (float)initState["chism_probability"];
+        bool mazeRoofed = (bool)initState["maze_roofed"];
+        isLightFlashing = (bool)initState["is_light_flashing"];
 
         // Load textures
         std::vector<std::string> paths;
@@ -31,76 +44,147 @@ public:
         graphics.LoadTextures(paths);
         script.Print("Textures loaded.");
 
-        // Create cameras
-        for (const auto& kv : cameraTable)
-        {
-            Camera cam = Camera(CameraProps((sol::table)kv.second));
-            auto capsuleShape = new btCapsuleShape(0.5f, 3.0f);
-            cam.SetGraphicsId(scene.CreateGhostGeometry());
-            cam.SetPhysicsId(physics.World()->CreateImpostor(capsuleShape, btVector3(0.f, 2.f, 0.f), 10.0f));
-            cameras.push_back(cam);
-
-            physics.World()->SetImpostorLinearFactor(cam.GetPhysicsId(), btVector3(1, 1, 1));
-            physics.World()->SetImpostorAngularFactor(cam.GetPhysicsId(), btVector3(0, 0, 0));
-            entities.push_back(cam);
-        }
-        script.Print("Cameras initialized.");
-
-        // Create lights
-        for (const auto& kv : lightTable)
-        {
-            Light light = Light(LightProps((sol::table)kv.second));
-            lights.push_back(light); 
-        }
-        script.Print("Lights initialized.");
-
         // Create material
         for (const auto& kv : materialTable)
         {
             Material mat = Material((sol::table)kv.second);
-            materials.push_back(mat);
+            graphics.materials.push_back(mat);
         }
         script.Print("Materials initialized.");
 
         // Create shader programs
-        colorProgram = ShaderProgram(shaderTable["color"]["vert"], shaderTable["color"]["frag"]);
-        depthTextureProgram = ShaderProgram(shaderTable["depth"]["vert"], shaderTable["depth"]["frag"]);
-        depthCubemapProgram = ShaderProgram(shaderTable["depth_cubemap"]["vert"], shaderTable["depth_cubemap"]["frag"]);
-        hdrProgram = ShaderProgram(shaderTable["hdr"]["vert"], shaderTable["hdr"]["frag"]);
+        graphics.colorProgram = ShaderProgram(shaderTable["color"]["vert"], shaderTable["color"]["frag"]);
+        graphics.depthTextureProgram = ShaderProgram(shaderTable["depth"]["vert"], shaderTable["depth"]["frag"]);
+        graphics.depthCubemapProgram = ShaderProgram(shaderTable["depth_cubemap"]["vert"], shaderTable["depth_cubemap"]["frag"]);
+        graphics.hdrProgram = ShaderProgram(shaderTable["hdr"]["vert"], shaderTable["hdr"]["frag"]);
         script.Print("Shaders initialized.");
 
-        graphics.BindSceneVAO();
-        // Create meshes in scene
+        // Create cameras
+        std::vector<GameObject*> cameras;
+        for (const auto& kv : cameraTable)
         {
-            auto mesh = make_shared<Mesh>();
-            mesh->AsCube(800.0f);
-            mesh->material = materials[1];
-            mesh->cullFaceEnabled = false;
-            Scene::MeshTable.insert({"Skybox", mesh});
-            
-            auto ent = Entity();
-            ent.SetGraphicsId(scene.CreateMeshGeometry("Skybox"));
-            entities.push_back(ent);
+            auto camera = new GameObject();
+            ComponentFactory::CreateCamera(camera, &graphics, CameraProps((sol::table)kv.second));
+            gameObjects.push_back(camera);
+            cameras.push_back(camera);
         }
+        player = cameras.at(0);
+        mainCamera = dynamic_cast<Camera*>(player->GetComponent("Camera"));
+
+        // Create lights
+        std::vector<GameObject*> lights;
+        for (const auto& kv : lightTable)
         {
-            auto mesh = make_shared<Mesh>();
-            mesh->AsSphere();
-            mesh->material = materials[0];
-            Scene::MeshTable.insert({"Sphere", mesh});
+            auto light = new GameObject();
+            ComponentFactory::CreateLight(light, &graphics, LightProps((sol::table)kv.second));
+            gameObjects.push_back(light);
+            lights.push_back(light);
+        }
+        mainLight = dynamic_cast<Light*>(lights.at(0)->GetComponent("Light"));
 
-            for (int i = 0; i < 50; ++i)
+        // Load models
+        //graphics.BindSceneVAO();
+        auto characterModel = new Model();
+        characterModel->collisionShape = new btCapsuleShape(0.5f, 3.0f);
+        Model::ModelList.insert({"Character", characterModel});
+
+        auto skyboxModel = Model::CreateCube(800.0f);
+        skyboxModel->material = &graphics.materials[1];
+        skyboxModel->cullFaceEnabled = false;
+        Model::ModelList.insert({"Skybox", skyboxModel});
+
+        auto terrainModel = Model::CreateTerrain(MAZE_SIZE * TILE_SIZE, 10, std::vector<GLfloat>(100, 0.0f));
+        terrainModel->material = &graphics.materials[1];
+        terrainModel->collisionShape = new btBoxShape(btVector3(MAZE_SIZE * TILE_SIZE, 0.2f, MAZE_SIZE * TILE_SIZE));
+        Model::ModelList.insert({"Terrain", terrainModel});
+
+        auto cubeModel = Model::CreateCube((float)TILE_SIZE);
+        cubeModel->material = &graphics.materials[2];
+        cubeModel->collisionShape = new btBoxShape(0.5f * btVector3(TILE_SIZE, TILE_SIZE, TILE_SIZE));
+        Model::ModelList.insert({"Cube", cubeModel});
+
+        auto sphereModel = Model::CreateSphere();
+        sphereModel->material = &graphics.materials[0];
+        sphereModel->collisionShape = new btSphereShape(0.5f);
+        Model::ModelList.insert({"Sphere", sphereModel});
+
+        script.Print("Models loaded.");
+
+        // Create game objects in scene
+        player->SetPosition(glm::vec3(0, 2, 0));
+        Impostor* rb = ComponentFactory::CreateImpostor(player, &physics, "Character", 10.0f);
+        rb->SetLinearFactor(glm::vec3(1, 1, 1));
+        rb->SetAngularFactor(glm::vec3(0, 0, 0));
+
+        auto skybox = new GameObject();
+        ComponentFactory::CreateMesh(skybox, &graphics, "Skybox");
+        gameObjects.push_back(skybox);
+
+        auto terrain = new GameObject();
+        terrain->SetPosition(glm::vec3(0.0f, -10.0f, 0.0f));
+        ComponentFactory::CreateMesh(terrain, &graphics, "Terrain");
+        ComponentFactory::CreateImpostor(terrain, &physics, "Terrain");
+        gameObjects.push_back(terrain);
+
+        for (int i = 0; i < 50; ++i)
+        {
+            float diameter = (float)(rand() % 10 + 1);
+
+            auto sphere = new GameObject(); //glm::scale(glm::mat4(1.0), glm::vec3(diameter))
+            sphere->SetPosition(glm::vec3(rand() % 10 - 5, rand() % 100 + 20, rand() % 10 - 5));
+            ComponentFactory::CreateMesh(sphere, &graphics, "Sphere");
+            ComponentFactory::CreateImpostor(sphere, &physics, "Sphere", 1.0f);
+            gameObjects.push_back(sphere);
+        }
+
+        bool characterPlaced = false;
+        vector<vector<bool>> maze = generateMazeData(MAZE_SIZE, TILES_TO_REMOVE);
+        for (int x = 0; x < MAZE_SIZE; x++) 
+        {
+            for (int z = 0; z < MAZE_SIZE; z++) 
             {
-                float diameter = (float)(rand() % 10 + 1);
-                auto sphereShape = new btSphereShape(btScalar(diameter));
-                shapeCollection.push_back(sphereShape);
-
-                auto ent = Entity();
-                ent.SetGraphicsId(scene.CreateMeshGeometry("Sphere", glm::scale(glm::mat4(1.0), glm::vec3(diameter))));
-                ent.SetPhysicsId(physics.World()->CreateImpostor(sphereShape, btVector3(rand() % 10 - 5, rand() % 100 + 20, rand() % 10 - 5), 1.0f));
-                entities.push_back(ent);
+                if (mazeRoofed) 
+                {
+                    auto cube = new GameObject();
+                    cube->SetPosition(TILE_SIZE * glm::vec3(x - MAZE_SIZE / 2.f, 3, z - MAZE_SIZE / 2.f));
+                    ComponentFactory::CreateMesh(cube, &graphics, "Cube");
+                    ComponentFactory::CreateImpostor(cube, &physics, "Cube", 0.0f);
+                    gameObjects.push_back(cube);
+                }
+                if (maze[x][z]) 
+                {
+                    for (int h = 0; h < 3; h++)
+                    {
+                        auto cube = new GameObject();
+                        cube->SetPosition(TILE_SIZE * glm::vec3(x - MAZE_SIZE / 2.f, h, z - MAZE_SIZE / 2.f));
+                        ComponentFactory::CreateMesh(cube, &graphics, "Cube");
+                        ComponentFactory::CreateImpostor(cube, &physics, "Cube", 0.0f);
+                        gameObjects.push_back(cube);
+                    }
+                } 
+                else 
+                {
+                    if (rand() % 100 < chismProb) 
+                    { 
+                        continue; //Create chism
+                    }
+                    if (!characterPlaced)
+                    {
+                        player->SetModelWorldTransform(glm::translate(glm::mat4(1.0f), TILE_SIZE * glm::vec3(x - MAZE_SIZE / 2.f, 1, z - MAZE_SIZE / 2.f)));
+                        characterPlaced = true;
+                    }
+                    winCoord.x = TILE_SIZE * (x - MAZE_SIZE / 2.f);
+                    winCoord.y = 0.f;
+                    winCoord.z = TILE_SIZE * (z - MAZE_SIZE / 2.f);
+                }
+                auto cube = new GameObject();
+                cube->SetPosition((TILE_SIZE * glm::vec3(x - MAZE_SIZE / 2.f, -1, z - MAZE_SIZE / 2.f)));
+                ComponentFactory::CreateMesh(cube, &graphics, "Cube");
+                ComponentFactory::CreateImpostor(cube, &physics, "Cube", 0.0f);
+                gameObjects.push_back(cube);
             }
         }
-        CreateMaze();
+        
         script.Print("Scene & world loaded.");
         script.Print(fmt::format("Game fully loaded in {:.1f} seconds", Time()));
     }
@@ -108,148 +192,69 @@ public:
     void Update(float dt, float time)
     {
         // Update environment
-        if ((bool)gameState["is_light_flashing"])
+        if (isLightFlashing)
         {
-            glm::vec3 col = glm::vec3(gameState["light_color"][1], gameState["light_color"][2], gameState["light_color"][3]);
-            lights[0].diffuse = abs(glm::cos(glm::radians(10.0f) * time)) * (float)(rand() % 2 / 2.0 + 0.5) * col;
+            glm::vec3 col = glm::vec3(1, 1, 1);
+            mainLight->diffuse = abs(glm::cos(glm::radians(10.0f) * time)) * (float)(rand() % 2 / 2.0 + 0.5) * col;
         }
 
         // Input handling
-        const uint64_t& impostor = cameras[0].GetPhysicsId();
-
-        btVector3 currentVel;    
-        if (!physics.World()->GetImpostorLinearVelocity(impostor, currentVel)) 
+        Impostor* rb = dynamic_cast<Impostor*>(player->GetComponent("Physics"));
+        if (rb == nullptr) 
             throw runtime_error("Impostor not found");
 
+        glm::vec3 currentVel = rb->GetLinearVelocity();
         if (input.GetKeyDown(KEY_W))
         {
-            glm::vec3 v = cameras[0].CreateLinearVelocity(Axis::FRONT);
-            physics.World()->SetImpostorLinearVelocity(impostor, btVector3(v.x, currentVel.y(), v.z));
+            glm::vec3 v = mainCamera->CreateLinearVelocity(Axis::FRONT);
+            rb->SetLinearVelocity(glm::vec3(v.x, currentVel.y, v.z));
         }
         if (input.GetKeyDown(KEY_S))
         {
-            glm::vec3 v = cameras[0].CreateLinearVelocity(Axis::FRONT);
-            physics.World()->SetImpostorLinearVelocity(impostor, btVector3(-v.x, currentVel.y(), -v.z));
+            glm::vec3 v = mainCamera->CreateLinearVelocity(Axis::FRONT);
+            rb->SetLinearVelocity(glm::vec3(-v.x, currentVel.y, -v.z));
         }
         if (input.GetKeyDown(KEY_D))
         {
-            cameras[0].yaw(0.3 * CAMERA_ANGULAR_OFFSET);
-            glm::vec3 v = cameras[0].CreateLinearVelocity(Axis::RIGHT);
-            physics.World()->SetImpostorLinearVelocity(impostor, btVector3(v.x, currentVel.y(), v.z));
+            mainCamera->yaw(0.3 * CAMERA_ANGULAR_OFFSET);
+            glm::vec3 v = mainCamera->CreateLinearVelocity(Axis::RIGHT);
+            rb->SetLinearVelocity(glm::vec3(v.x, currentVel.y, v.z));
         }
         if (input.GetKeyDown(KEY_A))
         {
-            cameras[0].yaw(-0.3 * CAMERA_ANGULAR_OFFSET);
-            glm::vec3 v = cameras[0].CreateLinearVelocity(Axis::RIGHT);
-            physics.World()->SetImpostorLinearVelocity(impostor, btVector3(-v.x, currentVel.y(), -v.z));
+            mainCamera->yaw(-0.3 * CAMERA_ANGULAR_OFFSET);
+            glm::vec3 v = mainCamera->CreateLinearVelocity(Axis::RIGHT);
+            rb->SetLinearVelocity(glm::vec3(-v.x, currentVel.y, -v.z));
         }
         if (input.GetKeyDown(KEY_UP))
         {
-            cameras[0].pitch(CAMERA_ANGULAR_OFFSET);
+            mainCamera->pitch(CAMERA_ANGULAR_OFFSET);
         }
         if (input.GetKeyDown(KEY_DOWN))
         {
-            cameras[0].pitch(-CAMERA_ANGULAR_OFFSET);
+            mainCamera->pitch(-CAMERA_ANGULAR_OFFSET);
         }
         if (input.GetKeyDown(KEY_RIGHT))
         {
-            cameras[0].yaw(CAMERA_ANGULAR_OFFSET);
+            mainCamera->yaw(CAMERA_ANGULAR_OFFSET);
         }
         if (input.GetKeyDown(KEY_LEFT))
         {
-            cameras[0].yaw(-CAMERA_ANGULAR_OFFSET);
+            mainCamera->yaw(-CAMERA_ANGULAR_OFFSET);
         }
         if (input.GetKeyDown(KEY_SPACE)) 
         {
-            physics.World()->GetImpostorLinearVelocity(impostor, currentVel); // update velcoity to reflect current horizontal speed
-            glm::vec3 v = cameras[0].CreateLinearVelocity(Axis::UP);
-            physics.World()->SetImpostorLinearVelocity(impostor, btVector3(currentVel.x(), v.y, currentVel.z()));
+            currentVel = rb->GetLinearVelocity(); // update velcoity to reflect current horizontal speed
+            glm::vec3 v = mainCamera->CreateLinearVelocity(Axis::UP);
+            rb->SetLinearVelocity(glm::vec3(currentVel.x, v.y, currentVel.z));
         }
         if (input.GetKeyDown(KEY_X))
         {
-            gameState["is_light_flashing"] = !(bool)gameState["is_light_flashing"];
+            isLightFlashing = !isLightFlashing;
         }
         if (input.GetKeyDown(KEY_ESCAPE))
         {
             input.ReceiveMessage(MessageType::ON_QUIT);
-        }
-    }
-
-private:
-    void CreateMaze()
-    {
-        const int MAZE_SIZE = maze["size"];
-        const float TILE_SIZE = maze["tile_size"];
-        const bool MAZE_ROOFED = maze["roofed"];
-        const int TILES_TO_REMOVE = maze["tiles_to_remove"];
-        const float CHISM_PROBABILITY = maze["chism_probability"];
-        const auto& WIN_COORD = maze["win_coord"];
-
-        {
-            auto mesh = make_shared<Mesh>();
-            mesh->AsCube((float)TILE_SIZE);
-            mesh->material = materials[2];
-            Scene::MeshTable.insert({"Cube", mesh});
-            auto blockShape = new btBoxShape(0.5f * btVector3(TILE_SIZE, TILE_SIZE, TILE_SIZE));
-            shapeCollection.push_back(blockShape);
-
-            bool characterPlaced = false;
-            vector<vector<bool>> maze = generateMazeData(MAZE_SIZE, TILES_TO_REMOVE);
-            for (int x = 0; x < MAZE_SIZE; x++) {
-                for (int z = 0; z < MAZE_SIZE; z++) {
-                    if (MAZE_ROOFED) 
-                    {
-                        auto ent = Entity();
-                        ent.SetGraphicsId(scene.CreateMeshGeometry("Cube"));
-                        ent.SetPhysicsId(physics.World()->CreateImpostor(blockShape, TILE_SIZE * btVector3(x - MAZE_SIZE / 2.f, 3, z - MAZE_SIZE / 2.f), 0.0f));
-                        entities.push_back(ent);
-                    }
-                    if (maze[x][z]) 
-                    {
-                        for (int h = 0; h < 3; h++)
-                        {
-                            auto ent = Entity();
-                            ent.SetGraphicsId(scene.CreateMeshGeometry("Cube"));
-                            ent.SetPhysicsId(physics.World()->CreateImpostor(blockShape, TILE_SIZE * btVector3(x - MAZE_SIZE / 2.f, h, z - MAZE_SIZE / 2.f)));
-                            entities.push_back(ent);
-                        }
-                    } 
-                    else 
-                    {
-                        if (rand() % 100 < CHISM_PROBABILITY) 
-                        { 
-                            continue; //Create chism
-                        }
-                        if (!characterPlaced)
-                        {
-                            scene.SetGeometryModelWorldTransform(cameras[0].GetGraphicsId(), glm::translate(glm::mat4(1.0f), TILE_SIZE * glm::vec3(x - MAZE_SIZE / 2.f, 1, z - MAZE_SIZE / 2.f)));
-                            characterPlaced = true;
-                        }
-                        WIN_COORD[1] = TILE_SIZE * (x - MAZE_SIZE / 2.f);
-                        WIN_COORD[2] = 0.f;
-                        WIN_COORD[3] = TILE_SIZE * (z - MAZE_SIZE / 2.f);
-                    }
-                    auto ent = Entity();
-                    ent.SetGraphicsId(scene.CreateMeshGeometry("Cube"));
-                    ent.SetPhysicsId(physics.World()->CreateImpostor(blockShape, TILE_SIZE * btVector3(x - MAZE_SIZE / 2.f, -1, z - MAZE_SIZE / 2.f)));
-                    entities.push_back(ent);
-                }
-            }
-        }
-        {
-            float size = MAZE_SIZE * TILE_SIZE;
-
-            auto mesh = make_shared<Mesh>();
-            mesh->AsTerrain(size, 10, std::vector<GLfloat>(100, 0.0f));
-            mesh->material = materials[1];
-            Scene::MeshTable.insert({"Terrain", mesh});
-            auto terrainShape = new btBoxShape(btVector3(size, 0.2f, size));
-            shapeCollection.push_back(terrainShape);
-
-            auto ent = Entity();
-            ent.SetGraphicsId(scene.CreateMeshGeometry("Terrain"));
-            ent.SetPhysicsId(physics.World()->CreateImpostor(terrainShape, btVector3(0.0f, -10.0f, 0.0f)));
-            entities.push_back(ent);
         }
     }
 };

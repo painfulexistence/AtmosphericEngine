@@ -1,6 +1,6 @@
 #pragma once
 #include "Globals.hpp"
-#include "Physics/Collision.hpp"
+#include "Physics/BulletCollision.hpp"
 
 class ShapeCollection
 {

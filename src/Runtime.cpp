@@ -15,7 +15,7 @@ static glm::mat4 ConvertPhysicalMatrix(const btTransform& trans)
     );
 }
 
-Runtime::Runtime() : entities(Entity::Entities)
+Runtime::Runtime()
 {
     Log("Launching...");
     this->_win = this->_app->GetActiveWindow(); // Multi-window not supported now
@@ -24,6 +24,10 @@ Runtime::Runtime() : entities(Entity::Entities)
 Runtime::~Runtime()
 {
     Log("Exiting...");
+    for (auto go : gameObjects)
+    {
+        delete go;
+    }
     delete this->_mb;
     delete this->_app;
 }
@@ -55,34 +59,22 @@ void Runtime::Execute()
         float currentFrameTime = Time();
         deltaTime = currentFrameTime - lastFrameTime;
         lastFrameTime = currentFrameTime;
-        FrameProps currentFrame = FrameProps(this->_app->GetClock(), deltaTime);
+        FrameProps currentFrame = FrameProps(this->_app->GetClock(), Time(), deltaTime);
 
         #if SINGLE_THREAD
         #pragma region main_loop_single_thread
         Process(currentFrame);
-        for (const auto& ent : Entity::WithPhysicsComponent())
-        {
-            const glm::mat4& m2w = ConvertPhysicalMatrix(physics.World()->GetImpostorTransform(ent.GetPhysicsId()));
-            scene.SetGeometryModelWorldTransform(ent.GetGraphicsId(), m2w);
-        }
+        SyncTransformWithPhysics();
         Render(currentFrame);
         Draw(currentFrame);
         #pragma endregion
         #else
         #pragma region main_loop_double_thread
-        // Gameplay
-        std::thread simulation(&Runtime::Process, this, currentFrame);
-        // Graphics
+        std::thread fork(&Runtime::Process, this, currentFrame);
         Render(currentFrame);
         Draw(currentFrame);
-        // Sync
-        simulation.join();
-        //ecs.SyncTransformWithPhysics();
-        for (const auto& ent : Entity::WithPhysicsComponent())
-        {
-            const glm::mat4& m2w = ConvertPhysicalMatrix(physics.World()->GetImpostorTransform(ent.GetPhysicsId()));
-            scene.SetGeometryModelWorldTransform(ent.GetGraphicsId(), m2w);
-        }
+        fork.join();
+        SyncTransformWithPhysics();
         #pragma endregion
         #endif
     }
@@ -95,7 +87,7 @@ void Runtime::Quit()
     this->_quitted = true;
 }
 
-void Runtime::Process(FrameProps props)
+void Runtime::Process(const FrameProps& props)
 {
     float dt = props.deltaTime;
     float time = Time();
@@ -107,7 +99,6 @@ void Runtime::Process(FrameProps props)
     input.Process(dt);
     script.Process(dt);
     physics.Process(dt); // TODO: Update only every entity's physics transform
-    physics.World()->DampenImpostor(cameras[0].GetPhysicsId());
     graphics.Process(dt); // TODO: Generate command buffers according to entity transforms
 
     #if SHOW_PROCESS_COST
@@ -115,108 +106,25 @@ void Runtime::Process(FrameProps props)
     #endif
 }
 
-void Runtime::Render(FrameProps props)
+void Runtime::Render(const FrameProps& props)
 {
     float dt = props.deltaTime;
     float time = Time();
 
-    const int mainLightCount = 1;
-    const int auxLightCount = (int)lights.size() - mainLightCount;
-
-    graphics.BindSceneVAO();
-    
-    graphics.BeginShadowPass();
-    {
-        int auxShadows = 0;
-        
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, graphics.GetShadowMap(DIR_LIGHT, 0), 0);
-        glClear(GL_DEPTH_BUFFER_BIT);
-        depthTextureProgram.Activate();
-        scene.Render(depthTextureProgram, lights[0].GetProjectionMatrix(0), lights[0].GetViewMatrix());
-        for (int i = 0; i < auxLightCount; ++i)
-        {
-            Light& l = lights[i + mainLightCount];
-            if ((bool)l.castShadow)
-                continue;
-            if (auxShadows++ >= MAX_AUX_SHADOWS)
-                break;
-
-            for (int f = 0; f < 6; ++f)
-            {
-                GLenum face = GL_TEXTURE_CUBE_MAP_POSITIVE_X + f;
-                glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, face, graphics.GetShadowMap(POINT_LIGHT, i), 0);
-                glClear(GL_DEPTH_BUFFER_BIT);
-                depthCubemapProgram.Activate();
-                depthCubemapProgram.SetUniform(string("LightPosition"), l.position);
-                scene.Render(depthCubemapProgram, l.GetProjectionMatrix(0), l.GetViewMatrix(face));
-            }
-        }
-    }
-    graphics.EndShadowPass();
-    
-    graphics.BeginColorPass();
-    {
-        glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);    
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        colorProgram.Activate();
-        glm::mat4 cameraTransform = scene.GetGeometryWorldMatrix(cameras[0].GetGraphicsId());
-        glm::vec3 eyePos = cameras[0].GetEye(cameraTransform);
-        colorProgram.SetUniform(string("cam_pos"), eyePos);
-        colorProgram.SetUniform(string("time"), Time());
-        colorProgram.SetUniform(string("main_light.direction"), lights[0].direction);
-        colorProgram.SetUniform(string("main_light.ambient"), lights[0].ambient);
-        colorProgram.SetUniform(string("main_light.diffuse"), lights[0].diffuse);
-        colorProgram.SetUniform(string("main_light.specular"), lights[0].specular);
-        colorProgram.SetUniform(string("main_light.intensity"), lights[0].intensity);
-        colorProgram.SetUniform(string("main_light.cast_shadow"), lights[0].castShadow);
-        colorProgram.SetUniform(string("main_light.ProjectionView"), lights[0].GetProjectionViewMatrix(0));
-        for (int i = 0; i < auxLightCount; ++i)
-        {
-            Light& l = lights[i + mainLightCount];
-            colorProgram.SetUniform(string("aux_lights[") + to_string(i) + string("].position"), l.position);
-            colorProgram.SetUniform(string("aux_lights[") + to_string(i) + string("].ambient"), l.ambient);
-            colorProgram.SetUniform(string("aux_lights[") + to_string(i) + string("].diffuse"), l.diffuse);
-            colorProgram.SetUniform(string("aux_lights[") + to_string(i) + string("].specular"), l.specular);
-            colorProgram.SetUniform(string("aux_lights[") + to_string(i) + string("].attenuation"), l.attenuation);
-            colorProgram.SetUniform(string("aux_lights[") + to_string(i) + string("].intensity"), l.intensity);
-            colorProgram.SetUniform(string("aux_lights[") + to_string(i) + string("].cast_shadow"), l.castShadow);
-            for (int f = 0; f < 6; ++f)
-            {
-                GLenum face = GL_TEXTURE_CUBE_MAP_POSITIVE_X + f;
-                colorProgram.SetUniform(string("aux_lights[") + to_string(i) + string("].ProjectionViews[") + to_string(f) + string("]"), l.GetProjectionViewMatrix(0, face));
-            }
-        }
-        colorProgram.SetUniform(string("aux_light_count"), auxLightCount);
-        colorProgram.SetUniform(string("shadow_map_unit"), (int)0);
-        colorProgram.SetUniform(string("omni_shadow_map_unit"), (int)1);
-        scene.Render(colorProgram, cameras[0].GetProjectionMatrix(), cameras[0].GetViewMatrix(cameraTransform));
-    }
-    graphics.EndColorPass();
-
-    graphics.BindScreenVAO();
-
-    graphics.BeginScreenColorPass();
-    {
-        glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);    
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        hdrProgram.Activate();
-        hdrProgram.SetUniform(string("color_map_unit"), (int)0);
-        //hdrProgram.SetUniform(string("exposure"), (float)1.0);
-        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-    }
-    graphics.EndScreenColorPass();
-    
+    // Note that draw calls are asynchronous, which means they return immediately. 
+    // So the drawing time can only be calculated along with the image presenting.
+    graphics.Render(dt); 
     gui.Render(dt);
+    this->_win->SwapBuffers();
 
     #if SHOW_RENDER_AND_DRAW_COST
     Log(fmt::format("Render & draw cost {} ms", (Time() - time) * 1000));
     #endif
 }
 
-void Runtime::Draw(FrameProps props)
+void Runtime::Draw(const FrameProps& props)
 {
     float dt = props.deltaTime;
-    this->_win->SwapBuffers();
 }
 
 void Runtime::BroadcastMessages()
@@ -224,6 +132,24 @@ void Runtime::BroadcastMessages()
     this->_mb->Process();
 }
 
+void Runtime::SyncTransformWithPhysics()
+{
+    float time = Time();
+
+    //ecs.SyncTransformWithPhysics();
+    for (auto go : gameObjects)
+    {
+        auto impostor = dynamic_cast<Impostor*>(go->GetComponent("Physics"));
+        if (impostor == nullptr)
+            continue;
+        const glm::mat4& m2w = impostor->GetCenterOfMassWorldTransform();
+        go->SetModelWorldTransform(m2w);
+    }
+    
+    #if SHOW_SYNC_COST
+    Log(fmt::format("Sync cost {} ms", (Time() - time) * 1000));
+    #endif
+}
 
 float Runtime::Time()
 {

@@ -7,15 +7,18 @@
 #include "Console.hpp"
 #include "Input.hpp"
 #include "Scripting.hpp"
+#include "Components.hpp"
 
 struct FrameProps
 {
-    FrameProps(uint64_t number, float deltaTime)
+    FrameProps(uint64_t number, float time, float deltaTime)
     {
         this->number = number;
+        this->time = time;
         this->deltaTime = deltaTime;
     };
     uint64_t number;
+    float time;
     float deltaTime;
 };
 
@@ -32,13 +35,15 @@ private:
         
     void Log(std::string message);
 
-    void Process(FrameProps frame);
+    void Process(const FrameProps& frame);
 
-    void Render(FrameProps frame); // TODO: Properly separate rendering and drawing logic if the backend supports command buffering
+    void Render(const FrameProps& frame); // TODO: Properly separate rendering and drawing logic if the backend supports command buffering
 
-    void Draw(FrameProps frame);
+    void Draw(const FrameProps& frame);
 
     void BroadcastMessages();
+
+    void SyncTransformWithPhysics();
 
 public:
     Runtime();
@@ -62,16 +67,6 @@ protected:
     Console console;
     GUI gui;
     Input input;
-    Scene scene;
     Script script;
-    std::list<Entity>& entities;
-    std::vector<Camera> cameras = {};
-    std::vector<Light> lights = {};
-    std::vector<Material> materials = {};
-    glm::vec4 clearColor = glm::vec4(0.15f, 0.183f, 0.2f, 1.0f);
-    ShaderProgram colorProgram;
-    ShaderProgram depthTextureProgram;
-    ShaderProgram depthCubemapProgram;
-    ShaderProgram hdrProgram;
-    std::vector<btCollisionShape*> shapeCollection;
+    std::vector<GameObject*> gameObjects;
 };

@@ -1,9 +1,9 @@
 #include "ECS/ECSServer.hpp"
 #include "ECS/EnttRegistry.hpp"
-#include "Physics/Impostor.hpp"
-#include "Graphics/camera.hpp"
-#include "Graphics/mesh.hpp"
-#include "Graphics/geometry.hpp"
+#include "Components/Impostor.hpp"
+#include "Components/Camera.hpp"
+#include "Graphics/Model.hpp"
+#include "Components/Mesh.hpp"
 
 ECSServer::ECSServer()
 {
@@ -40,9 +40,9 @@ void ECSServer::Destroy(uint64_t eid)
 void ECSServer::SyncTransformWithPhysics()
 {
     auto view = this->_registry->Data().view<Geometry&, Impostor&, Camera&>();
-    view.each([this](entt::entity ent, Geometry& geometry, Impostor& impostor, Camera& camera) {
-        if (this->_registry->Data().all_of<Geometry, Impostor>(ent))
-            geometry.SetModelWorldTransform(impostor.GetCenterOfMassWorldTransform());
+    view.each([this](entt::entity ent, Mesh& mesh, Impostor& impostor, Camera& camera) {
+        if (this->_registry->Data().all_of<Mesh, Impostor>(ent))
+            mesh.gameObject->SetModelWorldTransform(impostor.GetCenterOfMassWorldTransform());
     });
 }
 

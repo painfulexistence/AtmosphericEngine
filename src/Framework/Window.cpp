@@ -115,6 +115,8 @@ void Window::SetActive()
     glfwMakeContextCurrent(this->_win);
     #if VSYNC_ON
     glfwSwapInterval(1);
+    #else
+    glfwSwapInterval(0);
     #endif
     #endif
 }

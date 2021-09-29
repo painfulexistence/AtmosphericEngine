@@ -1,6 +1,12 @@
 #pragma once
 #include "Globals.hpp"
 #include "Framework.hpp"
+#include "Graphics/material.hpp"
+#include "Graphics/Shader.hpp"
+#include "Graphics/Model.hpp"
+#include "Components/Mesh.hpp"
+#include "Components/light.hpp"
+#include "Components/Camera.hpp"
 
 struct FramebufferProps
 {
@@ -18,6 +24,18 @@ struct FramebufferProps
 class GraphicsServer : Server
 {
 public:
+    std::vector<GLuint> textures;
+    std::vector<Model> models;
+    std::vector<Material> materials;
+    std::vector<ShaderProgram> shaders;
+    std::vector<Mesh*> meshes;
+    std::vector<Light*> lights;
+    std::vector<Camera*> cameras;
+    ShaderProgram colorProgram;
+    ShaderProgram depthTextureProgram;
+    ShaderProgram depthCubemapProgram;
+    ShaderProgram hdrProgram;
+    
     GraphicsServer();
 
     ~GraphicsServer();
@@ -26,27 +44,15 @@ public:
 
     void Process(float dt) override;
 
+    void Render(float dt);
+
     void OnMessage(Message msg) override;
     
     void LoadTexture(const std::string& path);
 
     void LoadTextures(const std::vector<std::string>& paths);
-    
-    void BindSceneVAO();
-    
-    void BindScreenVAO();
-    
-    void BeginShadowPass();
-    
-    void EndShadowPass();
-    
-    void BeginColorPass();
-    
-    void EndColorPass();
-    
-    void BeginScreenColorPass();
-    
-    void EndScreenColorPass();
+
+    void LoadShaders(const std::vector<std::string>& paths);
 
     void CheckErrors();
 
@@ -75,9 +81,9 @@ private:
     std::vector<GLuint> omniShadowMaps;
     GLuint hdrColorTexture, hdrDepthTexture;
     GLuint screenTexture;
-    std::vector<GLuint> textures;
     GLuint sceneVAO, screenVAO;
     GLuint screenVBO;
+    glm::vec4 clearColor = glm::vec4(0.15f, 0.183f, 0.2f, 1.0f);
 
     void ResetFramebuffers();
     

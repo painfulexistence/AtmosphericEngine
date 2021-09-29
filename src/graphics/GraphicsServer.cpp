@@ -1,6 +1,7 @@
 #include "Graphics/GraphicsServer.hpp"
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
+#include "Components/GameObject.hpp"
 
 GraphicsServer::GraphicsServer()
 {
@@ -41,7 +42,149 @@ void GraphicsServer::Init(MessageBus* mb, Application* app)
 
 void GraphicsServer::Process(float dt)
 {
+
+}
+
+void GraphicsServer::Render(float dt)
+{
     // TODO: Put the logic of generating command buffers here
+    const int mainLightCount = 1;
+    const int auxLightCount = (int)lights.size() - mainLightCount;
+
+    std::map<Model*, std::vector<glm::mat4>> modelInstancesMap;
+    for (auto mesh : meshes)
+    {
+        Model* model = mesh->model;
+        glm::mat4 wm = mesh->gameObject->GetTransform();
+        if (modelInstancesMap.count(model) == 0)
+            modelInstancesMap.insert({model, std::vector<glm::mat4>(0)});
+        
+        modelInstancesMap.find(model)->second.push_back(wm);
+    }
+
+    glBindVertexArray(sceneVAO);
+    
+    glViewport(0, 0, SHADOW_W, SHADOW_H);
+    glBindFramebuffer(GL_FRAMEBUFFER, shadowFBO);
+
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, GetShadowMap(DIR_LIGHT, 0), 0);
+    glClear(GL_DEPTH_BUFFER_BIT);
+    depthTextureProgram.Activate();
+    depthTextureProgram.SetUniform(std::string("ProjectionView"), lights[0]->GetProjectionMatrix(0) * lights[0]->GetViewMatrix());
+
+    for (const auto& [name, model] : Model::ModelList)
+    {
+        if (modelInstancesMap.count(model) == 0)
+            continue;
+        model->Render(depthTextureProgram, modelInstancesMap.find(model)->second);
+    }
+
+    int auxShadows = 0;
+    for (int i = 0; i < auxLightCount; ++i)
+    {
+        Light* l = lights[i + mainLightCount];
+        if ((bool)l->castShadow)
+            continue;
+        if (auxShadows++ >= MAX_AUX_SHADOWS)
+            break;
+
+        for (int f = 0; f < 6; ++f)
+        {
+            GLenum face = GL_TEXTURE_CUBE_MAP_POSITIVE_X + f;
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, face, GetShadowMap(POINT_LIGHT, i), 0);
+            glClear(GL_DEPTH_BUFFER_BIT);
+            depthCubemapProgram.Activate();
+            depthCubemapProgram.SetUniform(std::string("LightPosition"), l->position);
+            depthCubemapProgram.SetUniform(std::string("ProjectionView"), l->GetProjectionMatrix(0) * l->GetViewMatrix(face));
+
+            for (const auto& [name, model] : Model::ModelList)
+            {
+                if (modelInstancesMap.count(model) == 0)
+                    continue;
+                model->Render(depthCubemapProgram, modelInstancesMap.find(model)->second);
+            }
+        }
+    }
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    
+    // Color pass
+    glViewport(0, 0, this->_fbProps.width, this->_fbProps.height);
+    glBindFramebuffer(GL_FRAMEBUFFER, hdrFBO);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, uniShadowMaps[0]);
+    for (int i = 0; i < MAX_AUX_SHADOWS; ++i)
+    {
+        glActiveTexture(GL_TEXTURE1 + i);
+        glBindTexture(GL_TEXTURE_CUBE_MAP, omniShadowMaps[i]);
+    }
+    for (int i = 0; i < textures.size(); ++i)
+    {
+        glActiveTexture(GL_TEXTURE0 + NUM_MAP_UNITS + i);
+        glBindTexture(GL_TEXTURE_2D, textures[i]);
+    }
+
+    glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);    
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    colorProgram.Activate();
+    glm::mat4 cameraTransform = cameras[0]->gameObject->GetModelWorldTransform();
+    glm::vec3 eyePos = cameras[0]->GetEye(cameraTransform);
+    colorProgram.SetUniform(std::string("cam_pos"), eyePos);
+    colorProgram.SetUniform(std::string("time"), 0);
+    colorProgram.SetUniform(std::string("main_light.direction"), lights[0]->direction);
+    colorProgram.SetUniform(std::string("main_light.ambient"), lights[0]->ambient);
+    colorProgram.SetUniform(std::string("main_light.diffuse"), lights[0]->diffuse);
+    colorProgram.SetUniform(std::string("main_light.specular"), lights[0]->specular);
+    colorProgram.SetUniform(std::string("main_light.intensity"), lights[0]->intensity);
+    colorProgram.SetUniform(std::string("main_light.cast_shadow"), lights[0]->castShadow);
+    colorProgram.SetUniform(std::string("main_light.ProjectionView"), lights[0]->GetProjectionViewMatrix(0));
+    for (int i = 0; i < auxLightCount; ++i)
+    {
+        Light* l = lights[i + mainLightCount];
+        colorProgram.SetUniform(std::string("aux_lights[") + std::to_string(i) + std::string("].position"), l->position);
+        colorProgram.SetUniform(std::string("aux_lights[") + std::to_string(i) + std::string("].ambient"), l->ambient);
+        colorProgram.SetUniform(std::string("aux_lights[") + std::to_string(i) + std::string("].diffuse"), l->diffuse);
+        colorProgram.SetUniform(std::string("aux_lights[") + std::to_string(i) + std::string("].specular"), l->specular);
+        colorProgram.SetUniform(std::string("aux_lights[") + std::to_string(i) + std::string("].attenuation"), l->attenuation);
+        colorProgram.SetUniform(std::string("aux_lights[") + std::to_string(i) + std::string("].intensity"), l->intensity);
+        colorProgram.SetUniform(std::string("aux_lights[") + std::to_string(i) + std::string("].cast_shadow"), l->castShadow);
+        for (int f = 0; f < 6; ++f)
+        {
+            GLenum face = GL_TEXTURE_CUBE_MAP_POSITIVE_X + f;
+            colorProgram.SetUniform(std::string("aux_lights[") + std::to_string(i) + std::string("].ProjectionViews[") + std::to_string(f) + std::string("]"), l->GetProjectionViewMatrix(0, face));
+        }
+    }
+    colorProgram.SetUniform(std::string("aux_light_count"), auxLightCount);
+    colorProgram.SetUniform(std::string("shadow_map_unit"), (int)0);
+    colorProgram.SetUniform(std::string("omni_shadow_map_unit"), (int)1); 
+    colorProgram.SetUniform(std::string("ProjectionView"), cameras[0]->GetProjectionMatrix() * cameras[0]->GetViewMatrix(cameraTransform));
+
+    for (const auto& [name, model] : Model::ModelList)
+    {
+        if (modelInstancesMap.count(model) == 0)
+            continue;
+        model->Render(colorProgram, modelInstancesMap.find(model)->second);
+    }
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    // Screen color pass
+    glBindVertexArray(screenVAO);
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, hdrFBO);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, msaaFBO);
+    glBlitFramebuffer(0, 0, this->_fbProps.width, this->_fbProps.height, 0, 0, this->_fbProps.width, this->_fbProps.height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+    
+    glViewport(0, 0, this->_fbProps.width, this->_fbProps.height);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, screenTexture);
+    glBindBuffer(GL_ARRAY_BUFFER, screenVBO);
+
+    glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);    
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    hdrProgram.Activate();
+    hdrProgram.SetUniform(std::string("color_map_unit"), (int)0);
+    //hdrProgram.SetUniform(std::string("exposure"), (float)1.0);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
 void GraphicsServer::OnMessage(Message msg)
@@ -100,68 +243,6 @@ void GraphicsServer::LoadTextures(const std::vector<std::string>& paths)
         }
         stbi_image_free(data);
     }
-}
-
-void GraphicsServer::BindSceneVAO()
-{
-    glBindVertexArray(sceneVAO);
-}
-
-void GraphicsServer::BindScreenVAO()
-{
-    glBindVertexArray(screenVAO);
-}
-
-void GraphicsServer::BeginShadowPass()
-{
-    glViewport(0, 0, SHADOW_W, SHADOW_H);
-    glBindFramebuffer(GL_FRAMEBUFFER, shadowFBO);
-}
-
-void GraphicsServer::EndShadowPass()
-{
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-}
-
-void GraphicsServer::BeginColorPass()
-{
-    glViewport(0, 0, this->_fbProps.width, this->_fbProps.height);
-    glBindFramebuffer(GL_FRAMEBUFFER, hdrFBO);
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, uniShadowMaps[0]);
-    for (int i = 0; i < MAX_AUX_SHADOWS; ++i)
-    {
-        glActiveTexture(GL_TEXTURE1 + i);
-        glBindTexture(GL_TEXTURE_CUBE_MAP, omniShadowMaps[i]);
-    }
-    for (int i = 0; i < textures.size(); ++i)
-    {
-        glActiveTexture(GL_TEXTURE0 + NUM_MAP_UNITS + i);
-        glBindTexture(GL_TEXTURE_2D, textures[i]);
-    }
-}
-
-void GraphicsServer::EndColorPass()
-{
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-}
-
-void GraphicsServer::BeginScreenColorPass()
-{
-    glBindFramebuffer(GL_READ_FRAMEBUFFER, hdrFBO);
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, msaaFBO);
-    glBlitFramebuffer(0, 0, this->_fbProps.width, this->_fbProps.height, 0, 0, this->_fbProps.width, this->_fbProps.height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
-    
-    glViewport(0, 0, this->_fbProps.width, this->_fbProps.height);
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, screenTexture);
-    glBindBuffer(GL_ARRAY_BUFFER, screenVBO);
-}
-
-void GraphicsServer::EndScreenColorPass()
-{
-    //glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
 void GraphicsServer::CheckErrors()

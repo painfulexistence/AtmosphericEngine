@@ -1,11 +1,7 @@
 #pragma once
-#include "Graphics/camera.hpp"
 #include "Graphics/frustum.hpp"
-#include "Graphics/geometry.hpp"
-#include "Graphics/light.hpp"
 #include "Graphics/material.hpp"
-#include "Graphics/mesh.hpp"
+#include "Graphics/Model.hpp"
 #include "Graphics/Shader.hpp"
-#include "Graphics/scene.hpp"
 #include "Graphics/texture.hpp"
 #include "Graphics/GraphicsServer.hpp"

@@ -1,9 +1,13 @@
 
 
 function init()
-    game_state = {
+    init_game_state = {
         is_light_flashing = false,
-        light_color = {1.0, 1.0, 1.0},
+        maze_size = 30,
+        maze_roofed = false,
+        tiles_to_remove = 500,
+        tile_size = 3.0,
+        chism_probability = 10.0
     }
     cameras = {
         {
@@ -25,7 +29,7 @@ function init()
             position = {0, 0, 0}, --stub
             direction = {-0.168, -0.576, -0.8},
             ambient = {0.2, 0.2, 0.2},
-            diffuse = game_state.light_color,
+            diffuse = {1, 1, 1},
             specular = {1, 1, 1},
             intensity = 1.0,
             attenuation = {0, 0, 0},
@@ -178,14 +182,6 @@ function init()
             materialIdx = 0,
             geometryIdx = 0
         }
-    }
-    maze = {
-        size = 30,
-        roofed = false,
-        tiles_to_remove = 500,
-        tile_size = 3.0,
-        chism_probability = 10.0,
-        win_coord = {0, 0, 0}
     }
 end
 

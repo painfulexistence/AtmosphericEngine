@@ -13,9 +13,9 @@ Lua::~Lua()
 void Lua::Init()
 {
     this->_env.open_libraries();
-    Source("./resources/config.lua");
-    Source("./resources/manifest.lua");
-    Source("./resources/main.lua");
+    Source("./assets/config.lua");
+    Source("./assets/manifest.lua");
+    Source("./assets/main.lua");
 }
 
 void Lua::Bind(const std::string& func)

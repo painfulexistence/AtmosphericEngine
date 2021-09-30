@@ -38,7 +38,7 @@ target_include_directories(AtmosphericEngine PUBLIC include external ${LUA_INCLU
 target_link_libraries(AtmosphericEngine PUBLIC GLEW::GLEW glfw fmt::fmt EnTT::EnTT ${GLFW_LIBRARY} ${GLM_LIBRARY} ${LUA_LIBRARIES} sol2::sol2 BulletSoftBody BulletDynamics BulletCollision LinearMath)
 
 # Copy static files to target directory
-file(COPY resources DESTINATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
+file(COPY assets DESTINATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
 if(DEFINED ENV{VCPKG_ROOT} AND WIN32)
     if(CMAKE_BUILD_TYPE MATCHES "" OR CMAKE_BUILD_TYPE MATCHES "Debug")
         file(COPY "$ENV{VCPKG_ROOT}/installed/x64-mingw-dynamic/debug/bin/glew32d.dll" DESTINATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})

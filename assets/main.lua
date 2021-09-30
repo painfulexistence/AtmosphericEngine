@@ -129,58 +129,37 @@ function init()
     }
     textures = {
         {
-            path =  "./resources/textures/plaster.jpg"
+            path =  "./assets/textures/plaster.jpg"
         },
         {
-            path = "./resources/textures/snow.jpg"
+            path = "./assets/textures/snow.jpg"
         },
         {
-            path = "./resources/textures/grassy.jpg"
+            path = "./assets/textures/grassy.jpg"
         },
         {
-            path = "./resources/textures/brick.jpg"
+            path = "./assets/textures/brick.jpg"
         },
         {
-            path = "./resources/textures/metal.jpg"
+            path = "./assets/textures/metal.jpg"
         }
     }
     shaders = {
         color = {
-            vert = "./resources/shaders/pbr.vert",
-            frag = "./resources/shaders/pbr.frag"
+            vert = "./assets/shaders/pbr.vert",
+            frag = "./assets/shaders/pbr.frag"
         },
         depth = {
-            vert = "./resources/shaders/depth_simple.vert",
-            frag = "./resources/shaders/depth_simple.frag"
+            vert = "./assets/shaders/depth_simple.vert",
+            frag = "./assets/shaders/depth_simple.frag"
         },
         depth_cubemap = {
-            vert = "./resources/shaders/depth_cubemap.vert",
-            frag = "./resources/shaders/depth_cubemap.frag"
+            vert = "./assets/shaders/depth_cubemap.vert",
+            frag = "./assets/shaders/depth_cubemap.frag"
         },
         hdr = {
-            vert = "./resources/shaders/hdr.vert",
-            frag = "./resources/shaders/hdr.frag"
-        }
-    }
-    geometries = {
-        {
-            name = "Cube",
-            vertexData = {
-                --One geometry can contains many parts
-                {
-
-                },
-                {
-
-                }
-            }
-        }
-    }
-    meshes = {
-        {
-            name = "maze",
-            materialIdx = 0,
-            geometryIdx = 0
+            vert = "./assets/shaders/hdr.vert",
+            frag = "./assets/shaders/hdr.frag"
         }
     }
 end

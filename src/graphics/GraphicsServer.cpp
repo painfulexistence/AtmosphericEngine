@@ -10,7 +10,9 @@ GraphicsServer::GraphicsServer()
 
 GraphicsServer::~GraphicsServer()
 {
-
+    for (auto& mat : materials)
+        delete mat;
+    glDeleteTextures(textures.size(), textures.data());
 }
 
 void GraphicsServer::Init(MessageBus* mb, Application* app)
@@ -37,7 +39,7 @@ void GraphicsServer::Init(MessageBus* mb, Application* app)
     });
 
     this->ResetFramebuffers();
-    this->ResetVertexArrays();
+    this->ResetScreenVAO();
 }
 
 void GraphicsServer::Process(float dt)
@@ -61,8 +63,6 @@ void GraphicsServer::Render(float dt)
         
         modelInstancesMap.find(model)->second.push_back(wm);
     }
-
-    glBindVertexArray(sceneVAO);
     
     glViewport(0, 0, SHADOW_W, SHADOW_H);
     glBindFramebuffer(GL_FRAMEBUFFER, shadowFBO);
@@ -167,7 +167,6 @@ void GraphicsServer::Render(float dt)
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     // Screen color pass
-    glBindVertexArray(screenVAO);
     glBindFramebuffer(GL_READ_FRAMEBUFFER, hdrFBO);
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, msaaFBO);
     glBlitFramebuffer(0, 0, this->_fbProps.width, this->_fbProps.height, 0, 0, this->_fbProps.width, this->_fbProps.height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
@@ -176,15 +175,14 @@ void GraphicsServer::Render(float dt)
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, screenTexture);
-    glBindBuffer(GL_ARRAY_BUFFER, screenVBO);
 
     glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);    
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     hdrProgram.Activate();
     hdrProgram.SetUniform(std::string("color_map_unit"), (int)0);
     //hdrProgram.SetUniform(std::string("exposure"), (float)1.0);
+    glBindVertexArray(screenVAO);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
 void GraphicsServer::OnMessage(Message msg)
@@ -343,10 +341,9 @@ void GraphicsServer::ResetFramebuffers()
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, screenTexture, 0);
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
         std::runtime_error("MSAA Framebuffer is incomplete!");
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
-void GraphicsServer::ResetVertexArrays()
+void GraphicsServer::ResetScreenVAO()
 {
     std::vector<GLfloat> verts = {
         -1.0f,  1.0f, 0.0f, 0.0f, 1.0f,
@@ -354,11 +351,10 @@ void GraphicsServer::ResetVertexArrays()
         1.0f,  1.0f, 0.0f, 1.0f, 1.0f,
         1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
     };
-    glGenVertexArrays(1, &sceneVAO);
     glGenVertexArrays(1, &screenVAO);
+    glGenBuffers(1, &screenVBO);
 
     glBindVertexArray(screenVAO);
-    glGenBuffers(1, &screenVBO);
     glBindBuffer(GL_ARRAY_BUFFER, screenVBO);
     glBufferData(GL_ARRAY_BUFFER, verts.size() * sizeof(GLfloat), verts.data(), GL_STATIC_DRAW);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(GLfloat), (void*)0);

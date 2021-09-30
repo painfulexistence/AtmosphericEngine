@@ -4,6 +4,7 @@ std::map<std::string, Model*> Model::ModelList;
 
 Model::Model()
 {
+    glGenVertexArrays(1, &vao);
     glGenBuffers(1, &vbo);
     glGenBuffers(1, &ebo);
     glGenBuffers(1, &ibo);
@@ -14,58 +15,24 @@ Model::~Model()
     glDeleteBuffers(1, &vbo);
     glDeleteBuffers(1, &ebo);
     glDeleteBuffers(1, &ibo);
+    glDeleteVertexArrays(1, &vao);
+    //delete collisionShape; // FIXME: Should delete collisionShape somewhere else before the pointer is out of scope
 }
 
 void Model::BufferData()
 {
-    // Bind/fill vertex buffer and element buffer
+    // Buffer binding reference: https://stackoverflow.com/questions/17332657/does-a-vao-remember-both-a-ebo-ibo-elements-or-indices-and-a-vbo
+    glBindVertexArray(vao);
+
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
     glBufferData(GL_ARRAY_BUFFER, verts.size() * sizeof(GLfloat), verts.data(), GL_STATIC_DRAW);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, tris.size() * sizeof(GLushort), tris.data(), GL_STATIC_DRAW);
-    
-    this->_initialized = true;
-}
-
-void Model::Render(ShaderProgram& program, const std::vector<glm::mat4>& worldMatrices) const
-{
-    if (!_initialized)
-        throw std::runtime_error("Buffer object contains no data");
-    
-    glEnable(GL_PRIMITIVE_RESTART);
-    if (cullFaceEnabled) {
-        glEnable(GL_CULL_FACE);
-    } else {
-        glDisable(GL_CULL_FACE);
-    }
-    glEnable(GL_DEPTH_TEST);
-    //glEnable(GL_STENCIL_TEST);
-
-    glDepthFunc(GL_LESS);
-    //glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
-    //glStencilFunc(GL_ALWAYS, 1, 0xFF);
-
-    program.SetUniform(std::string("surf.ambient"), material->ambient);
-    program.SetUniform(std::string("surf.diffuse"), material->diffuse);
-    program.SetUniform(std::string("surf.specular"), material->specular);
-    program.SetUniform(std::string("surf.shininess"), material->shininess);
-    program.SetUniform(std::string("surf.albedo"), material->albedo);
-    program.SetUniform(std::string("surf.metallic"), material->metallic);
-    program.SetUniform(std::string("surf.roughness"), material->roughness);
-    program.SetUniform(std::string("surf.ao"), material->ao);
-    program.SetUniform(std::string("tex_unit"), (int)material->GetTexUnit());
-
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(GLfloat), (void*)0);
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(GLfloat), (void*)(3 * sizeof(GLfloat)));
     glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(GLfloat), (void*)(6 * sizeof(GLfloat)));
     glEnableVertexAttribArray(0);
     glEnableVertexAttribArray(1);
     glEnableVertexAttribArray(2);
-
     glBindBuffer(GL_ARRAY_BUFFER, ibo);
-    glBufferData(GL_ARRAY_BUFFER, worldMatrices.size() * sizeof(glm::mat4), worldMatrices.data(), GL_STATIC_DRAW);
     glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(glm::vec4), (void*)0);
     glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(glm::vec4), (void*)(4 * sizeof(GLfloat)));
     glVertexAttribPointer(5, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(glm::vec4), (void*)(8 * sizeof(GLfloat)));
@@ -78,9 +45,47 @@ void Model::Render(ShaderProgram& program, const std::vector<glm::mat4>& worldMa
     glVertexAttribDivisor(4, 1);
     glVertexAttribDivisor(5, 1);
     glVertexAttribDivisor(6, 1);
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, tris.size() * sizeof(GLushort), tris.data(), GL_STATIC_DRAW);
+
+    glBindVertexArray(0);
     
+    this->_initialized = true;
+}
+
+void Model::Render(ShaderProgram& program, const std::vector<glm::mat4>& worldMatrices) const
+{
+    if (!_initialized)
+        throw std::runtime_error("Buffer object contains no data");
+    
+    glEnable(GL_PRIMITIVE_RESTART);
+    if (cullFaceEnabled)
+        glEnable(GL_CULL_FACE);
+    else
+        glDisable(GL_CULL_FACE);
+    glEnable(GL_DEPTH_TEST);
+    //glEnable(GL_STENCIL_TEST);
+    glDepthFunc(GL_LESS);
+    //glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+    //glStencilFunc(GL_ALWAYS, 1, 0xFF);
     glPolygonMode(GL_FRONT_AND_BACK, drawMode);
+
+    program.SetUniform(std::string("surf.ambient"), material->ambient);
+    program.SetUniform(std::string("surf.diffuse"), material->diffuse);
+    program.SetUniform(std::string("surf.specular"), material->specular);
+    program.SetUniform(std::string("surf.shininess"), material->shininess);
+    program.SetUniform(std::string("surf.albedo"), material->albedo);
+    program.SetUniform(std::string("surf.metallic"), material->metallic);
+    program.SetUniform(std::string("surf.roughness"), material->roughness);
+    program.SetUniform(std::string("surf.ao"), material->ao);
+    program.SetUniform(std::string("tex_unit"), (int)material->GetTexUnit());
+
+    glBindVertexArray(vao);
+    glBindBuffer(GL_ARRAY_BUFFER, ibo);
+    glBufferData(GL_ARRAY_BUFFER, worldMatrices.size() * sizeof(glm::mat4), worldMatrices.data(), GL_STATIC_DRAW);
     glDrawElementsInstanced(primitiveType, tris.size(), GL_UNSIGNED_SHORT, 0, worldMatrices.size());
+    glBindVertexArray(0);
 }
 
 void Model::Render(ShaderProgram& program, const std::vector<glm::mat4>& worldMatrices, float outline) const

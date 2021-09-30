@@ -1,6 +1,6 @@
 #pragma once
-#define SHADOW_W 2048
-#define SHADOW_H 2048
+#define SHADOW_W 1024
+#define SHADOW_H 1024
 #define MAX_AUX_SHADOWS 0
 #define SHADOW_CASCADES 3
 #define NUM_MAP_UNITS 6

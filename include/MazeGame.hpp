@@ -3,7 +3,6 @@
 using namespace std;
 
 static vector<vector<bool>> generateMazeData(int size, int shouldConsumed);
-static glm::mat4 ConvertPhysicalMatrix(const btTransform& trans);
 
 class MazeGame : public Runtime
 {    
@@ -47,7 +46,7 @@ public:
         // Create material
         for (const auto& kv : materialTable)
         {
-            Material mat = Material((sol::table)kv.second);
+            auto mat = new Material((sol::table)kv.second);
             graphics.materials.push_back(mat);
         }
         script.Print("Materials initialized.");
@@ -83,28 +82,27 @@ public:
         mainLight = dynamic_cast<Light*>(lights.at(0)->GetComponent("Light"));
 
         // Load models
-        //graphics.BindSceneVAO();
         auto characterModel = new Model();
         characterModel->collisionShape = new btCapsuleShape(0.5f, 3.0f);
         Model::ModelList.insert({"Character", characterModel});
 
         auto skyboxModel = Model::CreateCube(800.0f);
-        skyboxModel->material = &graphics.materials[1];
+        skyboxModel->material = graphics.materials[1];
         skyboxModel->cullFaceEnabled = false;
         Model::ModelList.insert({"Skybox", skyboxModel});
 
         auto terrainModel = Model::CreateTerrain(MAZE_SIZE * TILE_SIZE, 10, std::vector<GLfloat>(100, 0.0f));
-        terrainModel->material = &graphics.materials[1];
+        terrainModel->material = graphics.materials[1];
         terrainModel->collisionShape = new btBoxShape(btVector3(MAZE_SIZE * TILE_SIZE, 0.2f, MAZE_SIZE * TILE_SIZE));
         Model::ModelList.insert({"Terrain", terrainModel});
 
         auto cubeModel = Model::CreateCube((float)TILE_SIZE);
-        cubeModel->material = &graphics.materials[2];
+        cubeModel->material = graphics.materials[2];
         cubeModel->collisionShape = new btBoxShape(0.5f * btVector3(TILE_SIZE, TILE_SIZE, TILE_SIZE));
         Model::ModelList.insert({"Cube", cubeModel});
 
         auto sphereModel = Model::CreateSphere();
-        sphereModel->material = &graphics.materials[0];
+        sphereModel->material = graphics.materials[0];
         sphereModel->collisionShape = new btSphereShape(0.5f);
         Model::ModelList.insert({"Sphere", sphereModel});
 
@@ -178,7 +176,7 @@ public:
                     winCoord.z = TILE_SIZE * (z - MAZE_SIZE / 2.f);
                 }
                 auto cube = new GameObject();
-                cube->SetPosition((TILE_SIZE * glm::vec3(x - MAZE_SIZE / 2.f, -1, z - MAZE_SIZE / 2.f)));
+                cube->SetPosition(TILE_SIZE * glm::vec3(x - MAZE_SIZE / 2.f, -1, z - MAZE_SIZE / 2.f));
                 ComponentFactory::CreateMesh(cube, &graphics, "Cube");
                 ComponentFactory::CreateImpostor(cube, &physics, "Cube", 0.0f);
                 gameObjects.push_back(cube);

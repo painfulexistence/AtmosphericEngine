@@ -24,10 +24,10 @@ Runtime::Runtime()
 Runtime::~Runtime()
 {
     Log("Exiting...");
-    for (auto go : gameObjects)
-    {
+    for (const auto& go : gameObjects)
         delete go;
-    }
+    for (const auto& [name, model] : Model::ModelList)
+        delete model;
     delete this->_mb;
     delete this->_app;
 }

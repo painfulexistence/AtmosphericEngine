@@ -25,9 +25,7 @@ class GraphicsServer : Server
 {
 public:
     std::vector<GLuint> textures;
-    std::vector<Model> models;
-    std::vector<Material> materials;
-    std::vector<ShaderProgram> shaders;
+    std::vector<Material*> materials;
     std::vector<Mesh*> meshes;
     std::vector<Light*> lights;
     std::vector<Camera*> cameras;
@@ -81,11 +79,11 @@ private:
     std::vector<GLuint> omniShadowMaps;
     GLuint hdrColorTexture, hdrDepthTexture;
     GLuint screenTexture;
-    GLuint sceneVAO, screenVAO;
+    GLuint screenVAO;
     GLuint screenVBO;
     glm::vec4 clearColor = glm::vec4(0.15f, 0.183f, 0.2f, 1.0f);
 
     void ResetFramebuffers();
     
-    void ResetVertexArrays();
+    void ResetScreenVAO();
 };

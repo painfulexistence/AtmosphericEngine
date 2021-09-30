@@ -28,8 +28,9 @@ Impostor::Impostor(GameObject* gameObject, btCollisionShape* shape, float mass)
 
 Impostor::~Impostor()
 {
-    delete this->_rigidbody;
-    delete this->_motionState;
+    // TODO: Check if bullet objects are destoryed by the destructor in btDynamicsWorld class
+    //delete this->_rigidbody;
+    //delete this->_motionState;
 };
 
 std::string Impostor::GetName() const

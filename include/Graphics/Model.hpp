@@ -7,15 +7,15 @@
 class Model
 {
 private:
-    GLuint vbo, ebo, ibo;
-    std::list<uint64_t> _instances; // TODO: Should be removed. Group the meshes by their underlyng models in the rendering loop
+    GLuint vao, vbo, ebo, ibo;
+    std::vector<GLfloat> verts;
+    std::vector<GLushort> tris;
+    std::array<glm::vec3, 8> bounds;
     bool _initialized = false;
     
 public:
     static std::map<std::string, Model*> ModelList;
-    std::vector<GLfloat> verts;
-    std::vector<GLushort> tris;
-    std::array<glm::vec3, 8> bounds;
+
     Material* material;
     btCollisionShape* collisionShape;
     bool cullFaceEnabled = true;

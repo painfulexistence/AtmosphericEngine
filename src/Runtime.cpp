@@ -115,7 +115,8 @@ void Runtime::Render(const FrameProps& props)
     // So the drawing time can only be calculated along with the image presenting.
     graphics.Render(dt); 
     gui.Render(dt);
-    this->_win->SwapBuffers();
+    // Nevertheless, glFinish() can force the GPU process all the commands synchronously.
+    glFinish();
 
     #if SHOW_RENDER_AND_DRAW_COST
     Log(fmt::format("Render & draw cost {} ms", (Time() - time) * 1000));
@@ -124,7 +125,13 @@ void Runtime::Render(const FrameProps& props)
 
 void Runtime::Draw(const FrameProps& props)
 {
-    float dt = props.deltaTime;
+    float time = Time();
+
+    this->_win->SwapBuffers();
+
+    #if SHOW_VSYNC_COST
+    Log(fmt::format("Vsync cost {} ms", (Time() - time) * 1000));
+    #endif
 }
 
 void Runtime::BroadcastMessages()

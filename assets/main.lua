@@ -146,7 +146,7 @@ function init()
     }
     shaders = {
         color = {
-            vert = "./assets/shaders/pbr.vert",
+            vert = "./assets/shaders/simple.vert",
             frag = "./assets/shaders/pbr.frag"
         },
         depth = {

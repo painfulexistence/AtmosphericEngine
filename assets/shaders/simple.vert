@@ -13,9 +13,10 @@ out vec2 tex_uv;
 
 void main()
 {
-    frag_normal = mat3(World) * normal;
     frag_pos = vec3(World * vec4(position, 1.0));
+    frag_normal = mat3(World) * normal;
     tex_uv = uv;
+
     gl_Position = ProjectionView * World * vec4(position, 1.0);
 }
 

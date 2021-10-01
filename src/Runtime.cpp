@@ -149,8 +149,7 @@ void Runtime::SyncTransformWithPhysics()
         auto impostor = dynamic_cast<Impostor*>(go->GetComponent("Physics"));
         if (impostor == nullptr)
             continue;
-        const glm::mat4& m2w = impostor->GetCenterOfMassWorldTransform();
-        go->SetModelWorldTransform(m2w);
+        go->SetModelWorldTransform(impostor->GetCenterOfMassWorldTransform());
     }
     
     #if SHOW_SYNC_COST

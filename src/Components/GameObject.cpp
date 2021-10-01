@@ -42,8 +42,6 @@ void GameObject::SetModelTransform(glm::mat4 mod)
 
 glm::mat4 GameObject::GetModelWorldTransform() const
 {
-    //if (parent == nullptr)
-    //    return glm::mat4(1.0f);
     return _m2w; 
 }
 
@@ -70,22 +68,22 @@ glm::vec3 GameObject::GetScale()
 void GameObject::SetPosition(glm::vec3 value)
 {
     _position = value;
-    _mod = glm::scale(glm::translate(glm::mat4(1.0f), _position),  _scale);
+    _m2w = glm::scale(glm::translate(glm::mat4(1.0f), _position),  _scale);
 }
 
 void GameObject::SetRotation(glm::vec3 value)
 {
     _rotation = value;
-    _mod = glm::scale(glm::translate(glm::mat4(1.0f), _position),  _scale);
+    _m2w = glm::scale(glm::translate(glm::mat4(1.0f), _position),  _scale);
 }
 
 void GameObject::SetScale(glm::vec3 value)
 {
     _scale = value;
-    _mod = glm::scale(glm::translate(glm::mat4(1.0f), _position),  _scale);
+    _m2w = glm::scale(glm::translate(glm::mat4(1.0f), _position),  _scale);
 }
 
 glm::mat4 GameObject::GetTransform() const 
 {
-    return GetModelWorldTransform() * GetModelTransform(); 
+    return _m2w * _mod; 
 }

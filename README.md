@@ -14,3 +14,11 @@ Turn off:
 - BUILD_LUA_AS_DLL
 - BUILD_UNIT_TESTS
 - BUILD_SHARED_LIBS
+
+# Project structure
+/include
+    public headers
+/src
+    source files
+/external
+    dependencies: bullet3, entt, fmt, glfw, sol2, dearImgui, stb

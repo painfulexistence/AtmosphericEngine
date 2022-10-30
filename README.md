@@ -7,10 +7,10 @@ This project is still under development and may be completely broken at this sta
 # Building
 TODO
 ## CMake options:
-- Turn off:
-- - BUILD_BULLET2_DEMOS
-- - BUILD_BULLET_ROBOTICS_EXTRA
-- - BUILD_BULLET_ROBOTICS_GUI_EXTRA
-- - BUILD_LUA_AS_DLL
-- - BUILD_UNIT_TESTS
-- - BUILD_SHARED_LIBS
+Turn off:
+- BUILD_BULLET2_DEMOS
+- BUILD_BULLET_ROBOTICS_EXTRA
+- BUILD_BULLET_ROBOTICS_GUI_EXTRA
+- BUILD_LUA_AS_DLL
+- BUILD_UNIT_TESTS
+- BUILD_SHARED_LIBS

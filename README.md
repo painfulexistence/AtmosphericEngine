@@ -1,10 +1,13 @@
-# CMake Reference
-https://www.foonathan.net/2016/07/cmake-dependency-handling/
+# What is Atmospheric?
+**Atmospheric** is an open-source, cross-platform 3D game engine built in C++. This is a project I do in my free time for learning graphics programming concepts & practices. The renderer currently supports HDR rendering, PBR materials, point shadows, directional shadows, and a handful of post-processing effects.
 
-# CMake Flags
-- Turn on
+# WARNING
+This project is still under development and may be completely broken at this stage.
 
-- Turn off
+# Building
+TODO
+## CMake options:
+- Turn off:
 - - BUILD_BULLET2_DEMOS
 - - BUILD_BULLET_ROBOTICS_EXTRA
 - - BUILD_BULLET_ROBOTICS_GUI_EXTRA

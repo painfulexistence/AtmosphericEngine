@@ -5,8 +5,17 @@
 This project is still under development and may be completely broken at this stage.
 
 # Building
-TODO
-## CMake options:
+## Install CMake
+## Install VCPKG
+## Install EMSDK (optional)
+See https://emscripten.org/docs/getting_started/downloads.html
+## Run CMake
+```
+mkdir build
+cd build && cmake ..
+```
+
+#### Recommeded CMake options:
 Turn off:
 - BUILD_BULLET2_DEMOS
 - BUILD_BULLET_ROBOTICS_EXTRA
@@ -16,8 +25,6 @@ Turn off:
 - BUILD_SHARED_LIBS
 
 # Project structure
-/include
-    public headers
 /src
     source files
 /external

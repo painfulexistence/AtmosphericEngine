@@ -1,12 +1,36 @@
-#add_subdirectory(Audio)
-add_subdirectory(Console)
-add_subdirectory(Graphics)
-add_subdirectory(GUI)
-add_subdirectory(Input)
-add_subdirectory(Messaging)
-add_subdirectory(Physics)
-add_subdirectory(Scripting)
-add_subdirectory(Components)
-add_subdirectory(OS)
-add_subdirectory(Framework)
-target_sources(AtmosphericEngine PRIVATE src/Runtime.cpp)
+set(SOURCES
+    src/Application.cpp
+    src/Window.cpp
+    src/Server.cpp
+    src/Console.cpp
+    src/Messagable.cpp
+    src/MessageBus.cpp
+    src/Message.cpp
+    src/ComponentFactory.cpp
+    src/GameObject.cpp
+    src/Impostor.cpp
+    src/light.cpp
+    src/Camera.cpp
+    src/Mesh.cpp
+    src/frustum.cpp
+    src/material.cpp
+    src/Model.cpp
+    src/Shader.cpp
+    src/GraphicsServer.cpp
+    src/texture.cpp
+    src/PhysicsServer.cpp
+    src/DynamicsWorld.cpp
+    src/Input.cpp
+    src/GUI.cpp
+    src/GUIState.cpp
+    src/GUIWindow.cpp
+    src/GUIDocument.cpp
+    src/GUIElement.cpp
+    src/Entity.cpp
+    src/Script.cpp
+    src/IL.cpp
+    src/Lua.cpp
+    src/Utility/File.cpp
+    src/Runtime.cpp
+)
+target_sources(AtmosphericEngine PRIVATE ${SOURCES})

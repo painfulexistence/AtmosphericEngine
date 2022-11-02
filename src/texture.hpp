@@ -1,6 +1,6 @@
 #pragma once
 #include "Globals.hpp"
-#include "Lua.hpp"
+#include "lua.hpp"
 
 struct Texture {
     std::string name;

@@ -1,5 +1,7 @@
 #include "Runtime.hpp"
-#include "Lua.hpp"
+#include "GameObject.hpp"
+#include "ComponentFactory.hpp"
+#include "lua.hpp"
 using namespace std;
 
 static vector<vector<bool>> generateMazeData(int size, int shouldConsumed);

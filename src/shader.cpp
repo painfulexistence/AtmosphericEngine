@@ -1,4 +1,4 @@
-#include "Shader.hpp"
+#include "shader.hpp"
 #include "Utility/file.hpp"
 
 Shader::Shader(const std::string& path, GLenum type)

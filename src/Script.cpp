@@ -1,5 +1,5 @@
 #include "Script.hpp"
-#include "Lua.hpp"
+#include "lua.hpp"
 
 Script::Script()
 {

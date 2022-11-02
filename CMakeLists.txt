@@ -32,7 +32,7 @@ if(UNIX)
 endif()
 
 
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.19)
 project(AtmosphericEngine VERSION 0.1)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -42,6 +42,9 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/build/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/build)
 
 aux_source_directory(external SOURCES_EXT)
+if(UNIX)
+    include_directories(/opt/local/include)
+endif()
 add_executable(AtmosphericEngine ${PROJECT_SOURCE_DIR}/src/main.cpp ${SOURCES_EXT})
 find_package(GLEW REQUIRED)
 find_package(GLM REQUIRED)
@@ -54,7 +57,7 @@ add_subdirectory(external/entt)
 add_subdirectory(src)
 
 # Link and compile
-target_include_directories(AtmosphericEngine PUBLIC src external external/glfw/include external/bullet3/src ${LUA_INCLUDE_DIR})
+target_include_directories(AtmosphericEngine PUBLIC src external external/glfw/include external/bullet3/src ${LUA_INCLUDE_DIR} external/sol2/include)
 target_link_libraries(AtmosphericEngine PUBLIC GLEW::GLEW glfw fmt::fmt EnTT::EnTT ${GLFW_LIBRARY} ${GLM_LIBRARY} ${LUA_LIBRARIES} sol2::sol2 BulletSoftBody BulletDynamics BulletCollision LinearMath)
 
 # Copy static files to target directory

@@ -6,6 +6,8 @@
 #include "GraphicsServer.hpp"
 #include "PhysicsServer.hpp"
 #include "Console.hpp"
+#include "GameObject.hpp"
+#include "Impostor.hpp"
 #include "GUI.hpp"
 #include "Input.hpp"
 #include "Script.hpp"

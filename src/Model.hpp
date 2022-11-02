@@ -1,6 +1,6 @@
 #pragma once
 #include "Globals.hpp"
-#include "Shader.hpp"
+#include "shader.hpp"
 #include "material.hpp"
 #include "BulletCollision.hpp"
 

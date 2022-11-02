@@ -1,6 +1,6 @@
 #pragma once
 #include "Globals.hpp"
-#include "Lua.hpp"
+#include "lua.hpp"
 #include "Component.hpp"
 
 struct CameraProps

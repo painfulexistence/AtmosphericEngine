@@ -1,16 +1,3 @@
-[submodule "external/glfw"]
-	path = external/glfw
-	url = https://github.com/glfw/glfw
-[submodule "external/bullet3"]
-	path = external/bullet3
-	url = https://github.com/bulletphysics/bullet3
-    ignore = dirty
-[submodule "external/sol2"]
-	path = external/sol2
-	url = https://github.com/ThePhD/sol2
-[submodule "external/fmt"]
-	path = external/fmt
-	url = git@github.com:fmtlib/fmt.git
 [submodule "external/entt"]
 	path = external/entt
 	url = git@github.com:skypjack/entt.git

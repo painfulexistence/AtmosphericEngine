@@ -1,24 +1,14 @@
 {
-    "name": "atmospheric",
+    "name": "atmospheric-engine",
     "version": "0.1.0",
+    "license": "GPL-3.0",
     "dependencies": [
       "glew",
       "glfw3",
       "glm",
       "bullet3",
       "fmt",
-      {
-        "name": "lua",
-        "version>=": "5.4.3"
-      },
+      "lua",
       "sol2"
-    ],
-    "overrides": [
-      {
-        "name": "lua",
-        "version": "5.4.3",
-        "port-version": 2      
-      }
-    ],
-    "builtin-baseline": "7e044226c8a6f43dac7d9e0efd8edbf8ff5ecd04"
+    ]
 }

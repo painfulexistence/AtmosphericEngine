@@ -6,13 +6,18 @@ This project is still under development and may be completely broken at this sta
 
 # Building
 ## Install CMake
-## Install VCPKG
+See https://cmake.org/install/
 ## Install EMSDK (optional)
 See https://emscripten.org/docs/getting_started/downloads.html
+## Clone the repo
+```
+git clone --recurse-submodules https://github.com/painfulexistence/AtmosphericEngine.git
+cd AtmosphericEngine
+```
 ## Run CMake
 ```
-mkdir build
-cd build && cmake ..
+mkdir build && cd build
+cmake ..
 ```
 
 #### Recommeded CMake options:

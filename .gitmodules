@@ -1,6 +1,12 @@
-[submodule "external/entt"]
-	path = external/entt
-	url = git@github.com:skypjack/entt.git
 [submodule "vcpkg"]
 	path = vcpkg
 	url = https://github.com/Microsoft/vcpkg.git
+[submodule "external/entt"]
+	path = AtmosphericEngine/external/entt
+	url = git@github.com:skypjack/entt.git
+[submodule "AtmosphericEngine/external/lua"]
+	path = AtmosphericEngine/external/lua
+	url = https://github.com/lua/lua.git
+[submodule "AtmosphericEngine/external/sol2"]
+	path = AtmosphericEngine/external/sol2
+	url = https://github.com/ThePhD/sol2.git

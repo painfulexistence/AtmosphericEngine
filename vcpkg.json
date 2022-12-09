@@ -7,8 +7,6 @@
       "glfw3",
       "glm",
       "bullet3",
-      "fmt",
-      "lua",
-      "sol2"
+      "fmt"
     ]
 }

@@ -4,9 +4,9 @@ find_package(glfw3 REQUIRED)
 find_package(GLM REQUIRED)
 find_package(Bullet CONFIG REQUIRED)
 find_package(fmt REQUIRED)
+find_package(lua REQUIRED)
 
 add_subdirectory(external/entt)
-add_subdirectory(external/lua)
 add_subdirectory(external/sol2)
 
 set(SOURCES
@@ -55,5 +55,5 @@ set(SOURCES_EXT
 
 add_library(AtmosphericEngine STATIC ${SOURCES} ${SOURCES_EXT})
 
-target_include_directories(AtmosphericEngine PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} ${BULLET_INCLUDE_DIR} external/stb external/imgui)
-target_link_libraries(AtmosphericEngine PUBLIC GLEW::GLEW glfw glm::glm fmt::fmt EnTT::EnTT BulletSoftBody BulletDynamics BulletCollision LinearMath LUA sol2)
+target_include_directories(AtmosphericEngine PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} ${BULLET_INCLUDE_DIR} ${LUA_INCLUDE_DIR} external/stb external/imgui)
+target_link_libraries(AtmosphericEngine PUBLIC GLEW::GLEW glfw glm::glm fmt::fmt EnTT::EnTT BulletSoftBody BulletDynamics BulletCollision LinearMath ${LUA_LIBRARIES} sol2)

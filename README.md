@@ -13,9 +13,8 @@ cd AtmosphericEngine
 ```
 3. Run CMake to build the project
 ```
-mkdir build && cd build
-cmake ..
-cmake --build .
+cmake -S . -B build
+cmake --build build
 ```
 #### Recommended CMake options:
 Turn off:

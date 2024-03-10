@@ -3,6 +3,7 @@ set(CMAKE_TOOLCHAIN_FILE ${CMAKE_CURRENT_SOURCE_DIR}/vcpkg/scripts/buildsystems/
 
 project(AtmosphericEngine VERSION 0.1)
 
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -15,6 +16,6 @@ option(USE_EMSCRIPTEN "Use Emscripten to build" OFF)
 add_subdirectory(AtmosphericEngine)
 add_subdirectory(Example_MazeWorld)
 
-# Copy asset files to target directory
+# Copy static assets
+# TODO: use add_custom_command instead of file(COPY)
 file(COPY assets DESTINATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
-

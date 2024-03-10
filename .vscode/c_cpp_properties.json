@@ -2,10 +2,6 @@
     "configurations": [
         {
             "name": "Mac",
-            "includePath": [
-                "/opt/local/include",
-                "${workspaceFolder}/external"
-            ],
             "defines": [],
             "macFrameworkPath": [
                 "/System/Library/Frameworks",
@@ -14,30 +10,16 @@
             "compilerPath": "/usr/bin/g++",
             "cStandard": "c11",
             "cppStandard": "c++17",
+            "compileCommands": "${workspaceFolder}/build/compile_commands.json",
             "intelliSenseMode": "${default}"
         },
         {
             "name": "Win32",
-            "includePath": [
-                "${workspaceFolder}/**",
-                "${vcpkgRoot}/x86-windows/include/"
-            ],
             "defines": [],
             "compilerPath": "cl.exe",
             "cStandard": "c11",
             "cppStandard": "c++17",
-            "intelliSenseMode": "${default}"
-        },
-        {
-            "name": "x64-mingw-dynamic",
-            "includePath": [
-                "${workspaceFolder}/**",
-                "${vcpkgRoot}/x64-mingw-dynamic/include/"
-            ],
-            "defines": [],
-            "compilerPath": "E:/msys64/mingw64/bin/g++.exe",
-            "cStandard": "c11",
-            "cppStandard": "c++17",
+            "compileCommands": "${workspaceFolder}/build/compile_commands.json",
             "intelliSenseMode": "${default}"
         }
     ],

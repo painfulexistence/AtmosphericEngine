@@ -5,7 +5,7 @@ This project is still under development and may be completely broken at this sta
 
 
 ## Building
-1. Install [CMake](https://cmake.org/install/) (required) and [EMSDK](https://emscripten.org/docs/getting_started/downloads.html) (optional) 
+1. Install [CMake](https://cmake.org/download/) (required) and [EMSDK](https://emscripten.org/docs/getting_started/downloads.html) (optional) 
 2. Clone this repo
 ```
 git clone --recurse-submodules https://github.com/painfulexistence/AtmosphericEngine.git

@@ -1,6 +1,6 @@
 #pragma once
 #include "Globals.hpp"
-#include "Application.hpp"
+//#include <GLFW/glfw3.h>
 
 #define OnMouseMoveCallback std::function<void(GLFWwindow*, float, float)>
 #define OnMouseEnterCallback std::function<void(GLFWwindow*)>
@@ -17,6 +17,8 @@
 #define OnWindowKeyReleaseCallback std::function<void(int, int, int)>
 #define OnWindowViewportResizeCallback std::function<void(int, int)>
 #define OnWindowFramebufferResizeCallback std::function<void(int, int)>
+
+class GLFWwindow;
 
 struct ImageSize
 {
@@ -55,13 +57,11 @@ public:
 
     static  std::map<Window*, OnFramebufferResizeCallback> onFramebufferResizeCallbacks;
 
-    Window(Application* app, WindowProps props = WindowProps());
+    Window(WindowProps props = WindowProps());
 
     ~Window();
     
     void Init();
-
-    void SetActive();
 
     void SwapBuffers();
     
@@ -103,6 +103,10 @@ public:
 
     bool GetKeyUp(int key);
 
+    float GetTime();
+
+    GLFWwindow* GetGLFWWindow();
+
     ImageSize GetViewportSize();
 
     ImageSize GetFramebufferSize();
@@ -110,6 +114,5 @@ public:
     bool IsClosing();
     
 private:
-    Application* _app;
-    GLFWwindow* _win = nullptr;
+    GLFWwindow* _glfwWindow = nullptr;
 };

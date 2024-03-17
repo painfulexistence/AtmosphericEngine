@@ -3,9 +3,10 @@
 #include "BulletLinearMath.hpp"
 #include "BulletCollision.hpp"
 #include "BulletDynamics.hpp"
-#include "PhysicsServer.hpp"
 #include "GameObject.hpp"
 #include "Component.hpp"
+
+class PhysicsServer;
 
 class Impostor : public Component
 {

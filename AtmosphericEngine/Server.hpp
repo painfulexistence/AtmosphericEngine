@@ -3,7 +3,8 @@
 #include "Messagable.hpp"
 #include "Message.hpp"
 #include "MessageBus.hpp"
-#include "Application.hpp"
+
+class Application;
 
 class Server : public Messagable
 {

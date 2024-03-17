@@ -1,8 +1,8 @@
 #include "MessageBus.hpp"
 #include "Messagable.hpp"
-#include "Runtime.hpp"
+#include "Application.hpp"
 
-MessageBus::MessageBus(Runtime* supervisor)
+MessageBus::MessageBus(Application* supervisor)
 {
     this->_supervisor = supervisor;
 }

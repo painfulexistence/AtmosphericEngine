@@ -2,12 +2,12 @@
 #include "Globals.hpp"
 #include "Message.hpp"
 
-class Runtime;
+class Application;
 class Messagable;
 class MessageBus
 {
 public:
-    MessageBus(Runtime* supervisor);
+    MessageBus(Application* supervisor);
     ~MessageBus();
     int Register(Messagable* receiver);
     void PostMessage(Message msg);
@@ -15,7 +15,7 @@ public:
     void Process();
 private:
     const int MAX_PROCESSING_NUM_MSGS = 20;
-    Runtime* _supervisor;
+    Application* _supervisor;
     std::list<Messagable*> _receivers;
     std::queue<Message> _messages;
     void OnMessageSent(Message msg);

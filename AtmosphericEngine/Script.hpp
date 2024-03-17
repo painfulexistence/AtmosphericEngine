@@ -1,6 +1,5 @@
 #pragma once
 #include "Globals.hpp"
-#include "Application.hpp"
 #include "Server.hpp"
 #include "IL.hpp"
 

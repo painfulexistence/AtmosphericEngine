@@ -2,6 +2,7 @@
 #include "GUIState.hpp"
 #include "GUIWindow.hpp"
 #include "GUIElement.hpp"
+#include "Application.hpp"
 
 /*
 ImGui::Begin("General Graphics");
@@ -61,6 +62,16 @@ GUI::~GUI()
 void GUI::Init(MessageBus* mb, Application* app)
 {
     Server::Init(mb, app);
+
+    // Setup ImGUI
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    #if USE_VULKAN_DRIVER
+    throw std::runtime_error("When using Vulkan, GUI context should be manually handled!");
+    #else    
+    ImGui_ImplGlfw_InitForOpenGL(app->GetWindow()->GetGLFWWindow(), true);
+    ImGui_ImplOpenGL3_Init("#version 410");
+    #endif
     
     this->_state->CreateWindow("Realtime Rendering");
 }

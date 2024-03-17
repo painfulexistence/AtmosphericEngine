@@ -2,6 +2,7 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 #include "GameObject.hpp"
+#include "Application.hpp"
 
 GraphicsServer::GraphicsServer()
 {
@@ -30,8 +31,8 @@ void GraphicsServer::Init(MessageBus* mb, Application* app)
     glEnable(GL_MULTISAMPLE);
     #endif
 
-    this->_app->GetActiveWindow()->SetOnFramebufferResize([this](int width, int height) {
-        if (this->_app->GetActiveWindow()->IsClosing())
+    this->_app->GetWindow()->SetOnFramebufferResize([this](int width, int height) {
+        if (this->_app->GetWindow()->IsClosing())
             return;
         this->_fbProps.width = width;
         this->_fbProps.height = height;

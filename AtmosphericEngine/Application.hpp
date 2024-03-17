@@ -1,46 +1,82 @@
 #pragma once
 #include "Globals.hpp"
+#include "MessageBus.hpp"
+#include "Window.hpp"
+#include "GraphicsServer.hpp"
+#include "PhysicsServer.hpp"
+#include "Console.hpp"
+#include "GUI.hpp"
+#include "Input.hpp"
+#include "Script.hpp"
+#include "GameObject.hpp"
 
-const int KEY_UP = GLFW_KEY_UP;
-const int KEY_RIGHT = GLFW_KEY_RIGHT;
-const int KEY_LEFT = GLFW_KEY_LEFT;
-const int KEY_DOWN = GLFW_KEY_DOWN;
-const int KEY_Q = GLFW_KEY_Q;
-const int KEY_W = GLFW_KEY_W;
-const int KEY_E = GLFW_KEY_E;
-const int KEY_R = GLFW_KEY_R;
-const int KEY_A = GLFW_KEY_A;
-const int KEY_S = GLFW_KEY_S;
-const int KEY_D = GLFW_KEY_D;
-const int KEY_F = GLFW_KEY_F;
-const int KEY_Z = GLFW_KEY_Z;
-const int KEY_X = GLFW_KEY_X;
-const int KEY_C = GLFW_KEY_C;
-const int KEY_V = GLFW_KEY_V;
-const int KEY_ESCAPE = GLFW_KEY_ESCAPE;
-const int KEY_ENTER = GLFW_KEY_ENTER;
-const int KEY_SPACE = GLFW_KEY_SPACE;
-
-class Window;
+struct FrameProps
+{
+    FrameProps(uint64_t number, float time, float deltaTime)
+    {
+        this->number = number;
+        this->time = time;
+        this->deltaTime = deltaTime;
+    };
+    uint64_t number;
+    float time;
+    float deltaTime;
+};
 
 class Application
 {
+private:
+    bool _initialized = false;
+    bool _quitted = false;
+    // The framework needs to be initialized first before the constructor call, so that the graphics library gets loaded earlier than other things do.
+    // Do not put the framework on the stack, or try to initialize it elsewhere, otherwise segment fault may creep in unexpecedly.
+    //Application* _app = new Application();
+    MessageBus* _mb = new MessageBus(this);
+    Window* _window = nullptr;
+    uint64_t _clock = 0;
+
+    void Log(std::string message);
+
+    void Process(const FrameProps& frame);
+
+    void Render(const FrameProps& frame); // TODO: Properly separate rendering and drawing logic if the backend supports command buffering
+
+    void Draw(const FrameProps& frame);
+
+    void BroadcastMessages();
+
+    void SyncTransformWithPhysics();
+
 public:
     static std::optional<Application> instance;
 
     Application();
 
     ~Application();
+        
+    void Run();
+
+    void Quit();
+
+    virtual void Load() = 0;
+
+    virtual void Update(float dt, float time) = 0;
 
     void Tick();
     
     uint64_t GetClock();
 
-    float GetTime();
+    float GetWindowTime();
 
-    Window* GetActiveWindow();
-    
-private:
-    uint64_t _clock = 0;
-    Window* _activeWindow = nullptr;  
+    Window* GetWindow();
+
+protected:
+    // These subsystems will be game accessible
+    GraphicsServer graphics;
+    PhysicsServer physics;
+    Console console;
+    GUI gui;
+    Input input;
+    Script script;
+    std::vector<GameObject*> gameObjects;
 };

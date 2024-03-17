@@ -1,16 +1,13 @@
 #pragma once
 #include "Globals.hpp"
-#include "Application.hpp"
 #include "Server.hpp"
 #include "DynamicsWorld.hpp"
-
-class Impostor;
+#include "Impostor.hpp"
 
 class PhysicsServer : public Server
 {
 private:
     DynamicsWorld* _world;
-    Application* _app;
     std::vector<Impostor*> _impostors;
 
 public:

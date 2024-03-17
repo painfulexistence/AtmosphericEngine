@@ -10,7 +10,6 @@ add_subdirectory(external/entt)
 add_subdirectory(external/sol2)
 
 set(SOURCES
-    Runtime.cpp
     Application.cpp
     Window.cpp
     Server.cpp

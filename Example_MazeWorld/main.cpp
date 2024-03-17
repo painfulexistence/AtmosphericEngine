@@ -1,4 +1,4 @@
-#include "Runtime.hpp"
+#include "Application.hpp"
 #include "GameObject.hpp"
 #include "ComponentFactory.hpp"
 #include "lua.hpp"
@@ -6,7 +6,7 @@ using namespace std;
 
 static vector<vector<bool>> generateMazeData(int size, int shouldConsumed);
 
-class MazeGame : public Runtime
+class MazeGame : public Application
 {    
 public:
     sol::table cameraTable;
@@ -99,7 +99,7 @@ public:
         Model::ModelList.insert({"Terrain", terrainModel});
 
         auto cubeModel = Model::CreateCube((float)TILE_SIZE);
-        cubeModel->material = graphics.materials[2];
+        cubeModel->material = graphics.materials[3];
         cubeModel->collisionShape = new btBoxShape(0.5f * btVector3(TILE_SIZE, TILE_SIZE, TILE_SIZE));
         Model::ModelList.insert({"Cube", cubeModel});
 
@@ -186,7 +186,7 @@ public:
         }
         
         script.Print("Scene & world loaded.");
-        script.Print(fmt::format("Game fully loaded in {:.1f} seconds", Time()));
+        script.Print(fmt::format("Game fully loaded in {:.1f} seconds", GetWindowTime()));
     }
 
     void Update(float dt, float time)
@@ -304,7 +304,7 @@ int main(int argc, char* argv[])
     srand(time(NULL));
 
     MazeGame game;
-    game.Execute();
+    game.Run();
     
     return 0;
 }

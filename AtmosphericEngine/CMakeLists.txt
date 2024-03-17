@@ -32,11 +32,6 @@ set(SOURCES
     PhysicsServer.cpp
     DynamicsWorld.cpp
     Input.cpp
-    GUI.cpp
-    GUIState.cpp
-    GUIWindow.cpp
-    GUIDocument.cpp
-    GUIElement.cpp
     Entity.cpp
     Script.cpp
     IL.cpp

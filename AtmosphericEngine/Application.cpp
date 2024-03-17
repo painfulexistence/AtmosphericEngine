@@ -1,4 +1,6 @@
 #include "Application.hpp"
+#include "imgui_impl_glfw.h"
+#include "imgui_impl_opengl3.h"
 //#include <iostream> // Note that IO should only be used for debugging here
 using namespace std;
 
@@ -37,8 +39,17 @@ Application::~Application()
 void Application::Run()
 {
     Log("Initializing...");
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    #if USE_VULKAN_DRIVER
+    throw std::runtime_error("When using Vulkan, GUI context should be manually handled!");
+    #else    
+    ImGui_ImplGlfw_InitForOpenGL(this->GetWindow()->GetGLFWWindow(), true);
+    ImGui_ImplOpenGL3_Init("#version 410");
+    #endif
+    ImGui::StyleColorsDark();
+
     console.Init(_mb, this);
-    gui.Init(_mb, this);
     input.Init(_mb, this);
     physics.Init(_mb, this);
     graphics.Init(_mb, this);
@@ -80,6 +91,10 @@ void Application::Run()
         #pragma endregion
         #endif
     }
+
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
     Log("Game quitted.");
 }
 
@@ -113,10 +128,18 @@ void Application::Render(const FrameProps& props)
     float dt = props.deltaTime;
     float time = GetWindowTime();
 
+    ImGui_ImplOpenGL3_NewFrame();
+    ImGui_ImplGlfw_NewFrame();
+    ImGui::NewFrame();
+
     // Note that draw calls are asynchronous, which means they return immediately. 
     // So the drawing time can only be calculated along with the image presenting.
-    graphics.Render(dt); 
-    gui.Render(dt);
+    graphics.Render(dt);
+    graphics.RenderUI(dt);
+
+    ImGui::Render();
+    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
     // Nevertheless, glFinish() can force the GPU process all the commands synchronously.
     glFinish();
 

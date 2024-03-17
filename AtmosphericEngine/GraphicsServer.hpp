@@ -45,6 +45,8 @@ public:
 
     void Render(float dt);
 
+    void RenderUI(float dt);
+
     void OnMessage(Message msg) override;
     
     void LoadTexture(const std::string& path);

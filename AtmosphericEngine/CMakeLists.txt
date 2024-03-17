@@ -34,8 +34,6 @@ set(SOURCES
     Input.cpp
     Entity.cpp
     Script.cpp
-    IL.cpp
-    Lua.cpp
     Utility/File.cpp
 )
 

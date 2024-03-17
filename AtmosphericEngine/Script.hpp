@@ -1,7 +1,10 @@
 #pragma once
 #include "Globals.hpp"
 #include "Server.hpp"
-#include "IL.hpp"
+//#define SOL_ALL_SAFETIES_ON 1
+#define SOL_LUA_VERSION 504
+#include "sol/sol.hpp"
+
 
 class Script : public Server
 {
@@ -16,13 +19,19 @@ public:
     
     void OnMessage(Message msg) override;
 
+    void Bind(const std::string& func);
+
+    void Source(const std::string& file);
+
+    void Run(const std::string&);
+
     void Print(const std::string& msg);
 
-    template<typename IL> auto GetData(const std::string& key);
+    const sol::table& GetData(const std::string& key);
 
-    template<typename T> void GetData(const std::string& key, T& data);
+    void GetData(const std::string& key, sol::table& data);
 
 private:
     Application* _app;
-    IL* _L;
+    sol::state _env;
 };

@@ -1,33 +1,33 @@
 #include "Script.hpp"
-#include "lua.hpp"
 
 Script::Script()
 {
-    // Note that upcast can be implicit
-    // But the child class must be able to access at least one virtual member function of its parent, i.e. publicly inherit its parent
-    // Otherwise segmentation fault may happen!
-    this->_L = dynamic_cast<IL*>(new Lua());
+    this->_env = sol::state();
 }
 
 Script::~Script()
 {
-    delete dynamic_cast<Lua*>(this->_L);
+
 }
 
 void Script::Init(MessageBus* mb, Application* app)
 {
     Server::Init(mb, app);
     
-    this->_L->Init();
-    this->_L->Run("init()");
-    //L->Bind("get_cursor_uv", &Input::GetCursorUV, &input);
-    //L->Bind("get_key_down", &Input::GetKeyDown, &input);
-    //L->Bind("check_errors", &GraphicsServer::CheckErrors, &graphics);
+    this->_env.open_libraries();
+    Source("./assets/config.lua");
+    Source("./assets/manifest.lua");
+    Source("./assets/main.lua");
+    
+    Run("init()");
+    //Bind("get_cursor_uv", &Input::GetCursorUV, &input);
+    //Bind("get_key_down", &Input::GetKeyDown, &input);
+    //Bind("check_errors", &GraphicsServer::CheckErrors, &graphics);
 }
 
 void Script::Process(float dt)
 {
-    //this->_L->Run(fmt::format("update({})", dt));
+    //Run(fmt::format("update({})", dt));
 }
 
 void Script::OnMessage(Message msg)
@@ -35,17 +35,32 @@ void Script::OnMessage(Message msg)
 
 }
 
+void Script::Bind(const std::string& func)
+{
+    this->_env.set_function(func);
+}
+
+void Script::Source(const std::string& file)
+{
+    this->_env.script_file(file);
+}
+
+void Script::Run(const std::string& script)
+{
+    this->_env.script(script);
+}
+
 void Script::Print(const std::string& msg)
 {
-    this->_L->Print(msg);
+    Run(fmt::format("print('[Script] {}')", msg));
 }
 
-template<typename IL> auto Script::GetData(const std::string& key)
+const sol::table& Script::GetData(const std::string& key)
 {
-    return dynamic_cast<IL*>(this->_L)->GetData(key);
+    return this->_env.globals()[key];
 }
 
-template<> void Script::GetData(const std::string& key, sol::table& data)
+void Script::GetData(const std::string& key, sol::table& data)
 {
-    dynamic_cast<Lua*>(this->_L)->GetData(key, data);
+    data = this->_env.globals()[key];
 }

@@ -1,14 +1,13 @@
 #include "Application.hpp"
 #include "GameObject.hpp"
 #include "ComponentFactory.hpp"
-#include "lua.hpp"
+#include "Script.hpp"
 using namespace std;
 
 static vector<vector<bool>> generateMazeData(int size, int shouldConsumed);
 
 class MazeGame : public Application
 {    
-public:
     sol::table cameraTable;
     sol::table lightTable;
     sol::table textureTable, materialTable, shaderTable, initState;

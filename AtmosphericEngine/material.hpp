@@ -1,6 +1,6 @@
 #pragma once
 #include "Globals.hpp"
-#include "lua.hpp"
+#include "Script.hpp"
 
 struct Material 
 {

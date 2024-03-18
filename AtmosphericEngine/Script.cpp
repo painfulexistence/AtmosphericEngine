@@ -20,9 +20,9 @@ void Script::Init(MessageBus* mb, Application* app)
     Source("./assets/main.lua");
     
     Run("init()");
-    //Bind("get_cursor_uv", &Input::GetCursorUV, &input);
-    //Bind("get_key_down", &Input::GetKeyDown, &input);
-    //Bind("check_errors", &GraphicsServer::CheckErrors, &graphics);
+    //Bind("get_cursor_uv", &Input::GetCursorUV, &app->input);
+    //Bind("get_key_down", &Input::GetKeyDown, &app->input);
+    //Bind("check_errors", &GraphicsServer::CheckErrors, &app->graphics);
 }
 
 void Script::Process(float dt)
@@ -35,9 +35,10 @@ void Script::OnMessage(Message msg)
 
 }
 
+// TODO: an extra argument is needed here
 void Script::Bind(const std::string& func)
 {
-    this->_env.set_function(func);
+    //this->_env.set_function(func);
 }
 
 void Script::Source(const std::string& file)

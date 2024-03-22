@@ -1,4 +1,5 @@
 build/
+build*/
 samples/
 imgui.ini
 .vscode/settings.json

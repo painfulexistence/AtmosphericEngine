@@ -10,6 +10,7 @@ This project is still under development and may be completely broken at this sta
 ```
 git clone --recurse-submodules https://github.com/painfulexistence/AtmosphericEngine.git
 cd AtmosphericEngine
+./vcpkg/bootstrap-vcpkg.sh
 ```
 3. Run CMake to build the project
 ```
@@ -36,3 +37,8 @@ Turn off:
 |- vcpkg/                  # The package manager we're using
 |- vcpkg.json              # Package metadata file
 ```
+
+
+## Log
+- 2024/03/22 - considering using glad+sdl2 instead of glew+glfw
+- TODO: use std::filesystem to get the correct asset loading path

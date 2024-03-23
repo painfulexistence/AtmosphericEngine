@@ -42,4 +42,5 @@ jobs:
         cmake -S . -B build -DCMAKE_BUILD_TYPE=MinSizeRel
 
     - name: CMake build
+      run: |
         cmake --build build 

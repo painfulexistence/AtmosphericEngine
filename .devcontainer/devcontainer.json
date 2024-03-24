@@ -1,0 +1,22 @@
+{
+	"name": "C++",
+	"build": {
+		"dockerfile": "Dockerfile"
+	},
+	"features": {
+		"ghcr.io/ebaskoro/devcontainer-features/emscripten:1": {},
+		"ghcr.io/msclock/features/vcpkg:1": {}
+	},
+	"customizations": {
+		"vscode": {
+			"settings": {},
+			"extensions": [
+				"ms-vscode.cpptools",
+				"ms-vscode.cmake-tools",
+				"twxs.cmake"
+			]
+		}
+	},
+	"forwardPorts": [3000],
+	"remoteUser": "root"
+}

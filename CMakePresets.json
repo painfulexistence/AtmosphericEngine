@@ -2,21 +2,20 @@
     "version": 3,
     "configurePresets": [
         {
-            "name": "Debug",
-            "generator": "Ninja",
-            "binaryDir": "${sourceDir}/build/debug",
+            "name": "xcode-debug",
+            "generator": "Xcode",
+            "binaryDir": "${sourceDir}/build",
             "architecture": {
                 "value": "x64",
                 "strategy": "external"
             },
             "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Debug",
-                "CMAKE_INSTALL_PREFIX": "${sourceDir}/bin"
+                "CMAKE_BUILD_TYPE": "Debug"
             }
         },
         {
-            "name": "Release",
-            "generator": "Ninja",
+            "name": "xcode-release",
+            "generator": "Xcode",
             "binaryDir": "${sourceDir}/build/release",
             "architecture": {
                 "value": "x64",

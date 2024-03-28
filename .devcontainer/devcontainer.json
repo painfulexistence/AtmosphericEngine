@@ -1,5 +1,5 @@
 {
-	"name": "C++",
+	"name": "AtmosphericEngine",
 	"build": {
 		"dockerfile": "Dockerfile"
 	},
@@ -17,6 +17,8 @@
 			]
 		}
 	},
+	"postCreateCommand": "if [ ! -d 'build-wasm' ]; then cmake -S . -B build-wasm -DUSE_GLOBAL_VCPKG=ON -DEMSCRIPTEN=ON -DCMAKE_MAKE_PROGRAM=/usr/bin/make -DCMAKE_C_COMPILER=/usr/bin/gcc -DCMAKE_CXX_COMPILER=/usr/bin/g++; fi && cmake --build build-wasm",
+	"postStartCommand": "emrun ./build-wasm --no_browser --port 3000",
 	"forwardPorts": [3000],
 	"remoteUser": "root"
 }

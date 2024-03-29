@@ -1,0 +1,59 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, ubuntu-latest] # TODO: add windows-latest
+        build-type: [Debug, MinSizeRel]
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
+
+      # WORKAROUND: Install Vcpkg (submodule seems not working?)
+      - uses: actions/checkout@v4
+        with:
+          repository: 'microsoft/vcpkg'
+          path: 'vcpkg'
+
+      - name: Set strings
+        id: strings
+        run: |
+          echo "build-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
+
+      - name: Bootstrap vcpkg
+        run: |
+          ${{ github.workspace }}/vcpkg/bootstrap-vcpkg.sh
+
+      - name: Install CMake on Ubuntu
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake
+
+      - name: Install CMake on macOS
+        if: matrix.os == 'macos-latest'
+        run: |
+          brew install cmake
+
+      - name: CMake Configure
+        run: >
+          cmake -B ${{ steps.strings.outputs.build-dir }}
+          -DCMAKE_BUILD_TYPE=${{ matrix.build-type }}
+          -S ${{ github.workspace }}
+
+      - name: CMake Build
+        run: cmake --build ${{ steps.strings.outputs.build-dir }}

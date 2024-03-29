@@ -3,6 +3,7 @@ build*/
 samples/
 imgui.ini
 .vscode/settings.json
+.cache/
 
 # MacOS clutter
 .DS_Store

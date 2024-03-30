@@ -16,24 +16,24 @@ Camera* ComponentFactory::CreateCamera(GameObject* gameObject, GraphicsServer* g
     return camera;
 }
 
-Mesh* ComponentFactory::CreateMesh(GameObject* gameObject, GraphicsServer* graphics, const std::string& modelName)
+Renderable* ComponentFactory::CreateMesh(GameObject* gameObject, GraphicsServer* graphics, const std::string& meshName)
 {
-    if (Model::ModelList.count(modelName) == 0)
-        throw std::runtime_error("Could not find the specified model!");
+    if (Mesh::MeshList.count(meshName) == 0)
+        throw std::runtime_error("Could not find the specified mesh!");
 
-    auto model = Model::ModelList.find(modelName)->second;
-    auto mesh = new Mesh(gameObject, model);
-    graphics->meshes.push_back(mesh);
-    return mesh;
+    auto mesh = Mesh::MeshList.find(meshName)->second;
+    auto renderable = new Renderable(gameObject, mesh);
+    graphics->renderables.push_back(renderable);
+    return renderable;
 }
 
-Impostor* ComponentFactory::CreateImpostor(GameObject* gameObject, PhysicsServer* physics, const std::string& modelName, float mass)
+Impostor* ComponentFactory::CreateImpostor(GameObject* gameObject, PhysicsServer* physics, const std::string& meshName, float mass)
 {
-    if (Model::ModelList.count(modelName) == 0)
-        throw std::runtime_error("Could not find the specified model!");
+    if (Mesh::MeshList.count(meshName) == 0)
+        throw std::runtime_error("Could not find the specified mesh!");
 
-    auto model = Model::ModelList.find(modelName)->second;
-    auto impostor =  new Impostor(gameObject, model->collisionShape, mass);
+    auto mesh = Mesh::MeshList.find(meshName)->second;
+    auto impostor =  new Impostor(gameObject, mesh->collisionShape, mass);
     physics->AddImpostor(impostor);
     return impostor;
 }

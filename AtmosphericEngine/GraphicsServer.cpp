@@ -24,7 +24,7 @@ void GraphicsServer::Init(MessageBus* mb, Application* app)
     glewExperimental = GL_TRUE;
     if (glewInit() != GLEW_OK)
         throw std::runtime_error("Failed to initialize glew!");
-    
+
     glPrimitiveRestartIndex(0xFFFF);
     glCullFace(GL_BACK);
     #if MSAA_ON
@@ -52,21 +52,19 @@ void GraphicsServer::Render(float dt)
 {
     // TODO: Put the logic of generating command buffers here
     // Setup
-    modelInstancesMap.clear();
-    for (auto mesh : meshes)
+    meshInstances.clear();
+    for (auto rend : renderables)
     {
-        Model* model = mesh->model;
-        glm::mat4 wm = mesh->gameObject->GetTransform();
-        if (modelInstancesMap.count(model) == 0)
-            modelInstancesMap.insert({model, std::vector<glm::mat4>(0)});
-        modelInstancesMap.find(model)->second.push_back(wm);
+        Mesh* model = rend->mesh;
+        glm::mat4 wm = rend->gameObject->GetTransform();
+        meshInstances[model].push_back(wm);
     }
     auxLightCount = (int)lights.size() - mainLightCount;
-    
+
     //ShadowPass(dt);
 
     ColorPass(dt);
-    
+
     PostProcessPass(dt);
 }
 
@@ -80,8 +78,8 @@ void GraphicsServer::RenderUI(float dt)
     ImGui::Text("Renderer: %s", glGetString(GL_RENDERER));
 
     GLint depth, stencil;
-    glGetFramebufferAttachmentParameteriv(GL_DRAW_FRAMEBUFFER, GL_DEPTH, GL_FRAMEBUFFER_ATTACHMENT_DEPTH_SIZE, &depth);    
-    glGetFramebufferAttachmentParameteriv(GL_DRAW_FRAMEBUFFER, GL_STENCIL, GL_FRAMEBUFFER_ATTACHMENT_STENCIL_SIZE, &stencil);    
+    glGetFramebufferAttachmentParameteriv(GL_DRAW_FRAMEBUFFER, GL_DEPTH, GL_FRAMEBUFFER_ATTACHMENT_DEPTH_SIZE, &depth);
+    glGetFramebufferAttachmentParameteriv(GL_DRAW_FRAMEBUFFER, GL_STENCIL, GL_FRAMEBUFFER_ATTACHMENT_STENCIL_SIZE, &stencil);
     ImGui::Text("Depth bits: %d", depth);
     ImGui::Text("Stencil bits: %d", stencil);
 
@@ -122,19 +120,19 @@ void GraphicsServer::OnMessage(Message msg)
 }
 
 void GraphicsServer::LoadTexture(const std::string& path)
-{ 
+{
     GLuint tex;
     glGenTextures(1, &tex);
-    textures.push_back(tex);    
-    
+    textures.push_back(tex);
+
     glBindTexture(GL_TEXTURE_2D, tex);
     float border[] = {1.f, 1.f, 1.f, 1.f};
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, border);  
-    
+    glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, border);
+
     int width, height, nChannels;
     unsigned char* data = stbi_load(path.c_str(), &width, &height, &nChannels, 0);
     if (data) {
@@ -151,7 +149,7 @@ void GraphicsServer::LoadTextures(const std::vector<std::string>& paths)
     int count = paths.size();
     textures.resize(count);
     glGenTextures(count, textures.data());
-    
+
     for (int i = 0; i < count; i++)
     {
         glBindTexture(GL_TEXTURE_2D, textures[i]);
@@ -160,8 +158,8 @@ void GraphicsServer::LoadTextures(const std::vector<std::string>& paths)
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, border);  
-        
+        glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, border);
+
         int width, height, nChannels;
         unsigned char* data = stbi_load(paths[i].c_str(), &width, &height, &nChannels, 0);
         if (data) {
@@ -175,26 +173,26 @@ void GraphicsServer::LoadTextures(const std::vector<std::string>& paths)
 }
 
 void GraphicsServer::CheckErrors()
-{     
+{
     GLenum errorCode;
     while ((errorCode = glGetError()) != GL_NO_ERROR) {
         std::string error;
         switch (errorCode)
         {
             // Reference: https://learnopengl.com/In-Practice/Debugging
-            case GL_INVALID_ENUM:                  
+            case GL_INVALID_ENUM:
             error = "INVALID_ENUM"; break;
-            case GL_INVALID_VALUE:                 
+            case GL_INVALID_VALUE:
             error = "INVALID_VALUE"; break;
-            case GL_INVALID_OPERATION:             
+            case GL_INVALID_OPERATION:
             error = "INVALID_OPERATION"; break;
-            case GL_STACK_OVERFLOW:                
+            case GL_STACK_OVERFLOW:
             error = "STACK_OVERFLOW"; break;
-            case GL_STACK_UNDERFLOW:               
+            case GL_STACK_UNDERFLOW:
             error = "STACK_UNDERFLOW"; break;
-            case GL_OUT_OF_MEMORY:                 
+            case GL_OUT_OF_MEMORY:
             error = "OUT_OF_MEMORY"; break;
-            case GL_INVALID_FRAMEBUFFER_OPERATION: 
+            case GL_INVALID_FRAMEBUFFER_OPERATION:
             error = "INVALID_FRAMEBUFFER_OPERATION"; break;
         }
         throw std::runtime_error(fmt::format("GL error: {}\n", error));
@@ -212,7 +210,7 @@ void GraphicsServer::ResetFramebuffers()
         glBindTexture(GL_TEXTURE_2D, map);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); 
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, SHADOW_W, SHADOW_H, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
         uniShadowMaps.push_back(map);
@@ -224,12 +222,12 @@ void GraphicsServer::ResetFramebuffers()
         glBindTexture(GL_TEXTURE_CUBE_MAP, map);
         glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); 
+        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
         for (int f = 0; f < 6; ++f)
         {
-            glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + f, 0, GL_DEPTH_COMPONENT, SHADOW_W, SHADOW_H, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL); 
+            glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + f, 0, GL_DEPTH_COMPONENT, SHADOW_W, SHADOW_H, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
         }
         omniShadowMaps.push_back(map);
     }
@@ -251,10 +249,10 @@ void GraphicsServer::ResetFramebuffers()
     glGenFramebuffers(1, &hdrFBO);
     glGenTextures(1, &hdrColorTexture);
     glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, hdrColorTexture);
-    glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, this->_fbProps.numSapmples, GL_RGBA16F, this->_fbProps.width, this->_fbProps.height, GL_TRUE); 
+    glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, this->_fbProps.numSapmples, GL_RGBA16F, this->_fbProps.width, this->_fbProps.height, GL_TRUE);
     glGenTextures(1, &hdrDepthTexture);
     glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, hdrDepthTexture);
-    glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, this->_fbProps.numSapmples, GL_DEPTH_COMPONENT, this->_fbProps.width, this->_fbProps.height, GL_TRUE); 
+    glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, this->_fbProps.numSapmples, GL_DEPTH_COMPONENT, this->_fbProps.width, this->_fbProps.height, GL_TRUE);
     glBindFramebuffer(GL_FRAMEBUFFER, hdrFBO);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D_MULTISAMPLE, hdrColorTexture, 0);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D_MULTISAMPLE, hdrDepthTexture, 0);
@@ -267,7 +265,7 @@ void GraphicsServer::ResetFramebuffers()
     glBindTexture(GL_TEXTURE_2D, screenTexture);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, this->_fbProps.width, this->_fbProps.height, 0, GL_RGBA, GL_FLOAT, NULL); 
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, this->_fbProps.width, this->_fbProps.height, 0, GL_RGBA, GL_FLOAT, NULL);
     glBindFramebuffer(GL_FRAMEBUFFER, msaaFBO);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, screenTexture, 0);
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
@@ -305,11 +303,11 @@ void GraphicsServer::ShadowPass(float dt)
     depthTextureProgram.Activate();
     depthTextureProgram.SetUniform(std::string("ProjectionView"), lights[0]->GetProjectionMatrix(0) * lights[0]->GetViewMatrix());
 
-    for (const auto& [name, model] : Model::ModelList)
+    for (const auto& [name, mesh] : Mesh::MeshList)
     {
-        if (modelInstancesMap.count(model) == 0)
+        if (meshInstances.count(mesh) == 0)
             continue;
-        model->Render(depthTextureProgram, modelInstancesMap.find(model)->second);
+        mesh->Render(depthTextureProgram, meshInstances.find(mesh)->second);
     }
 
     int auxShadows = 0;
@@ -330,11 +328,11 @@ void GraphicsServer::ShadowPass(float dt)
             depthCubemapProgram.SetUniform(std::string("LightPosition"), l->position);
             depthCubemapProgram.SetUniform(std::string("ProjectionView"), l->GetProjectionMatrix(0) * l->GetViewMatrix(face));
 
-            for (const auto& [name, model] : Model::ModelList)
+            for (const auto& [name, model] : Mesh::MeshList)
             {
-                if (modelInstancesMap.count(model) == 0)
+                if (meshInstances.count(model) == 0)
                     continue;
-                model->Render(depthCubemapProgram, modelInstancesMap.find(model)->second);
+                model->Render(depthCubemapProgram, meshInstances.find(model)->second);
             }
         }
     }
@@ -358,7 +356,7 @@ void GraphicsServer::ColorPass(float dt)
         glBindTexture(GL_TEXTURE_2D, textures[i]);
     }
 
-    glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);    
+    glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     colorProgram.Activate();
     glm::mat4 cameraTransform = cameras[0]->gameObject->GetModelWorldTransform();
@@ -390,14 +388,14 @@ void GraphicsServer::ColorPass(float dt)
     }
     colorProgram.SetUniform(std::string("aux_light_count"), auxLightCount);
     colorProgram.SetUniform(std::string("shadow_map_unit"), (int)0);
-    colorProgram.SetUniform(std::string("omni_shadow_map_unit"), (int)1); 
+    colorProgram.SetUniform(std::string("omni_shadow_map_unit"), (int)1);
     colorProgram.SetUniform(std::string("ProjectionView"), cameras[0]->GetProjectionMatrix() * cameras[0]->GetViewMatrix(cameraTransform));
 
-    for (const auto& [name, model] : Model::ModelList)
+    for (const auto& [name, model] : Mesh::MeshList)
     {
-        if (modelInstancesMap.count(model) == 0)
+        if (meshInstances.count(model) == 0)
             continue;
-        model->Render(colorProgram, modelInstancesMap.find(model)->second);
+        model->Render(colorProgram, meshInstances.find(model)->second);
     }
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
@@ -407,13 +405,13 @@ void GraphicsServer::PostProcessPass(float dt)
     glBindFramebuffer(GL_READ_FRAMEBUFFER, hdrFBO);
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, msaaFBO);
     glBlitFramebuffer(0, 0, this->_fbProps.width, this->_fbProps.height, 0, 0, this->_fbProps.width, this->_fbProps.height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
-    
+
     glViewport(0, 0, this->_fbProps.width, this->_fbProps.height);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, screenTexture);
 
-    glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);    
+    glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     hdrProgram.Activate();
     hdrProgram.SetUniform(std::string("color_map_unit"), (int)0);

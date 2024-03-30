@@ -2,7 +2,7 @@
 #include "EnttRegistry.hpp"
 #include "Impostor.hpp"
 #include "Camera.hpp"
-#include "Model.hpp"
+#include "Renderable.hpp"
 #include "Mesh.hpp"
 
 ECSServer::ECSServer()
@@ -22,7 +22,7 @@ void ECSServer::Process(float dt)
 
 void ECSServer::OnMessage(Message msg)
 {
-    
+
 }
 
 uint64_t ECSServer::Create()

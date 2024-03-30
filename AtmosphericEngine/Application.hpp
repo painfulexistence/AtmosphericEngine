@@ -9,6 +9,7 @@
 #include "Input.hpp"
 #include "Script.hpp"
 #include "GameObject.hpp"
+#include "ComponentFactory.hpp"
 
 struct FrameProps
 {
@@ -29,7 +30,7 @@ public:
     Application();
 
     ~Application();
-        
+
     void Run();
 
     void Quit();
@@ -37,7 +38,7 @@ public:
     virtual void Load() = 0;
 
     virtual void Update(float dt, float time) = 0;
-    
+
     uint64_t GetClock();
 
     float GetWindowTime();
@@ -52,6 +53,9 @@ protected:
     Input input;
     Script script;
     std::vector<GameObject*> gameObjects;
+    std::vector<GameObject*> cameras;
+    Camera* mainCamera = nullptr;
+    Light* mainLight = nullptr;
 
 private:
     bool _initialized = false;

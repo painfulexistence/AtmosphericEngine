@@ -1,6 +1,6 @@
 #pragma once
 #include "Globals.hpp"
-#include "Model.hpp"
+#include "Renderable.hpp"
 #include "Mesh.hpp"
 #include "light.hpp"
 #include "Camera.hpp"
@@ -18,7 +18,7 @@ public:
 
     static Camera* CreateCamera(GameObject*, GraphicsServer*, const CameraProps&);
 
-    static Mesh* CreateMesh(GameObject*, GraphicsServer*, const std::string& modelName);
+    static Renderable* CreateMesh(GameObject*, GraphicsServer*, const std::string& modelName);
 
     static Impostor* CreateImpostor(GameObject*, PhysicsServer*, const std::string& modelName, float mass = 0.0f);
 };

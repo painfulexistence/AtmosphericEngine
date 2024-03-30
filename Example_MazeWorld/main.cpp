@@ -1,32 +1,19 @@
 #include "Application.hpp"
-#include "GameObject.hpp"
-#include "ComponentFactory.hpp"
-#include "Script.hpp"
 using namespace std;
 
 static vector<vector<bool>> generateMazeData(int size, int shouldConsumed);
 
 class MazeGame : public Application
-{    
-    sol::table cameraTable;
-    sol::table lightTable;
-    sol::table textureTable, materialTable, shaderTable, initState;
+{
+    sol::table initState;
     bool isLightFlashing = false;
     glm::vec3 winCoord = glm::vec3(0, 0, 0);
     GameObject* player = nullptr;
-    Camera* mainCamera = nullptr;
-    Light* mainLight = nullptr;
 
     void Load()
     {
         // Read data from script
-        script.GetData(std::string("cameras"), cameraTable);
-        script.GetData(std::string("lights"), lightTable);
-        script.GetData(std::string("textures"), textureTable);
-        script.GetData(std::string("materials"), materialTable);
-        script.GetData(std::string("shaders"), shaderTable);
         script.GetData(std::string("init_game_state"), initState);
-
         const int MAZE_SIZE = (int)initState["maze_size"];
         const float TILE_SIZE = (float)initState["tile_size"];
         const int TILES_TO_REMOVE = (int)initState["tiles_to_remove"];
@@ -34,78 +21,32 @@ class MazeGame : public Application
         bool mazeRoofed = (bool)initState["maze_roofed"];
         isLightFlashing = (bool)initState["is_light_flashing"];
 
-        // Load textures
-        std::vector<std::string> paths;
-        for (const auto& kv : textureTable)
-        {
-            sol::table tex = (sol::table)kv.second;
-            paths.push_back((std::string)tex["path"]);
-        }
-        graphics.LoadTextures(paths);
-        script.Print("Textures loaded.");
-
-        // Create material
-        for (const auto& kv : materialTable)
-        {
-            auto mat = new Material((sol::table)kv.second);
-            graphics.materials.push_back(mat);
-        }
-        script.Print("Materials initialized.");
-
-        // Create shader programs
-        graphics.colorProgram = ShaderProgram(shaderTable["color"]["vert"], shaderTable["color"]["frag"]);
-        graphics.depthTextureProgram = ShaderProgram(shaderTable["depth"]["vert"], shaderTable["depth"]["frag"]);
-        graphics.depthCubemapProgram = ShaderProgram(shaderTable["depth_cubemap"]["vert"], shaderTable["depth_cubemap"]["frag"]);
-        graphics.hdrProgram = ShaderProgram(shaderTable["hdr"]["vert"], shaderTable["hdr"]["frag"]);
-        script.Print("Shaders initialized.");
-
-        // Create cameras
-        std::vector<GameObject*> cameras;
-        for (const auto& kv : cameraTable)
-        {
-            auto camera = new GameObject();
-            ComponentFactory::CreateCamera(camera, &graphics, CameraProps((sol::table)kv.second));
-            gameObjects.push_back(camera);
-            cameras.push_back(camera);
-        }
         player = cameras.at(0);
-        mainCamera = dynamic_cast<Camera*>(player->GetComponent("Camera"));
-
-        // Create lights
-        std::vector<GameObject*> lights;
-        for (const auto& kv : lightTable)
-        {
-            auto light = new GameObject();
-            ComponentFactory::CreateLight(light, &graphics, LightProps((sol::table)kv.second));
-            gameObjects.push_back(light);
-            lights.push_back(light);
-        }
-        mainLight = dynamic_cast<Light*>(lights.at(0)->GetComponent("Light"));
 
         // Load models
-        auto characterModel = new Model();
+        auto characterModel = new Mesh();
         characterModel->collisionShape = new btCapsuleShape(0.5f, 3.0f);
-        Model::ModelList.insert({"Character", characterModel});
+        Mesh::MeshList.insert({"Character", characterModel});
 
-        auto skyboxModel = Model::CreateCube(800.0f);
+        auto skyboxModel = Mesh::CreateCube(800.0f);
         skyboxModel->material = graphics.materials[1];
         skyboxModel->cullFaceEnabled = false;
-        Model::ModelList.insert({"Skybox", skyboxModel});
+        Mesh::MeshList.insert({"Skybox", skyboxModel});
 
-        auto terrainModel = Model::CreateTerrain(MAZE_SIZE * TILE_SIZE, 10, std::vector<GLfloat>(100, 0.0f));
+        auto terrainModel = Mesh::CreateTerrain(MAZE_SIZE * TILE_SIZE, 10, std::vector<GLfloat>(100, 0.0f));
         terrainModel->material = graphics.materials[1];
         terrainModel->collisionShape = new btBoxShape(btVector3(MAZE_SIZE * TILE_SIZE, 0.2f, MAZE_SIZE * TILE_SIZE));
-        Model::ModelList.insert({"Terrain", terrainModel});
+        Mesh::MeshList.insert({"Terrain", terrainModel});
 
-        auto cubeModel = Model::CreateCube((float)TILE_SIZE);
+        auto cubeModel = Mesh::CreateCube((float)TILE_SIZE);
         cubeModel->material = graphics.materials[3];
         cubeModel->collisionShape = new btBoxShape(0.5f * btVector3(TILE_SIZE, TILE_SIZE, TILE_SIZE));
-        Model::ModelList.insert({"Cube", cubeModel});
+        Mesh::MeshList.insert({"Cube", cubeModel});
 
-        auto sphereModel = Model::CreateSphere();
+        auto sphereModel = Mesh::CreateSphere();
         sphereModel->material = graphics.materials[0];
         sphereModel->collisionShape = new btSphereShape(0.5f);
-        Model::ModelList.insert({"Sphere", sphereModel});
+        Mesh::MeshList.insert({"Sphere", sphereModel});
 
         script.Print("Models loaded.");
 
@@ -138,11 +79,11 @@ class MazeGame : public Application
 
         bool characterPlaced = false;
         vector<vector<bool>> maze = generateMazeData(MAZE_SIZE, TILES_TO_REMOVE);
-        for (int x = 0; x < MAZE_SIZE; x++) 
+        for (int x = 0; x < MAZE_SIZE; x++)
         {
-            for (int z = 0; z < MAZE_SIZE; z++) 
+            for (int z = 0; z < MAZE_SIZE; z++)
             {
-                if (mazeRoofed) 
+                if (mazeRoofed)
                 {
                     auto cube = new GameObject();
                     cube->SetPosition(TILE_SIZE * glm::vec3(x - MAZE_SIZE / 2.f, 3, z - MAZE_SIZE / 2.f));
@@ -150,7 +91,7 @@ class MazeGame : public Application
                     ComponentFactory::CreateImpostor(cube, &physics, "Cube", 0.0f);
                     gameObjects.push_back(cube);
                 }
-                if (maze[x][z]) 
+                if (maze[x][z])
                 {
                     for (int h = 0; h < 3; h++)
                     {
@@ -160,11 +101,11 @@ class MazeGame : public Application
                         ComponentFactory::CreateImpostor(cube, &physics, "Cube", 0.0f);
                         gameObjects.push_back(cube);
                     }
-                } 
-                else 
+                }
+                else
                 {
-                    if (rand() % 100 < chismProb) 
-                    { 
+                    if (rand() % 100 < chismProb)
+                    {
                         continue; //Create chism
                     }
                     if (!characterPlaced)
@@ -183,7 +124,7 @@ class MazeGame : public Application
                 gameObjects.push_back(cube);
             }
         }
-        
+
         script.Print("Scene & world loaded.");
         script.Print(fmt::format("Game fully loaded in {:.1f} seconds", GetWindowTime()));
     }
@@ -199,7 +140,7 @@ class MazeGame : public Application
 
         // Input handling
         Impostor* rb = dynamic_cast<Impostor*>(player->GetComponent("Physics"));
-        if (rb == nullptr) 
+        if (rb == nullptr)
             throw runtime_error("Impostor not found");
 
         glm::vec3 currentVel = rb->GetLinearVelocity();
@@ -241,7 +182,7 @@ class MazeGame : public Application
         {
             mainCamera->yaw(-CAMERA_ANGULAR_OFFSET);
         }
-        if (input.GetKeyDown(KEY_SPACE)) 
+        if (input.GetKeyDown(KEY_SPACE))
         {
             currentVel = rb->GetLinearVelocity(); // update velcoity to reflect current horizontal speed
             glm::vec3 v = mainCamera->CreateLinearVelocity(Axis::UP);
@@ -281,11 +222,11 @@ static vector<vector<bool>> generateMazeData(int size, int shouldConsumed) {
             yDir = rand() % 2 < 0.5 ? 1 : -1;
         }
         int moves = rand() % (size - 1) + 1;
-        for (int i = 0; i < moves; i++) 
+        for (int i = 0; i < moves; i++)
         {
             mazeX = max(1, min(mazeX + xDir, size - 2));
             mazeY = max(1, min(mazeY + yDir, size - 2));
-            if (data[mazeX][mazeY]) 
+            if (data[mazeX][mazeY])
             {
                 data[mazeX][mazeY] = false;
                 tilesConsumed++;
@@ -304,7 +245,7 @@ int main(int argc, char* argv[])
 
     MazeGame game;
     game.Run();
-    
+
     return 0;
 }
 

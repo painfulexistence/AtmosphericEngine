@@ -1,10 +1,9 @@
 #pragma once
 #include "Globals.hpp"
 #include "Server.hpp"
-#include "Window.hpp"
 #include "material.hpp"
 #include "shader.hpp"
-#include "Model.hpp"
+#include "Renderable.hpp"
 #include "Mesh.hpp"
 #include "light.hpp"
 #include "Camera.hpp"
@@ -27,14 +26,14 @@ class GraphicsServer : Server
 public:
     std::vector<GLuint> textures;
     std::vector<Material*> materials;
-    std::vector<Mesh*> meshes;
+    std::vector<Renderable*> renderables;
     std::vector<Light*> lights;
     std::vector<Camera*> cameras;
     ShaderProgram colorProgram;
     ShaderProgram depthTextureProgram;
     ShaderProgram depthCubemapProgram;
     ShaderProgram hdrProgram;
-    
+
     GraphicsServer();
 
     ~GraphicsServer();
@@ -48,7 +47,7 @@ public:
     void RenderUI(float dt);
 
     void OnMessage(Message msg) override;
-    
+
     void LoadTexture(const std::string& path);
 
     void LoadTextures(const std::vector<std::string>& paths);
@@ -85,12 +84,12 @@ private:
     GLuint screenVAO;
     GLuint screenVBO;
     glm::vec4 clearColor = glm::vec4(0.15f, 0.183f, 0.2f, 1.0f);
-    std::map<Model*, std::vector<glm::mat4>> modelInstancesMap;
+    std::map<Mesh*, std::vector<glm::mat4>> meshInstances;
     const int mainLightCount = 1;
     int auxLightCount = 0;
 
     void ResetFramebuffers();
-    
+
     void ResetScreenVAO();
 
     void ShadowPass(float dt);

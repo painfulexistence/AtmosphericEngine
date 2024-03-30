@@ -8,7 +8,7 @@ static glm::mat4 ConvertPhysicalMatrix(const btTransform& trans)
 {
     btScalar mat[16] = {0.0f};
     trans.getOpenGLMatrix(mat);
-        
+
     return glm::mat4(
         mat[0], mat[1], mat[2], mat[3],
         mat[4], mat[5], mat[6], mat[7],
@@ -30,8 +30,8 @@ Application::~Application()
     Log("Exiting...");
     for (const auto& go : gameObjects)
         delete go;
-    for (const auto& [name, model] : Model::ModelList)
-        delete model;
+    for (const auto& [name, mesh] : Mesh::MeshList)
+        delete mesh;
     delete this->_mb;
     delete this->_window;
 }
@@ -43,7 +43,7 @@ void Application::Run()
     ImGui::CreateContext();
     #if USE_VULKAN_DRIVER
     throw std::runtime_error("When using Vulkan, GUI context should be manually handled!");
-    #else    
+    #else
     ImGui_ImplGlfw_InitForOpenGL(this->GetWindow()->GetGLFWWindow(), true);
     ImGui_ImplOpenGL3_Init("#version 410");
     #endif
@@ -56,10 +56,60 @@ void Application::Run()
     script.Init(_mb, this);
     //ecs.Init(_mb, this);
     this->_initialized = true;
-    
+
     Log("Loading data...");
+    const sol::table scene = script.GetData(std::string("scene"));
+
+    const sol::table textureTable = scene["textures"];
+    std::vector<std::string> paths;
+    for (const auto& kv : textureTable)
+    {
+        sol::table tex = (sol::table)kv.second;
+        paths.push_back((std::string)tex["path"]);
+    }
+    graphics.LoadTextures(paths);
+    script.Print("Textures loaded.");
+
+    const sol::table shaderTable = scene["shaders"];
+    graphics.colorProgram = ShaderProgram(shaderTable["color"]["vert"], shaderTable["color"]["frag"]);
+    graphics.depthTextureProgram = ShaderProgram(shaderTable["depth"]["vert"], shaderTable["depth"]["frag"]);
+    graphics.depthCubemapProgram = ShaderProgram(shaderTable["depth_cubemap"]["vert"], shaderTable["depth_cubemap"]["frag"]);
+    graphics.hdrProgram = ShaderProgram(shaderTable["hdr"]["vert"], shaderTable["hdr"]["frag"]);
+    script.Print("Shaders initialized.");
+
+    const sol::table materialTable = scene["materials"];
+    for (const auto& kv : materialTable)
+    {
+        auto mat = new Material((sol::table)kv.second);
+        graphics.materials.push_back(mat);
+    }
+    script.Print("Materials initialized.");
+
+    const sol::table lightTable = scene["lights"];
+    std::vector<GameObject*> lights;
+    for (const auto& kv : lightTable)
+    {
+        auto light = new GameObject();
+        ComponentFactory::CreateLight(light, &graphics, LightProps((sol::table)kv.second));
+        gameObjects.push_back(light);
+        lights.push_back(light);
+    }
+    mainLight = dynamic_cast<Light*>(lights.at(0)->GetComponent("Light"));
+
+    sol::table cameraTable = scene["cameras"];
+    for (const auto& kv : cameraTable)
+    {
+        auto camera = new GameObject();
+        ComponentFactory::CreateCamera(camera, &graphics, CameraProps((sol::table)kv.second));
+        gameObjects.push_back(camera);
+        cameras.push_back(camera);
+    }
+    mainCamera = dynamic_cast<Camera*>(cameras.at(0)->GetComponent("Camera"));
+
+
+
     Load();
-    
+
     float lastFrameTime = GetWindowTime();
     float deltaTime = 0;
     while (!this->_quitted)
@@ -108,7 +158,7 @@ void Application::Process(const FrameProps& props)
 {
     float dt = props.deltaTime;
     float time = GetWindowTime();
-    
+
     Update(dt, time);
     //ecs.Process(dt); // Note that most of the entity manipulation logic should be put there
     BroadcastMessages();
@@ -132,7 +182,7 @@ void Application::Render(const FrameProps& props)
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
 
-    // Note that draw calls are asynchronous, which means they return immediately. 
+    // Note that draw calls are asynchronous, which means they return immediately.
     // So the drawing time can only be calculated along with the image presenting.
     graphics.Render(dt);
     graphics.RenderUI(dt);
@@ -176,7 +226,7 @@ void Application::SyncTransformWithPhysics()
             continue;
         go->SetModelWorldTransform(impostor->GetCenterOfMassWorldTransform());
     }
-    
+
     #if SHOW_SYNC_COST
     Log(fmt::format("Sync cost {} ms", (Time() - time) * 1000));
     #endif

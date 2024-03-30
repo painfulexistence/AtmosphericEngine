@@ -1,4 +1,5 @@
 #include "Script.hpp"
+#include <string>
 
 Script::Script()
 {
@@ -13,12 +14,12 @@ Script::~Script()
 void Script::Init(MessageBus* mb, Application* app)
 {
     Server::Init(mb, app);
-    
+
     this->_env.open_libraries();
     Source("./assets/config.lua");
     Source("./assets/manifest.lua");
     Source("./assets/main.lua");
-    
+
     Run("init()");
     //Bind("get_cursor_uv", &Input::GetCursorUV, &app->input);
     //Bind("get_key_down", &Input::GetKeyDown, &app->input);
@@ -27,7 +28,7 @@ void Script::Init(MessageBus* mb, Application* app)
 
 void Script::Process(float dt)
 {
-    //Run(fmt::format("update({})", dt));
+    Run(fmt::format("update({})", dt));
 }
 
 void Script::OnMessage(Message msg)
@@ -56,7 +57,7 @@ void Script::Print(const std::string& msg)
     Run(fmt::format("print('[Script] {}')", msg));
 }
 
-const sol::table& Script::GetData(const std::string& key)
+sol::table Script::GetData(const std::string& key)
 {
     return this->_env.globals()[key];
 }

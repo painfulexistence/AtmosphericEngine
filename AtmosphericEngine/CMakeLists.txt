@@ -25,10 +25,9 @@ set(SOURCES
     Mesh.cpp
     frustum.cpp
     material.cpp
-    Model.cpp
+    Renderable.cpp
     Shader.cpp
     GraphicsServer.cpp
-    texture.cpp
     PhysicsServer.cpp
     DynamicsWorld.cpp
     Input.cpp

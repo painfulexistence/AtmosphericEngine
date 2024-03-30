@@ -1,14 +1,5 @@
 
-
-function init()
-    init_game_state = {
-        is_light_flashing = false,
-        maze_size = 30,
-        maze_roofed = false,
-        tiles_to_remove = 500,
-        tile_size = 3.0,
-        chism_probability = 10.0
-    }
+scene = {
     cameras = {
         {
             --Main camera
@@ -16,12 +7,12 @@ function init()
             near_clip_plane = 0.1,
             far_clip_plane = 2000.0,
             eye_offset = {
-                x = 0, 
-                y = 2, 
+                x = 0,
+                y = 2,
                 z = 0
             }
         }
-    }
+    },
     lights = {
         --Main light
         {
@@ -35,7 +26,7 @@ function init()
             attenuation = {0, 0, 0},
             castShadow = 1
         },
-        --Auxiliary lights 
+        --Auxiliary lights
         {
             type = 1,
             position = {0, 20, 0},
@@ -76,7 +67,7 @@ function init()
             intensity = 10.0,
             attenuation = {1, 0.045, 0.0075}
         }
-    }
+    },
     materials = {
         {
             name = "Metal",
@@ -126,7 +117,7 @@ function init()
             roughness = 0.4,
             ao = 0.5
         }
-    }
+    },
     textures = {
         {
             path =  "./assets/textures/plaster.jpg"
@@ -143,7 +134,7 @@ function init()
         {
             path = "./assets/textures/metal.jpg"
         }
-    }
+    },
     shaders = {
         color = {
             vert = "./assets/shaders/simple.vert",
@@ -162,6 +153,17 @@ function init()
             frag = "./assets/shaders/hdr.frag"
         }
     }
+}
+
+function init()
+    init_game_state = {
+        is_light_flashing = false,
+        maze_size = 30,
+        maze_roofed = false,
+        tiles_to_remove = 500,
+        tile_size = 3.0,
+        chism_probability = 10.0
+    }
 end
 
 function update(dt, time)
@@ -177,14 +179,14 @@ end
 
 function on_game_over()
     --print("[script] Gameplay: game over")
-    if auto_close_window then 
-        close_window() 
+    if auto_close_window then
+        close_window()
     end
 end
 
 function on_complete()
     --print("[script] Gameplay: game completed")
-    if auto_close_window then 
-        close_window() 
+    if auto_close_window then
+        close_window()
     end
 end

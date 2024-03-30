@@ -1,7 +1,7 @@
 
 find_package(GLEW REQUIRED)
 find_package(glfw3 REQUIRED)
-find_package(GLM REQUIRED)
+find_package(glm CONFIG REQUIRED)
 find_package(Bullet CONFIG REQUIRED)
 find_package(fmt REQUIRED)
 find_package(lua REQUIRED)

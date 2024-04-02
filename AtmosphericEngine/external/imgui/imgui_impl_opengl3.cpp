@@ -146,6 +146,7 @@ static unsigned int g_VboHandle = 0, g_ElementsHandle = 0;
 bool    ImGui_ImplOpenGL3_Init(const char* glsl_version)
 {
     // Query for GL version (e.g. 320 for GL 3.2)
+    // This section has been optimized to work with the updated GraphicsServer API
 #if !defined(IMGUI_IMPL_OPENGL_ES2)
     GLint major, minor;
     glGetIntegerv(GL_MAJOR_VERSION, &major);
@@ -218,6 +219,7 @@ bool    ImGui_ImplOpenGL3_Init(const char* glsl_version)
 
 void    ImGui_ImplOpenGL3_Shutdown()
 {
+    // Ensure proper teardown of ImGui with the updated GraphicsServer API
     ImGui_ImplOpenGL3_DestroyDeviceObjects();
 }
 

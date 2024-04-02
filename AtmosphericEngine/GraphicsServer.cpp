@@ -36,7 +36,7 @@ void GraphicsServer::Init(MessageBus* mb, Application* app)
             return;
         this->_fbProps.width = width;
         this->_fbProps.height = height;
-        this->ResetFramebuffers(); // TODO: Reuse framebuffers -- just resize them
+        this->ResetFramebuffers();
     });
 
     this->ResetFramebuffers();
@@ -50,7 +50,6 @@ void GraphicsServer::Process(float dt)
 
 void GraphicsServer::Render(float dt)
 {
-    // TODO: Put the logic of generating command buffers here
     // Setup
     meshInstances.clear();
     for (auto rend : renderables)

@@ -15,7 +15,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest, ubuntu-latest] # TODO: add windows-latest
+        os: [macos-latest, ubuntu-latest, windows-latest]
         build-type: [Debug, MinSizeRel]
 
     steps:

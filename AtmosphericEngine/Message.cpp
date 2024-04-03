@@ -1,4 +1,4 @@
-#include "Message.hpp"
+#include "message.hpp"
 
 Message::Message(MessageType type)
 {

@@ -1,5 +1,5 @@
 #pragma once
-#include "Globals.hpp"
+#include "globals.hpp"
 
 class Component;
 

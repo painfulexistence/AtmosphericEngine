@@ -1,6 +1,6 @@
 #pragma once
-#include "Globals.hpp"
-#include "Message.hpp"
+#include "globals.hpp"
+#include "message.hpp"
 
 class MessageBus;
 

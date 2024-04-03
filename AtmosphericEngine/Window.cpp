@@ -1,10 +1,10 @@
-#include "Window.hpp"
+#include "window.hpp"
 #include <GLFW/glfw3.h>
 
 std::map<Window*, OnMouseMoveCallback> Window::onMouseMoveCallbacks = std::map<Window*, OnMouseMoveCallback>();
 
 std::map<Window*, OnMouseEnterCallback> Window::onMouseEnterCallbacks = std::map<Window*, OnMouseEnterCallback>();
-    
+
 std::map<Window*, OnMouseLeaveCallback> Window::onMouseLeaveCallbacks = std::map<Window*, OnMouseLeaveCallback>();
 
 std::map<Window*, OnKeyPressCallback> Window::onKeyPressCallbacks = std::map<Window*, OnKeyPressCallback>();
@@ -23,7 +23,7 @@ Window::Window(WindowProps props)
     if (!glfwInit())
         throw std::runtime_error("Failed to initialize GLFW!");
 
-    #if USE_VULKAN_DRIVER 
+    #if USE_VULKAN_DRIVER
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     if (!glfwVulkanSupported())
         throw std::runtime_error("Vulkan API not supported");
@@ -44,7 +44,7 @@ Window::Window(WindowProps props)
 Window::~Window()
 {
     glfwDestroyWindow(this->_glfwWindow);
-    
+
     glfwTerminate();
 }
 
@@ -112,7 +112,7 @@ void Window::Init()
         //fmt::print("-- Mouse moved to ({},{})\n", x, y);
     });
     SetOnViewportResize([](int width, int height) {
-        //fmt::print("-- Viewport resized to {}X{}\n", width, height); 
+        //fmt::print("-- Viewport resized to {}X{}\n", width, height);
     });
 }
 
@@ -133,8 +133,8 @@ void Window::PollEvents()
 void Window::SetOnMouseMove(OnWindowMouseMoveCallback callback)
 {
     onMouseMoveCallbacks[this] = [this, callback](GLFWwindow* win, float x, float y) {
-        if (this->_glfwWindow == win) 
-            callback(x, y); 
+        if (this->_glfwWindow == win)
+            callback(x, y);
     };
 }
 
@@ -146,7 +146,7 @@ void Window::SetOnMouseMove()
 void Window::SetOnMouseEnter(OnWindowMouseEnterCallback callback)
 {
     onMouseEnterCallbacks[this] = [this, callback](GLFWwindow* win) {
-        if (this->_glfwWindow == win) 
+        if (this->_glfwWindow == win)
             callback();
     };
 }
@@ -159,7 +159,7 @@ void Window::SetOnMouseEnter()
 void Window::SetOnMouseLeave(OnWindowMouseLeaveCallback callback)
 {
     onMouseLeaveCallbacks[this] = [this, callback](GLFWwindow* win) {
-        if (this->_glfwWindow == win) 
+        if (this->_glfwWindow == win)
             callback();
     };
 }

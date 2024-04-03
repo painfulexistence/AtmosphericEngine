@@ -1,5 +1,5 @@
 #include "shader.hpp"
-#include "Utility/file.hpp"
+#include "utility/file.hpp"
 
 Shader::Shader(const std::string& path, GLenum type)
 {
@@ -9,7 +9,7 @@ Shader::Shader(const std::string& path, GLenum type)
 
     shader = glCreateShader(type);
     glShaderSource(shader, 1, &src, &len);
-        
+
     glCompileShader(shader);
     GLint isCompiled;
     glGetShaderiv(shader, GL_COMPILE_STATUS, &isCompiled);
@@ -17,11 +17,11 @@ Shader::Shader(const std::string& path, GLenum type)
     {
         GLint maxLength = 0;
         glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &maxLength);
-        
+
         GLchar* log = new GLchar[maxLength];
         glGetShaderInfoLog(shader, maxLength, &maxLength, log);
 
-        throw std::runtime_error(fmt::format("Shader error: {}\n", (char*)log));  
+        throw std::runtime_error(fmt::format("Shader error: {}\n", (char*)log));
     }
 }
 

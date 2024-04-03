@@ -1,19 +1,19 @@
 #pragma once
-#include "Globals.hpp"
+#include "globals.hpp"
 
 enum GLCmd_t
 {
-    SET_CLEAR_COLOR, 
-    CLEAR_COLOR_DEPTH, 
-    VIEWPORT_SHADOW, 
+    SET_CLEAR_COLOR,
+    CLEAR_COLOR_DEPTH,
+    VIEWPORT_SHADOW,
     VIEWPORT_COLOR,
-    DRAW 
+    DRAW
 };
 
 struct GLCommand
 {
     GLCommand(GLCmd_t type, std::function<void(void)> func)
-    {   
+    {
         this->type = type;
         this->func = func;
     };

@@ -1,5 +1,5 @@
-#include "Camera.hpp"
-#include "GameObject.hpp"
+#include "camera.hpp"
+#include "game_object.hpp"
 
 static const float maxVAngle = PI / 2.0f - 0.01f;
 static const float minVAngle = -PI / 2.0f + 0.01f;
@@ -17,7 +17,7 @@ Camera::Camera(GameObject* gameObject, const CameraProps& props)
     farZ = props.farClipPlane;
     _eyeOffset = props.eyeOffset;
     _vhAngle = glm::vec2(props.verticalAngle, props.horizontalAngle);
-    
+
     this->gameObject = gameObject;
     this->gameObject->AddComponent(this);
 }
@@ -32,7 +32,7 @@ glm::vec3 Camera::GetEye(const glm::mat4& cameraTransform)
     return glm::vec3(cameraTransform * glm::vec4(_eyeOffset, 1.0));
 }
 
-glm::mat4 Camera::GetViewMatrix(const glm::mat4& cameraTransform) 
+glm::mat4 Camera::GetViewMatrix(const glm::mat4& cameraTransform)
 {
     glm::vec3 eyePos = GetEye(cameraTransform);
     return glm::lookAt(eyePos, eyePos + CalculateDirection(_vhAngle.x, _vhAngle.y), glm::vec3(0, 1, 0));
@@ -64,7 +64,7 @@ glm::vec3 Camera::CreateLinearVelocity(Axis axis)
     }
 }
 
-void Camera::yaw(float angleOffset) 
+void Camera::yaw(float angleOffset)
 {
     _vhAngle.y += angleOffset;
 }

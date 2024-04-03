@@ -1,5 +1,5 @@
 #pragma once
-#include "Globals.hpp"
+#include "globals.hpp"
 
 class Entity
 {
@@ -9,11 +9,11 @@ public:
     static std::list<Entity> WithGraphicsComponent();
 
     static std::list<Entity> WithPhysicsComponent();
-    
+
     Entity();
 
     uint64_t GetEID() const { return _eid; }
-    
+
     uint64_t GetGraphicsId() const { return _graphicsId; }
 
     void SetGraphicsId(const uint64_t& gid) { _graphicsId = gid; }

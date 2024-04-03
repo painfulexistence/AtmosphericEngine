@@ -9,31 +9,32 @@ find_package(lua REQUIRED)
 add_subdirectory(external/entt)
 add_subdirectory(external/sol2)
 
+#file(GLOB SOURCES *.cpp RECURSIVE EXCLUDE external)
 set(SOURCES
-    Application.cpp
-    Window.cpp
-    Server.cpp
-    Console.cpp
-    Messagable.cpp
-    MessageBus.cpp
-    Message.cpp
-    ComponentFactory.cpp
-    GameObject.cpp
-    Impostor.cpp
+    application.cpp
+    window.cpp
+    server.cpp
+    console.cpp
+    messagable.cpp
+    message_bus.cpp
+    message.cpp
+    component_factory.cpp
+    game_object.cpp
+    impostor.cpp
     light.cpp
-    Camera.cpp
-    Mesh.cpp
+    camera.cpp
+    mesh.cpp
     frustum.cpp
     material.cpp
-    Renderable.cpp
-    Shader.cpp
-    GraphicsServer.cpp
-    PhysicsServer.cpp
-    DynamicsWorld.cpp
-    Input.cpp
-    Entity.cpp
-    Script.cpp
-    Utility/File.cpp
+    renderable.cpp
+    shader.cpp
+    graphics_server.cpp
+    physics_server.cpp
+    dynamics_world.cpp
+    input.cpp
+    entity.cpp
+    script.cpp
+    utility/file.cpp
 )
 
 set(SOURCES_EXT

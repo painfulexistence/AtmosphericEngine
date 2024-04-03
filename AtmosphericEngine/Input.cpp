@@ -1,5 +1,5 @@
-#include "Input.hpp"
-#include "Application.hpp"
+#include "input.hpp"
+#include "application.hpp"
 
 Input::Input()
 {

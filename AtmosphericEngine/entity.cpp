@@ -1,5 +1,5 @@
-#include "Entity.hpp"
-#include <EnttRegistry.hpp>
+#include "entity.hpp"
+#include <entt_registry.hpp>
 
 std::list<Entity> Entity::Entities = std::list<Entity>();
 

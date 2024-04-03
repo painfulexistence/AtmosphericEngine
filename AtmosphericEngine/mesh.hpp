@@ -1,8 +1,8 @@
 #pragma once
-#include "Globals.hpp"
+#include "globals.hpp"
 #include "shader.hpp"
 #include "material.hpp"
-#include "BulletCollision.hpp"
+#include "bullet_collision.hpp"
 
 class Mesh
 {

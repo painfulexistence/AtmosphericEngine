@@ -1,5 +1,5 @@
 #pragma once
-#include "Globals.hpp"
+#include "globals.hpp"
 
 #define OnMouseMoveCallback std::function<void(GLFWwindow*, float, float)>
 #define OnMouseEnterCallback std::function<void(GLFWwindow*)>
@@ -45,7 +45,7 @@ public:
     static std::map<Window*, OnMouseMoveCallback> onMouseMoveCallbacks;
 
     static std::map<Window*, OnMouseEnterCallback> onMouseEnterCallbacks;
-    
+
     static std::map<Window*, OnMouseLeaveCallback> onMouseLeaveCallbacks;
 
     static  std::map<Window*, OnKeyPressCallback> onKeyPressCallbacks;
@@ -59,33 +59,33 @@ public:
     Window(WindowProps props = WindowProps());
 
     ~Window();
-    
+
     void Init();
 
     void SwapBuffers();
-    
+
     void PollEvents();
 
     void AddEventListener();
 
     void SetOnMouseMove(OnWindowMouseMoveCallback callback);
-    
+
     void SetOnMouseMove();
-    
+
     void SetOnMouseEnter(OnWindowMouseEnterCallback callback);
-    
+
     void SetOnMouseEnter();
-    
+
     void SetOnMouseLeave(OnWindowMouseLeaveCallback callback);
-    
+
     void SetOnMouseLeave();
-    
+
     void SetOnKeyPress(OnWindowKeyPressCallback callback);
-    
+
     void SetOnKeyPress();
 
     void SetOnKeyRelease(OnWindowKeyReleaseCallback callback);
-    
+
     void SetOnKeyRelease();
 
     void SetOnViewportResize(OnWindowViewportResizeCallback callback);
@@ -111,7 +111,7 @@ public:
     ImageSize GetFramebufferSize();
 
     bool IsClosing();
-    
+
 private:
     GLFWwindow* _glfwWindow = nullptr;
 };

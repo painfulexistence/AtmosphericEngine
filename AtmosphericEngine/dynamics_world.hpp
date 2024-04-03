@@ -1,7 +1,7 @@
 #pragma once
-#include "Globals.hpp"
-#include "BulletDynamics.hpp"
-#include "BulletCollision.hpp"
+#include "globals.hpp"
+#include "bullet_dynamics.hpp"
+#include "bullet_collision.hpp"
 
 class DynamicsWorld
 {

@@ -1,5 +1,5 @@
-#include "GameObject.hpp"
-#include "Component.hpp"
+#include "game_object.hpp"
+#include "component.hpp"
 
 GameObject::GameObject()
 {
@@ -29,25 +29,25 @@ Component* GameObject::GetComponent(std::string name)
         return it->second;
 }
 
-glm::mat4 GameObject::GetModelTransform() const 
-{ 
+glm::mat4 GameObject::GetModelTransform() const
+{
     //return glm::scale(glm::translate(glm::mat4(1.0f), _position),  _scale);
     return _mod;
 }
 
-void GameObject::SetModelTransform(glm::mat4 mod) 
-{ 
-    _mod = mod; 
+void GameObject::SetModelTransform(glm::mat4 mod)
+{
+    _mod = mod;
 }
 
 glm::mat4 GameObject::GetModelWorldTransform() const
 {
-    return _m2w; 
+    return _m2w;
 }
 
 void GameObject::SetModelWorldTransform(glm::mat4 m2w)
 {
-    this->_m2w = m2w; 
+    this->_m2w = m2w;
 }
 
 glm::vec3 GameObject::GetPosition()
@@ -83,7 +83,7 @@ void GameObject::SetScale(glm::vec3 value)
     _m2w = glm::scale(glm::translate(glm::mat4(1.0f), _position),  _scale);
 }
 
-glm::mat4 GameObject::GetTransform() const 
+glm::mat4 GameObject::GetTransform() const
 {
-    return _m2w * _mod; 
+    return _m2w * _mod;
 }

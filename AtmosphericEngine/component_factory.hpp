@@ -1,11 +1,11 @@
 #pragma once
-#include "Globals.hpp"
-#include "Renderable.hpp"
-#include "Mesh.hpp"
+#include "globals.hpp"
+#include "renderable.hpp"
+#include "mesh.hpp"
 #include "light.hpp"
-#include "Camera.hpp"
-#include "Impostor.hpp"
-#include "GameObject.hpp"
+#include "camera.hpp"
+#include "impostor.hpp"
+#include "game_object.hpp"
 
 class GraphicsServer;
 

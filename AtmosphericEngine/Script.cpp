@@ -1,4 +1,4 @@
-#include "Script.hpp"
+#include "script.hpp"
 #include <string>
 
 Script::Script()

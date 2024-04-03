@@ -1,5 +1,5 @@
 #pragma once
-#include "Globals.hpp"
+#include "globals.hpp"
 
 enum MessageType
 {
@@ -12,7 +12,7 @@ enum MessageType
 };
 
 class Message
-{    
+{
 public:
     Message(MessageType type);
     MessageType type;

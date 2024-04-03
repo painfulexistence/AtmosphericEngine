@@ -1,12 +1,12 @@
 #pragma once
-#include "Globals.hpp"
-#include "Server.hpp"
+#include "globals.hpp"
+#include "server.hpp"
 #include "material.hpp"
 #include "shader.hpp"
-#include "Renderable.hpp"
-#include "Mesh.hpp"
+#include "renderable.hpp"
+#include "mesh.hpp"
 #include "light.hpp"
-#include "Camera.hpp"
+#include "camera.hpp"
 
 struct FramebufferProps
 {

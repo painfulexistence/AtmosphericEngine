@@ -1,5 +1,5 @@
 #pragma once
-#include "Globals.hpp"
+#include "globals.hpp"
 
 struct Plane
 {
@@ -29,7 +29,7 @@ struct Plane
 class Frustum
 {
     Plane _near, _far, _top, _bottom, _left, _right;
-    
+
 public:
     Frustum(glm::mat4 viewingMatrix);
 

@@ -1,4 +1,4 @@
-#include "Mesh.hpp"
+#include "mesh.hpp"
 
 std::map<std::string, Mesh*> Mesh::MeshList;
 

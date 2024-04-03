@@ -1,11 +1,11 @@
 #pragma once
-#include "Globals.hpp"
-#include "BulletLinearMath.hpp"
+#include "globals.hpp"
+#include "bullet_linear_math.hpp"
 
-class DebugDrawer : public btIDebugDraw 
+class DebugDrawer : public btIDebugDraw
 {
 private:
-    struct Line 
+    struct Line
     {
         btVector3 from;
         btVector3 to;
@@ -23,12 +23,12 @@ private:
 
 public:
     PhysicsDebugger();
-        
+
     void setDebugMode(int mode) override
     {
         _mode = mode;
     };
-    
+
     int getDebugMode() const override
     {
         return _mode;
@@ -37,9 +37,9 @@ public:
     void reportErrorWarning(const char*) override;
 
     void drawLine(const btVector3&, const btVector3&, const btVector3&) override;
-    
+
     void drawContactPoint(const btVector3&, const btVector3&, btScalar, int, const btVector3&) override;
-        
+
     void draw3dText(const btVector3&, const char*) override;
 
     void Render();

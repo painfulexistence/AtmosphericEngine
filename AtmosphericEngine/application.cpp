@@ -1,4 +1,4 @@
-#include "Application.hpp"
+#include "application.hpp"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
 //#include <iostream> // Note that IO should only be used for debugging here

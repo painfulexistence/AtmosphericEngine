@@ -1,7 +1,7 @@
 #pragma once
-#include "Globals.hpp"
-#include "Script.hpp"
-#include "Component.hpp"
+#include "globals.hpp"
+#include "script.hpp"
+#include "component.hpp"
 
 struct CameraProps
 {

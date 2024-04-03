@@ -1,6 +1,6 @@
 #pragma once
-#include "Globals.hpp"
-#include "Server.hpp"
+#include "globals.hpp"
+#include "server.hpp"
 
 struct Transform;
 

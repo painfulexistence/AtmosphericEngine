@@ -1,8 +1,8 @@
 #pragma once
-#include "Globals.hpp"
-#include "Script.hpp"
+#include "globals.hpp"
+#include "script.hpp"
 
-struct Material 
+struct Material
 {
     int textureIdx;
     glm::vec3 ambient;
@@ -15,12 +15,12 @@ struct Material
     float ao;
 
     Material(sol::table t);
-    
+
     Material(
-        int textureIdx = 1, 
-        glm::vec3 ambient = glm::vec3(0, 0, 0), 
-        glm::vec3 diffuse = glm::vec3(.55, .55, .55), 
-        glm::vec3 specular = glm::vec3(.7, .7, .7), 
+        int textureIdx = 1,
+        glm::vec3 ambient = glm::vec3(0, 0, 0),
+        glm::vec3 diffuse = glm::vec3(.55, .55, .55),
+        glm::vec3 specular = glm::vec3(.7, .7, .7),
         float shininess = .25,
         glm::vec3 albedo = glm::vec3(.55, .55, .55),
         float metallic = 1.f,

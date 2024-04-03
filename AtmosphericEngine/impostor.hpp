@@ -1,10 +1,10 @@
 #pragma once
-#include "Globals.hpp" 
-#include "BulletLinearMath.hpp"
-#include "BulletCollision.hpp"
-#include "BulletDynamics.hpp"
-#include "GameObject.hpp"
-#include "Component.hpp"
+#include "globals.hpp"
+#include "bullet_linear_math.hpp"
+#include "bullet_collision.hpp"
+#include "bullet_dynamics.hpp"
+#include "game_object.hpp"
+#include "component.hpp"
 
 class PhysicsServer;
 

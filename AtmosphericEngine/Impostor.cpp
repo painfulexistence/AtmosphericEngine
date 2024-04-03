@@ -1,11 +1,11 @@
-#include "Impostor.hpp"
-#include "GameObject.hpp"
+#include "impostor.hpp"
+#include "game_object.hpp"
 
 static glm::mat4 ConvertToGLMatrix(const btTransform& trans)
 {
     btScalar mat[16] = {0.0f};
     trans.getOpenGLMatrix(mat);
-        
+
     return glm::mat4(
         mat[0], mat[1], mat[2], mat[3],
         mat[4], mat[5], mat[6], mat[7],
@@ -20,8 +20,8 @@ Impostor::Impostor(GameObject* gameObject, btCollisionShape* shape, float mass)
     glm::vec3 rotation = gameObject->GetRotation();
     btTransform transform = btTransform(btQuaternion(rotation.x, rotation.y, rotation.z), btVector3(position.x, position.y, position.z));
     _motionState = new btDefaultMotionState(transform);
-    _rigidbody = new btRigidBody(btScalar(mass), this->_motionState, shape, btVector3(1, 1, 1));    
-    
+    _rigidbody = new btRigidBody(btScalar(mass), this->_motionState, shape, btVector3(1, 1, 1));
+
     this->gameObject = gameObject;
     this->gameObject->AddComponent(this);
 };

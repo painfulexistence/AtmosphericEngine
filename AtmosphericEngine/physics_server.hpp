@@ -1,8 +1,8 @@
 #pragma once
-#include "Globals.hpp"
-#include "Server.hpp"
-#include "DynamicsWorld.hpp"
-#include "Impostor.hpp"
+#include "globals.hpp"
+#include "server.hpp"
+#include "dynamics_world.hpp"
+#include "impostor.hpp"
 
 class PhysicsServer : public Server
 {

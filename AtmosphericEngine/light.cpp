@@ -1,5 +1,5 @@
 #include "light.hpp"
-#include "GameObject.hpp"
+#include "game_object.hpp"
 
 static glm::vec3 Direction(GLenum face)
 {
@@ -66,13 +66,13 @@ std::string Light::GetName() const
     return std::string("Light");
 }
 
-glm::mat4 Light::GetProjectionMatrix(int cascadedIndex)    
+glm::mat4 Light::GetProjectionMatrix(int cascadedIndex)
 {
     if (type == DIR_LIGHT)
     {
         float nearZ = -200.0f, farZ = 200.0f;
         glm::mat4 view = glm::lookAt(-glm::normalize(direction), glm::vec3(0.f), glm::vec3(0.f, 1.f, 0.f)); //NOTES: should be placed as far as possible, but here
-        return glm::ortho(-200.0f, 200.0f, -200.0f, 200.0f, nearZ, farZ);  
+        return glm::ortho(-200.0f, 200.0f, -200.0f, 200.0f, nearZ, farZ);
     }
     else
     {
@@ -83,7 +83,7 @@ glm::mat4 Light::GetProjectionMatrix(int cascadedIndex)
     }
 }
 
-glm::mat4 Light::GetViewMatrix(GLenum facing)    
+glm::mat4 Light::GetViewMatrix(GLenum facing)
 {
     if (type == DIR_LIGHT)
     {
@@ -98,12 +98,12 @@ glm::mat4 Light::GetViewMatrix(GLenum facing)
     }
 }
 
-glm::mat4 Light::GetProjectionViewMatrix(int cascadedIndex, GLenum face)    
+glm::mat4 Light::GetProjectionViewMatrix(int cascadedIndex, GLenum face)
 {
     if (type == DIR_LIGHT)
     {
         float nearZ = -200.0f, farZ = 200.0f;
-        glm::mat4 projection = glm::ortho(-200.0f, 200.0f, -200.0f, 200.0f, nearZ, farZ);  
+        glm::mat4 projection = glm::ortho(-200.0f, 200.0f, -200.0f, 200.0f, nearZ, farZ);
         glm::mat4 view = glm::lookAt(-glm::normalize(direction), glm::vec3(0.f), glm::vec3(0.f, 1.f, 0.f));
         return projection * view;
     }

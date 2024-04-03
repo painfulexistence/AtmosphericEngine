@@ -1,7 +1,7 @@
 #pragma once
-#include "Globals.hpp"
-#include "Window.hpp"
-#include "Server.hpp"
+#include "globals.hpp"
+#include "window.hpp"
+#include "server.hpp"
 #include <GLFW/glfw3.h>
 
 const int KEY_UP = GLFW_KEY_UP;
@@ -28,15 +28,15 @@ class Input : public Server
 {
 public:
     Input();
-    
+
     ~Input();
-    
+
     bool GetKeyDown(int key);
-    
+
     bool GetKeyUp(int key);
-    
+
     glm::vec2 GetMousePosition();
-    
+
 private:
     std::vector<int> keys
     {

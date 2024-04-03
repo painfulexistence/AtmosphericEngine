@@ -1,15 +1,15 @@
 #pragma once
-#include "Globals.hpp"
+#include "globals.hpp"
 #include "imgui.h"
-#include "MessageBus.hpp"
-#include "Window.hpp"
-#include "GraphicsServer.hpp"
-#include "PhysicsServer.hpp"
-#include "Console.hpp"
-#include "Input.hpp"
-#include "Script.hpp"
-#include "GameObject.hpp"
-#include "ComponentFactory.hpp"
+#include "message_bus.hpp"
+#include "window.hpp"
+#include "graphics_server.hpp"
+#include "physics_server.hpp"
+#include "console.hpp"
+#include "input.hpp"
+#include "script.hpp"
+#include "game_object.hpp"
+#include "component_factory.hpp"
 
 struct FrameProps
 {

@@ -1,6 +1,6 @@
-#include "Renderable.hpp"
-#include "GameObject.hpp"
-#include "Mesh.hpp"
+#include "renderable.hpp"
+#include "game_object.hpp"
+#include "mesh.hpp"
 
 Renderable::Renderable(GameObject* gameObject, Mesh* mesh)
 {

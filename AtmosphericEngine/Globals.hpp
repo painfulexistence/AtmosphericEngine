@@ -24,8 +24,8 @@
 #include <utility>
 #include <stdexcept>
 
-#include "GraphicsConfig.hpp"
-#include "RuntimeConfig.hpp"
+#include "graphics_config.hpp"
+#include "runtime_config.hpp"
 
 #define CAMERA_ANGULAR_OFFSET 0.05
 #define CAMERA_SPEED 15

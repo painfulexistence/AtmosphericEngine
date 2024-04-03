@@ -1,4 +1,4 @@
-#include "Application.hpp"
+#include "application.hpp"
 using namespace std;
 
 static vector<vector<bool>> generateMazeData(int size, int shouldConsumed);

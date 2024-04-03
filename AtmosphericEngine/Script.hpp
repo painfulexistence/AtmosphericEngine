@@ -1,6 +1,6 @@
 #pragma once
-#include "Globals.hpp"
-#include "Server.hpp"
+#include "globals.hpp"
+#include "server.hpp"
 //#define SOL_ALL_SAFETIES_ON 1
 #define SOL_LUA_VERSION 504
 #include "sol/sol.hpp"

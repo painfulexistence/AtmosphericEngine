@@ -1,9 +1,9 @@
-#include "ECSServer.hpp"
-#include "EnttRegistry.hpp"
-#include "Impostor.hpp"
-#include "Camera.hpp"
-#include "Renderable.hpp"
-#include "Mesh.hpp"
+#include "ecs_server.hpp"
+#include "entt_registry.hpp"
+#include "impostor.hpp"
+#include "camera.hpp"
+#include "renderable.hpp"
+#include "mesh.hpp"
 
 ECSServer::ECSServer()
 {

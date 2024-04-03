@@ -1,5 +1,5 @@
-#include "PhysicsServer.hpp"
-#include "Impostor.hpp"
+#include "physics_server.hpp"
+#include "impostor.hpp"
 
 PhysicsServer::PhysicsServer()
 {

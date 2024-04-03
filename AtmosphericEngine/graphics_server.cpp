@@ -1,8 +1,8 @@
-#include "GraphicsServer.hpp"
+#include "graphics_server.hpp"
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
-#include "GameObject.hpp"
-#include "Application.hpp"
+#include "game_object.hpp"
+#include "application.hpp"
 
 GraphicsServer::GraphicsServer()
 {

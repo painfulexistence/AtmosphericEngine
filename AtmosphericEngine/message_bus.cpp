@@ -1,6 +1,6 @@
-#include "MessageBus.hpp"
-#include "Messagable.hpp"
-#include "Application.hpp"
+#include "message_bus.hpp"
+#include "messagable.hpp"
+#include "application.hpp"
 
 MessageBus::MessageBus(Application* supervisor)
 {

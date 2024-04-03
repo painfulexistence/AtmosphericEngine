@@ -1,4 +1,4 @@
-#include "DynamicsWorld.hpp"
+#include "dynamics_world.hpp"
 
 DynamicsWorld::DynamicsWorld()
 {
@@ -25,14 +25,14 @@ void DynamicsWorld::AddRigidbody(btRigidBody* rb)
 }
 
 void DynamicsWorld::SetConstantGravity(const float& g)
-{ 
-    _dw->setGravity(btVector3(0, -g, 0)); 
+{
+    _dw->setGravity(btVector3(0, -g, 0));
 }
 
 void DynamicsWorld::Step(float dt)
 {
     _timeAccum += dt;
-    while (_timeAccum >= FIXED_TIME_STEP) 
+    while (_timeAccum >= FIXED_TIME_STEP)
     {
         _dw->stepSimulation(FIXED_TIME_STEP, 0);
         _timeAccum -= FIXED_TIME_STEP;

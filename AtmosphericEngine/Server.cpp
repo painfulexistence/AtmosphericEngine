@@ -1,5 +1,5 @@
-#include "Server.hpp"
-#include "Application.hpp"
+#include "server.hpp"
+#include "application.hpp"
 
 Server::Server()
 {

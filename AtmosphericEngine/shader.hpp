@@ -1,5 +1,5 @@
 #pragma once
-#include "Globals.hpp"
+#include "globals.hpp"
 
 struct Shader
 {
@@ -13,9 +13,9 @@ public:
     ShaderProgram();
 
     ShaderProgram(std::string, std::string);
-    
+
     ShaderProgram(std::vector<Shader>&);
-    
+
     GLint GetAttrib(const char* attrib) {
         return glGetAttribLocation(program, attrib);
     };

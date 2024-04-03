@@ -1,6 +1,6 @@
-#include "ComponentFactory.hpp"
-#include "GraphicsServer.hpp"
-#include "PhysicsServer.hpp"
+#include "component_factory.hpp"
+#include "graphics_server.hpp"
+#include "physics_server.hpp"
 
 Light* ComponentFactory::CreateLight(GameObject* gameObject,  GraphicsServer* graphics, const LightProps& props)
 {

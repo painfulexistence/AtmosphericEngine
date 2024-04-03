@@ -1,4 +1,4 @@
-#include "DebugDrawer.hpp"
+#include "debug_drawer.hpp"
 
 
 DebugDrawer::DebugDrawer()
@@ -9,7 +9,7 @@ DebugDrawer::DebugDrawer()
 
 void DebugDrawer::reportErrorWarning(const char* text)
 {
-    
+
 }
 
 void DebugDrawer::drawLine(const btVector3& from, const btVector3& to, const btVector3& color)
@@ -21,9 +21,9 @@ void DebugDrawer::drawLine(const btVector3& from, const btVector3& to, const btV
 
     _lines.push_back(l);
 }
-    
+
 void DebugDrawer::drawContactPoint(const btVector3& point, const btVector3& normal, btScalar distance, int lifeTime, const btVector3& color)
-{   
+{
     Line l;
     l.from = point;
     l.to = point + distance * normal;
@@ -31,7 +31,7 @@ void DebugDrawer::drawContactPoint(const btVector3& point, const btVector3& norm
 
     _lines.push_back(l);
 }
-    
+
 void DebugDrawer::draw3dText(const btVector3& location, const char* textString)
 {
 

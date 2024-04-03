@@ -1,12 +1,15 @@
 FROM mcr.microsoft.com/devcontainers/cpp:0-ubuntu-22.04
 
-RUN apt-get update && apt-get install -y ninja
+RUN apt-get update
 
 # Install CMake
 RUN if ! [command -v cmake &> /dev/null]; then \
         apt-get install -y cmake; \
     fi \
     && echo "CMake version: $(which cmake)"
+
+# Install Ninja
+RUN apt-get install -y ninja-build
 
 # Set Emscripten variables
 ENV EMSDK="/usr/local/emsdk"

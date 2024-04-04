@@ -15,7 +15,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest, ubuntu-latest] # TODO: add windows-latest
+        os: [macos-latest, ubuntu-latest, windows-latest]
         build-type: [Debug, MinSizeRel]
 
     steps:
@@ -37,10 +37,12 @@ jobs:
 
       - name: Set strings
         id: strings
+        shell: bash
         run: |
           echo "build-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
 
       - name: Bootstrap vcpkg
+        shell: bash
         run: |
           ${{ github.workspace }}/vcpkg/bootstrap-vcpkg.sh
 
@@ -54,6 +56,11 @@ jobs:
         if: matrix.os == 'macos-latest'
         run: |
           brew install cmake
+
+      - name: Install CMake on Windows
+        if: matrix.os == 'windows-latest'
+        run: |
+          choco install cmake.portable
 
       - name: CMake Configure
         run: >

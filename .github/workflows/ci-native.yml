@@ -41,10 +41,15 @@ jobs:
         run: |
           echo "build-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
 
-      - name: Bootstrap vcpkg
-        shell: bash
+      - name: Bootstrap vcpkg on Unix
+        if: matrix.os == 'macos-latest' || matrix.os == 'ubuntu-latest'
         run: |
           ${{ github.workspace }}/vcpkg/bootstrap-vcpkg.sh
+
+      - name: Bootstrap vcpkg on Windows
+        if: matrix.os == 'windows-latest'
+        run: |
+          ${{ github.workspace }}/vcpkg/bootstrap-vcpkg.bat
 
       - name: Install CMake and other dependencies on Ubuntu
         if: matrix.os == 'ubuntu-latest'

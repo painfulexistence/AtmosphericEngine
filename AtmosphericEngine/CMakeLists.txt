@@ -2,7 +2,18 @@
 find_package(GLEW REQUIRED)
 find_package(glfw3 REQUIRED)
 find_package(glm CONFIG REQUIRED)
+
+option(BUILD_BULLET2_DEMOS OFF)
+option(BUILD_CPU_DEMOS OFF)
+option(BUILD_OPENGL3_DEMOS OFF)
+option(BUILD_EXTRAS OFF)
+option(BUILD_BULLET_ROBOTICS_EXTRA OFF)
+option(BUILD_BULLET_ROBOTICS_GUI_EXTRA OFF)
+option(BUILD_UNIT_TESTS OFF)
+option(BUILD_LUA_AS_DLL OFF)
+option(BUILD_SHARED_LIBS OFF)
 find_package(Bullet CONFIG REQUIRED)
+
 find_package(fmt REQUIRED)
 find_package(lua REQUIRED)
 

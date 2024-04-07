@@ -5,26 +5,20 @@ This project is still under development and may be completely broken at this sta
 
 
 ## Building
-1. Install [CMake](https://cmake.org/download/) (required) and [EMSDK](https://emscripten.org/docs/getting_started/downloads.html) (optional) 
+1. Install [CMake](https://cmake.org/download/) (required) and [EMSDK](https://emscripten.org/docs/getting_started/downloads.html) (optional)
 2. Clone this repo
 ```
 git clone --recurse-submodules https://github.com/painfulexistence/AtmosphericEngine.git
 cd AtmosphericEngine
-./vcpkg/bootstrap-vcpkg.sh
+./vcpkg/bootstrap-vcpkg.sh -disableMetrics
 ```
 3. Run CMake to build the project
 ```
 cmake -S . -B build
 cmake --build build
 ```
-#### Recommended CMake options:
-Turn off:
-- BUILD_BULLET2_DEMOS
-- BUILD_BULLET_ROBOTICS_EXTRA
-- BUILD_BULLET_ROBOTICS_GUI_EXTRA
-- BUILD_LUA_AS_DLL
-- BUILD_UNIT_TESTS
-- BUILD_SHARED_LIBS
+#### CMake options:
+WIP
 
 
 ## Source Structure

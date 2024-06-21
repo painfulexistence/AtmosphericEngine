@@ -8,6 +8,7 @@
       "glm",
       "bullet3",
       "fmt",
-      "lua"
+      "lua",
+      "tinygltf"
     ]
 }

@@ -8,8 +8,8 @@ class Mesh
 {
 private:
     GLuint vao, vbo, ebo, ibo;
-    std::vector<GLfloat> verts;
-    std::vector<GLushort> tris;
+    size_t vertCount;
+    size_t triCount;
     std::array<glm::vec3, 8> bounds;
     bool _initialized = false;
 
@@ -26,7 +26,7 @@ public:
 
     ~Mesh();
 
-    void BufferData();
+    void Initialize(const std::vector<GLfloat>& verts, const std::vector<GLushort>& tris);
 
     std::array<glm::vec3, 8> GetBoundingBox() const { return bounds; }
 

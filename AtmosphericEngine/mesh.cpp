@@ -19,7 +19,7 @@ Mesh::~Mesh()
     //delete collisionShape; // FIXME: Should delete collisionShape somewhere else before the pointer is out of scope
 }
 
-void Mesh::BufferData()
+void Mesh::Initialize(const std::vector<GLfloat>& verts, const std::vector<GLushort>& tris)
 {
     // Buffer binding reference: https://stackoverflow.com/questions/17332657/does-a-vao-remember-both-a-ebo-ibo-elements-or-indices-and-a-vbo
     glBindVertexArray(vao);
@@ -51,6 +51,8 @@ void Mesh::BufferData()
 
     glBindVertexArray(0);
 
+    this->vertCount = verts.size() / 8;
+    this->triCount = tris.size() / 3;
     this->_initialized = true;
 }
 
@@ -84,7 +86,7 @@ void Mesh::Render(ShaderProgram& program, const std::vector<glm::mat4>& worldMat
     glBindVertexArray(vao);
     glBindBuffer(GL_ARRAY_BUFFER, ibo);
     glBufferData(GL_ARRAY_BUFFER, worldMatrices.size() * sizeof(glm::mat4), worldMatrices.data(), GL_STATIC_DRAW);
-    glDrawElementsInstanced(primitiveType, tris.size(), GL_UNSIGNED_SHORT, 0, worldMatrices.size());
+    glDrawElementsInstanced(primitiveType, triCount * 3, GL_UNSIGNED_SHORT, 0, worldMatrices.size());
     glBindVertexArray(0);
 }
 
@@ -114,7 +116,6 @@ void Mesh::Render(ShaderProgram& program, const std::vector<glm::mat4>& worldMat
 
 Mesh* Mesh::CreateCube(const GLfloat& size)
 {
-    auto cube = new Mesh();
     GLfloat vertices[] = {
         //left
         .5f * size, .5f * size, .5f * size, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f,
@@ -147,8 +148,6 @@ Mesh* Mesh::CreateCube(const GLfloat& size)
         -.5f * size, -.5f * size, .5f * size, 0.0f, -1.0f, 0.0f, 0.0f, 1.0f,
         -.5f * size, -.5f * size, -.5f * size, 0.0f, -1.0f, 0.0f, 0.0f, 0.0f
     };
-    cube->verts.assign(vertices, vertices + 192);
-
     GLushort triangles[] = {
         0, 2, 1,
         1, 2, 3,
@@ -163,8 +162,12 @@ Mesh* Mesh::CreateCube(const GLfloat& size)
         20, 22, 21,
         21, 22, 23
     };
-    cube->tris.assign(triangles, triangles + 36);
-    cube->BufferData();
+
+    std::vector<GLfloat> verts(vertices, vertices + 192);
+    std::vector<GLushort> tris(triangles, triangles + 36);
+
+    auto cube = new Mesh();
+    cube->Initialize(verts, tris);
 
     cube->bounds[0] = glm::vec3(.5f * size, .5f * size, .5f * size);
     cube->bounds[1] = glm::vec3(-.5f * size, .5f * size, .5f * size);
@@ -180,10 +183,11 @@ Mesh* Mesh::CreateCube(const GLfloat& size)
 
 Mesh* Mesh::CreateSphere(const GLfloat& radius, const GLint& division)
 {
-    auto sphere = new Mesh();
-
     float delta = (float)PI / (float)division;
-    sphere->verts.resize(8 * (division + 1) * (2 * division + 1));
+
+    std::vector<GLfloat> verts;
+    std::vector<GLushort> tris;
+    verts.resize(8 * (division + 1) * (2 * division + 1));
     for (int v = 0; v <= division; ++v)
     {
         float vAngle = v * delta;
@@ -211,38 +215,40 @@ Mesh* Mesh::CreateSphere(const GLfloat& radius, const GLint& division)
                 );
                 norm = glm::normalize(pos);
             }
-            sphere->verts[8 * (v * (2 * division + 1) + h)] = pos.x;
-            sphere->verts[8 * (v * (2 * division + 1) + h) + 1] = pos.y;
-            sphere->verts[8 * (v * (2 * division + 1) + h) + 2] = pos.z;
-            sphere->verts[8 * (v * (2 * division + 1) + h) + 3] = norm.x;
-            sphere->verts[8 * (v * (2 * division + 1) + h) + 4] = norm.y;
-            sphere->verts[8 * (v * (2 * division + 1) + h) + 5] = norm.z;
-            sphere->verts[8 * (v * (2 * division + 1) + h) + 6] = (float)h / (float)(2 * division);
-            sphere->verts[8 * (v * (2 * division + 1) + h) + 7] = 1.0f - (float)v / (float)division;
+            verts[8 * (v * (2 * division + 1) + h)] = pos.x;
+            verts[8 * (v * (2 * division + 1) + h) + 1] = pos.y;
+            verts[8 * (v * (2 * division + 1) + h) + 2] = pos.z;
+            verts[8 * (v * (2 * division + 1) + h) + 3] = norm.x;
+            verts[8 * (v * (2 * division + 1) + h) + 4] = norm.y;
+            verts[8 * (v * (2 * division + 1) + h) + 5] = norm.z;
+            verts[8 * (v * (2 * division + 1) + h) + 6] = (float)h / (float)(2 * division);
+            verts[8 * (v * (2 * division + 1) + h) + 7] = 1.0f - (float)v / (float)division;
         }
     }
-    sphere->tris.resize((6 * division - 6) * (2 * division));
+    tris.resize((6 * division - 6) * (2 * division));
     for (int v = 0, i = 0; v <= division - 1; ++v)
     {
         for (int h = 0; h <= 2 * division - 1; ++h)
         {
             if (v != 0) //top-left triangles except for north pole
             {
-                sphere->tris[i] = (2 * division + 1) * v + h;
-                sphere->tris[i + 1] = (2 * division + 1) * v + h + 1;
-                sphere->tris[i + 2] = (2 * division + 1) * (v + 1) + h;
+                tris[i] = (2 * division + 1) * v + h;
+                tris[i + 1] = (2 * division + 1) * v + h + 1;
+                tris[i + 2] = (2 * division + 1) * (v + 1) + h;
                 i += 3;
             }
             if (v != division - 1) //bottom-right triangles except for south pole
             {
-                sphere->tris[i] = (2 * division + 1) * (v + 1) + h;
-                sphere->tris[i + 1] = (2 * division + 1) * v + h + 1;
-                sphere->tris[i + 2] = (2 * division + 1) * (v + 1) + h + 1;
+                tris[i] = (2 * division + 1) * (v + 1) + h;
+                tris[i + 1] = (2 * division + 1) * v + h + 1;
+                tris[i + 2] = (2 * division + 1) * (v + 1) + h + 1;
                 i += 3;
             }
         }
     }
-    sphere->BufferData();
+
+    auto sphere = new Mesh();
+    sphere->Initialize(verts, tris);
 
     sphere->bounds[0] = glm::vec3(radius, radius, radius);
     sphere->bounds[1] = glm::vec3(-radius, radius, radius);
@@ -258,33 +264,37 @@ Mesh* Mesh::CreateSphere(const GLfloat& radius, const GLint& division)
 
 Mesh* Mesh::CreateTerrain(const GLfloat& size, const GLint& vnum, const std::vector<GLfloat>& heightmap)
 {
-    auto terrain = new Mesh();
-    terrain->verts.resize(vnum * vnum * 8);
+    std::vector<GLfloat> verts;
+    std::vector<GLushort> tris;
+
+    verts.resize(vnum * vnum * 8);
     float c_size = size / float(vnum - 1);
     for (int i = 0; i < vnum; i++) {
         for (int j = 0; j < vnum; j++) {
             float x = -.5f * size + j * c_size;
             float y = heightmap[(i * vnum + j)];
             float z = -.5f * size + i * c_size;
-            terrain->verts[(i * vnum + j) * 8 + 0] = x;
-            terrain->verts[(i * vnum + j) * 8 + 1] = y;
-            terrain->verts[(i * vnum + j) * 8 + 2] = z;
-            terrain->verts[(i * vnum + j) * 8 + 3] = 0.f; //2 * float(i)/float(vnum);
-            terrain->verts[(i * vnum + j) * 8 + 4] = 1.f; //2 * float(j)/float(vnum);
-            terrain->verts[(i * vnum + j) * 8 + 5] = 0.f; //0.8f;
-            terrain->verts[(i * vnum + j) * 8 + 6] = (float)(i%2);
-            terrain->verts[(i * vnum + j) * 8 + 7] = (float)(j%2);
+            verts[(i * vnum + j) * 8 + 0] = x;
+            verts[(i * vnum + j) * 8 + 1] = y;
+            verts[(i * vnum + j) * 8 + 2] = z;
+            verts[(i * vnum + j) * 8 + 3] = 0.f; //2 * float(i)/float(vnum);
+            verts[(i * vnum + j) * 8 + 4] = 1.f; //2 * float(j)/float(vnum);
+            verts[(i * vnum + j) * 8 + 5] = 0.f; //0.8f;
+            verts[(i * vnum + j) * 8 + 6] = (float)(i%2);
+            verts[(i * vnum + j) * 8 + 7] = (float)(j%2);
         }
     }
-    terrain->tris.resize((vnum * 2 + 1) * (vnum - 1));
-    terrain->primitiveType = GL_TRIANGLE_STRIP;
+    tris.resize((vnum * 2 + 1) * (vnum - 1));
     for (int i = 0; i < vnum - 1; i++) {
         for (int j = 0; j < 2 * vnum; j++) {
-            terrain->tris[i * (2 * vnum + 1) + j] = (i + j % 2) * vnum + (j / 2);
+            tris[i * (2 * vnum + 1) + j] = (i + j % 2) * vnum + (j / 2);
         }
-        terrain->tris[i * (2 * vnum + 1) + 2 * vnum] = 0xFFFF;
+        tris[i * (2 * vnum + 1) + 2 * vnum] = 0xFFFF;
     }
-    terrain->BufferData();
+
+    auto terrain = new Mesh();
+    terrain->Initialize(verts, tris);
+    terrain->primitiveType = GL_TRIANGLE_STRIP;
 
     terrain->bounds[0] = glm::vec3(.5f * size, .5f, .5f * size);
     terrain->bounds[1] = glm::vec3(-.5f * size, .5f, .5f * size);

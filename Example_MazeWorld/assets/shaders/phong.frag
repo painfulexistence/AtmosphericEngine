@@ -1,6 +1,6 @@
 #version 410
 
-struct Surface 
+struct Surface
 {
     //Reference: http://devernay.free.fr/cours/opengl/materials.html
     vec3 ambient;
@@ -33,21 +33,21 @@ const float lightPower = 1.0;
 const float gamma = 2.2;
 
 void main()
-{   
+{
     vec3 norm = normalize(frag_normal);
     vec3 viewDir = normalize(cam_pos - frag_pos);
     vec3 lightDir = normalize(-main_light.direction);
     vec3 reflectDir = reflect(-lightDir, norm);
 
-    vec3 ambient = main_light.ambient * surf.ambient;
     float diff = max(dot(norm, lightDir), 0.0);
-    vec3 diffuse = main_light.diffuse * lightPower * (diff * surf.diffuse);
+    vec3 surfColor = mix(surf.diffuse, texture(tex_unit, tex_uv).xyz, 0);
+
+    vec3 ambient = main_light.ambient * surf.ambient;
+    vec3 diffuse = main_light.diffuse * lightPower * (diff * surfColor);
     vec3 specular = main_light.specular * lightPower * pow(max(dot(viewDir, reflectDir), 0.0), surf.shininess / 4.0) * surf.specular;
 
     vec3 result = ambient + diffuse + specular;
-
-    result = mix(result, texture(tex_unit, tex_uv).xyz, 0);
     result = pow(result, vec3(1.0 / gamma));
-    
+
     Color = vec4(result, 1.0);
 }

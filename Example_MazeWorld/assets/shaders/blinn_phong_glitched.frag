@@ -1,6 +1,6 @@
 #version 410
 
-struct Surface 
+struct Surface
 {
     //Reference: http://devernay.free.fr/cours/opengl/materials.html
     vec3 ambient;
@@ -74,21 +74,23 @@ vec2 DistortUV(vec2 uv)
 }
 
 void main()
-{   
+{
     vec3 norm = normalize(frag_normal);
     vec3 viewDir = normalize(cam_pos - frag_pos);
     vec3 lightDir = normalize(-main_light.direction);
     lightDir = mix(lightDir, -normalize(main_light.direction), length(normalize(main_light.direction)));
     vec3 halfway = normalize(lightDir + viewDir);
 
-    vec3 ambient = main_light.ambient * 3.0 * surf.ambient;
     float diff = max(dot(norm, lightDir), 0.0);
-    vec3 diffuse = main_light.diffuse * lightPower * (diff * surf.diffuse);
+    tex_uv = DistortUV(tex_uv); // Distort UV
+    vec3 surfColor = mix(surf.diffuse, texture(tex_unit, tex_uv).xyz, 0.1);
+
+    vec3 ambient = main_light.ambient * 3.0 * surf.ambient;
+    vec3 diffuse = main_light.diffuse * lightPower * (diff * surfColor);
     vec3 specular = main_light.specular * lightPower * pow(max(dot(halfway, norm), 0.0), surf.shininess) * surf.specular;
 
-    tex_uv = DistortUV(tex_uv);
-    vec3 result = mix((ambient + diffuse + specular), texture(tex_unit, tex_uv).xyz, 0.1);
-    result = Childhood(result);
+    vec3 result = ambient + diffuse + specular;
+    result = Childhood(result); // Distort color
     result = pow(result, vec3(1.0 / gamma));
 
     Color = vec4(result, 1);

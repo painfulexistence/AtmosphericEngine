@@ -61,7 +61,7 @@ void GraphicsServer::Render(float dt)
     }
     auxLightCount = (int)lights.size() - mainLightCount;
 
-    //ShadowPass(dt);
+    // ShadowPass(dt);
 
     ColorPass(dt);
 
@@ -129,7 +129,7 @@ void GraphicsServer::LoadTexture(const std::string& path)
     float border[] = {1.f, 1.f, 1.f, 1.f};
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, border);
 
@@ -156,7 +156,7 @@ void GraphicsServer::LoadTextures(const std::vector<std::string>& paths)
         float border[] = {1.f, 1.f, 1.f, 1.f};
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, border);
 
@@ -415,7 +415,7 @@ void GraphicsServer::PostProcessPass(float dt)
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     hdrProgram.Activate();
     hdrProgram.SetUniform(std::string("color_map_unit"), (int)0);
-    //hdrProgram.SetUniform(std::string("exposure"), (float)1.0);
+    // hdrProgram.SetUniform(std::string("exposure"), (float)1.0);
     glBindVertexArray(screenVAO);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 }

@@ -8,17 +8,17 @@
 #include "light.hpp"
 #include "camera.hpp"
 
-struct FramebufferProps
+struct RenderTargetProps
 {
-    FramebufferProps(int width = INIT_FRAMEBUFFER_WIDTH, int height = INIT_FRAMEBUFFER_HEIGHT, int numSapmples = MSAA_NUM_SAMPLES)
+    RenderTargetProps(int width = INIT_FRAMEBUFFER_WIDTH, int height = INIT_FRAMEBUFFER_HEIGHT, int numSapmples = MSAA_NUM_SAMPLES)
     {
         this->width = width;
         this->height = height;
-        this->numSapmples = numSapmples;
+        this->numSamples = numSapmples;
     };
     int width;
     int height;
-    int numSapmples;
+    int numSamples;
 };
 
 class GraphicsServer : Server
@@ -75,10 +75,9 @@ public:
     }
 
 private:
-    FramebufferProps _fbProps;
     GLuint shadowFBO, hdrFBO, msaaFBO;
-    std::vector<GLuint> uniShadowMaps;
-    std::vector<GLuint> omniShadowMaps;
+    std::array<GLuint, MAX_UNI_LIGHTS> uniShadowMaps;
+    std::array<GLuint, MAX_OMNI_LIGHTS> omniShadowMaps;
     GLuint hdrColorTexture, hdrDepthTexture;
     GLuint screenTexture;
     GLuint screenVAO;
@@ -88,13 +87,17 @@ private:
     const int mainLightCount = 1;
     int auxLightCount = 0;
 
-    void ResetFramebuffers();
+    void CreateRenderTargets(const RenderTargetProps& props);
 
-    void ResetScreenVAO();
+    void UpdateRenderTargets(const RenderTargetProps& props);
+
+    void CreateScreenVAO();
 
     void ShadowPass(float dt);
 
     void ColorPass(float dt);
+
+    void MSAAPass(float dt);
 
     void PostProcessPass(float dt);
 };

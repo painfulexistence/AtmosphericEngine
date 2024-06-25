@@ -13,7 +13,7 @@ std::map<Window*, OnKeyReleaseCallback> Window::onKeyReleaseCallbacks = std::map
 
 std::map<Window*, OnViewportResizeCallback> Window::onViewportResizeCallbacks = std::map<Window*, OnViewportResizeCallback>();
 
-std::map<Window*, OnFramebufferResizeCallback> Window::onFramebufferResizeCallbacks = std::map<Window*, OnFramebufferResizeCallback>();
+std::map<Window*, OnFramebufferResizeCallback> Window::onResizeCallbacks = std::map<Window*, OnFramebufferResizeCallback>();
 
 Window::Window(WindowProps props)
 {
@@ -102,7 +102,7 @@ void Window::Init()
             kv.second(win, width, height);
     });
     glfwSetFramebufferSizeCallback(this->_glfwWindow, [](GLFWwindow* win, int width, int height) {
-        for (auto kv : onFramebufferResizeCallbacks)
+        for (auto kv : onResizeCallbacks)
             kv.second(win, width, height);
     });
     #pragma endregion
@@ -209,17 +209,17 @@ void Window::SetOnViewportResize()
 
 }
 
-void Window::SetOnFramebufferResize(OnWindowFramebufferResizeCallback callback)
+void Window::SetOnResize(OnWindowResizeCallback callback)
 {
-    onFramebufferResizeCallbacks[this] = [this, callback](GLFWwindow* win, int width, int height) {
+    onResizeCallbacks[this] = [this, callback](GLFWwindow* win, int width, int height) {
         if (this->_glfwWindow == win)
             callback(width, height);
     };
 }
 
-void Window::SetOnFramebufferResize()
+void Window::SetOnResize()
 {
-    onFramebufferResizeCallbacks[this] =  [](GLFWwindow*, int, int) {};
+    onResizeCallbacks[this] =  [](GLFWwindow*, int, int) {};
 }
 
 glm::vec2 Window::GetMousePosition()
@@ -258,7 +258,7 @@ ImageSize Window::GetViewportSize()
     return ImageSize(width, height);
 }
 
-ImageSize Window::GetFramebufferSize()
+ImageSize Window::GetSize()
 {
     int width, height;
     glfwGetFramebufferSize(this->_glfwWindow, &width, &height);

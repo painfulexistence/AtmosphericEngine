@@ -15,7 +15,7 @@
 #define OnWindowKeyPressCallback std::function<void(int, int, int)>
 #define OnWindowKeyReleaseCallback std::function<void(int, int, int)>
 #define OnWindowViewportResizeCallback std::function<void(int, int)>
-#define OnWindowFramebufferResizeCallback std::function<void(int, int)>
+#define OnWindowResizeCallback std::function<void(int, int)>
 
 class GLFWwindow;
 
@@ -54,7 +54,7 @@ public:
 
     static  std::map<Window*, OnViewportResizeCallback> onViewportResizeCallbacks;
 
-    static  std::map<Window*, OnFramebufferResizeCallback> onFramebufferResizeCallbacks;
+    static  std::map<Window*, OnFramebufferResizeCallback> onResizeCallbacks;
 
     Window(WindowProps props = WindowProps());
 
@@ -92,9 +92,9 @@ public:
 
     void SetOnViewportResize();
 
-    void SetOnFramebufferResize(OnWindowFramebufferResizeCallback callback);
+    void SetOnResize(OnWindowResizeCallback callback);
 
-    void SetOnFramebufferResize();
+    void SetOnResize();
 
     glm::vec2 GetMousePosition();
 
@@ -108,7 +108,7 @@ public:
 
     ImageSize GetViewportSize();
 
-    ImageSize GetFramebufferSize();
+    ImageSize GetSize();
 
     bool IsClosing();
 

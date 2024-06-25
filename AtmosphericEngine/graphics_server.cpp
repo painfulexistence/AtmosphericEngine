@@ -4,6 +4,33 @@
 #include "game_object.hpp"
 #include "application.hpp"
 
+void CheckFramebufferStatus(const char* errorPrefix) {
+    auto status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+    if (status != GL_FRAMEBUFFER_COMPLETE)
+    {
+        switch (status) {
+        case GL_FRAMEBUFFER_UNDEFINED:
+            throw std::runtime_error(fmt::format("{}: GL_FRAMEBUFFER_UNDEFINED", errorPrefix));
+        case GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT:
+            throw std::runtime_error(fmt::format("{}: GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT", errorPrefix));
+        case GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT:
+            throw std::runtime_error(fmt::format("{}: GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT", errorPrefix));
+        case GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER:
+            throw std::runtime_error(fmt::format("{}: GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER", errorPrefix));
+        case GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER:
+            throw std::runtime_error(fmt::format("{}: GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER", errorPrefix));
+        case GL_FRAMEBUFFER_UNSUPPORTED:
+            throw std::runtime_error(fmt::format("{}: GL_FRAMEBUFFER_UNSUPPORTED", errorPrefix));
+        case GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE:
+            throw std::runtime_error(fmt::format("{}: GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE", errorPrefix));
+        case GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS:
+            throw std::runtime_error(fmt::format("{}: GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS", errorPrefix));
+        default:
+            throw std::runtime_error(fmt::format("{}: Unknown error code {}", errorPrefix, status));
+        }
+    }
+}
+
 GraphicsServer::GraphicsServer()
 {
 
@@ -31,16 +58,19 @@ void GraphicsServer::Init(MessageBus* mb, Application* app)
     glEnable(GL_MULTISAMPLE);
     #endif
 
-    this->_app->GetWindow()->SetOnFramebufferResize([this](int width, int height) {
-        if (this->_app->GetWindow()->IsClosing())
+    auto window = this->_app->GetWindow();
+
+    auto size = window->GetSize();
+    this->CreateRenderTargets(RenderTargetProps(size.x, size.y));
+    this->CreateScreenVAO();
+
+    window->SetOnResize([this, window](int width, int height) {
+        if (window->IsClosing())
             return;
-        this->_fbProps.width = width;
-        this->_fbProps.height = height;
-        this->ResetFramebuffers(); // TODO: Reuse framebuffers -- just resize them
+        this->UpdateRenderTargets(RenderTargetProps(width, height));
     });
 
-    this->ResetFramebuffers();
-    this->ResetScreenVAO();
+
 }
 
 void GraphicsServer::Process(float dt)
@@ -61,10 +91,9 @@ void GraphicsServer::Render(float dt)
     }
     auxLightCount = (int)lights.size() - mainLightCount;
 
-    // ShadowPass(dt);
-
+    ShadowPass(dt);
     ColorPass(dt);
-
+    MSAAPass(dt);
     PostProcessPass(dt);
 }
 
@@ -194,16 +223,22 @@ void GraphicsServer::CheckErrors()
             error = "OUT_OF_MEMORY"; break;
             case GL_INVALID_FRAMEBUFFER_OPERATION:
             error = "INVALID_FRAMEBUFFER_OPERATION"; break;
+            default:
+            error = "UNKNOWN"; break;
         }
         throw std::runtime_error(fmt::format("GL error: {}\n", error));
     }
 }
 
-void GraphicsServer::ResetFramebuffers()
+void GraphicsServer::CreateRenderTargets(const RenderTargetProps& props)
 {
-    // Allocate framebuffers
+    // 1. Create framebuffers
     glGenFramebuffers(1, &shadowFBO);
-    for (int i = 0; i < 1; ++i)
+    glGenFramebuffers(1, &hdrFBO);
+    glGenFramebuffers(1, &msaaFBO);
+
+    // 2. Create and set shadow pass attachments
+    for (int i = 0; i < MAX_UNI_LIGHTS; ++i)
     {
         GLuint map;
         glGenTextures(1, &map);
@@ -213,9 +248,9 @@ void GraphicsServer::ResetFramebuffers()
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, SHADOW_W, SHADOW_H, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
-        uniShadowMaps.push_back(map);
+        uniShadowMaps[i] = map;
     }
-    for (int i = 0; i < MAX_AUX_SHADOWS; ++i)
+    for (int i = 0; i < MAX_OMNI_LIGHTS; ++i)
     {
         GLuint map;
         glGenTextures(1, &map);
@@ -229,8 +264,9 @@ void GraphicsServer::ResetFramebuffers()
         {
             glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + f, 0, GL_DEPTH_COMPONENT, SHADOW_W, SHADOW_H, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
         }
-        omniShadowMaps.push_back(map);
+        omniShadowMaps[i] = map;
     }
+
     glBindFramebuffer(GL_FRAMEBUFFER, shadowFBO);
     for (int i = 0; i < (int)uniShadowMaps.size(); ++i)
     {
@@ -244,35 +280,68 @@ void GraphicsServer::ResetFramebuffers()
         glDrawBuffer(GL_NONE);
         glReadBuffer(GL_NONE);
     }
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-    glGenFramebuffers(1, &hdrFBO);
+    // 3. Create and set HDR pass attachments
     glGenTextures(1, &hdrColorTexture);
     glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, hdrColorTexture);
-    glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, this->_fbProps.numSapmples, GL_RGBA16F, this->_fbProps.width, this->_fbProps.height, GL_TRUE);
+    glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, props.numSamples, GL_RGBA16F, props.width, props.height, GL_TRUE);
+
     glGenTextures(1, &hdrDepthTexture);
     glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, hdrDepthTexture);
-    glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, this->_fbProps.numSapmples, GL_DEPTH_COMPONENT, this->_fbProps.width, this->_fbProps.height, GL_TRUE);
+    glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, props.numSamples, GL_DEPTH_COMPONENT, props.width, props.height, GL_TRUE);
+
     glBindFramebuffer(GL_FRAMEBUFFER, hdrFBO);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D_MULTISAMPLE, hdrColorTexture, 0);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D_MULTISAMPLE, hdrDepthTexture, 0);
-    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-        std::runtime_error("HDR Framebuffer is incomplete!");
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    CheckFramebufferStatus("HDR framebuffer incomplete");
 
-    glGenFramebuffers(1, &msaaFBO);
+    // 4. Create and set MSAA pass attachments
     glGenTextures(1, &screenTexture);
     glBindTexture(GL_TEXTURE_2D, screenTexture);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, this->_fbProps.width, this->_fbProps.height, 0, GL_RGBA, GL_FLOAT, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, props.width, props.height, 0, GL_RGBA, GL_FLOAT, NULL);
+
     glBindFramebuffer(GL_FRAMEBUFFER, msaaFBO);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, screenTexture, 0);
-    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-        std::runtime_error("MSAA Framebuffer is incomplete!");
+    CheckFramebufferStatus("MSAA framebuffer incomplete");
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
-void GraphicsServer::ResetScreenVAO()
+void GraphicsServer::UpdateRenderTargets(const RenderTargetProps& props)
+{
+    // 1. Update and reset HDR pass attachments
+    glDeleteTextures(1, &hdrColorTexture);
+    glGenTextures(1, &hdrColorTexture);
+    glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, hdrColorTexture);
+    glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, props.numSamples, GL_RGBA16F, props.width, props.height, GL_TRUE);
+    glDeleteTextures(1, &hdrDepthTexture);
+    glGenTextures(1, &hdrDepthTexture);
+    glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, hdrDepthTexture);
+    glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, props.numSamples, GL_DEPTH_COMPONENT, props.width, props.height, GL_TRUE);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, hdrFBO);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D_MULTISAMPLE, hdrColorTexture, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D_MULTISAMPLE, hdrDepthTexture, 0);
+    CheckFramebufferStatus("HDR framebuffer incomplete");
+
+    // 2. Update and reset MSAA pass attachments
+    glDeleteTextures(1, &screenTexture);
+    glGenTextures(1, &screenTexture);
+    glBindTexture(GL_TEXTURE_2D, screenTexture);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, props.width, props.height, 0, GL_RGBA, GL_FLOAT, NULL);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, msaaFBO);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, screenTexture, 0);
+    CheckFramebufferStatus("MSAA framebuffer incomplete");
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+void GraphicsServer::CreateScreenVAO()
 {
     std::vector<GLfloat> verts = {
         -1.0f,  1.0f, 0.0f, 0.0f, 1.0f,
@@ -316,7 +385,7 @@ void GraphicsServer::ShadowPass(float dt)
         Light* l = lights[i + mainLightCount];
         if ((bool)l->castShadow)
             continue;
-        if (auxShadows++ >= MAX_AUX_SHADOWS)
+        if (auxShadows++ >= MAX_OMNI_LIGHTS)
             break;
 
         for (int f = 0; f < 6; ++f)
@@ -336,16 +405,20 @@ void GraphicsServer::ShadowPass(float dt)
             }
         }
     }
+
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
 void GraphicsServer::ColorPass(float dt)
 {
-    glViewport(0, 0, this->_fbProps.width, this->_fbProps.height);
+    auto size = this->_app->GetWindow()->GetSize();
+
+    glViewport(0, 0, size.x, size.y);
     glBindFramebuffer(GL_FRAMEBUFFER, hdrFBO);
+
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, uniShadowMaps[0]);
-    for (int i = 0; i < MAX_AUX_SHADOWS; ++i)
+    for (int i = 0; i < MAX_OMNI_LIGHTS; ++i)
     {
         glActiveTexture(GL_TEXTURE1 + i);
         glBindTexture(GL_TEXTURE_CUBE_MAP, omniShadowMaps[i]);
@@ -397,17 +470,26 @@ void GraphicsServer::ColorPass(float dt)
             continue;
         model->Render(colorProgram, meshInstances.find(model)->second);
     }
+
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+void GraphicsServer::MSAAPass(float dt)
+{
+    auto size = this->_app->GetWindow()->GetSize();
+
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, hdrFBO);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, msaaFBO);
+    glBlitFramebuffer(0, 0, size.x, size.y, 0, 0, size.x, size.y, GL_COLOR_BUFFER_BIT, GL_NEAREST);
 }
 
 void GraphicsServer::PostProcessPass(float dt)
 {
-    glBindFramebuffer(GL_READ_FRAMEBUFFER, hdrFBO);
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, msaaFBO);
-    glBlitFramebuffer(0, 0, this->_fbProps.width, this->_fbProps.height, 0, 0, this->_fbProps.width, this->_fbProps.height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+    auto size = this->_app->GetWindow()->GetSize();
 
-    glViewport(0, 0, this->_fbProps.width, this->_fbProps.height);
+    glViewport(0, 0, size.x, size.y);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, screenTexture);
 

@@ -19,39 +19,43 @@ Mesh::~Mesh()
     //delete collisionShape; // FIXME: Should delete collisionShape somewhere else before the pointer is out of scope
 }
 
-void Mesh::Initialize(const std::vector<GLfloat>& verts, const std::vector<GLushort>& tris)
+void Mesh::Initialize(const std::vector<Vertex>& verts, const std::vector<uint16_t>& tris)
 {
     // Buffer binding reference: https://stackoverflow.com/questions/17332657/does-a-vao-remember-both-a-ebo-ibo-elements-or-indices-and-a-vbo
     glBindVertexArray(vao);
 
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, verts.size() * sizeof(GLfloat), verts.data(), GL_STATIC_DRAW);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(GLfloat), (void*)0);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(GLfloat), (void*)(3 * sizeof(GLfloat)));
-    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(GLfloat), (void*)(6 * sizeof(GLfloat)));
+    glBufferData(GL_ARRAY_BUFFER, verts.size() * sizeof(Vertex), verts.data(), GL_STATIC_DRAW);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)0);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)(3 * sizeof(float)));
+    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)(5 * sizeof(float)));
+    glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)(8 * sizeof(float)));
+    glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)(11 * sizeof(float)));
     glEnableVertexAttribArray(0);
     glEnableVertexAttribArray(1);
     glEnableVertexAttribArray(2);
-    glBindBuffer(GL_ARRAY_BUFFER, ibo);
-    glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(glm::vec4), (void*)0);
-    glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(glm::vec4), (void*)(4 * sizeof(GLfloat)));
-    glVertexAttribPointer(5, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(glm::vec4), (void*)(8 * sizeof(GLfloat)));
-    glVertexAttribPointer(6, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(glm::vec4), (void*)(12 * sizeof(GLfloat)));
     glEnableVertexAttribArray(3);
     glEnableVertexAttribArray(4);
+    glBindBuffer(GL_ARRAY_BUFFER, ibo);
+    glVertexAttribPointer(5, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(glm::vec4), (void*)0);
+    glVertexAttribPointer(6, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(glm::vec4), (void*)(4 * sizeof(float)));
+    glVertexAttribPointer(7, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(glm::vec4), (void*)(8 * sizeof(float)));
+    glVertexAttribPointer(8, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(glm::vec4), (void*)(12 * sizeof(float)));
     glEnableVertexAttribArray(5);
     glEnableVertexAttribArray(6);
-    glVertexAttribDivisor(3, 1);
-    glVertexAttribDivisor(4, 1);
+    glEnableVertexAttribArray(7);
+    glEnableVertexAttribArray(8);
     glVertexAttribDivisor(5, 1);
     glVertexAttribDivisor(6, 1);
+    glVertexAttribDivisor(7, 1);
+    glVertexAttribDivisor(8, 1);
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, tris.size() * sizeof(GLushort), tris.data(), GL_STATIC_DRAW);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, tris.size() * sizeof(uint16_t), tris.data(), GL_STATIC_DRAW);
 
     glBindVertexArray(0);
 
-    this->vertCount = verts.size() / 8;
+    this->vertCount = verts.size();
     this->triCount = tris.size() / 3;
     this->_initialized = true;
 }
@@ -114,39 +118,39 @@ void Mesh::Render(ShaderProgram& program, const std::vector<glm::mat4>& worldMat
     glStencilFunc(GL_ALWAYS, 1, 0xFF);
 }
 
-Mesh* Mesh::CreateCube(const GLfloat& size)
+Mesh* Mesh::CreateCube(const float& size)
 {
-    GLfloat vertices[] = {
+    Vertex vertices[] = {
         //left
-        .5f * size, .5f * size, .5f * size, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f,
-        .5f * size, -.5f * size, .5f * size, 0.0f, 0.0f, 1.0f, 1.0f, 0.0f,
-        -.5f * size, .5f * size, .5f * size, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f,
-        -.5f * size, -.5f * size, .5f * size, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f,
+        { { .5f * size, .5f * size, .5f * size }, { 1.0f, 1.0f }, { 0.0f, 0.0f, 1.0f } },
+        { { .5f * size, -.5f * size, .5f * size }, { 1.0f, 0.0f }, { 0.0f, 0.0f, 1.0f } },
+        { { -.5f * size, .5f * size, .5f * size }, { 0.0f, 1.0f }, { 0.0f, 0.0f, 1.0f } },
+        { { -.5f * size, -.5f * size, .5f * size }, { 0.0f, 0.0f }, { 0.0f, 0.0f, 1.0f } },
         //right
-        .5f * size, .5f * size, -.5f * size, 0.0f, 0.0f, -1.0f, 1.0f, 1.0f,
-        .5f * size, -.5f * size, -.5f * size, 0.0f, 0.0f, -1.0f, 1.0f, 0.0f,
-        -.5f * size, .5f * size, -.5f * size, 0.0f, 0.0f, -1.0f, 0.0f, 1.0f,
-        -.5f * size, -.5f * size, -.5f * size, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f,
+        { { .5f * size, .5f * size, -.5f * size }, { 1.0f, 1.0f }, { 0.0f, 0.0f, -1.0f } },
+        { { .5f * size, -.5f * size, -.5f * size }, { 1.0f, 0.0f }, { 0.0f, 0.0f, -1.0f } },
+        { { -.5f * size, .5f * size, -.5f * size }, { 0.0f, 1.0f }, { 0.0f, 0.0f, -1.0f } },
+        { { -.5f * size, -.5f * size, -.5f * size }, { 0.0f, 0.0f }, { 0.0f, 0.0f, -1.0f } },
         //back
-        -.5f * size, .5f * size, .5f * size, -1.0f, 0.0f, 0.0f, 1.0f, 1.0f,
-        -.5f * size, .5f * size, -.5f * size, -1.0f, 0.0f, 0.0f, 0.0f, 1.0f,
-        -.5f * size, -.5f * size, .5f * size, -1.0f, 0.0f, 0.0f, 1.0f, 0.0f,
-        -.5f * size, -.5f * size, -.5f * size, -1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+        { { -.5f * size, .5f * size, .5f * size }, { 1.0f, 1.0f }, { -1.0f, 0.0f, 0.0f } },
+        { { -.5f * size, .5f * size, -.5f * size }, { 1.0f, 0.0f }, { -1.0f, 0.0f, 0.0f } },
+        { { -.5f * size, -.5f * size, .5f * size }, { 0.0f, 1.0f }, { -1.0f, 0.0f, 0.0f } },
+        { { -.5f * size, -.5f * size, -.5f * size }, { 0.0f, 0.0f }, { -1.0f, 0.0f, 0.0f } },
         //front
-        .5f * size, .5f * size, .5f * size, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f,
-        .5f * size, .5f * size, -.5f * size, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f,
-        .5f * size, -.5f * size, .5f * size, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f,
-        .5f * size, -.5f * size, -.5f * size, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+        { { .5f * size, .5f * size, .5f * size }, { 1.0f, 1.0f }, { 1.0f, 0.0f, 0.0f } },
+        { { .5f * size, .5f * size, -.5f * size }, { 0.0f, 1.0f }, { 1.0f, 0.0f, 0.0f } },
+        { { .5f * size, -.5f * size, .5f * size }, { 1.0f, 0.0f }, { 1.0f, 0.0f, 0.0f } },
+        { { .5f * size, -.5f * size, -.5f * size }, { 0.0f, 0.0f }, { 1.0f, 0.0f, 0.0f } },
         //top
-        .5f * size, .5f * size, .5f * size, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f,
-        .5f * size, .5f * size, -.5f * size, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f,
-        -.5f * size, .5f * size, .5f * size, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f,
-        -.5f * size, .5f * size, -.5f * size, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f,
+        { { .5f * size, .5f * size, .5f * size }, { 1.0f, 1.0f }, { 0.0f, 1.0f, 0.0f } },
+        { { .5f * size, .5f * size, -.5f * size }, { 1.0f, 0.0f }, { 0.0f, 1.0f, 0.0f } },
+        { { -.5f * size, .5f * size, .5f * size }, { 0.0f, 1.0f }, { 0.0f, 1.0f, 0.0f } },
+        { { -.5f * size, .5f * size, -.5f * size }, { 0.0f, 0.0f }, { 0.0f, 1.0f, 0.0f } },
         //bottom
-        .5f * size, -.5f * size, .5f * size, 0.0f, -1.0f, 0.0f, 1.0f, 1.0f,
-        .5f * size, -.5f * size, -.5f * size, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f,
-        -.5f * size, -.5f * size, .5f * size, 0.0f, -1.0f, 0.0f, 0.0f, 1.0f,
-        -.5f * size, -.5f * size, -.5f * size, 0.0f, -1.0f, 0.0f, 0.0f, 0.0f
+        { { .5f * size, -.5f * size, .5f * size }, { 1.0f, 1.0f }, { 0.0f, -1.0f, 0.0f } },
+        { { .5f * size, -.5f * size, -.5f * size }, { 1.0f, 0.0f }, { 0.0f, -1.0f, 0.0f } },
+        { { -.5f * size, -.5f * size, .5f * size }, { 0.0f, 1.0f }, { 0.0f, -1.0f, 0.0f } },
+        { { -.5f * size, -.5f * size, -.5f * size }, { 0.0f, 0.0f }, { 0.0f, -1.0f, 0.0f } }
     };
     GLushort triangles[] = {
         0, 2, 1,
@@ -163,8 +167,8 @@ Mesh* Mesh::CreateCube(const GLfloat& size)
         21, 22, 23
     };
 
-    std::vector<GLfloat> verts(vertices, vertices + 192);
-    std::vector<GLushort> tris(triangles, triangles + 36);
+    std::vector<Vertex> verts(vertices, vertices + 24);
+    std::vector<uint16_t> tris(triangles, triangles + 36);
 
     auto cube = new Mesh();
     cube->Initialize(verts, tris);
@@ -181,13 +185,13 @@ Mesh* Mesh::CreateCube(const GLfloat& size)
     return cube;
 }
 
-Mesh* Mesh::CreateSphere(const GLfloat& radius, const GLint& division)
+Mesh* Mesh::CreateSphere(const float& radius, const int& division)
 {
     float delta = (float)PI / (float)division;
 
-    std::vector<GLfloat> verts;
-    std::vector<GLushort> tris;
-    verts.resize(8 * (division + 1) * (2 * division + 1));
+    std::vector<Vertex> verts;
+    std::vector<uint16_t> tris;
+    verts.resize((division + 1) * (2 * division + 1));
     for (int v = 0; v <= division; ++v)
     {
         float vAngle = v * delta;
@@ -215,14 +219,9 @@ Mesh* Mesh::CreateSphere(const GLfloat& radius, const GLint& division)
                 );
                 norm = glm::normalize(pos);
             }
-            verts[8 * (v * (2 * division + 1) + h)] = pos.x;
-            verts[8 * (v * (2 * division + 1) + h) + 1] = pos.y;
-            verts[8 * (v * (2 * division + 1) + h) + 2] = pos.z;
-            verts[8 * (v * (2 * division + 1) + h) + 3] = norm.x;
-            verts[8 * (v * (2 * division + 1) + h) + 4] = norm.y;
-            verts[8 * (v * (2 * division + 1) + h) + 5] = norm.z;
-            verts[8 * (v * (2 * division + 1) + h) + 6] = (float)h / (float)(2 * division);
-            verts[8 * (v * (2 * division + 1) + h) + 7] = 1.0f - (float)v / (float)division;
+            verts[(v * (2 * division + 1) + h)].position = pos;
+            verts[(v * (2 * division + 1) + h)].normal = norm;
+            verts[(v * (2 * division + 1) + h)].uv = glm::vec2((float)h / (float)(2 * division), 1.0f - (float)v / (float)division);
         }
     }
     tris.resize((6 * division - 6) * (2 * division));
@@ -262,26 +261,21 @@ Mesh* Mesh::CreateSphere(const GLfloat& radius, const GLint& division)
     return sphere;
 }
 
-Mesh* Mesh::CreateTerrain(const GLfloat& size, const GLint& vnum, const std::vector<GLfloat>& heightmap)
+Mesh* Mesh::CreateTerrain(const float& size, const int& vnum, const std::vector<float>& heightmap)
 {
-    std::vector<GLfloat> verts;
-    std::vector<GLushort> tris;
+    std::vector<Vertex> verts;
+    std::vector<uint16_t> tris;
 
-    verts.resize(vnum * vnum * 8);
+    verts.resize(vnum * vnum);
     float c_size = size / float(vnum - 1);
     for (int i = 0; i < vnum; i++) {
         for (int j = 0; j < vnum; j++) {
             float x = -.5f * size + j * c_size;
             float y = heightmap[(i * vnum + j)];
             float z = -.5f * size + i * c_size;
-            verts[(i * vnum + j) * 8 + 0] = x;
-            verts[(i * vnum + j) * 8 + 1] = y;
-            verts[(i * vnum + j) * 8 + 2] = z;
-            verts[(i * vnum + j) * 8 + 3] = 0.f; //2 * float(i)/float(vnum);
-            verts[(i * vnum + j) * 8 + 4] = 1.f; //2 * float(j)/float(vnum);
-            verts[(i * vnum + j) * 8 + 5] = 0.f; //0.8f;
-            verts[(i * vnum + j) * 8 + 6] = (float)(i%2);
-            verts[(i * vnum + j) * 8 + 7] = (float)(j%2);
+            verts[(i * vnum + j)].position = glm::vec3(x, y, z);
+            verts[(i * vnum + j)].normal = glm::vec3(0.0f, 1.0f, 0.0f); // glm::vec3(2 * float(i)/float(vnum), 2 * float(j)/float(vnum), 0.8)
+            verts[(i * vnum + j)].uv = glm::vec2((float)(i % 2), (float)(j % 2));
         }
     }
     tris.resize((vnum * 2 + 1) * (vnum - 1));

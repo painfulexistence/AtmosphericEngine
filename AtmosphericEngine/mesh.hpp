@@ -3,6 +3,8 @@
 #include "shader.hpp"
 #include "material.hpp"
 #include "bullet_collision.hpp"
+#include "vertex.hpp"
+#include <cstdint>
 
 class Mesh
 {
@@ -26,7 +28,7 @@ public:
 
     ~Mesh();
 
-    void Initialize(const std::vector<GLfloat>& verts, const std::vector<GLushort>& tris);
+    void Initialize(const std::vector<Vertex>& verts, const std::vector<uint16_t>& tris);
 
     std::array<glm::vec3, 8> GetBoundingBox() const { return bounds; }
 
@@ -34,9 +36,9 @@ public:
 
     void Render(ShaderProgram& program, const std::vector<glm::mat4>& worldMatrices, float outline) const;
 
-    static Mesh* CreateCube(const GLfloat& size = 1.0f);
+    static Mesh* CreateCube(const float& size = 1.0f);
 
-    static Mesh* CreateSphere(const GLfloat& radius = 0.5f, const GLint& division = 18);
+    static Mesh* CreateSphere(const float& radius = 0.5f, const int& division = 18);
 
-    static Mesh* CreateTerrain(const GLfloat& size, const GLint& vnum, const std::vector<GLfloat>& heightmap);
+    static Mesh* CreateTerrain(const float& size, const int& vnum, const std::vector<float>& heightmap);
 };

@@ -3,7 +3,7 @@
 uniform mat4 ProjectionView;
 
 layout(location = 0) in vec3 position;
-layout(location = 3) in mat4 World;
+layout(location = 5) in mat4 World;
 
 out vec3 frag_pos;
 

@@ -148,31 +148,6 @@ void GraphicsServer::OnMessage(Message msg)
 
 }
 
-void GraphicsServer::LoadTexture(const std::string& path)
-{
-    GLuint tex;
-    glGenTextures(1, &tex);
-    textures.push_back(tex);
-
-    glBindTexture(GL_TEXTURE_2D, tex);
-    float border[] = {1.f, 1.f, 1.f, 1.f};
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, border);
-
-    int width, height, nChannels;
-    unsigned char* data = stbi_load(path.c_str(), &width, &height, &nChannels, 0);
-    if (data) {
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
-        glGenerateMipmap(GL_TEXTURE_2D);
-    } else {
-        throw std::runtime_error(fmt::format("Failed to load texture at {}\n", path));
-    }
-    stbi_image_free(data);
-}
-
 void GraphicsServer::LoadTextures(const std::vector<std::string>& paths)
 {
     int count = paths.size();
@@ -182,12 +157,12 @@ void GraphicsServer::LoadTextures(const std::vector<std::string>& paths)
     for (int i = 0; i < count; i++)
     {
         glBindTexture(GL_TEXTURE_2D, textures[i]);
-        float border[] = {1.f, 1.f, 1.f, 1.f};
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, border);
+        // float border[] = {1.f, 1.f, 1.f, 1.f};
+        // glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, border); // for clamp to border wrapping
 
         int width, height, nChannels;
         unsigned char* data = stbi_load(paths[i].c_str(), &width, &height, &nChannels, 0);

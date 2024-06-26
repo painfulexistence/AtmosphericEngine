@@ -48,8 +48,6 @@ public:
 
     void OnMessage(Message msg) override;
 
-    void LoadTexture(const std::string& path);
-
     void LoadTextures(const std::vector<std::string>& paths);
 
     void LoadShaders(const std::vector<std::string>& paths);

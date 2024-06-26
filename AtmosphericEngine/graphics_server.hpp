@@ -10,11 +10,11 @@
 
 struct RenderTargetProps
 {
-    RenderTargetProps(int width = INIT_FRAMEBUFFER_WIDTH, int height = INIT_FRAMEBUFFER_HEIGHT, int numSapmples = MSAA_NUM_SAMPLES)
+    RenderTargetProps(int width = INIT_FRAMEBUFFER_WIDTH, int height = INIT_FRAMEBUFFER_HEIGHT, int numSamples = MSAA_NUM_SAMPLES)
     {
         this->width = width;
         this->height = height;
-        this->numSamples = numSapmples;
+        this->numSamples = numSamples;
     };
     int width;
     int height;
@@ -78,7 +78,7 @@ private:
     GLuint shadowFBO, hdrFBO, msaaFBO;
     std::array<GLuint, MAX_UNI_LIGHTS> uniShadowMaps;
     std::array<GLuint, MAX_OMNI_LIGHTS> omniShadowMaps;
-    GLuint hdrColorTexture, hdrDepthTexture;
+    GLuint hdrColorTexture, hdrDepthTexture, hdrStencilTexture;
     GLuint screenTexture;
     GLuint screenVAO;
     GLuint screenVBO;

@@ -285,10 +285,16 @@ void GraphicsServer::CreateRenderTargets(const RenderTargetProps& props)
     glGenTextures(1, &hdrColorTexture);
     glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, hdrColorTexture);
     glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, props.numSamples, GL_RGBA16F, props.width, props.height, GL_TRUE);
+    if (glIsTexture(hdrColorTexture) != GL_TRUE) {
+        throw std::runtime_error("Failed to create HDR color texture");
+    }
 
     glGenTextures(1, &hdrDepthTexture);
     glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, hdrDepthTexture);
     glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, props.numSamples, GL_DEPTH_COMPONENT, props.width, props.height, GL_TRUE);
+    if (glIsTexture(hdrDepthTexture) != GL_TRUE) {
+        throw std::runtime_error("Failed to create HDR depth texture");
+    }
 
     glBindFramebuffer(GL_FRAMEBUFFER, hdrFBO);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D_MULTISAMPLE, hdrColorTexture, 0);
@@ -316,10 +322,17 @@ void GraphicsServer::UpdateRenderTargets(const RenderTargetProps& props)
     glGenTextures(1, &hdrColorTexture);
     glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, hdrColorTexture);
     glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, props.numSamples, GL_RGBA16F, props.width, props.height, GL_TRUE);
+    if (glIsTexture(hdrColorTexture) != GL_TRUE) {
+        throw std::runtime_error("Failed to create HDR color texture");
+    }
+
     glDeleteTextures(1, &hdrDepthTexture);
     glGenTextures(1, &hdrDepthTexture);
     glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, hdrDepthTexture);
     glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, props.numSamples, GL_DEPTH_COMPONENT, props.width, props.height, GL_TRUE);
+    if (glIsTexture(hdrDepthTexture) != GL_TRUE) {
+        throw std::runtime_error("Failed to create HDR depth texture");
+    }
 
     glBindFramebuffer(GL_FRAMEBUFFER, hdrFBO);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D_MULTISAMPLE, hdrColorTexture, 0);

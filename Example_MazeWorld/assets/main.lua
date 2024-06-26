@@ -71,7 +71,8 @@ scene = {
     materials = {
         {
             name = "Metal",
-            textureIdx = 4,
+            baseMapId = 4,
+            normalMapId = -1,
             ambient = {.25, .20725, .20725},
             diffuse = {1, .829, .829},
             specular = {.296648, .296648, .296648},
@@ -82,8 +83,9 @@ scene = {
             ao = 1.0
         },
         {
-            name = "Sky",
-            textureIdx = 1,
+            name = "Mud",
+            baseMapId = 9,
+            normalMapId = 10,
             ambient = {.1, .18725, .1745},
             diffuse = {0, 0, 0},
             specular = {0, 0, 0},
@@ -95,7 +97,8 @@ scene = {
         },
         {
             name = "Plaster",
-            textureIdx = 0,
+            baseMapId = 2,
+            normalMapId = -1,
             ambient = {.0, .0, .0},
             diffuse = {.5, .0, .0},
             specular = {.7, .6, .6},
@@ -107,7 +110,8 @@ scene = {
         },
         {
             name = "Brick",
-            textureIdx = 3,
+            baseMapId = 7,
+            normalMapId = 8,
             ambient = {0.19225, 0.19225, 0.19225},
             diffuse = {0.50754, 0.50754, 0.50754},
             specular = {0.508273, 0.508273, 0.508273},
@@ -116,23 +120,54 @@ scene = {
             metallic = 0.0,
             roughness = 0.4,
             ao = 0.5
+        },
+        {
+            name = "Stones",
+            baseMapId = 5,
+            normalMapId = 6,
+            ambient = {.0, .0, .0},
+            diffuse = {.5, .0, .0},
+            specular = {.7, .6, .6},
+            shininess = 0.25,
+            albedo = {0.50754, 0.50754, 0.50754},
+            metallic = 0.1,
+            roughness = 0.1,
+            ao = 0.2
         }
     },
     textures = {
         {
-            path =  "./assets/textures/plaster.jpg"
+            path =  "./assets/textures/default_diff.jpg"
         },
         {
-            path = "./assets/textures/snow.jpg"
+            path = "./assets/textures/default_norm.jpg"
         },
         {
-            path = "./assets/textures/grassy.jpg"
+            path =  "./assets/textures/rough_plaster.jpg"
         },
         {
             path = "./assets/textures/brick.jpg"
         },
         {
-            path = "./assets/textures/metal.jpg"
+            path = "./assets/textures/rusty_metal.jpg"
+        },
+        {
+            path = "./assets/textures/paving_stones_diff.jpg"
+        },
+        {
+            path = "./assets/textures/paving_stones_norm_gl.jpg"
+        },
+        {
+            path = "./assets/textures/medieval_blocks_diff.jpg"
+        },
+        {
+            path = "./assets/textures/medieval_blocks_norm_gl.jpg"
+        },
+        {
+            path = "./assets/textures/brown_mud_leaves_diff.jpg"
+        },
+        {
+            path = "./assets/textures/brown_mud_leaves_norm_gl.jpg"
         }
     },
     shaders = {

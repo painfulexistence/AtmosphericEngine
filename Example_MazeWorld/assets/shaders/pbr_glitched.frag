@@ -2,7 +2,7 @@
 
 #define MAX_NUM_AUX_LIGHTS 6
 #define SHADOW_KERNEL_LEVEL 1
-struct Surface 
+struct Surface
 {
     //Phong model (reference: http://devernay.free.fr/cours/opengl/materials.html)
     vec3 ambient;
@@ -44,7 +44,7 @@ uniform DirLight main_light;
 uniform PointLight aux_lights[MAX_NUM_AUX_LIGHTS];
 uniform int aux_light_count;
 uniform vec3 cam_pos;
-uniform sampler2D tex_unit;
+uniform sampler2D base_map_unit;
 uniform sampler2D shadow_map_unit;
 uniform samplerCube omni_shadow_map_unit;
 uniform float time;
@@ -122,9 +122,9 @@ vec3 CalculateDirectionalLight(DirLight light)
     vec3 norm = normalize(frag_normal);
     vec3 viewDir = normalize(cam_pos - frag_pos);
     vec3 lightDir = normalize(-light.direction);
-    
+
     vec4 lightSpaceFragPos = light.ProjectionView * vec4(frag_pos, 1.0);
-    vec3 lightSpaceFragCoords = lightSpaceFragPos.xyz / lightSpaceFragPos.w;  
+    vec3 lightSpaceFragCoords = lightSpaceFragPos.xyz / lightSpaceFragPos.w;
     float shadow = light.cast_shadow * DirectionalShadow(lightSpaceFragCoords * 0.5 + 0.5, ShadowBias(norm, lightDir));
     vec3 radiance = light.diffuse * clamp(1.0 - shadow, 0.0, 1.0);
 
@@ -136,7 +136,7 @@ vec3 CalculatePointLight(PointLight light)
     vec3 norm = normalize(frag_normal);
     vec3 viewDir = normalize(cam_pos - frag_pos);
     vec3 lightDir = normalize(light.position - frag_pos);
-    
+
     float dist = distance(light.position, frag_pos);
     float attenuation = 1.0 / (dist * dist);
     float shadow = light.cast_shadow * PointShadow((frag_pos - light.position) / 400.0f, ShadowBias(norm, lightDir));
@@ -194,7 +194,7 @@ vec3 FresnelSchlick(float nh, vec3 f0)
 
 vec3 SurfaceColor(vec3 base)
 {
-    vec3 texColor = pow(texture(tex_unit, DistortUV(tex_uv)).rgb, vec3(gamma));
+    vec3 texColor = pow(texture(base_map_unit, DistortUV(tex_uv)).rgb, vec3(gamma));
     vec3 result = mix(base, texColor, 0.6);
     result = Childhood(result);
     return result;
@@ -206,11 +206,11 @@ float ShadowBias(vec3 norm, vec3 lightDir)
 }
 
 float DirectionalShadow(vec3 shadowCoords, float bias)
-{  
+{
     float depth = shadowCoords.z;
-    
+
     float shadow = 0.0;
-    if (depth <= 1.0) 
+    if (depth <= 1.0)
     {
         int samples = 0;
         float texelSize = 1.0 / textureSize(shadow_map_unit, 0).x;
@@ -231,9 +231,9 @@ float DirectionalShadow(vec3 shadowCoords, float bias)
 float PointShadow(vec3 shadowCoords, float bias)
 {
     float depth = length(shadowCoords);
-    
+
     float shadow = 0.0;
-    if (depth <= 1.0) 
+    if (depth <= 1.0)
     {
         int samples = 0;
         float texelSize = 1.0 / textureSize(omni_shadow_map_unit, 0).x;
@@ -250,12 +250,12 @@ float PointShadow(vec3 shadowCoords, float bias)
             }
         }
         shadow /= samples;
-    } 
+    }
     return shadow;
 }
 
 void main()
-{   
+{
     vec3 result = vec3(0.0);
     result += CalculateDirectionalLight(main_light);
     result += CalculatePointLight(aux_lights[0]);

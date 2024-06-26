@@ -4,7 +4,8 @@
 
 struct Material
 {
-    int textureIdx;
+    int baseMap;
+    int normalMap;
     glm::vec3 ambient;
     glm::vec3 diffuse;
     glm::vec3 specular;
@@ -17,7 +18,8 @@ struct Material
     Material(sol::table t);
 
     Material(
-        int textureIdx = 1,
+        int baseMap = 0,
+        int normalMap = -1,
         glm::vec3 ambient = glm::vec3(0, 0, 0),
         glm::vec3 diffuse = glm::vec3(.55, .55, .55),
         glm::vec3 specular = glm::vec3(.7, .7, .7),
@@ -27,6 +29,4 @@ struct Material
         float roughness = 0.5f,
         float ao = 1.f
     );
-
-    int GetTexUnit() const { return NUM_MAP_UNITS + textureIdx; }
 };

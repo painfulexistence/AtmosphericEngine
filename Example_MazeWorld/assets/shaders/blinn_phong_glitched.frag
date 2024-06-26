@@ -21,7 +21,7 @@ struct Light
 uniform Surface surf;
 uniform Light main_light;
 uniform vec3 cam_pos;
-uniform sampler2D tex_unit;
+uniform sampler2D base_map_unit;
 uniform float time;
 
 in vec3 frag_pos;
@@ -83,7 +83,7 @@ void main()
 
     float diff = max(dot(norm, lightDir), 0.0);
     tex_uv = DistortUV(tex_uv); // Distort UV
-    vec3 surfColor = mix(surf.diffuse, texture(tex_unit, tex_uv).xyz, 0.1);
+    vec3 surfColor = mix(surf.diffuse, texture(base_map_unit, tex_uv).xyz, 0.1);
 
     vec3 ambient = main_light.ambient * 3.0 * surf.ambient;
     vec3 diffuse = main_light.diffuse * lightPower * (diff * surfColor);

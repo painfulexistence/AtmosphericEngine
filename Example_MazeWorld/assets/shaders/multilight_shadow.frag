@@ -2,7 +2,7 @@
 
 #define MAX_NUM_AUX_LIGHTS 6
 #define SHADOW_KERNEL_LEVEL 1
-struct Surface 
+struct Surface
 {
     //Reference: http://devernay.free.fr/cours/opengl/materials.html
     vec3 ambient;
@@ -38,7 +38,7 @@ uniform DirLight main_light;
 uniform PointLight aux_lights[MAX_NUM_AUX_LIGHTS];
 uniform int aux_light_count;
 uniform vec3 cam_pos;
-uniform sampler2D tex_unit;
+uniform sampler2D base_map_unit;
 uniform sampler2D shadow_map_unit;
 uniform samplerCube omni_shadow_map_unit;
 uniform float time;
@@ -52,7 +52,7 @@ const float gamma = 2.2;
 
 vec3 SurfDiffuse(vec3 surfColor)
 {
-    vec3 texColor = pow(texture(tex_unit, tex_uv).rgb, vec3(gamma));
+    vec3 texColor = pow(texture(base_map_unit, tex_uv).rgb, vec3(gamma));
     return mix(surfColor, texColor, 0.9);
 }
 
@@ -62,11 +62,11 @@ float ShadowBias(vec3 norm, vec3 lightDir)
 }
 
 float DirectionalShadow(vec3 shadowCoords, float bias)
-{  
+{
     float depth = shadowCoords.z;
-    
+
     float shadow = 0.0;
-    if (depth <= 1.0) 
+    if (depth <= 1.0)
     {
         int samples = 0;
         float texelSize = 1.0 / textureSize(shadow_map_unit, 0).x;
@@ -87,9 +87,9 @@ float DirectionalShadow(vec3 shadowCoords, float bias)
 float PointShadow(vec3 shadowCoords, float bias)
 {
     float depth = length(shadowCoords);
-    
+
     float shadow = 0.0;
-    if (depth <= 1.0) 
+    if (depth <= 1.0)
     {
         int samples = 0;
         float texelSize = 1.0 / textureSize(omni_shadow_map_unit, 0).x;
@@ -106,7 +106,7 @@ float PointShadow(vec3 shadowCoords, float bias)
             }
         }
         shadow /= samples;
-    } 
+    }
     return shadow;
 }
 
@@ -117,8 +117,8 @@ vec3 CalculateDirectionalLight(DirLight light, bool shadowCasting)
     vec3 lightDir = normalize(-light.direction);
     vec3 halfway = normalize(lightDir + viewDir);
     vec4 lightSpaceFragPos = light.ProjectionView * vec4(frag_pos, 1.0);
-    vec3 lightSpaceFragCoords = lightSpaceFragPos.xyz / lightSpaceFragPos.w;  
-    
+    vec3 lightSpaceFragCoords = lightSpaceFragPos.xyz / lightSpaceFragPos.w;
+
     float shadow = shadowCasting ? DirectionalShadow(lightSpaceFragCoords * 0.5 + 0.5, ShadowBias(norm, lightDir)) : 0.0;
     float intensity = light.intensity;
 
@@ -137,7 +137,7 @@ vec3 CalculatePointLight(PointLight light, bool shadowCasting)
     vec3 viewDir = normalize(cam_pos - frag_pos);
     vec3 lightDir = normalize(light.position - frag_pos);
     vec3 halfway = normalize(lightDir + viewDir);
-    
+
     vec3 attn = light.attenuation;
     float dist = distance(light.position, frag_pos);
     float attenuation = 1.0 / (attn.x + attn.y * dist + attn.z * dist * dist);
@@ -150,12 +150,12 @@ vec3 CalculatePointLight(PointLight light, bool shadowCasting)
     vec3 diffuse = light.diffuse * diff * SurfDiffuse(surf.diffuse);
     float spec = pow(clamp(dot(halfway, norm), 0.0, 1.0), surf.shininess) * smoothstep(0.0, 0.2, dot(norm, lightDir));
     vec3 specular = light.specular * spec * surf.specular;
-    
+
     return attenuation * (ambient + intensity * clamp(1.0 - shadow, 0.0, 1.0) * (diffuse + specular));
 }
 
 void main()
-{   
+{
     vec3 result = vec3(0.0);
     result += CalculateDirectionalLight(main_light, true);
     result += CalculatePointLight(aux_lights[0], false);

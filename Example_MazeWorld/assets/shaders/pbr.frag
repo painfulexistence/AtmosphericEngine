@@ -44,7 +44,7 @@ uniform DirLight main_light;
 uniform PointLight aux_lights[MAX_NUM_AUX_LIGHTS];
 uniform int aux_light_count;
 uniform vec3 cam_pos;
-uniform sampler2D tex_unit;
+uniform sampler2D base_map_unit;
 uniform sampler2D shadow_map_unit;
 uniform samplerCube omni_shadow_map_unit;
 uniform float time;
@@ -122,10 +122,11 @@ vec3 CookTorranceBRDF(vec3 norm, vec3 lightDir, vec3 viewDir)
     float nh = clamp(dot(norm, halfway), 0.0, 1.0);
     float D = TrowbridgeReitzGGX(nh, surf.roughness + 0.01);
     float G = SmithsSchlickGGX(nv, nl, surf.roughness + 0.01);
-    vec3 F = FresnelSchlick(nh, mix(vec3(0.04), SurfaceColor(surf.albedo), surf.metallic));
+    vec3 surfColor = SurfaceColor(surf.albedo);
+    vec3 F = FresnelSchlick(nh, mix(vec3(0.04), surfColor, surf.metallic));
     vec3 specular = D * F * G / max(4.0 * nv * nl, 0.0001);
     vec3 kd = (1.0 - surf.metallic) * (vec3(1.0) - F);
-    vec3 diffuse = kd * SurfaceColor(surf.albedo) / PI;
+    vec3 diffuse = kd * surfColor / PI;
     return diffuse + specular;
 }
 
@@ -152,7 +153,7 @@ vec3 FresnelSchlick(float nh, vec3 f0)
 
 vec3 SurfaceColor(vec3 base)
 {
-    vec3 texColor = pow(texture(tex_unit, tex_uv).rgb, vec3(gamma));
+    vec3 texColor = pow(texture(base_map_unit, tex_uv).rgb, vec3(gamma));
     return base * texColor;
 }
 

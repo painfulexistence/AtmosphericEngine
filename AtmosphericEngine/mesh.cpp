@@ -1,6 +1,33 @@
 #include "mesh.hpp"
+#include "graphics_config.hpp"
 
 std::map<std::string, Mesh*> Mesh::MeshList;
+
+void CalculateNormalsAndTangents(std::vector<Vertex>& verts, std::vector<uint16_t>& tris)
+{
+    for (int i = 0; i < tris.size(); i += 3)
+    {
+        // Calculate normals
+        glm::vec3 edge1 = verts[tris[i]].position - verts[tris[i + 1]].position;
+        glm::vec3 edge2 = verts[tris[i + 2]].position - verts[tris[i + 1]].position;
+        glm::vec3 normal = glm::normalize(glm::cross(edge2, edge1));
+        verts[tris[i]].normal = normal;
+        verts[tris[i + 1]].normal = normal;
+        verts[tris[i + 2]].normal = normal;
+        // Calculate tangents & bitangents
+        glm::vec2 dUV1 = verts[tris[i]].uv - verts[tris[i + 1]].uv;
+        glm::vec2 dUV2 = verts[tris[i + 2]].uv - verts[tris[i + 1]].uv;
+        float f = 1.0f / (dUV1.x * dUV2.y - dUV2.x * dUV1.y);
+        glm::vec3 tangent = f * (dUV2.y * edge1 - dUV1.y * edge2);
+        verts[tris[i]].tangent = tangent;
+        verts[tris[i + 1]].tangent = tangent;
+        verts[tris[i + 2]].tangent = tangent;
+        glm::vec3 bitangent = f * (dUV1.x * edge2 - dUV2.x * edge1);
+        verts[tris[i]].bitangent = bitangent;
+        verts[tris[i + 1]].bitangent = bitangent;
+        verts[tris[i + 2]].bitangent = bitangent;
+    }
+}
 
 Mesh::Mesh()
 {
@@ -85,7 +112,16 @@ void Mesh::Render(ShaderProgram& program, const std::vector<glm::mat4>& worldMat
     program.SetUniform(std::string("surf.metallic"), material->metallic);
     program.SetUniform(std::string("surf.roughness"), material->roughness);
     program.SetUniform(std::string("surf.ao"), material->ao);
-    program.SetUniform(std::string("tex_unit"), (int)material->GetTexUnit());
+    if (material->baseMap >= 0) {
+        program.SetUniform(std::string("base_map_unit"), NUM_MAP_UNITS + material->baseMap);
+    } else {
+        program.SetUniform(std::string("base_map_unit"), NUM_MAP_UNITS + 0);
+    }
+    if (material->normalMap >= 0) {
+        program.SetUniform(std::string("normal_map_unit"), NUM_MAP_UNITS + material->normalMap);
+    } else {
+        program.SetUniform(std::string("normal_map_unit"), NUM_MAP_UNITS + 1);
+    }
 
     glBindVertexArray(vao);
     glBindBuffer(GL_ARRAY_BUFFER, ibo);
@@ -169,6 +205,7 @@ Mesh* Mesh::CreateCube(const float& size)
 
     std::vector<Vertex> verts(vertices, vertices + 24);
     std::vector<uint16_t> tris(triangles, triangles + 36);
+    CalculateNormalsAndTangents(verts, tris);
 
     auto cube = new Mesh();
     cube->Initialize(verts, tris);
@@ -245,6 +282,7 @@ Mesh* Mesh::CreateSphere(const float& radius, const int& division)
             }
         }
     }
+    CalculateNormalsAndTangents(verts, tris);
 
     auto sphere = new Mesh();
     sphere->Initialize(verts, tris);
@@ -285,6 +323,7 @@ Mesh* Mesh::CreateTerrain(const float& size, const int& vnum, const std::vector<
         }
         tris[i * (2 * vnum + 1) + 2 * vnum] = 0xFFFF;
     }
+    CalculateNormalsAndTangents(verts, tris);
 
     auto terrain = new Mesh();
     terrain->Initialize(verts, tris);

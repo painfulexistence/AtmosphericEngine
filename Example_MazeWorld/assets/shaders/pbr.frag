@@ -2,18 +2,21 @@
 
 #define MAX_NUM_AUX_LIGHTS 6
 #define SHADOW_KERNEL_LEVEL 1
-struct Surface
+
+struct SurfaceParams
 {
-    //Phong model (reference: http://devernay.free.fr/cours/opengl/materials.html)
-    vec3 ambient;
     vec3 diffuse;
     vec3 specular;
+    vec3 ambient;
     float shininess;
-    //PBR model
-    vec3 albedo;
-    float metallic;
-    float roughness;
+};
+
+struct Surface
+{
+    vec3 color;
     float ao;
+    float roughness;
+    float metallic;
 };
 
 struct DirLight
@@ -39,13 +42,16 @@ struct PointLight
     mat4 ProjectionViews[6];
 };
 
-uniform Surface surf;
+uniform SurfaceParams surf_params;
 uniform DirLight main_light;
 uniform PointLight aux_lights[MAX_NUM_AUX_LIGHTS];
 uniform int aux_light_count;
 uniform vec3 cam_pos;
 uniform sampler2D base_map_unit;
 uniform sampler2D normal_map_unit;
+uniform sampler2D ao_map_unit;
+uniform sampler2D roughness_map_unit;
+uniform sampler2D metallic_map_unit;
 uniform sampler2D shadow_map_unit;
 uniform samplerCube omni_shadow_map_unit;
 uniform float time;
@@ -58,9 +64,9 @@ out vec4 Color;
 const float PI = 3.1415927;
 const float gamma = 2.2;
 
-vec3 BlinnPhongBRDF(vec3 norm, vec3 lightDir, vec3 viewDir);
+vec3 BlinnPhongBRDF(vec3 norm, vec3 lightDir, vec3 viewDir, Surface surf);
 
-vec3 CookTorranceBRDF(vec3 norm, vec3 lightDir, vec3 viewDir);
+vec3 CookTorranceBRDF(vec3 norm, vec3 lightDir, vec3 viewDir, Surface surf);
 
 float TrowbridgeReitzGGX(float nh, float r);
 
@@ -76,7 +82,7 @@ float DirectionalShadow(vec3 shadowCoords, float bias);
 
 float PointShadow(vec3 shadowCoords, float bias);
 
-vec3 CalculateDirectionalLight(DirLight light, vec3 norm, vec3 viewDir)
+vec3 CalculateDirectionalLight(DirLight light, vec3 norm, vec3 viewDir, Surface surf)
 {
     vec3 lightDir = normalize(-light.direction);
 
@@ -85,10 +91,10 @@ vec3 CalculateDirectionalLight(DirLight light, vec3 norm, vec3 viewDir)
     float shadow = light.cast_shadow * DirectionalShadow(lightSpaceFragCoords * 0.5 + 0.5, ShadowBias(norm, lightDir));
     vec3 radiance = light.diffuse * clamp(1.0 - shadow, 0.0, 1.0);
 
-    return CookTorranceBRDF(norm, lightDir, viewDir) * radiance * clamp(dot(norm, lightDir), 0.0, 1.0);
+    return CookTorranceBRDF(norm, lightDir, viewDir, surf) * radiance * clamp(dot(norm, lightDir), 0.0, 1.0);
 }
 
-vec3 CalculatePointLight(PointLight light, vec3 norm, vec3 viewDir)
+vec3 CalculatePointLight(PointLight light, vec3 norm, vec3 viewDir, Surface surf)
 {
     vec3 lightDir = normalize(light.position - frag_pos);
 
@@ -97,33 +103,37 @@ vec3 CalculatePointLight(PointLight light, vec3 norm, vec3 viewDir)
     float shadow = light.cast_shadow * PointShadow((frag_pos - light.position) / 400.0f, ShadowBias(norm, lightDir));
     vec3 radiance = attenuation * light.diffuse * clamp(1.0 - shadow, 0.0, 1.0);
 
-    return CookTorranceBRDF(norm, lightDir, viewDir) * radiance * clamp(dot(norm, lightDir), 0.0, 1.0);
+    return CookTorranceBRDF(norm, lightDir, viewDir, surf) * radiance * clamp(dot(norm, lightDir), 0.0, 1.0);
 }
 
-vec3 BlinnPhongBRDF(vec3 norm, vec3 lightDir, vec3 viewDir)
+vec3 BlinnPhongBRDF(vec3 norm, vec3 lightDir, vec3 viewDir, Surface surf)
 {
     // NOTES: the light.specular/light.diffuse term was extracted out to render equation
     vec3 halfway = normalize(lightDir + viewDir);
     float nl = clamp(dot(norm, lightDir), 0.0, 1.0);
     float nh = clamp(dot(norm, halfway), 0.0, 1.0);
-    vec3 diffuse = nl * SurfaceColor(surf.diffuse);
-    vec3 specular = pow(nh, surf.shininess) * smoothstep(0.0, 0.2, dot(norm, lightDir)) * surf.specular;
+
+    vec3 diffuse = nl * surf.color;
+    vec3 specular = pow(nh, surf_params.shininess) * smoothstep(0.0, 0.2, dot(norm, lightDir)) * surf_params.specular;
+
     return diffuse + specular;
 }
 
-vec3 CookTorranceBRDF(vec3 norm, vec3 lightDir, vec3 viewDir)
+vec3 CookTorranceBRDF(vec3 norm, vec3 lightDir, vec3 viewDir, Surface surf)
 {
     vec3 halfway = normalize(lightDir + viewDir);
     float nv = clamp(dot(norm, viewDir), 0.0, 1.0);
     float nl = clamp(dot(norm, lightDir), 0.0, 1.0);
     float nh = clamp(dot(norm, halfway), 0.0, 1.0);
+
     float D = TrowbridgeReitzGGX(nh, surf.roughness + 0.01);
     float G = SmithsSchlickGGX(nv, nl, surf.roughness + 0.01);
-    vec3 surfColor = SurfaceColor(surf.albedo);
-    vec3 F = FresnelSchlick(nh, mix(vec3(0.04), surfColor, surf.metallic));
+    vec3 F = FresnelSchlick(nh, mix(vec3(0.04), surf.color, surf.metallic));
+
     vec3 specular = D * F * G / max(4.0 * nv * nl, 0.0001);
     vec3 kd = (1.0 - surf.metallic) * (vec3(1.0) - F);
-    vec3 diffuse = kd * surfColor / PI;
+    vec3 diffuse = kd * surf.color / PI;
+
     return diffuse + specular;
 }
 
@@ -152,6 +162,21 @@ vec3 SurfaceColor(vec3 base)
 {
     vec3 texColor = pow(texture(base_map_unit, tex_uv).rgb, vec3(gamma));
     return base * texColor;
+}
+
+float SurfaceAO()
+{
+    return texture(ao_map_unit, tex_uv).r;
+}
+
+float SurfaceRoughness()
+{
+    return texture(roughness_map_unit, tex_uv).r;
+}
+
+float SurfaceMetallic()
+{
+    return texture(metallic_map_unit, tex_uv).r;
 }
 
 float ShadowBias(vec3 norm, vec3 lightDir)
@@ -214,13 +239,20 @@ void main()
     vec3 norm = normalize(TBN * texNorm);
     vec3 viewDir = normalize(cam_pos - frag_pos);
 
+    Surface surf = Surface(
+        SurfaceColor(surf_params.diffuse),
+        SurfaceAO(),
+        SurfaceRoughness(),
+        SurfaceMetallic()
+    );
+
     vec3 result = vec3(0.0);
-    result += CalculateDirectionalLight(main_light, norm, viewDir);
-    result += CalculatePointLight(aux_lights[0], norm, viewDir);
-    result += CalculatePointLight(aux_lights[1], norm, viewDir);
-    result += CalculatePointLight(aux_lights[2], norm, viewDir);
-    result += CalculatePointLight(aux_lights[3], norm, viewDir);
-    result += vec3(0.2) * (1.0 - surf.ao) * SurfaceColor(surf.albedo);
+    result += CalculateDirectionalLight(main_light, norm, viewDir, surf);
+    result += CalculatePointLight(aux_lights[0], norm, viewDir, surf);
+    result += CalculatePointLight(aux_lights[1], norm, viewDir, surf);
+    result += CalculatePointLight(aux_lights[2], norm, viewDir, surf);
+    result += CalculatePointLight(aux_lights[3], norm, viewDir, surf);
+    result += vec3(0.2) * (1.0 - surf.ao) * surf.color;
 
     result = pow(result, vec3(1.0 / gamma));
 

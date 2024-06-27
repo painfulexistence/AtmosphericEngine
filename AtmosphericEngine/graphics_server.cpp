@@ -169,7 +169,20 @@ void GraphicsServer::LoadTextures(const std::vector<std::string>& paths)
         int width, height, nChannels;
         unsigned char* data = stbi_load(paths[i].c_str(), &width, &height, &nChannels, 0);
         if (data) {
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+            switch (nChannels)
+            {
+                case 1:
+                    glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, width, height, 0, GL_RED, GL_UNSIGNED_BYTE, data);
+                    break;
+                case 3:
+                    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+                    break;
+                case 4:
+                    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+                    break;
+                default:
+                    throw std::runtime_error(fmt::format("Unknown texture format at {}\n", paths[i]));
+            }
             glGenerateMipmap(GL_TEXTURE_2D);
         } else {
             throw std::runtime_error(fmt::format("Failed to load texture at {}\n", paths[i]));

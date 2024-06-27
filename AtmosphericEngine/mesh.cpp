@@ -121,14 +121,13 @@ void Mesh::Render(ShaderProgram& program, const std::vector<glm::mat4>& worldMat
     //glStencilFunc(GL_ALWAYS, 1, 0xFF);
     glPolygonMode(GL_FRONT_AND_BACK, drawMode);
 
-    program.SetUniform(std::string("surf.ambient"), material->ambient);
-    program.SetUniform(std::string("surf.diffuse"), material->diffuse);
-    program.SetUniform(std::string("surf.specular"), material->specular);
-    program.SetUniform(std::string("surf.shininess"), material->shininess);
-    program.SetUniform(std::string("surf.albedo"), material->albedo);
-    program.SetUniform(std::string("surf.metallic"), material->metallic);
-    program.SetUniform(std::string("surf.roughness"), material->roughness);
-    program.SetUniform(std::string("surf.ao"), material->ao);
+    // Surface parameters
+    program.SetUniform(std::string("surf_params.diffuse"), material->diffuse);
+    program.SetUniform(std::string("surf_params.specular"), material->specular);
+    program.SetUniform(std::string("surf_params.ambient"), material->ambient);
+    program.SetUniform(std::string("surf_params.shininess"), material->shininess);
+
+    // Material textures
     if (material->baseMap >= 0) {
         program.SetUniform(std::string("base_map_unit"), NUM_MAP_UNITS + material->baseMap);
     } else {
@@ -138,6 +137,21 @@ void Mesh::Render(ShaderProgram& program, const std::vector<glm::mat4>& worldMat
         program.SetUniform(std::string("normal_map_unit"), NUM_MAP_UNITS + material->normalMap);
     } else {
         program.SetUniform(std::string("normal_map_unit"), NUM_MAP_UNITS + 1);
+    }
+    if (material->aoMap >= 0) {
+        program.SetUniform(std::string("ao_map_unit"), NUM_MAP_UNITS + material->aoMap);
+    } else {
+        program.SetUniform(std::string("base_map_unit"), NUM_MAP_UNITS + 2);
+    }
+    if (material->roughnessMap >= 0) {
+        program.SetUniform(std::string("roughness_map_unit"), NUM_MAP_UNITS + material->roughnessMap);
+    } else {
+        program.SetUniform(std::string("roughness_map_unit"), NUM_MAP_UNITS + 3);
+    }
+    if (material->metallicMap >= 0) {
+        program.SetUniform(std::string("metallic_map_unit"), NUM_MAP_UNITS + material->metallicMap);
+    } else {
+        program.SetUniform(std::string("metallic_map_unit"), NUM_MAP_UNITS + 4);
     }
 
     glBindVertexArray(vao);

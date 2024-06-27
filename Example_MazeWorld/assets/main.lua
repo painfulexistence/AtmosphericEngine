@@ -68,80 +68,83 @@ scene = {
             attenuation = {1, 0.045, 0.0075}
         }
     },
+    -- Phong material reference: http://devernay.free.fr/cours/opengl/materials.html
+    -- PBR material reference: https://docs.unity3d.com/Manual/StandardShaderMaterialCharts.html
     materials = {
         {
             name = "Metal",
-            baseMapId = 4,
+            baseMapId = 7,
             normalMapId = -1,
-            ambient = {.25, .20725, .20725},
-            diffuse = {1, .829, .829},
+            aoMapId = -1,
+            roughnessMapId = -1,
+            diffuse = {1., 1., 1.},
             specular = {.296648, .296648, .296648},
-            shininess = 0.088,
-            albedo = {0.8, 0.6, 0.4},
-            metallic = 1.0,
-            roughness = 0.0,
-            ao = 1.0
+            ambient = {.25, .20725, .20725},
+            shininess = 0.088
         },
         {
             name = "Mud",
-            baseMapId = 9,
-            normalMapId = 10,
-            ambient = {.1, .18725, .1745},
-            diffuse = {0, 0, 0},
+            baseMapId = 16,
+            normalMapId = 17,
+            aoMapId = 18,
+            roughnessMapId = 19,
+            diffuse = {1., 1., 1.},
             specular = {0, 0, 0},
-            shininess = 0.04,
-            albedo = {0.9, 0.9, 0.9},
-            metallic = 0.0,
-            roughness = 0.1,
-            ao = 0.8
+            ambient = {.1, .18725, .1745},
+            shininess = 0.04
         },
         {
             name = "Plaster",
-            baseMapId = 2,
+            baseMapId = 5,
             normalMapId = -1,
-            ambient = {.0, .0, .0},
-            diffuse = {.5, .0, .0},
+            aoMapId = -1,
+            roughnessMapId = -1,
+            diffuse = {1., 1., 1.},
             specular = {.7, .6, .6},
-            shininess = 0.25,
-            albedo = {0.50754, 0.50754, 0.50754},
-            metallic = 0.1,
-            roughness = 0.1,
-            ao = 0.2
+            ambient = {.0, .0, .0},
+            shininess = 0.25
         },
         {
             name = "Brick",
-            baseMapId = 7,
-            normalMapId = 8,
-            ambient = {0.19225, 0.19225, 0.19225},
+            baseMapId = 12,
+            normalMapId = 13,
+            aoMapId = 14,
+            roughnessMapId = 15,
             diffuse = {0.50754, 0.50754, 0.50754},
             specular = {0.508273, 0.508273, 0.508273},
-            shininess = 0.4,
-            albedo = {0.4, 0.3, 0.3},
-            metallic = 0.0,
-            roughness = 0.4,
-            ao = 0.5
+            ambient = {0.19225, 0.19225, 0.19225},
+            shininess = 0.4
         },
         {
             name = "Stones",
-            baseMapId = 5,
-            normalMapId = 6,
-            ambient = {.0, .0, .0},
-            diffuse = {.5, .0, .0},
+            baseMapId = 8,
+            normalMapId = 9,
+            aoMapId = 10,
+            roughnessMapId = 11,
+            diffuse = {1., 1., 1.},
             specular = {.7, .6, .6},
-            shininess = 0.25,
-            albedo = {0.50754, 0.50754, 0.50754},
-            metallic = 0.1,
-            roughness = 0.1,
-            ao = 0.2
+            ambient = {.0, .0, .0},
+            shininess = 0.25
         }
     },
     textures = {
+        -- Default textures
         {
             path =  "./assets/textures/default_diff.jpg"
         },
         {
             path = "./assets/textures/default_norm.jpg"
         },
+        {
+            path =  "./assets/textures/default_ao.jpg"
+        },
+        {
+            path = "./assets/textures/default_rough.jpg"
+        },
+        {
+            path =  "./assets/textures/default_metallic.jpg"
+        },
+        -- Custom textures
         {
             path =  "./assets/textures/rough_plaster.jpg"
         },
@@ -158,16 +161,34 @@ scene = {
             path = "./assets/textures/paving_stones_norm_gl.jpg"
         },
         {
+            path = "./assets/textures/paving_stones_ao.jpg"
+        },
+        {
+            path = "./assets/textures/paving_stones_rough.jpg"
+        },
+        {
             path = "./assets/textures/medieval_blocks_diff.jpg"
         },
         {
             path = "./assets/textures/medieval_blocks_norm_gl.jpg"
         },
         {
+            path = "./assets/textures/medieval_blocks_ao.jpg"
+        },
+        {
+            path = "./assets/textures/medieval_blocks_rough.jpg"
+        },
+        {
             path = "./assets/textures/brown_mud_leaves_diff.jpg"
         },
         {
             path = "./assets/textures/brown_mud_leaves_norm_gl.jpg"
+        },
+        {
+            path = "./assets/textures/brown_mud_leaves_ao.jpg"
+        },
+        {
+            path = "./assets/textures/brown_mud_leaves_rough.jpg"
         }
     },
     shaders = {

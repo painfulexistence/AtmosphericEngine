@@ -36,7 +36,6 @@ set(SOURCES
     camera.cpp
     mesh.cpp
     frustum.cpp
-    material.cpp
     renderable.cpp
     shader.cpp
     graphics_server.cpp

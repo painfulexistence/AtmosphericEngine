@@ -210,8 +210,8 @@ float PointShadow(vec3 shadowCoords, float bias)
 
 void main()
 {
-    vec3 texNorm = texture(normal_map_unit, tex_uv).rgb;
-    vec3 norm = normalize(TBN * (texNorm * 2.0 - 1.0));
+    vec3 texNorm = texture(normal_map_unit, tex_uv).rgb * 2.0 - 1.0;
+    vec3 norm = normalize(TBN * texNorm);
     vec3 viewDir = normalize(cam_pos - frag_pos);
 
     vec3 result = vec3(0.0);

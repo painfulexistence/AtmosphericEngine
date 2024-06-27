@@ -47,6 +47,8 @@ void GraphicsServer::Init(MessageBus* mb, Application* app)
 {
     Server::Init(mb, app);
 
+    stbi_set_flip_vertically_on_load(true);
+
     // Note that OpenGL extensions must NOT be initialzed before the window creation
     glewExperimental = GL_TRUE;
     if (glewInit() != GLEW_OK)

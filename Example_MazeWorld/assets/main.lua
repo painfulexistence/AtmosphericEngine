@@ -110,8 +110,8 @@ scene = {
         },
         {
             name = "Brick",
-            baseMapId = 5,
-            normalMapId = 6,
+            baseMapId = 7,
+            normalMapId = 8,
             ambient = {0.19225, 0.19225, 0.19225},
             diffuse = {0.50754, 0.50754, 0.50754},
             specular = {0.508273, 0.508273, 0.508273},

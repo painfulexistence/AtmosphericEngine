@@ -3,6 +3,11 @@
 
 std::map<std::string, Mesh*> Mesh::MeshList;
 
+void PrintVertex(const Vertex& v)
+{
+    fmt::print("P: ({},{},{}), UV: ({},{})\n, N: ({},{},{}), T: ({},{},{}), B: ({},{},{})\n", v.position.x, v.position.y, v.position.z, v.uv.x, v.uv.y, v.normal.x, v.normal.y, v.normal.z, v.tangent.x, v.tangent.y, v.tangent.z, v.bitangent.x, v.bitangent.y, v.bitangent.z);
+}
+
 void CalculateNormalsAndTangents(std::vector<Vertex>& verts, std::vector<uint16_t>& tris)
 {
     for (int i = 0; i < tris.size(); i += 3)
@@ -26,6 +31,13 @@ void CalculateNormalsAndTangents(std::vector<Vertex>& verts, std::vector<uint16_
         verts[tris[i]].bitangent = bitangent;
         verts[tris[i + 1]].bitangent = bitangent;
         verts[tris[i + 2]].bitangent = bitangent;
+        // For TBN debugging
+        // if (glm::dot(glm::cross(tangent, bitangent), normal) < 0.0f) {
+        //     PrintVertex(verts[tris[i]]);
+        //     PrintVertex(verts[tris[i + 1]]);
+        //     PrintVertex(verts[tris[i + 2]]);
+        //     throw std::runtime_error("Triangle is degenerate");
+        // }
     }
     // (u0 - u1) * T + (v0 - v1) * B = p0 - p1
     // (u2 - u1) * T + (v2 - v1) * B = p2 - p1
@@ -163,49 +175,49 @@ Mesh* Mesh::CreateCube(const float& size)
 {
     Vertex vertices[] = {
         // front
-        { { .5f * size, .5f * size, .5f * size }, { 0.0f, 1.0f }, { 0.0f, 0.0f, 1.0f } },
-        { { .5f * size, -.5f * size, .5f * size }, { 1.0f, 1.0f }, { 0.0f, 0.0f, 1.0f } },
-        { { -.5f * size, .5f * size, .5f * size }, { 0.0f, 0.0f }, { 0.0f, 0.0f, 1.0f } },
-        { { -.5f * size, -.5f * size, .5f * size }, { 1.0f, 0.0f }, { 0.0f, 0.0f, 1.0f } },
+        { { .5f * size, .5f * size, .5f * size }, { 1.f, 1.f }, { 0.0f, 0.0f, 1.0f } },
+        { { -.5f * size, .5f * size, .5f * size }, { 0.f, 1.f }, { 0.0f, 0.0f, 1.0f } },
+        { { .5f * size, -.5f * size, .5f * size }, { 1.f, 0.f }, { 0.0f, 0.0f, 1.0f } },
+        { { -.5f * size, -.5f * size, .5f * size }, { 0.f, 0.f }, { 0.0f, 0.0f, 1.0f } },
         // back
-        { { .5f * size, .5f * size, -.5f * size }, { 1.0f, 1.0f }, { 0.0f, 0.0f, -1.0f } },
-        { { .5f * size, -.5f * size, -.5f * size }, { 0.0f, 1.0f }, { 0.0f, 0.0f, -1.0f } },
-        { { -.5f * size, .5f * size, -.5f * size }, { 1.0f, 0.0f }, { 0.0f, 0.0f, -1.0f } },
-        { { -.5f * size, -.5f * size, -.5f * size }, { 0.0f, 0.0f }, { 0.0f, 0.0f, -1.0f } },
-        // left
-        { { -.5f * size, .5f * size, .5f * size }, { 1.0f, 1.0f }, { -1.0f, 0.0f, 0.0f } },
-        { { -.5f * size, .5f * size, -.5f * size }, { 1.0f, 0.0f }, { -1.0f, 0.0f, 0.0f } },
-        { { -.5f * size, -.5f * size, .5f * size }, { 0.0f, 1.0f }, { -1.0f, 0.0f, 0.0f } },
-        { { -.5f * size, -.5f * size, -.5f * size }, { 0.0f, 0.0f }, { -1.0f, 0.0f, 0.0f } },
+        { { -.5f * size, .5f * size, -.5f * size }, { 1.f, 1.f }, { 0.0f, 0.0f, -1.0f } },
+        { { .5f * size, .5f * size, -.5f * size }, { 0.f, 1.f }, { 0.0f, 0.0f, -1.0f } },
+        { { -.5f * size, -.5f * size, -.5f * size }, { 1.f, 0.f }, { 0.0f, 0.0f, -1.0f } },
+        { { .5f * size, -.5f * size, -.5f * size }, { 0.f, 0.f }, { 0.0f, 0.0f, -1.0f } },
         // right
-        { { .5f * size, .5f * size, .5f * size }, { 1.0f, 1.0f }, { 1.0f, 0.0f, 0.0f } },
-        { { .5f * size, .5f * size, -.5f * size }, { 1.0f, 0.0f }, { 1.0f, 0.0f, 0.0f } },
-        { { .5f * size, -.5f * size, .5f * size }, { 0.0f, 1.0f }, { 1.0f, 0.0f, 0.0f } },
-        { { .5f * size, -.5f * size, -.5f * size }, { 0.0f, 0.0f }, { 1.0f, 0.0f, 0.0f } },
+        { { .5f * size, .5f * size, -.5f * size }, { 1.f, 1.f }, { 1.0f, 0.0f, 0.0f } },
+        { { .5f * size, .5f * size, .5f * size }, { 0.f, 1.f }, { 1.0f, 0.0f, 0.0f } },
+        { { .5f * size, -.5f * size, -.5f * size }, { 1.f, 0.f }, { 1.0f, 0.0f, 0.0f } },
+        { { .5f * size, -.5f * size, .5f * size }, { 0.f, 0.f }, { 1.0f, 0.0f, 0.0f } },
+        // left
+        { { -.5f * size, .5f * size, .5f * size }, { 1.f, 1.f }, { -1.0f, 0.0f, 0.0f } },
+        { { -.5f * size, .5f * size, -.5f * size }, { 0.f, 1.f }, { -1.0f, 0.0f, 0.0f } },
+        { { -.5f * size, -.5f * size, .5f * size }, { 1.f, 0.f }, { -1.0f, 0.0f, 0.0f } },
+        { { -.5f * size, -.5f * size, -.5f * size }, { 0.f, 0.f }, { -1.0f, 0.0f, 0.0f } },
         // top
-        { { .5f * size, .5f * size, .5f * size }, { 1.0f, 1.0f }, { 0.0f, 1.0f, 0.0f } },
-        { { .5f * size, .5f * size, -.5f * size }, { 0.0f, 1.0f }, { 0.0f, 1.0f, 0.0f } },
-        { { -.5f * size, .5f * size, .5f * size }, { 1.0f, 0.0f }, { 0.0f, 1.0f, 0.0f } },
-        { { -.5f * size, .5f * size, -.5f * size }, { 0.0f, 0.0f }, { 0.0f, 1.0f, 0.0f } },
+        { { .5f * size, .5f * size, -.5f * size }, { 1.f, 1.f }, { 0.0f, 1.0f, 0.0f } },
+        { { -.5f * size, .5f * size, -.5f * size }, { 0.f, 1.f }, { 0.0f, 1.0f, 0.0f } },
+        { { .5f * size, .5f * size, .5f * size }, { 1.f, 0.f }, { 0.0f, 1.0f, 0.0f } },
+        { { -.5f * size, .5f * size, .5f * size }, { 0.f, 0.f }, { 0.0f, 1.0f, 0.0f } },
         // bottom
         { { .5f * size, -.5f * size, .5f * size }, { 1.0f, 1.0f }, { 0.0f, -1.0f, 0.0f } },
-        { { .5f * size, -.5f * size, -.5f * size }, { 1.0f, 0.0f }, { 0.0f, -1.0f, 0.0f } },
         { { -.5f * size, -.5f * size, .5f * size }, { 0.0f, 1.0f }, { 0.0f, -1.0f, 0.0f } },
+        { { .5f * size, -.5f * size, -.5f * size }, { 1.0f, 0.0f }, { 0.0f, -1.0f, 0.0f } },
         { { -.5f * size, -.5f * size, -.5f * size }, { 0.0f, 0.0f }, { 0.0f, -1.0f, 0.0f } }
     };
     GLushort triangles[] = {
-        0, 2, 1,
-        1, 2, 3,
+        0, 1, 2,
+        2, 1, 3,
         4, 5, 6,
         6, 5, 7,
         8, 9, 10,
         10, 9, 11,
-        12, 14, 13,
-        13, 14, 15,
+        12, 13, 14,
+        14, 13, 15,
         16, 17, 18,
         18, 17, 19,
-        20, 22, 21,
-        21, 22, 23
+        20, 21, 22,
+        22, 21, 23
     };
 
     std::vector<Vertex> verts(vertices, vertices + 24);
@@ -227,6 +239,7 @@ Mesh* Mesh::CreateCube(const float& size)
     return cube;
 }
 
+// TODO: make sure the uvs are correct
 Mesh* Mesh::CreateSphere(const float& radius, const int& division)
 {
     float delta = (float)PI / (float)division;
@@ -304,6 +317,7 @@ Mesh* Mesh::CreateSphere(const float& radius, const int& division)
     return sphere;
 }
 
+// TODO: make sure the uvs are correct
 Mesh* Mesh::CreateTerrain(const float& size, const int& vnum, const std::vector<float>& heightmap)
 {
     std::vector<Vertex> verts;

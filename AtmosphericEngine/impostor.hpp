@@ -23,6 +23,8 @@ public:
 
     void Activate();
 
+    void Freeze();
+
     void Dampen();
 
     // This will override the dynamics world gravity

@@ -55,6 +55,11 @@ void Impostor::Activate()
     this->_rigidbody->activate();
 }
 
+void Impostor::Freeze()
+{
+    this->_rigidbody->setActivationState(0);
+}
+
 void Impostor::Dampen()
 {
     btVector3 vel = this->_rigidbody->getLinearVelocity();

@@ -192,6 +192,10 @@ class MazeGame : public Application
         {
             isLightFlashing = !isLightFlashing;
         }
+        if (input.GetKeyDown(KEY_Z))
+        {
+            rb->Freeze();
+        }
         if (input.GetKeyDown(KEY_ESCAPE))
         {
             input.ReceiveMessage(MessageType::ON_QUIT);

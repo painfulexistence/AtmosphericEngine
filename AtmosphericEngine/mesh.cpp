@@ -7,17 +7,17 @@ void CalculateNormalsAndTangents(std::vector<Vertex>& verts, std::vector<uint16_
 {
     for (int i = 0; i < tris.size(); i += 3)
     {
-        // Calculate normals
         glm::vec3 edge1 = verts[tris[i]].position - verts[tris[i + 1]].position;
         glm::vec3 edge2 = verts[tris[i + 2]].position - verts[tris[i + 1]].position;
+        glm::vec2 dUV1 = verts[tris[i]].uv - verts[tris[i + 1]].uv;
+        glm::vec2 dUV2 = verts[tris[i + 2]].uv - verts[tris[i + 1]].uv;
+        // Calculate normals
         glm::vec3 normal = glm::normalize(glm::cross(edge2, edge1));
         verts[tris[i]].normal = normal;
         verts[tris[i + 1]].normal = normal;
         verts[tris[i + 2]].normal = normal;
         // Calculate tangents & bitangents
-        glm::vec2 dUV1 = verts[tris[i]].uv - verts[tris[i + 1]].uv;
-        glm::vec2 dUV2 = verts[tris[i + 2]].uv - verts[tris[i + 1]].uv;
-        float f = 1.0f / (dUV1.x * dUV2.y - dUV2.x * dUV1.y);
+        float f = 1.0f / (dUV1.x * dUV2.y - dUV1.y * dUV2.x);
         glm::vec3 tangent = f * (dUV2.y * edge1 - dUV1.y * edge2);
         verts[tris[i]].tangent = tangent;
         verts[tris[i + 1]].tangent = tangent;
@@ -27,6 +27,11 @@ void CalculateNormalsAndTangents(std::vector<Vertex>& verts, std::vector<uint16_
         verts[tris[i + 1]].bitangent = bitangent;
         verts[tris[i + 2]].bitangent = bitangent;
     }
+    // (u0 - u1) * T + (v0 - v1) * B = p0 - p1
+    // (u2 - u1) * T + (v2 - v1) * B = p2 - p1
+    // det = (u0 - u1) * (v2 - v1) - (v0 - v1) * (u2 - u1)
+    // T = ((v2 - v1) * (p0 - p1)  - (v0 - v1) * (p2 - p1)) / det
+    // B = ((u0 - u1) * (p2 - p1) - (u2 - u1) * (p0 - p1)) / det
 }
 
 Mesh::Mesh()
@@ -157,32 +162,32 @@ void Mesh::Render(ShaderProgram& program, const std::vector<glm::mat4>& worldMat
 Mesh* Mesh::CreateCube(const float& size)
 {
     Vertex vertices[] = {
-        //left
-        { { .5f * size, .5f * size, .5f * size }, { 1.0f, 1.0f }, { 0.0f, 0.0f, 1.0f } },
-        { { .5f * size, -.5f * size, .5f * size }, { 1.0f, 0.0f }, { 0.0f, 0.0f, 1.0f } },
-        { { -.5f * size, .5f * size, .5f * size }, { 0.0f, 1.0f }, { 0.0f, 0.0f, 1.0f } },
-        { { -.5f * size, -.5f * size, .5f * size }, { 0.0f, 0.0f }, { 0.0f, 0.0f, 1.0f } },
-        //right
+        // front
+        { { .5f * size, .5f * size, .5f * size }, { 0.0f, 1.0f }, { 0.0f, 0.0f, 1.0f } },
+        { { .5f * size, -.5f * size, .5f * size }, { 1.0f, 1.0f }, { 0.0f, 0.0f, 1.0f } },
+        { { -.5f * size, .5f * size, .5f * size }, { 0.0f, 0.0f }, { 0.0f, 0.0f, 1.0f } },
+        { { -.5f * size, -.5f * size, .5f * size }, { 1.0f, 0.0f }, { 0.0f, 0.0f, 1.0f } },
+        // back
         { { .5f * size, .5f * size, -.5f * size }, { 1.0f, 1.0f }, { 0.0f, 0.0f, -1.0f } },
-        { { .5f * size, -.5f * size, -.5f * size }, { 1.0f, 0.0f }, { 0.0f, 0.0f, -1.0f } },
-        { { -.5f * size, .5f * size, -.5f * size }, { 0.0f, 1.0f }, { 0.0f, 0.0f, -1.0f } },
+        { { .5f * size, -.5f * size, -.5f * size }, { 0.0f, 1.0f }, { 0.0f, 0.0f, -1.0f } },
+        { { -.5f * size, .5f * size, -.5f * size }, { 1.0f, 0.0f }, { 0.0f, 0.0f, -1.0f } },
         { { -.5f * size, -.5f * size, -.5f * size }, { 0.0f, 0.0f }, { 0.0f, 0.0f, -1.0f } },
-        //back
+        // left
         { { -.5f * size, .5f * size, .5f * size }, { 1.0f, 1.0f }, { -1.0f, 0.0f, 0.0f } },
         { { -.5f * size, .5f * size, -.5f * size }, { 1.0f, 0.0f }, { -1.0f, 0.0f, 0.0f } },
         { { -.5f * size, -.5f * size, .5f * size }, { 0.0f, 1.0f }, { -1.0f, 0.0f, 0.0f } },
         { { -.5f * size, -.5f * size, -.5f * size }, { 0.0f, 0.0f }, { -1.0f, 0.0f, 0.0f } },
-        //front
+        // right
         { { .5f * size, .5f * size, .5f * size }, { 1.0f, 1.0f }, { 1.0f, 0.0f, 0.0f } },
-        { { .5f * size, .5f * size, -.5f * size }, { 0.0f, 1.0f }, { 1.0f, 0.0f, 0.0f } },
-        { { .5f * size, -.5f * size, .5f * size }, { 1.0f, 0.0f }, { 1.0f, 0.0f, 0.0f } },
+        { { .5f * size, .5f * size, -.5f * size }, { 1.0f, 0.0f }, { 1.0f, 0.0f, 0.0f } },
+        { { .5f * size, -.5f * size, .5f * size }, { 0.0f, 1.0f }, { 1.0f, 0.0f, 0.0f } },
         { { .5f * size, -.5f * size, -.5f * size }, { 0.0f, 0.0f }, { 1.0f, 0.0f, 0.0f } },
-        //top
+        // top
         { { .5f * size, .5f * size, .5f * size }, { 1.0f, 1.0f }, { 0.0f, 1.0f, 0.0f } },
-        { { .5f * size, .5f * size, -.5f * size }, { 1.0f, 0.0f }, { 0.0f, 1.0f, 0.0f } },
-        { { -.5f * size, .5f * size, .5f * size }, { 0.0f, 1.0f }, { 0.0f, 1.0f, 0.0f } },
+        { { .5f * size, .5f * size, -.5f * size }, { 0.0f, 1.0f }, { 0.0f, 1.0f, 0.0f } },
+        { { -.5f * size, .5f * size, .5f * size }, { 1.0f, 0.0f }, { 0.0f, 1.0f, 0.0f } },
         { { -.5f * size, .5f * size, -.5f * size }, { 0.0f, 0.0f }, { 0.0f, 1.0f, 0.0f } },
-        //bottom
+        // bottom
         { { .5f * size, -.5f * size, .5f * size }, { 1.0f, 1.0f }, { 0.0f, -1.0f, 0.0f } },
         { { .5f * size, -.5f * size, -.5f * size }, { 1.0f, 0.0f }, { 0.0f, -1.0f, 0.0f } },
         { { -.5f * size, -.5f * size, .5f * size }, { 0.0f, 1.0f }, { 0.0f, -1.0f, 0.0f } },

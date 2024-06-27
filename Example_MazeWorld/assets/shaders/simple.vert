@@ -12,20 +12,19 @@ layout(location = 5) in mat4 World;
 uniform sampler2D normal_map_unit;
 
 out vec3 frag_pos;
-out vec3 frag_normal;
 out vec2 tex_uv;
+out mat3 TBN;
 
 void main()
 {
     vec3 T = normalize(vec3(World * vec4(tangent, 0.0)));
     vec3 B = normalize(vec3(World * vec4(bitangent, 0.0)));
     vec3 N = normalize(vec3(World * vec4(normal, 0.0)));
-    mat3 TBN = mat3(T, B, N);
     frag_pos = vec3(World * vec4(position, 1.0));
-    frag_normal = normalize(TBN * (texture(normal_map_unit, uv).rgb * 2.0 - 1.0)); // FIXME: frag_normal cannot be interpolated like this
     tex_uv = uv;
+    TBN = mat3(T, B, N);
 
     gl_Position = ProjectionView * vec4(frag_pos, 1.0);
 }
 
-//Note: Uniform location qualifiers only available in version 4.3 or after
+// NOTES: Uniform location qualifiers only available in version 4.3 or after

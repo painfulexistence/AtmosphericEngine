@@ -45,13 +45,14 @@ uniform PointLight aux_lights[MAX_NUM_AUX_LIGHTS];
 uniform int aux_light_count;
 uniform vec3 cam_pos;
 uniform sampler2D base_map_unit;
+uniform sampler2D normal_map_unit;
 uniform sampler2D shadow_map_unit;
 uniform samplerCube omni_shadow_map_unit;
 uniform float time;
 
 in vec3 frag_pos;
-in vec3 frag_normal;
 in vec2 tex_uv;
+in mat3 TBN;
 out vec4 Color;
 
 const float PI = 3.1415927;
@@ -75,10 +76,8 @@ float DirectionalShadow(vec3 shadowCoords, float bias);
 
 float PointShadow(vec3 shadowCoords, float bias);
 
-vec3 CalculateDirectionalLight(DirLight light)
+vec3 CalculateDirectionalLight(DirLight light, vec3 norm, vec3 viewDir)
 {
-    vec3 norm = normalize(frag_normal);
-    vec3 viewDir = normalize(cam_pos - frag_pos);
     vec3 lightDir = normalize(-light.direction);
 
     vec4 lightSpaceFragPos = light.ProjectionView * vec4(frag_pos, 1.0);
@@ -89,10 +88,8 @@ vec3 CalculateDirectionalLight(DirLight light)
     return CookTorranceBRDF(norm, lightDir, viewDir) * radiance * clamp(dot(norm, lightDir), 0.0, 1.0);
 }
 
-vec3 CalculatePointLight(PointLight light)
+vec3 CalculatePointLight(PointLight light, vec3 norm, vec3 viewDir)
 {
-    vec3 norm = normalize(frag_normal);
-    vec3 viewDir = normalize(cam_pos - frag_pos);
     vec3 lightDir = normalize(light.position - frag_pos);
 
     float dist = distance(light.position, frag_pos);
@@ -105,7 +102,7 @@ vec3 CalculatePointLight(PointLight light)
 
 vec3 BlinnPhongBRDF(vec3 norm, vec3 lightDir, vec3 viewDir)
 {
-    //NOTES: the light.specular/light.diffuse term was extracted out to render equation
+    // NOTES: the light.specular/light.diffuse term was extracted out to render equation
     vec3 halfway = normalize(lightDir + viewDir);
     float nl = clamp(dot(norm, lightDir), 0.0, 1.0);
     float nh = clamp(dot(norm, halfway), 0.0, 1.0);
@@ -213,12 +210,16 @@ float PointShadow(vec3 shadowCoords, float bias)
 
 void main()
 {
+    vec3 texNorm = texture(normal_map_unit, tex_uv).rgb;
+    vec3 norm = normalize(TBN * (texNorm * 2.0 - 1.0));
+    vec3 viewDir = normalize(cam_pos - frag_pos);
+
     vec3 result = vec3(0.0);
-    result += CalculateDirectionalLight(main_light);
-    result += CalculatePointLight(aux_lights[0]);
-    result += CalculatePointLight(aux_lights[1]);
-    result += CalculatePointLight(aux_lights[2]);
-    result += CalculatePointLight(aux_lights[3]);
+    result += CalculateDirectionalLight(main_light, norm, viewDir);
+    result += CalculatePointLight(aux_lights[0], norm, viewDir);
+    result += CalculatePointLight(aux_lights[1], norm, viewDir);
+    result += CalculatePointLight(aux_lights[2], norm, viewDir);
+    result += CalculatePointLight(aux_lights[3], norm, viewDir);
     result += vec3(0.2) * (1.0 - surf.ao) * SurfaceColor(surf.albedo);
 
     result = pow(result, vec3(1.0 / gamma));

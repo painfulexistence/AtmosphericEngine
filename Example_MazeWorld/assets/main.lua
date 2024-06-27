@@ -74,9 +74,6 @@ scene = {
         {
             name = "Metal",
             baseMapId = 7,
-            normalMapId = -1,
-            aoMapId = -1,
-            roughnessMapId = -1,
             diffuse = {1., 1., 1.},
             specular = {.296648, .296648, .296648},
             ambient = {.25, .20725, .20725},
@@ -96,9 +93,6 @@ scene = {
         {
             name = "Plaster",
             baseMapId = 5,
-            normalMapId = -1,
-            aoMapId = -1,
-            roughnessMapId = -1,
             diffuse = {1., 1., 1.},
             specular = {.7, .6, .6},
             ambient = {.0, .0, .0},
@@ -121,6 +115,16 @@ scene = {
             normalMapId = 9,
             aoMapId = 10,
             roughnessMapId = 11,
+            diffuse = {1., 1., 1.},
+            specular = {.7, .6, .6},
+            ambient = {.0, .0, .0},
+            shininess = 0.25
+        },
+        {
+            name = "Gold",
+            baseMapId = 20,
+            roughnessMapId = 21,
+            metallicMapId = 22,
             diffuse = {1., 1., 1.},
             specular = {.7, .6, .6},
             ambient = {.0, .0, .0},
@@ -189,6 +193,15 @@ scene = {
         },
         {
             path = "./assets/textures/brown_mud_leaves_rough.jpg"
+        },
+        {
+            path = "./assets/textures/gold_diff.jpg"
+        },
+        {
+            path = "./assets/textures/gold_rough.jpg"
+        },
+        {
+            path = "./assets/textures/gold_metallic.jpg"
         }
     },
     shaders = {

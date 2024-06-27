@@ -141,7 +141,7 @@ void Mesh::Render(ShaderProgram& program, const std::vector<glm::mat4>& worldMat
     if (material->aoMap >= 0) {
         program.SetUniform(std::string("ao_map_unit"), NUM_MAP_UNITS + material->aoMap);
     } else {
-        program.SetUniform(std::string("base_map_unit"), NUM_MAP_UNITS + 2);
+        program.SetUniform(std::string("ao_map_unit"), NUM_MAP_UNITS + 2);
     }
     if (material->roughnessMap >= 0) {
         program.SetUniform(std::string("roughness_map_unit"), NUM_MAP_UNITS + material->roughnessMap);

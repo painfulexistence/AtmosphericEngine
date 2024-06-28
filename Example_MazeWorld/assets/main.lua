@@ -226,11 +226,11 @@ scene = {
 
 function init()
     init_game_state = {
-        is_light_flashing = false,
+        is_light_flashing = true,
         maze_size = 30,
         maze_roofed = false,
         tiles_to_remove = 500,
-        tile_size = 3.0,
+        tile_size = 5.0,
         chism_probability = 10.0
     }
 end

@@ -169,7 +169,7 @@ void Application::Process(const FrameProps& props)
     graphics.Process(dt); // TODO: Generate command buffers according to entity transforms
 
     #if SHOW_PROCESS_COST
-    Log(fmt::format("Update costs {} ms", (Time() - time) * 1000));
+    Log(fmt::format("Update costs {} ms", (GetWindowTime() - time) * 1000));
     #endif
 }
 

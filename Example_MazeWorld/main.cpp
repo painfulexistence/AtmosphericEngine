@@ -44,7 +44,7 @@ class MazeGame : public Application
         Mesh::MeshList.insert({"Cube", cubeModel});
 
         auto sphereModel = Mesh::CreateSphere();
-        sphereModel->material = graphics.materials[0];
+        sphereModel->material = graphics.materials[5];
         sphereModel->collisionShape = new btSphereShape(0.5f);
         Mesh::MeshList.insert({"Sphere", sphereModel});
 

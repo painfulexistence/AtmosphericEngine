@@ -39,7 +39,7 @@ class MazeGame : public Application
         Mesh::MeshList.insert({"Terrain", terrainModel});
 
         auto cubeModel = Mesh::CreateCube((float)TILE_SIZE);
-        cubeModel->material = graphics.materials[3];
+        cubeModel->material = graphics.materials[4];
         cubeModel->collisionShape = new btBoxShape(0.5f * btVector3(TILE_SIZE, TILE_SIZE, TILE_SIZE));
         Mesh::MeshList.insert({"Cube", cubeModel});
 

@@ -6,4 +6,5 @@
 - 2024/06/26 - found out that passing vec3(0, 0, 0) to shadow pass World matrix can cause an interesting bug where the shadows move autonomously
 - 2024/06/27 - implemented normal mapping (normals flipped)
 - 2024/06/28 - fixed flipped normals
+- 2024/06/28 - it turns out that the bottleneck is light calculation; turning aux lights off can make the game run at a reasonable speed
 - TODO: use std::filesystem to get the correct asset loading path

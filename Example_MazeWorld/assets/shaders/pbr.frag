@@ -249,9 +249,9 @@ void main()
     vec3 result = vec3(0.0);
     result += CalculateDirectionalLight(main_light, norm, viewDir, surf);
     result += CalculatePointLight(aux_lights[0], norm, viewDir, surf);
-    result += CalculatePointLight(aux_lights[1], norm, viewDir, surf);
-    result += CalculatePointLight(aux_lights[2], norm, viewDir, surf);
-    result += CalculatePointLight(aux_lights[3], norm, viewDir, surf);
+    // result += CalculatePointLight(aux_lights[1], norm, viewDir, surf);
+    // result += CalculatePointLight(aux_lights[2], norm, viewDir, surf);
+    // result += CalculatePointLight(aux_lights[3], norm, viewDir, surf);
     result += vec3(0.2) * (1.0 - surf.ao) * surf.color;
 
     result = pow(result, vec3(1.0 / gamma));

@@ -33,9 +33,11 @@ class MazeGame : public Application
         skyboxModel->cullFaceEnabled = false;
         Mesh::MeshList.insert({"Skybox", skyboxModel});
 
-        auto terrainModel = Mesh::CreateTerrain(MAZE_SIZE * TILE_SIZE, 10, std::vector<GLfloat>(100, 0.0f));
-        terrainModel->material = graphics.materials[1];
-        terrainModel->collisionShape = new btBoxShape(btVector3(MAZE_SIZE * TILE_SIZE, 0.2f, MAZE_SIZE * TILE_SIZE));
+        const float worldSize = 1024.f;
+        const float halfWorldSize = worldSize / 2.f;
+        auto terrainModel = Mesh::CreateTerrain(worldSize, 128);
+        terrainModel->material = graphics.materials[6];
+        terrainModel->collisionShape = new btBoxShape(btVector3(halfWorldSize, 0.2f, halfWorldSize));
         Mesh::MeshList.insert({"Terrain", terrainModel});
 
         auto cubeModel = Mesh::CreateCube((float)TILE_SIZE);
@@ -195,6 +197,14 @@ class MazeGame : public Application
         if (input.GetKeyDown(KEY_Z))
         {
             rb->Freeze();
+        }
+        if (input.GetKeyDown(KEY_P))
+        {
+            graphics.EnablePostProcess(false);
+        }
+        if (input.GetKeyDown(KEY_O))
+        {
+            graphics.EnableWireframe();
         }
         if (input.GetKeyDown(KEY_ESCAPE))
         {

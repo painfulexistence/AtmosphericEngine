@@ -1,7 +1,7 @@
 #include "shader.hpp"
 #include "utility/file.hpp"
 
-Shader::Shader(const std::string& path, GLenum type)
+Shader::Shader(const std::string& path, ShaderType type)
 {
     const auto& shaderSrc = File(path).GetContent();
     const char* src = shaderSrc.c_str();
@@ -27,14 +27,27 @@ Shader::Shader(const std::string& path, GLenum type)
 
 ShaderProgram::ShaderProgram() {}
 
-ShaderProgram::ShaderProgram(std::string vert, std::string frag) : program(glCreateProgram())
+ShaderProgram::ShaderProgram(std::string vert, std::string frag, std::optional<std::string> tesc, std::optional<std::string> tese) : program(glCreateProgram())
 {
-    glAttachShader(program, Shader(vert, GL_VERTEX_SHADER).shader);
-    glAttachShader(program, Shader(frag, GL_FRAGMENT_SHADER).shader);
+    glAttachShader(program, Shader(vert, ShaderType::VERTEX).shader);
+    glAttachShader(program, Shader(frag, ShaderType::FRAGMENT).shader);
+    if (tesc.has_value() && tese.has_value()) {
+        glAttachShader(program, Shader(tesc.value(), ShaderType::TESS_CONTROL).shader);
+        glAttachShader(program, Shader(tese.value(), ShaderType::TESS_EVALUATION).shader);
+    }
     glLinkProgram(program);
 }
 
-ShaderProgram::ShaderProgram(std::vector<Shader>& shaders) : program(glCreateProgram())
+ShaderProgram::ShaderProgram(std::array<Shader, 2>& shaders) : program(glCreateProgram())
+{
+    for (int i = shaders.size() - 1; i >= 0; i--)
+    {
+        glAttachShader(program, shaders[i].shader);
+    }
+    glLinkProgram(program);
+}
+
+ShaderProgram::ShaderProgram(std::array<Shader, 4>& shaders) : program(glCreateProgram())
 {
     for (int i = shaders.size() - 1; i >= 0; i--)
     {

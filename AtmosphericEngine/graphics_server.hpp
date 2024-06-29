@@ -29,9 +29,13 @@ public:
     std::vector<Renderable*> renderables;
     std::vector<Light*> lights;
     std::vector<Camera*> cameras;
+
     ShaderProgram colorProgram;
     ShaderProgram depthTextureProgram;
     ShaderProgram depthCubemapProgram;
+
+    ShaderProgram terrainProgram;
+
     ShaderProgram hdrProgram;
 
     GraphicsServer();
@@ -53,6 +57,16 @@ public:
     void LoadShaders(const std::vector<std::string>& paths);
 
     void CheckErrors();
+
+    void EnableWireframe()
+    {
+        wireframeEnabled = true;
+    }
+
+    void EnablePostProcess(bool enable)
+    {
+        postProcessEnabled = enable;
+    }
 
     GLuint GetShadowMap(int lightType, int lightIdx = 0)
     {
@@ -84,6 +98,8 @@ private:
     std::map<Mesh*, std::vector<glm::mat4>> meshInstances;
     const int mainLightCount = 1;
     int auxLightCount = 0;
+    bool postProcessEnabled = true;
+    bool wireframeEnabled = false;
 
     void CreateRenderTargets(const RenderTargetProps& props);
 

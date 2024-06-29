@@ -129,6 +129,14 @@ scene = {
             specular = {.7, .6, .6},
             ambient = {.0, .0, .0},
             shininess = 0.25
+        },
+        {
+            name = "Terrain",
+            heightMapId = 23,
+            diffuse = {1., 1., 1.},
+            specular = {.7, .6, .6},
+            ambient = {.0, .0, .0},
+            shininess = 0.25
         }
     },
     textures = {
@@ -202,11 +210,15 @@ scene = {
         },
         {
             path = "./assets/textures/gold_metallic.jpg"
+        },
+        -- Terrain maps
+        {
+            path = "./assets/textures/heightmap.jpg"
         }
     },
     shaders = {
         color = {
-            vert = "./assets/shaders/simple.vert",
+            vert = "./assets/shaders/tbn.vert",
             frag = "./assets/shaders/pbr.frag"
         },
         depth = {
@@ -220,6 +232,16 @@ scene = {
         hdr = {
             vert = "./assets/shaders/hdr.vert",
             frag = "./assets/shaders/hdr.frag"
+        },
+        terrain = {
+            vert = "./assets/shaders/terrain.vert",
+            frag = "./assets/shaders/terrain.frag",
+            tesc = "./assets/shaders/terrain.tesc",
+            tese = "./assets/shaders/terrain.tese"
+        },
+        debug = {
+            vert = "./assets/shaders/simple.vert",
+            frag = "./assets/shaders/flat.frag",
         }
     }
 }

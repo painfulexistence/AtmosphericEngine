@@ -9,6 +9,7 @@ struct Material
     int aoMap;
     int roughnessMap;
     int metallicMap;
+    int heightMap;
     glm::vec3 diffuse;
     glm::vec3 specular;
     glm::vec3 ambient;
@@ -21,6 +22,7 @@ struct Material
         aoMap = (int)t.get_or("aoMapId", -1);
         roughnessMap = (int)t.get_or("roughtnessMapId", -1);
         metallicMap = (int)t.get_or("metallicMapId", -1);
+        heightMap = (int)t.get_or("heightMapId", -1);
         diffuse = glm::vec3(t["diffuse"][1], t["diffuse"][2], t["diffuse"][3]);
         specular = glm::vec3(t["specular"][1], t["specular"][2], t["specular"][3]);
         ambient = glm::vec3(t["ambient"][1], t["ambient"][2], t["ambient"][3]);
@@ -33,6 +35,7 @@ struct Material
         int aoMap = -1,
         int roughnessMap = -1,
         int metallicMap = -1,
+        int heightMap = -1,
         glm::vec3 diffuse = glm::vec3(.55, .55, .55),
         glm::vec3 specular = glm::vec3(.7, .7, .7),
         glm::vec3 ambient = glm::vec3(0, 0, 0),

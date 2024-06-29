@@ -1,9 +1,18 @@
 #pragma once
 #include "globals.hpp"
+#include <optional>
+
+enum ShaderType
+{
+    VERTEX = GL_VERTEX_SHADER,
+    FRAGMENT = GL_FRAGMENT_SHADER,
+    TESS_CONTROL = GL_TESS_CONTROL_SHADER,
+    TESS_EVALUATION = GL_TESS_EVALUATION_SHADER
+};
 
 struct Shader
 {
-    Shader(const std::string& path, GLenum type);
+    Shader(const std::string& path, ShaderType type);
     GLuint shader;
 };
 
@@ -12,9 +21,11 @@ class ShaderProgram
 public:
     ShaderProgram();
 
-    ShaderProgram(std::string, std::string);
+    ShaderProgram(std::string vert, std::string frag, std::optional<std::string> tesc = std::nullopt, std::optional<std::string> tese = std::nullopt);
 
-    ShaderProgram(std::vector<Shader>&);
+    ShaderProgram(std::array<Shader, 2>&);
+
+    ShaderProgram(std::array<Shader, 4>&);
 
     GLint GetAttrib(const char* attrib) {
         return glGetAttribLocation(program, attrib);

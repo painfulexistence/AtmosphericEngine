@@ -55,6 +55,11 @@ void GraphicsServer::Init(MessageBus* mb, Application* app)
         throw std::runtime_error("Failed to initialize glew!");
 
     glPrimitiveRestartIndex(0xFFFF);
+
+    glPatchParameteri(GL_PATCH_VERTICES, 4);
+
+    glLineWidth(2.0f);
+
     glCullFace(GL_BACK);
     #if MSAA_ON
     glEnable(GL_MULTISAMPLE);
@@ -96,7 +101,10 @@ void GraphicsServer::Render(float dt)
     ShadowPass(dt);
     ColorPass(dt);
     MSAAPass(dt);
-    PostProcessPass(dt);
+    if (postProcessEnabled)
+    {
+        PostProcessPass(dt);
+    }
 }
 
 void GraphicsServer::RenderUI(float dt)
@@ -368,8 +376,10 @@ void GraphicsServer::CreateScreenVAO()
 void GraphicsServer::ShadowPass(float dt)
 {
     glViewport(0, 0, SHADOW_W, SHADOW_H);
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
     glBindFramebuffer(GL_FRAMEBUFFER, shadowFBO);
 
+    // 1. Render shadow map for directional light
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, GetShadowMap(DIR_LIGHT, 0), 0);
     glClear(GL_DEPTH_BUFFER_BIT);
     depthTextureProgram.Activate();
@@ -379,9 +389,30 @@ void GraphicsServer::ShadowPass(float dt)
     {
         if (meshInstances.count(mesh) == 0)
             continue;
-        mesh->Render(depthTextureProgram, meshInstances.find(mesh)->second);
+
+        if (!mesh->initialized)
+            throw std::runtime_error(fmt::format("Mesh {} is uninitialized!", name));
+
+        glEnable(GL_DEPTH_TEST);
+        glDepthFunc(GL_LESS);
+
+        if (mesh->cullFaceEnabled)
+            glEnable(GL_CULL_FACE);
+        else
+            glDisable(GL_CULL_FACE);
+
+        if (mesh->type == MeshType::MESH_PRIM) {
+            const std::vector<glm::mat4>& worldMatrices = meshInstances.find(mesh)->second;
+            glBindVertexArray(mesh->vao);
+            glBindBuffer(GL_ARRAY_BUFFER, mesh->ibo);
+            glBufferData(GL_ARRAY_BUFFER, worldMatrices.size() * sizeof(glm::mat4), worldMatrices.data(), GL_DYNAMIC_DRAW);
+            glDrawElementsInstanced(mesh->primitiveType, mesh->triCount * 3, GL_UNSIGNED_SHORT, 0, worldMatrices.size());
+            glBindVertexArray(0);
+        }
     }
 
+    // 2. Render shadow cubemaps for omni-directional lights
+    depthCubemapProgram.Activate();
     int auxShadows = 0;
     for (int i = 0; i < auxLightCount; ++i)
     {
@@ -396,15 +427,33 @@ void GraphicsServer::ShadowPass(float dt)
             GLenum face = GL_TEXTURE_CUBE_MAP_POSITIVE_X + f;
             glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, face, GetShadowMap(POINT_LIGHT, i), 0);
             glClear(GL_DEPTH_BUFFER_BIT);
-            depthCubemapProgram.Activate();
             depthCubemapProgram.SetUniform(std::string("LightPosition"), l->position);
             depthCubemapProgram.SetUniform(std::string("ProjectionView"), l->GetProjectionMatrix(0) * l->GetViewMatrix(face));
 
-            for (const auto& [name, model] : Mesh::MeshList)
+            for (const auto& [name, mesh] : Mesh::MeshList)
             {
-                if (meshInstances.count(model) == 0)
+                if (meshInstances.count(mesh) == 0)
                     continue;
-                model->Render(depthCubemapProgram, meshInstances.find(model)->second);
+
+                if (!mesh->initialized)
+                    throw std::runtime_error(fmt::format("Mesh {} is uninitialized!", name));
+
+                glEnable(GL_DEPTH_TEST);
+                glDepthFunc(GL_LESS);
+
+                if (mesh->cullFaceEnabled)
+                    glEnable(GL_CULL_FACE);
+                else
+                    glDisable(GL_CULL_FACE);
+
+                if (mesh->type == MeshType::MESH_TERRAIN) {
+                    const std::vector<glm::mat4>& worldMatrices = meshInstances.find(mesh)->second;
+                    glBindVertexArray(mesh->vao);
+                    glBindBuffer(GL_ARRAY_BUFFER, mesh->ibo);
+                    glBufferData(GL_ARRAY_BUFFER, worldMatrices.size() * sizeof(glm::mat4), worldMatrices.data(), GL_DYNAMIC_DRAW);
+                    glDrawElementsInstanced(mesh->primitiveType, mesh->triCount * 3, GL_UNSIGNED_SHORT, 0, worldMatrices.size());
+                    glBindVertexArray(0);
+                }
             }
         }
     }
@@ -434,44 +483,163 @@ void GraphicsServer::ColorPass(float dt)
 
     glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    colorProgram.Activate();
-    glm::mat4 cameraTransform = cameras[0]->gameObject->GetModelWorldTransform();
-    glm::vec3 eyePos = cameras[0]->GetEye(cameraTransform);
-    colorProgram.SetUniform(std::string("cam_pos"), eyePos);
-    colorProgram.SetUniform(std::string("time"), 0);
-    colorProgram.SetUniform(std::string("main_light.direction"), lights[0]->direction);
-    colorProgram.SetUniform(std::string("main_light.ambient"), lights[0]->ambient);
-    colorProgram.SetUniform(std::string("main_light.diffuse"), lights[0]->diffuse);
-    colorProgram.SetUniform(std::string("main_light.specular"), lights[0]->specular);
-    colorProgram.SetUniform(std::string("main_light.intensity"), lights[0]->intensity);
-    colorProgram.SetUniform(std::string("main_light.cast_shadow"), lights[0]->castShadow);
-    colorProgram.SetUniform(std::string("main_light.ProjectionView"), lights[0]->GetProjectionViewMatrix(0));
-    for (int i = 0; i < auxLightCount; ++i)
-    {
-        Light* l = lights[i + mainLightCount];
-        colorProgram.SetUniform(std::string("aux_lights[") + std::to_string(i) + std::string("].position"), l->position);
-        colorProgram.SetUniform(std::string("aux_lights[") + std::to_string(i) + std::string("].ambient"), l->ambient);
-        colorProgram.SetUniform(std::string("aux_lights[") + std::to_string(i) + std::string("].diffuse"), l->diffuse);
-        colorProgram.SetUniform(std::string("aux_lights[") + std::to_string(i) + std::string("].specular"), l->specular);
-        colorProgram.SetUniform(std::string("aux_lights[") + std::to_string(i) + std::string("].attenuation"), l->attenuation);
-        colorProgram.SetUniform(std::string("aux_lights[") + std::to_string(i) + std::string("].intensity"), l->intensity);
-        colorProgram.SetUniform(std::string("aux_lights[") + std::to_string(i) + std::string("].cast_shadow"), l->castShadow);
-        for (int f = 0; f < 6; ++f)
-        {
-            GLenum face = GL_TEXTURE_CUBE_MAP_POSITIVE_X + f;
-            colorProgram.SetUniform(std::string("aux_lights[") + std::to_string(i) + std::string("].ProjectionViews[") + std::to_string(f) + std::string("]"), l->GetProjectionViewMatrix(0, face));
-        }
-    }
-    colorProgram.SetUniform(std::string("aux_light_count"), auxLightCount);
-    colorProgram.SetUniform(std::string("shadow_map_unit"), (int)0);
-    colorProgram.SetUniform(std::string("omni_shadow_map_unit"), (int)1);
-    colorProgram.SetUniform(std::string("ProjectionView"), cameras[0]->GetProjectionMatrix() * cameras[0]->GetViewMatrix(cameraTransform));
 
-    for (const auto& [name, model] : Mesh::MeshList)
+    for (const auto& [name, mesh] : Mesh::MeshList)
     {
-        if (meshInstances.count(model) == 0)
+        if (meshInstances.count(mesh) == 0)
             continue;
-        model->Render(colorProgram, meshInstances.find(model)->second);
+
+        if (!mesh->initialized)
+            throw std::runtime_error(fmt::format("Mesh {} is uninitialized!", name));
+
+        glEnable(GL_DEPTH_TEST);
+        glDepthFunc(GL_LESS);
+
+        // glEnable(GL_STENCIL_TEST);
+        // glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+        // glStencilFunc(GL_ALWAYS, 1, 0xFF);
+
+        // Outline rendering
+        // glStencilMask(0xFF);
+        // glStencilFunc(GL_ALWAYS, 1, 0xFF);
+        // /*
+        // pass 1
+        // ...
+        //  */
+        // glStencilMask(0x00);
+        // glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
+        // glDepthFunc(GL_ALWAYS);
+        // /*
+        // pass 2 (scaled)
+        // ...
+        //  */
+        // glDepthFunc(GL_LESS);
+
+        // glStencilMask(0xFF);
+        // glStencilFunc(GL_ALWAYS, 1, 0xFF);
+
+        if (wireframeEnabled || mesh->polygonMode == GL_LINE)
+            glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        else
+            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+
+        if (mesh->cullFaceEnabled)
+            glEnable(GL_CULL_FACE);
+        else
+            glDisable(GL_CULL_FACE);
+
+        glEnable(GL_PRIMITIVE_RESTART);
+
+        glm::mat4 cameraTransform = cameras[0]->gameObject->GetModelWorldTransform();
+        glm::vec3 eyePos = cameras[0]->GetEye(cameraTransform);
+        glm::mat4 projectionView = cameras[0]->GetProjectionMatrix() * cameras[0]->GetViewMatrix(cameraTransform);
+        switch (mesh->type) {
+
+        case MeshType::MESH_TERRAIN:
+            terrainProgram.Activate();
+            terrainProgram.SetUniform(std::string("cam_pos"), eyePos);
+            terrainProgram.SetUniform(std::string("main_light.direction"), lights[0]->direction);
+            terrainProgram.SetUniform(std::string("main_light.ambient"), lights[0]->ambient);
+            terrainProgram.SetUniform(std::string("main_light.diffuse"), lights[0]->diffuse);
+            terrainProgram.SetUniform(std::string("main_light.specular"), lights[0]->specular);
+            terrainProgram.SetUniform(std::string("main_light.intensity"), lights[0]->intensity);
+            terrainProgram.SetUniform(std::string("main_light.cast_shadow"), lights[0]->castShadow);
+            terrainProgram.SetUniform(std::string("main_light.ProjectionView"), lights[0]->GetProjectionViewMatrix(0));
+
+            colorProgram.SetUniform(std::string("surf_params.diffuse"), mesh->material->diffuse);
+            colorProgram.SetUniform(std::string("surf_params.specular"), mesh->material->specular);
+            colorProgram.SetUniform(std::string("surf_params.ambient"), mesh->material->ambient);
+            colorProgram.SetUniform(std::string("surf_params.shininess"), mesh->material->shininess);
+
+            terrainProgram.SetUniform(std::string("tessellation_factor"), (float)16.0);
+            terrainProgram.SetUniform(std::string("height_scale"), (float)32.0);
+            terrainProgram.SetUniform(std::string("height_map_unit"), NUM_MAP_UNITS + mesh->material->heightMap);
+            terrainProgram.SetUniform(std::string("ProjectionView"), projectionView);
+            terrainProgram.SetUniform(std::string("World"), meshInstances.find(mesh)->second[0]);
+
+            glBindVertexArray(mesh->vao);
+            glDrawArrays(GL_PATCHES, 0, mesh->vertCount);
+            glBindVertexArray(0);
+            break;
+
+        case MeshType::MESH_SKY:
+            // TODO: implement skybox rendering
+            break;
+
+        case MeshType::MESH_PRIM:
+        default:
+            colorProgram.Activate();
+            colorProgram.SetUniform(std::string("cam_pos"), eyePos);
+            colorProgram.SetUniform(std::string("time"), 0);
+            colorProgram.SetUniform(std::string("main_light.direction"), lights[0]->direction);
+            colorProgram.SetUniform(std::string("main_light.ambient"), lights[0]->ambient);
+            colorProgram.SetUniform(std::string("main_light.diffuse"), lights[0]->diffuse);
+            colorProgram.SetUniform(std::string("main_light.specular"), lights[0]->specular);
+            colorProgram.SetUniform(std::string("main_light.intensity"), lights[0]->intensity);
+            colorProgram.SetUniform(std::string("main_light.cast_shadow"), lights[0]->castShadow);
+            colorProgram.SetUniform(std::string("main_light.ProjectionView"), lights[0]->GetProjectionViewMatrix(0));
+            for (int i = 0; i < auxLightCount; ++i)
+            {
+                Light* l = lights[i + mainLightCount];
+                colorProgram.SetUniform(std::string("aux_lights[") + std::to_string(i) + std::string("].position"), l->position);
+                colorProgram.SetUniform(std::string("aux_lights[") + std::to_string(i) + std::string("].ambient"), l->ambient);
+                colorProgram.SetUniform(std::string("aux_lights[") + std::to_string(i) + std::string("].diffuse"), l->diffuse);
+                colorProgram.SetUniform(std::string("aux_lights[") + std::to_string(i) + std::string("].specular"), l->specular);
+                colorProgram.SetUniform(std::string("aux_lights[") + std::to_string(i) + std::string("].attenuation"), l->attenuation);
+                colorProgram.SetUniform(std::string("aux_lights[") + std::to_string(i) + std::string("].intensity"), l->intensity);
+                colorProgram.SetUniform(std::string("aux_lights[") + std::to_string(i) + std::string("].cast_shadow"), l->castShadow);
+                for (int f = 0; f < 6; ++f)
+                {
+                    GLenum face = GL_TEXTURE_CUBE_MAP_POSITIVE_X + f;
+                    colorProgram.SetUniform(std::string("aux_lights[") + std::to_string(i) + std::string("].ProjectionViews[") + std::to_string(f) + std::string("]"), l->GetProjectionViewMatrix(0, face));
+                }
+            }
+            colorProgram.SetUniform(std::string("aux_light_count"), auxLightCount);
+            colorProgram.SetUniform(std::string("shadow_map_unit"), (int)0);
+            colorProgram.SetUniform(std::string("omni_shadow_map_unit"), (int)1);
+            colorProgram.SetUniform(std::string("ProjectionView"), projectionView);
+            // Surface parameters
+            colorProgram.SetUniform(std::string("surf_params.diffuse"), mesh->material->diffuse);
+            colorProgram.SetUniform(std::string("surf_params.specular"), mesh->material->specular);
+            colorProgram.SetUniform(std::string("surf_params.ambient"), mesh->material->ambient);
+            colorProgram.SetUniform(std::string("surf_params.shininess"), mesh->material->shininess);
+
+            // Material textures
+            if (mesh->material->baseMap >= 0) {
+                colorProgram.SetUniform(std::string("base_map_unit"), NUM_MAP_UNITS + mesh->material->baseMap);
+            } else {
+                colorProgram.SetUniform(std::string("base_map_unit"), NUM_MAP_UNITS + 0);
+            }
+            if (mesh->material->normalMap >= 0) {
+                colorProgram.SetUniform(std::string("normal_map_unit"), NUM_MAP_UNITS + mesh->material->normalMap);
+            } else {
+                colorProgram.SetUniform(std::string("normal_map_unit"), NUM_MAP_UNITS + 1);
+            }
+            if (mesh->material->aoMap >= 0) {
+                colorProgram.SetUniform(std::string("ao_map_unit"), NUM_MAP_UNITS + mesh->material->aoMap);
+            } else {
+                colorProgram.SetUniform(std::string("ao_map_unit"), NUM_MAP_UNITS + 2);
+            }
+            if (mesh->material->roughnessMap >= 0) {
+                colorProgram.SetUniform(std::string("roughness_map_unit"), NUM_MAP_UNITS + mesh->material->roughnessMap);
+            } else {
+                colorProgram.SetUniform(std::string("roughness_map_unit"), NUM_MAP_UNITS + 3);
+            }
+            if (mesh->material->metallicMap >= 0) {
+                colorProgram.SetUniform(std::string("metallic_map_unit"), NUM_MAP_UNITS + mesh->material->metallicMap);
+            } else {
+                colorProgram.SetUniform(std::string("metallic_map_unit"), NUM_MAP_UNITS + 4);
+            }
+
+            const std::vector<glm::mat4>& worldMatrices = meshInstances.find(mesh)->second;
+            glBindVertexArray(mesh->vao);
+            glBindBuffer(GL_ARRAY_BUFFER, mesh->ibo);
+            glBufferData(GL_ARRAY_BUFFER, worldMatrices.size() * sizeof(glm::mat4), worldMatrices.data(), GL_DYNAMIC_DRAW);
+            glDrawElementsInstanced(mesh->primitiveType, mesh->triCount * 3, GL_UNSIGNED_SHORT, 0, worldMatrices.size());
+            glBindVertexArray(0);
+
+            break;
+        }
     }
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -479,15 +647,23 @@ void GraphicsServer::ColorPass(float dt)
 
 void GraphicsServer::MSAAPass(float dt)
 {
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+
     auto size = this->_app->GetWindow()->GetSize();
 
     glBindFramebuffer(GL_READ_FRAMEBUFFER, hdrFBO);
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, msaaFBO);
+    if (postProcessEnabled) {
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, msaaFBO);
+    } else {
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+    }
     glBlitFramebuffer(0, 0, size.x, size.y, 0, 0, size.x, size.y, GL_COLOR_BUFFER_BIT, GL_NEAREST);
 }
 
 void GraphicsServer::PostProcessPass(float dt)
 {
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+
     auto size = this->_app->GetWindow()->GetSize();
 
     glViewport(0, 0, size.x, size.y);

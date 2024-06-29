@@ -63,8 +63,37 @@ Mesh::~Mesh()
     //delete collisionShape; // FIXME: Should delete collisionShape somewhere else before the pointer is out of scope
 }
 
-void Mesh::Initialize(const std::vector<Vertex>& verts, const std::vector<uint16_t>& tris)
+// Terrain mesh initialization
+void Mesh::Initialize(MeshType type, const std::vector<Vertex>& verts)
 {
+    this->type = type;
+
+    glBindVertexArray(vao);
+
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    glBufferData(GL_ARRAY_BUFFER, verts.size() * sizeof(Vertex), verts.data(), GL_STATIC_DRAW);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)0);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)(3 * sizeof(float)));
+    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)(5 * sizeof(float)));
+    glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)(8 * sizeof(float)));
+    glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)(11 * sizeof(float)));
+    glEnableVertexAttribArray(0);
+    glEnableVertexAttribArray(1);
+    glEnableVertexAttribArray(2);
+    glEnableVertexAttribArray(3);
+    glEnableVertexAttribArray(4);
+
+    glBindVertexArray(0);
+
+    this->vertCount = verts.size();
+    this->triCount = 0;
+    this->initialized = true;
+}
+
+void Mesh::Initialize(MeshType type, const std::vector<Vertex>& verts, const std::vector<uint16_t>& tris)
+{
+    this->type = type;
+
     // Buffer binding reference: https://stackoverflow.com/questions/17332657/does-a-vao-remember-both-a-ebo-ibo-elements-or-indices-and-a-vbo
     glBindVertexArray(vao);
 
@@ -101,88 +130,7 @@ void Mesh::Initialize(const std::vector<Vertex>& verts, const std::vector<uint16
 
     this->vertCount = verts.size();
     this->triCount = tris.size() / 3;
-    this->_initialized = true;
-}
-
-void Mesh::Render(ShaderProgram& program, const std::vector<glm::mat4>& worldMatrices) const
-{
-    if (!_initialized)
-        throw std::runtime_error("Buffer object contains no data");
-
-    glEnable(GL_PRIMITIVE_RESTART);
-    if (cullFaceEnabled)
-        glEnable(GL_CULL_FACE);
-    else
-        glDisable(GL_CULL_FACE);
-    glEnable(GL_DEPTH_TEST);
-    //glEnable(GL_STENCIL_TEST);
-    glDepthFunc(GL_LESS);
-    //glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
-    //glStencilFunc(GL_ALWAYS, 1, 0xFF);
-    glPolygonMode(GL_FRONT_AND_BACK, drawMode);
-
-    // Surface parameters
-    program.SetUniform(std::string("surf_params.diffuse"), material->diffuse);
-    program.SetUniform(std::string("surf_params.specular"), material->specular);
-    program.SetUniform(std::string("surf_params.ambient"), material->ambient);
-    program.SetUniform(std::string("surf_params.shininess"), material->shininess);
-
-    // Material textures
-    if (material->baseMap >= 0) {
-        program.SetUniform(std::string("base_map_unit"), NUM_MAP_UNITS + material->baseMap);
-    } else {
-        program.SetUniform(std::string("base_map_unit"), NUM_MAP_UNITS + 0);
-    }
-    if (material->normalMap >= 0) {
-        program.SetUniform(std::string("normal_map_unit"), NUM_MAP_UNITS + material->normalMap);
-    } else {
-        program.SetUniform(std::string("normal_map_unit"), NUM_MAP_UNITS + 1);
-    }
-    if (material->aoMap >= 0) {
-        program.SetUniform(std::string("ao_map_unit"), NUM_MAP_UNITS + material->aoMap);
-    } else {
-        program.SetUniform(std::string("ao_map_unit"), NUM_MAP_UNITS + 2);
-    }
-    if (material->roughnessMap >= 0) {
-        program.SetUniform(std::string("roughness_map_unit"), NUM_MAP_UNITS + material->roughnessMap);
-    } else {
-        program.SetUniform(std::string("roughness_map_unit"), NUM_MAP_UNITS + 3);
-    }
-    if (material->metallicMap >= 0) {
-        program.SetUniform(std::string("metallic_map_unit"), NUM_MAP_UNITS + material->metallicMap);
-    } else {
-        program.SetUniform(std::string("metallic_map_unit"), NUM_MAP_UNITS + 4);
-    }
-
-    glBindVertexArray(vao);
-    glBindBuffer(GL_ARRAY_BUFFER, ibo);
-    glBufferData(GL_ARRAY_BUFFER, worldMatrices.size() * sizeof(glm::mat4), worldMatrices.data(), GL_STATIC_DRAW);
-    glDrawElementsInstanced(primitiveType, triCount * 3, GL_UNSIGNED_SHORT, 0, worldMatrices.size());
-    glBindVertexArray(0);
-}
-
-void Mesh::Render(ShaderProgram& program, const std::vector<glm::mat4>& worldMatrices, float outline) const
-{
-    if (!_initialized)
-        throw std::runtime_error("Buffer object contains no data");
-
-    glStencilMask(0xFF);
-    glStencilFunc(GL_ALWAYS, 1, 0xFF);
-    /*
-    pass 1
-    ...
-     */
-    glStencilMask(0x00);
-    glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
-    glDepthFunc(GL_ALWAYS);
-    /*
-    pass 2 (scaled)
-    ...
-     */
-    glDepthFunc(GL_LESS);
-
-    glStencilMask(0xFF);
-    glStencilFunc(GL_ALWAYS, 1, 0xFF);
+    this->initialized = true;
 }
 
 Mesh* Mesh::CreateCube(const float& size)
@@ -239,7 +187,7 @@ Mesh* Mesh::CreateCube(const float& size)
     CalculateNormalsAndTangents(verts, tris);
 
     auto cube = new Mesh();
-    cube->Initialize(verts, tris);
+    cube->Initialize(MeshType::MESH_PRIM, verts, tris);
 
     cube->bounds[0] = glm::vec3(.5f * size, .5f * size, .5f * size);
     cube->bounds[1] = glm::vec3(-.5f * size, .5f * size, .5f * size);
@@ -317,7 +265,7 @@ Mesh* Mesh::CreateSphere(const float& radius, const int& division)
     CalculateNormalsAndTangents(verts, tris);
 
     auto sphere = new Mesh();
-    sphere->Initialize(verts, tris);
+    sphere->Initialize(MeshType::MESH_PRIM, verts, tris);
 
     sphere->bounds[0] = glm::vec3(radius, radius, radius);
     sphere->bounds[1] = glm::vec3(-radius, radius, radius);
@@ -332,44 +280,57 @@ Mesh* Mesh::CreateSphere(const float& radius, const int& division)
 }
 
 // TODO: make sure the uvs are correct
-Mesh* Mesh::CreateTerrain(const float& size, const int& vnum, const std::vector<float>& heightmap)
+// resolution: number of quads along each side of the terrain
+Mesh* Mesh::CreateTerrain(const float& worldSize, const int& resolution)
 {
     std::vector<Vertex> verts;
-    std::vector<uint16_t> tris;
+    verts.resize(resolution * resolution * 4);
 
-    verts.resize(vnum * vnum);
-    float c_size = size / float(vnum - 1);
-    for (int i = 0; i < vnum; i++) {
-        for (int j = 0; j < vnum; j++) {
-            float x = -.5f * size + j * c_size;
-            float y = heightmap[(i * vnum + j)];
-            float z = -.5f * size + i * c_size;
-            verts[(i * vnum + j)].position = glm::vec3(x, y, z);
-            verts[(i * vnum + j)].normal = glm::vec3(0.0f, 1.0f, 0.0f); // glm::vec3(2 * float(i)/float(vnum), 2 * float(j)/float(vnum), 0.8)
-            verts[(i * vnum + j)].uv = glm::vec2((float)(i % 2), (float)(j % 2));
+    // resolution = 3
+    // |-------|-------|-------|   X
+    // |       |       |       |
+    // |   p0  |   p1  |   p2  |
+    // |-------|-------|-------|
+    // |       |       |       |
+    // |   p3  |       |       |
+    // |-------|-------|-------|
+    // |       |       |       |
+    // |       |       |       |
+    // |-------|-------|-------|
+    //
+    // Z
+
+    float halfWorldSize = worldSize / 2.f;
+    float patchSize = worldSize / float(resolution);
+    for (int row = 0; row < resolution; row++) {
+        for (int col = 0; col < resolution; col++) {
+            int patchIndex = row * resolution + col;
+
+            verts[patchIndex * 4 + 0].position = glm::vec3(-halfWorldSize + (col + 0) * patchSize, 0.f, -halfWorldSize + (row + 0) * patchSize);
+            verts[patchIndex * 4 + 0].uv = glm::vec2((row + 0)/ (float)resolution, (col + 0) / (float)resolution);
+
+            verts[patchIndex * 4 + 1].position = glm::vec3(-halfWorldSize + (col + 0) * patchSize, 0.f, -halfWorldSize + (row + 1) * patchSize);
+            verts[patchIndex * 4 + 1].uv = glm::vec2((row + 1) / (float)resolution, (col + 0) / (float)resolution);
+
+            verts[patchIndex * 4 + 2].position = glm::vec3(-halfWorldSize + (col + 1) * patchSize, 0.f, -halfWorldSize + (row + 1) * patchSize);
+            verts[patchIndex * 4 + 2].uv = glm::vec2((row + 1) / (float)resolution, (col + 1) / (float)resolution);
+
+            verts[patchIndex * 4 + 3].position = glm::vec3(-halfWorldSize + (col + 1) * patchSize, 0.f, -halfWorldSize + (row + 0) * patchSize);
+            verts[patchIndex * 4 + 3].uv = glm::vec2((row + 0) / (float)resolution, (col + 1) / (float)resolution);
         }
     }
-    tris.resize((vnum * 2 + 1) * (vnum - 1));
-    for (int i = 0; i < vnum - 1; i++) {
-        for (int j = 0; j < 2 * vnum; j++) {
-            tris[i * (2 * vnum + 1) + j] = (i + j % 2) * vnum + (j / 2);
-        }
-        tris[i * (2 * vnum + 1) + 2 * vnum] = 0xFFFF;
-    }
-    CalculateNormalsAndTangents(verts, tris);
 
     auto terrain = new Mesh();
-    terrain->Initialize(verts, tris);
-    terrain->primitiveType = GL_TRIANGLE_STRIP;
+    terrain->Initialize(MeshType::MESH_TERRAIN,verts);
 
-    terrain->bounds[0] = glm::vec3(.5f * size, .5f, .5f * size);
-    terrain->bounds[1] = glm::vec3(-.5f * size, .5f, .5f * size);
-    terrain->bounds[2] = glm::vec3(-.5f * size, -.5f, .5f * size);
-    terrain->bounds[3] = glm::vec3(.5f * size, -.5f, .5f * size);
-    terrain->bounds[4] = glm::vec3(.5f * size, .5f, .5f * size);
-    terrain->bounds[5] = glm::vec3(-.5f * size, .5f, .5f * size);
-    terrain->bounds[6] = glm::vec3(-.5f * size, -.5f, .5f * size);
-    terrain->bounds[7] = glm::vec3(.5f * size, -.5f, .5f * size);
+    terrain->bounds[0] = glm::vec3(.5f * worldSize, .5f, .5f * worldSize);
+    terrain->bounds[1] = glm::vec3(-.5f * worldSize, .5f, .5f * worldSize);
+    terrain->bounds[2] = glm::vec3(-.5f * worldSize, -.5f, .5f * worldSize);
+    terrain->bounds[3] = glm::vec3(.5f * worldSize, -.5f, .5f * worldSize);
+    terrain->bounds[4] = glm::vec3(.5f * worldSize, .5f, .5f * worldSize);
+    terrain->bounds[5] = glm::vec3(-.5f * worldSize, .5f, .5f * worldSize);
+    terrain->bounds[6] = glm::vec3(-.5f * worldSize, -.5f, .5f * worldSize);
+    terrain->bounds[7] = glm::vec3(.5f * worldSize, -.5f, .5f * worldSize);
 
     return terrain;
 }

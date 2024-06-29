@@ -74,6 +74,7 @@ void Application::Run()
     graphics.colorProgram = ShaderProgram(shaderTable["color"]["vert"], shaderTable["color"]["frag"]);
     graphics.depthTextureProgram = ShaderProgram(shaderTable["depth"]["vert"], shaderTable["depth"]["frag"]);
     graphics.depthCubemapProgram = ShaderProgram(shaderTable["depth_cubemap"]["vert"], shaderTable["depth_cubemap"]["frag"]);
+    graphics.terrainProgram = ShaderProgram(shaderTable["terrain"]["vert"], shaderTable["terrain"]["frag"], shaderTable["terrain"]["tesc"], shaderTable["terrain"]["tese"]);
     graphics.hdrProgram = ShaderProgram(shaderTable["hdr"]["vert"], shaderTable["hdr"]["frag"]);
     script.Print("Shaders initialized.");
 

@@ -7,4 +7,6 @@
 - 2024/06/27 - implemented normal mapping (normals flipped)
 - 2024/06/28 - fixed flipped normals
 - 2024/06/28 - it turns out that the bottleneck is light calculation; turning aux lights off can make the game run at a reasonable speed
+- 2024/06/29 - using high frequency image (such as brown_mud_leaves_norm_gl.jpg) as a height map can generate an interesting effect
+- 2024/06/30 - implemented a tessellated terrain
 - TODO: use std::filesystem to get the correct asset loading path

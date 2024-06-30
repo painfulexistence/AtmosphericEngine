@@ -13,9 +13,10 @@ layout(location = 0) in vec2 tesc_uv[];
 out vec2 tese_uv[];
 
 
-float cameraDistanceTessFactor(vec4 p)
+float cameraDistanceTessFactor(vec4 p0, vec4 p1)
 {
-	return clamp(30.0 / distance(cam_pos, p.xyz) * tessellation_factor, 1.0, 32.0);
+	vec3 mid_point = (p0.xyz + p1.xyz) / 2.0;
+	return clamp(30.0 / distance(cam_pos, mid_point) * tessellation_factor, 1.0, 32.0);
 }
 
 void main()
@@ -24,10 +25,10 @@ void main()
 	{
 		if (tessellation_factor > 0.0)
 		{
-			gl_TessLevelOuter[0] = cameraDistanceTessFactor(gl_in[0].gl_Position);
-			gl_TessLevelOuter[1] = cameraDistanceTessFactor(gl_in[1].gl_Position);
-			gl_TessLevelOuter[2] = cameraDistanceTessFactor(gl_in[2].gl_Position);
-			gl_TessLevelOuter[3] = cameraDistanceTessFactor(gl_in[3].gl_Position);
+			gl_TessLevelOuter[0] = cameraDistanceTessFactor(gl_in[0].gl_Position, gl_in[3].gl_Position);
+			gl_TessLevelOuter[1] = cameraDistanceTessFactor(gl_in[1].gl_Position, gl_in[0].gl_Position);
+			gl_TessLevelOuter[2] = cameraDistanceTessFactor(gl_in[2].gl_Position, gl_in[1].gl_Position);
+			gl_TessLevelOuter[3] = cameraDistanceTessFactor(gl_in[3].gl_Position, gl_in[2].gl_Position);
 			gl_TessLevelInner[0] = mix(gl_TessLevelOuter[0], gl_TessLevelOuter[3], 0.5);
 			gl_TessLevelInner[1] = mix(gl_TessLevelOuter[2], gl_TessLevelOuter[1], 0.5);
 		}

@@ -5,7 +5,7 @@ uniform mat4 World;
 uniform float height_scale;
 uniform sampler2D height_map_unit;
 
-layout(quads, equal_spacing, ccw) in;
+layout(quads, fractional_odd_spacing, ccw) in;
 
 layout(location = 0) in vec2 tese_uv[];
 

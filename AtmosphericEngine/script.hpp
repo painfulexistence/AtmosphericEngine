@@ -8,7 +8,15 @@
 
 class Script : public Server
 {
+private:
+    static Script* _instance;
+
 public:
+    static Script* Get()
+    {
+        return _instance;
+    }
+
     Script();
 
     ~Script();

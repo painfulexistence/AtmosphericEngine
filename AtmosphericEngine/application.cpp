@@ -70,11 +70,12 @@ void Application::Run()
     script.Print("Textures loaded.");
 
     const sol::table shaderTable = scene["shaders"];
-    graphics.colorProgram = ShaderProgram(shaderTable["color"]["vert"], shaderTable["color"]["frag"]);
-    graphics.depthTextureProgram = ShaderProgram(shaderTable["depth"]["vert"], shaderTable["depth"]["frag"]);
-    graphics.depthCubemapProgram = ShaderProgram(shaderTable["depth_cubemap"]["vert"], shaderTable["depth_cubemap"]["frag"]);
-    graphics.terrainProgram = ShaderProgram(shaderTable["terrain"]["vert"], shaderTable["terrain"]["frag"], shaderTable["terrain"]["tesc"], shaderTable["terrain"]["tese"]);
-    graphics.hdrProgram = ShaderProgram(shaderTable["hdr"]["vert"], shaderTable["hdr"]["frag"]);
+    graphics.LoadColorShader(ShaderProgram(shaderTable["color"]["vert"], shaderTable["color"]["frag"]));
+    graphics.LoadDebugShader(ShaderProgram(shaderTable["debug_line"]["vert"], shaderTable["debug_line"]["frag"]));
+    graphics.LoadDepthShader(ShaderProgram(shaderTable["depth"]["vert"], shaderTable["depth"]["frag"]));
+    graphics.LoadDepthCubemapShader(ShaderProgram(shaderTable["depth_cubemap"]["vert"], shaderTable["depth_cubemap"]["frag"]));
+    graphics.LoadTerrainShader(ShaderProgram(shaderTable["terrain"]["vert"], shaderTable["terrain"]["frag"], shaderTable["terrain"]["tesc"], shaderTable["terrain"]["tese"]));
+    graphics.LoadPostProcessShader(ShaderProgram(shaderTable["hdr"]["vert"], shaderTable["hdr"]["frag"]));
     script.Print("Shaders initialized.");
 
     const sol::table materialTable = scene["materials"];
@@ -184,7 +185,6 @@ void Application::Render(const FrameProps& props)
     // Note that draw calls are asynchronous, which means they return immediately.
     // So the drawing time can only be calculated along with the image presenting.
     graphics.Render(dt);
-    // physics.RenderDebug();
     graphics.RenderUI(dt);
 
     ImGui::Render();

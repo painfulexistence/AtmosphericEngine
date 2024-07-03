@@ -42,6 +42,11 @@ struct WindowProps
 class Window
 {
 public:
+    static Window* Get()
+    {
+        return _instance;
+    }
+
     static std::map<Window*, OnMouseMoveCallback> onMouseMoveCallbacks;
 
     static std::map<Window*, OnMouseEnterCallback> onMouseEnterCallbacks;
@@ -113,5 +118,7 @@ public:
     bool IsClosing();
 
 private:
+    static Window* _instance;
+
     GLFWwindow* _glfwWindow = nullptr;
 };

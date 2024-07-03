@@ -1,8 +1,10 @@
 #include "graphics_server.hpp"
 #define STB_IMAGE_IMPLEMENTATION
-#include <stb_image.h>
+#include "stb_image.h"
 #include "game_object.hpp"
 #include "application.hpp"
+
+#include <cstddef>
 
 void CheckFramebufferStatus(const char* errorPrefix) {
     auto status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
@@ -31,9 +33,14 @@ void CheckFramebufferStatus(const char* errorPrefix) {
     }
 }
 
+GraphicsServer* GraphicsServer::_instance = nullptr;
+
 GraphicsServer::GraphicsServer()
 {
+    if (_instance != nullptr)
+        throw std::runtime_error("GraphicsServer is already initialized!");
 
+    _instance = this;
 }
 
 GraphicsServer::~GraphicsServer()
@@ -41,6 +48,11 @@ GraphicsServer::~GraphicsServer()
     for (auto& mat : materials)
         delete mat;
     glDeleteTextures(textures.size(), textures.data());
+
+    glDeleteVertexArrays(1, &debugVAO);
+    glDeleteBuffers(1, &debugVBO);
+    glDeleteBuffers(1, &screenVAO);
+    glDeleteBuffers(1, &screenVBO);
 }
 
 void GraphicsServer::Init(Application* app)
@@ -65,19 +77,20 @@ void GraphicsServer::Init(Application* app)
     glEnable(GL_MULTISAMPLE);
     #endif
 
-    auto window = this->_app->GetWindow();
-
+    auto window = Window::Get();
     auto size = window->GetSize();
-    this->CreateRenderTargets(RenderTargetProps(size.x, size.y));
-    this->CreateScreenVAO();
+    CreateRenderTargets(RenderTargetProps(size.x, size.y));
 
     window->SetOnResize([this, window](int width, int height) {
         if (window->IsClosing())
             return;
-        this->UpdateRenderTargets(RenderTargetProps(width, height));
+        UpdateRenderTargets(RenderTargetProps(width, height));
     });
 
+    CreateDebugVAO();
+    CreateScreenVAO();
 
+    debugLines.reserve(4096);
 }
 
 void GraphicsServer::Process(float dt)
@@ -100,6 +113,7 @@ void GraphicsServer::Render(float dt)
 
     ShadowPass(dt);
     ColorPass(dt);
+    DebugPass(dt);
     MSAAPass(dt);
     if (postProcessEnabled)
     {
@@ -192,6 +206,41 @@ void GraphicsServer::LoadTextures(const std::vector<std::string>& paths)
         }
         stbi_image_free(data);
     }
+}
+
+void GraphicsServer::LoadDepthShader(const ShaderProgram& program)
+{
+    depthShader = program;
+}
+
+void GraphicsServer::LoadDepthCubemapShader(const ShaderProgram& program)
+{
+    depthCubemapShader = program;
+}
+
+void GraphicsServer::LoadColorShader(const ShaderProgram& program)
+{
+    colorShader = program;
+}
+
+void GraphicsServer::LoadDebugShader(const ShaderProgram& program)
+{
+    debugShader = program;
+}
+
+void GraphicsServer::LoadTerrainShader(const ShaderProgram& program)
+{
+    terrainShader = program;
+}
+
+void GraphicsServer::LoadPostProcessShader(const ShaderProgram& program)
+{
+    postProcessShader = program;
+}
+
+void GraphicsServer::ReloadShaders()
+{
+    // TODO: reload shaders
 }
 
 void GraphicsServer::CheckErrors()
@@ -347,6 +396,20 @@ void GraphicsServer::UpdateRenderTargets(const RenderTargetProps& props)
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
+void GraphicsServer::CreateDebugVAO()
+{
+    glGenVertexArrays(1, &debugVAO);
+    glGenBuffers(1, &debugVBO);
+
+    glBindVertexArray(debugVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, debugVBO);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(DebugVertex), (void*)0);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(DebugVertex), (void*)offsetof(DebugVertex, color));
+    glEnableVertexAttribArray(0);
+    glEnableVertexAttribArray(1);
+    glBindVertexArray(0);
+}
+
 void GraphicsServer::CreateScreenVAO()
 {
     std::vector<GLfloat> verts = {
@@ -377,8 +440,8 @@ void GraphicsServer::ShadowPass(float dt)
     // 1. Render shadow map for directional light
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, GetShadowMap(DIR_LIGHT, 0), 0);
     glClear(GL_DEPTH_BUFFER_BIT);
-    depthTextureProgram.Activate();
-    depthTextureProgram.SetUniform(std::string("ProjectionView"), lights[0]->GetProjectionMatrix(0) * lights[0]->GetViewMatrix());
+    depthShader.Activate();
+    depthShader.SetUniform(std::string("ProjectionView"), lights[0]->GetProjectionMatrix(0) * lights[0]->GetViewMatrix());
 
     for (const auto& [name, mesh] : Mesh::MeshList)
     {
@@ -407,7 +470,7 @@ void GraphicsServer::ShadowPass(float dt)
     }
 
     // 2. Render shadow cubemaps for omni-directional lights
-    depthCubemapProgram.Activate();
+    depthCubemapShader.Activate();
     int auxShadows = 0;
     for (int i = 0; i < auxLightCount; ++i)
     {
@@ -422,8 +485,8 @@ void GraphicsServer::ShadowPass(float dt)
             GLenum face = GL_TEXTURE_CUBE_MAP_POSITIVE_X + f;
             glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, face, GetShadowMap(POINT_LIGHT, i), 0);
             glClear(GL_DEPTH_BUFFER_BIT);
-            depthCubemapProgram.SetUniform(std::string("LightPosition"), l->position);
-            depthCubemapProgram.SetUniform(std::string("ProjectionView"), l->GetProjectionMatrix(0) * l->GetViewMatrix(face));
+            depthCubemapShader.SetUniform(std::string("LightPosition"), l->position);
+            depthCubemapShader.SetUniform(std::string("ProjectionView"), l->GetProjectionMatrix(0) * l->GetViewMatrix(face));
 
             for (const auto& [name, mesh] : Mesh::MeshList)
             {
@@ -452,13 +515,11 @@ void GraphicsServer::ShadowPass(float dt)
             }
         }
     }
-
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
 void GraphicsServer::ColorPass(float dt)
 {
-    auto size = this->_app->GetWindow()->GetSize();
+    auto size = Window::Get()->GetSize();
 
     glViewport(0, 0, size.x, size.y);
     glBindFramebuffer(GL_FRAMEBUFFER, hdrFBO);
@@ -531,26 +592,26 @@ void GraphicsServer::ColorPass(float dt)
         switch (mesh->type) {
 
         case MeshType::MESH_TERRAIN:
-            terrainProgram.Activate();
-            terrainProgram.SetUniform(std::string("cam_pos"), eyePos);
-            terrainProgram.SetUniform(std::string("main_light.direction"), lights[0]->direction);
-            terrainProgram.SetUniform(std::string("main_light.ambient"), lights[0]->ambient);
-            terrainProgram.SetUniform(std::string("main_light.diffuse"), lights[0]->diffuse);
-            terrainProgram.SetUniform(std::string("main_light.specular"), lights[0]->specular);
-            terrainProgram.SetUniform(std::string("main_light.intensity"), lights[0]->intensity);
-            terrainProgram.SetUniform(std::string("main_light.cast_shadow"), lights[0]->castShadow);
-            terrainProgram.SetUniform(std::string("main_light.ProjectionView"), lights[0]->GetProjectionViewMatrix(0));
+            terrainShader.Activate();
+            terrainShader.SetUniform(std::string("cam_pos"), eyePos);
+            terrainShader.SetUniform(std::string("main_light.direction"), lights[0]->direction);
+            terrainShader.SetUniform(std::string("main_light.ambient"), lights[0]->ambient);
+            terrainShader.SetUniform(std::string("main_light.diffuse"), lights[0]->diffuse);
+            terrainShader.SetUniform(std::string("main_light.specular"), lights[0]->specular);
+            terrainShader.SetUniform(std::string("main_light.intensity"), lights[0]->intensity);
+            terrainShader.SetUniform(std::string("main_light.cast_shadow"), lights[0]->castShadow);
+            terrainShader.SetUniform(std::string("main_light.ProjectionView"), lights[0]->GetProjectionViewMatrix(0));
 
-            colorProgram.SetUniform(std::string("surf_params.diffuse"), mesh->material->diffuse);
-            colorProgram.SetUniform(std::string("surf_params.specular"), mesh->material->specular);
-            colorProgram.SetUniform(std::string("surf_params.ambient"), mesh->material->ambient);
-            colorProgram.SetUniform(std::string("surf_params.shininess"), mesh->material->shininess);
+            colorShader.SetUniform(std::string("surf_params.diffuse"), mesh->material->diffuse);
+            colorShader.SetUniform(std::string("surf_params.specular"), mesh->material->specular);
+            colorShader.SetUniform(std::string("surf_params.ambient"), mesh->material->ambient);
+            colorShader.SetUniform(std::string("surf_params.shininess"), mesh->material->shininess);
 
-            terrainProgram.SetUniform(std::string("tessellation_factor"), (float)16.0);
-            terrainProgram.SetUniform(std::string("height_scale"), (float)32.0);
-            terrainProgram.SetUniform(std::string("height_map_unit"), NUM_MAP_UNITS + mesh->material->heightMap);
-            terrainProgram.SetUniform(std::string("ProjectionView"), projectionView);
-            terrainProgram.SetUniform(std::string("World"), meshInstances.find(mesh)->second[0]);
+            terrainShader.SetUniform(std::string("tessellation_factor"), (float)16.0);
+            terrainShader.SetUniform(std::string("height_scale"), (float)32.0);
+            terrainShader.SetUniform(std::string("height_map_unit"), NUM_MAP_UNITS + mesh->material->heightMap);
+            terrainShader.SetUniform(std::string("ProjectionView"), projectionView);
+            terrainShader.SetUniform(std::string("World"), meshInstances.find(mesh)->second[0]);
 
             glBindVertexArray(mesh->vao);
             glDrawArrays(GL_PATCHES, 0, mesh->vertCount);
@@ -563,67 +624,67 @@ void GraphicsServer::ColorPass(float dt)
 
         case MeshType::MESH_PRIM:
         default:
-            colorProgram.Activate();
-            colorProgram.SetUniform(std::string("cam_pos"), eyePos);
-            colorProgram.SetUniform(std::string("time"), 0);
-            colorProgram.SetUniform(std::string("main_light.direction"), lights[0]->direction);
-            colorProgram.SetUniform(std::string("main_light.ambient"), lights[0]->ambient);
-            colorProgram.SetUniform(std::string("main_light.diffuse"), lights[0]->diffuse);
-            colorProgram.SetUniform(std::string("main_light.specular"), lights[0]->specular);
-            colorProgram.SetUniform(std::string("main_light.intensity"), lights[0]->intensity);
-            colorProgram.SetUniform(std::string("main_light.cast_shadow"), lights[0]->castShadow);
-            colorProgram.SetUniform(std::string("main_light.ProjectionView"), lights[0]->GetProjectionViewMatrix(0));
+            colorShader.Activate();
+            colorShader.SetUniform(std::string("cam_pos"), eyePos);
+            colorShader.SetUniform(std::string("time"), 0);
+            colorShader.SetUniform(std::string("main_light.direction"), lights[0]->direction);
+            colorShader.SetUniform(std::string("main_light.ambient"), lights[0]->ambient);
+            colorShader.SetUniform(std::string("main_light.diffuse"), lights[0]->diffuse);
+            colorShader.SetUniform(std::string("main_light.specular"), lights[0]->specular);
+            colorShader.SetUniform(std::string("main_light.intensity"), lights[0]->intensity);
+            colorShader.SetUniform(std::string("main_light.cast_shadow"), lights[0]->castShadow);
+            colorShader.SetUniform(std::string("main_light.ProjectionView"), lights[0]->GetProjectionViewMatrix(0));
             for (int i = 0; i < auxLightCount; ++i)
             {
                 Light* l = lights[i + mainLightCount];
-                colorProgram.SetUniform(std::string("aux_lights[") + std::to_string(i) + std::string("].position"), l->position);
-                colorProgram.SetUniform(std::string("aux_lights[") + std::to_string(i) + std::string("].ambient"), l->ambient);
-                colorProgram.SetUniform(std::string("aux_lights[") + std::to_string(i) + std::string("].diffuse"), l->diffuse);
-                colorProgram.SetUniform(std::string("aux_lights[") + std::to_string(i) + std::string("].specular"), l->specular);
-                colorProgram.SetUniform(std::string("aux_lights[") + std::to_string(i) + std::string("].attenuation"), l->attenuation);
-                colorProgram.SetUniform(std::string("aux_lights[") + std::to_string(i) + std::string("].intensity"), l->intensity);
-                colorProgram.SetUniform(std::string("aux_lights[") + std::to_string(i) + std::string("].cast_shadow"), l->castShadow);
+                colorShader.SetUniform(std::string("aux_lights[") + std::to_string(i) + std::string("].position"), l->position);
+                colorShader.SetUniform(std::string("aux_lights[") + std::to_string(i) + std::string("].ambient"), l->ambient);
+                colorShader.SetUniform(std::string("aux_lights[") + std::to_string(i) + std::string("].diffuse"), l->diffuse);
+                colorShader.SetUniform(std::string("aux_lights[") + std::to_string(i) + std::string("].specular"), l->specular);
+                colorShader.SetUniform(std::string("aux_lights[") + std::to_string(i) + std::string("].attenuation"), l->attenuation);
+                colorShader.SetUniform(std::string("aux_lights[") + std::to_string(i) + std::string("].intensity"), l->intensity);
+                colorShader.SetUniform(std::string("aux_lights[") + std::to_string(i) + std::string("].cast_shadow"), l->castShadow);
                 for (int f = 0; f < 6; ++f)
                 {
                     GLenum face = GL_TEXTURE_CUBE_MAP_POSITIVE_X + f;
-                    colorProgram.SetUniform(std::string("aux_lights[") + std::to_string(i) + std::string("].ProjectionViews[") + std::to_string(f) + std::string("]"), l->GetProjectionViewMatrix(0, face));
+                    colorShader.SetUniform(std::string("aux_lights[") + std::to_string(i) + std::string("].ProjectionViews[") + std::to_string(f) + std::string("]"), l->GetProjectionViewMatrix(0, face));
                 }
             }
-            colorProgram.SetUniform(std::string("aux_light_count"), auxLightCount);
-            colorProgram.SetUniform(std::string("shadow_map_unit"), (int)0);
-            colorProgram.SetUniform(std::string("omni_shadow_map_unit"), (int)1);
-            colorProgram.SetUniform(std::string("ProjectionView"), projectionView);
+            colorShader.SetUniform(std::string("aux_light_count"), auxLightCount);
+            colorShader.SetUniform(std::string("shadow_map_unit"), (int)0);
+            colorShader.SetUniform(std::string("omni_shadow_map_unit"), (int)1);
+            colorShader.SetUniform(std::string("ProjectionView"), projectionView);
             // Surface parameters
-            colorProgram.SetUniform(std::string("surf_params.diffuse"), mesh->material->diffuse);
-            colorProgram.SetUniform(std::string("surf_params.specular"), mesh->material->specular);
-            colorProgram.SetUniform(std::string("surf_params.ambient"), mesh->material->ambient);
-            colorProgram.SetUniform(std::string("surf_params.shininess"), mesh->material->shininess);
+            colorShader.SetUniform(std::string("surf_params.diffuse"), mesh->material->diffuse);
+            colorShader.SetUniform(std::string("surf_params.specular"), mesh->material->specular);
+            colorShader.SetUniform(std::string("surf_params.ambient"), mesh->material->ambient);
+            colorShader.SetUniform(std::string("surf_params.shininess"), mesh->material->shininess);
 
             // Material textures
             if (mesh->material->baseMap >= 0) {
-                colorProgram.SetUniform(std::string("base_map_unit"), NUM_MAP_UNITS + mesh->material->baseMap);
+                colorShader.SetUniform(std::string("base_map_unit"), NUM_MAP_UNITS + mesh->material->baseMap);
             } else {
-                colorProgram.SetUniform(std::string("base_map_unit"), NUM_MAP_UNITS + 0);
+                colorShader.SetUniform(std::string("base_map_unit"), NUM_MAP_UNITS + 0);
             }
             if (mesh->material->normalMap >= 0) {
-                colorProgram.SetUniform(std::string("normal_map_unit"), NUM_MAP_UNITS + mesh->material->normalMap);
+                colorShader.SetUniform(std::string("normal_map_unit"), NUM_MAP_UNITS + mesh->material->normalMap);
             } else {
-                colorProgram.SetUniform(std::string("normal_map_unit"), NUM_MAP_UNITS + 1);
+                colorShader.SetUniform(std::string("normal_map_unit"), NUM_MAP_UNITS + 1);
             }
             if (mesh->material->aoMap >= 0) {
-                colorProgram.SetUniform(std::string("ao_map_unit"), NUM_MAP_UNITS + mesh->material->aoMap);
+                colorShader.SetUniform(std::string("ao_map_unit"), NUM_MAP_UNITS + mesh->material->aoMap);
             } else {
-                colorProgram.SetUniform(std::string("ao_map_unit"), NUM_MAP_UNITS + 2);
+                colorShader.SetUniform(std::string("ao_map_unit"), NUM_MAP_UNITS + 2);
             }
             if (mesh->material->roughnessMap >= 0) {
-                colorProgram.SetUniform(std::string("roughness_map_unit"), NUM_MAP_UNITS + mesh->material->roughnessMap);
+                colorShader.SetUniform(std::string("roughness_map_unit"), NUM_MAP_UNITS + mesh->material->roughnessMap);
             } else {
-                colorProgram.SetUniform(std::string("roughness_map_unit"), NUM_MAP_UNITS + 3);
+                colorShader.SetUniform(std::string("roughness_map_unit"), NUM_MAP_UNITS + 3);
             }
             if (mesh->material->metallicMap >= 0) {
-                colorProgram.SetUniform(std::string("metallic_map_unit"), NUM_MAP_UNITS + mesh->material->metallicMap);
+                colorShader.SetUniform(std::string("metallic_map_unit"), NUM_MAP_UNITS + mesh->material->metallicMap);
             } else {
-                colorProgram.SetUniform(std::string("metallic_map_unit"), NUM_MAP_UNITS + 4);
+                colorShader.SetUniform(std::string("metallic_map_unit"), NUM_MAP_UNITS + 4);
             }
 
             const std::vector<glm::mat4>& worldMatrices = meshInstances.find(mesh)->second;
@@ -636,15 +697,40 @@ void GraphicsServer::ColorPass(float dt)
             break;
         }
     }
+}
 
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+void GraphicsServer::DebugPass(float dt)
+{
+    glLineWidth(1.0);
+
+    if (debugLines.size() == 0)
+        return;
+
+    glm::mat4 cameraTransform = cameras[0]->gameObject->GetModelWorldTransform();
+    glm::vec3 eyePos = cameras[0]->GetEye(cameraTransform);
+    glm::mat4 projectionView = cameras[0]->GetProjectionMatrix() * cameras[0]->GetViewMatrix(cameraTransform);
+
+    glDisable(GL_DEPTH_TEST);
+
+    debugShader.Activate();
+    debugShader.SetUniform(std::string("ProjectionView"), projectionView);
+
+    glBindVertexArray(debugVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, debugVBO);
+    glBufferData(GL_ARRAY_BUFFER, debugLines.size() * sizeof(DebugVertex), debugLines.data(), GL_DYNAMIC_DRAW);
+    glDrawArrays(GL_LINES, 0, debugLines.size());
+    glBindVertexArray(0);
+
+    glEnable(GL_DEPTH_TEST);
+
+    debugLines.clear();
 }
 
 void GraphicsServer::MSAAPass(float dt)
 {
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
-    auto size = this->_app->GetWindow()->GetSize();
+    auto size = Window::Get()->GetSize();
 
     glBindFramebuffer(GL_READ_FRAMEBUFFER, hdrFBO);
     if (postProcessEnabled) {
@@ -659,7 +745,7 @@ void GraphicsServer::PostProcessPass(float dt)
 {
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
-    auto size = this->_app->GetWindow()->GetSize();
+    auto size = Window::Get()->GetSize();
 
     glViewport(0, 0, size.x, size.y);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -669,9 +755,15 @@ void GraphicsServer::PostProcessPass(float dt)
 
     glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    hdrProgram.Activate();
-    hdrProgram.SetUniform(std::string("color_map_unit"), (int)0);
+    postProcessShader.Activate();
+    postProcessShader.SetUniform(std::string("color_map_unit"), (int)0);
     // hdrProgram.SetUniform(std::string("exposure"), (float)1.0);
     glBindVertexArray(screenVAO);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+}
+
+void GraphicsServer::PushDebugLine(DebugVertex from, DebugVertex to)
+{
+    debugLines.push_back(from);
+    debugLines.push_back(to);
 }

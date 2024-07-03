@@ -5,6 +5,10 @@ static vector<vector<bool>> generateMazeData(int size, int shouldConsumed);
 
 class MazeGame : public Application
 {
+    bool isPhysicsDebugUIEnabled = false;
+    bool isPostProcessEnabled = false;
+    bool isWireframeEnabled = false;
+
     sol::table initState;
     bool isLightFlashing = false;
     glm::vec3 winCoord = glm::vec3(0, 0, 0);
@@ -199,13 +203,24 @@ class MazeGame : public Application
         {
             rb->Freeze();
         }
-        if (input.GetKeyDown(KEY_P))
+        if (input.GetKeyDown(KEY_I))
         {
-            graphics.EnablePostProcess(false);
+            physics.EnableDebugUI(!isPhysicsDebugUIEnabled);
+            isPhysicsDebugUIEnabled = !isPhysicsDebugUIEnabled;
         }
         if (input.GetKeyDown(KEY_O))
         {
-            graphics.EnableWireframe();
+            graphics.EnableWireframe(!isWireframeEnabled);
+            isWireframeEnabled = !isWireframeEnabled;
+        }
+        if (input.GetKeyDown(KEY_P))
+        {
+            graphics.EnablePostProcess(!isPostProcessEnabled);
+            isPostProcessEnabled = !isPostProcessEnabled;
+        }
+        if (input.GetKeyDown(KEY_R))
+        {
+            graphics.ReloadShaders();
         }
         if (input.GetKeyDown(KEY_ESCAPE))
         {

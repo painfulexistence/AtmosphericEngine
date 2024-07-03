@@ -1,9 +1,14 @@
 #include "input.hpp"
-#include "application.hpp"
+#include "window.hpp"
+
+Input* Input::_instance = nullptr;
 
 Input::Input()
 {
+    if (_instance != nullptr)
+        throw std::runtime_error("Input is already initialized!");
 
+    _instance = this;
 }
 
 Input::~Input()
@@ -13,16 +18,15 @@ Input::~Input()
 
 bool Input::GetKeyDown(int key)
 {
-    bool isDown = this->_app->GetWindow()->GetKeyDown(key);
-    return isDown;
+    return Window::Get()->GetKeyDown(key);
 }
 
 bool Input::GetKeyUp(int key)
 {
-    return this->_app->GetWindow()->GetKeyUp(key);
+    return Window::Get()->GetKeyUp(key);
 }
 
 glm::vec2 Input::GetMousePosition() // In pixel coordinate
 {
-    return this->_app->GetWindow()->GetMousePosition();
+    return Window::Get()->GetMousePosition();
 };

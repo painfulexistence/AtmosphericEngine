@@ -239,8 +239,12 @@ scene = {
             tesc = "./assets/shaders/terrain.tesc",
             tese = "./assets/shaders/terrain.tese"
         },
-        debug = {
+        terrain_debug = {
             vert = "./assets/shaders/simple.vert",
+            frag = "./assets/shaders/flat.frag",
+        },
+        debug_line = {
+            vert = "./assets/shaders/debug.vert",
             frag = "./assets/shaders/flat.frag",
         }
     }

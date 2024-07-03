@@ -2,7 +2,8 @@
 #include "globals.hpp"
 #include "bullet_dynamics.hpp"
 #include "bullet_collision.hpp"
-#include "physics_debug_drawer.hpp"
+
+class PhysicsDebugDrawer;
 
 class PhysicsWorld
 {
@@ -15,11 +16,13 @@ public:
 
     void RemoveRigidbody(btRigidBody* rb);
 
-    void SetConstantGravity(const float& g);
+    void SetGravity(const float& g);
 
-    void Step(float dt);
+    void SetGravity(const glm::vec3& g);
 
-    void RenderDebug();
+    void Update(float dt);
+
+    void DrawDebug();
 
 private:
     btCollisionConfiguration* _config;
@@ -27,7 +30,7 @@ private:
     btBroadphaseInterface* _broadphase;
     btConstraintSolver* _solver;
     btDiscreteDynamicsWorld* _world;
-    DebugDrawer* _debugDrawer;
+    PhysicsDebugDrawer* _debugDrawer;
 
     float _timeAccum;
 };

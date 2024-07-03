@@ -1,9 +1,16 @@
 #include "script.hpp"
 #include <string>
 
+Script* Script::_instance = nullptr;
+
 Script::Script()
 {
-    this->_env = sol::state();
+    if (_instance != nullptr)
+        throw std::runtime_error("Script is already initialized!");
+
+    _env = sol::state();
+
+    _instance = this;
 }
 
 Script::~Script()
@@ -21,9 +28,9 @@ void Script::Init(Application* app)
     Source("./assets/main.lua");
 
     Run("init()");
-    //Bind("get_cursor_uv", &Input::GetCursorUV, &app->input);
-    //Bind("get_key_down", &Input::GetKeyDown, &app->input);
-    //Bind("check_errors", &GraphicsServer::CheckErrors, &app->graphics);
+    //Bind("get_cursor_uv", &Input::GetCursorUV, Input::Get());
+    //Bind("get_key_down", &Input::GetKeyDown, Input::Get());
+    //Bind("check_errors", &GraphicsServer::CheckErrors, GraphicsServer::Get());
 }
 
 void Script::Process(float dt)

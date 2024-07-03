@@ -1,8 +1,7 @@
 #pragma once
 #include "globals.hpp"
-#include "window.hpp"
 #include "server.hpp"
-#include <GLFW/glfw3.h>
+#include "GLFW/glfw3.h"
 
 const int KEY_UP = GLFW_KEY_UP;
 const int KEY_RIGHT = GLFW_KEY_RIGHT;
@@ -40,7 +39,15 @@ const int KEY_SPACE = GLFW_KEY_SPACE;
 
 class Input : public Server
 {
+private:
+    static Input* _instance;
+
 public:
+    static Input* Get()
+    {
+        return _instance;
+    }
+
     Input();
 
     ~Input();

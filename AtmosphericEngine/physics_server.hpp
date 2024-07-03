@@ -10,10 +10,18 @@ class PhysicsWorld;
 class PhysicsServer : public Server
 {
 private:
+    static PhysicsServer* _instance;
+
     std::shared_ptr<PhysicsWorld> _world;
     std::vector<Impostor*> _impostors;
+    bool _debugUIEnabled = false;
 
 public:
+    static PhysicsServer* Get()
+    {
+        return _instance;
+    }
+
     PhysicsServer();
 
     ~PhysicsServer();
@@ -26,5 +34,5 @@ public:
 
     void RemoveImpostor(Impostor*);
 
-    void RenderDebug();
+    void EnableDebugUI(bool enable = true);
 };

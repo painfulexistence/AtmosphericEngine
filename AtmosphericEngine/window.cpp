@@ -1,6 +1,8 @@
 #include "window.hpp"
 #include <GLFW/glfw3.h>
 
+Window* Window::_instance = nullptr;
+
 std::map<Window*, OnMouseMoveCallback> Window::onMouseMoveCallbacks = std::map<Window*, OnMouseMoveCallback>();
 
 std::map<Window*, OnMouseEnterCallback> Window::onMouseEnterCallbacks = std::map<Window*, OnMouseEnterCallback>();
@@ -17,6 +19,9 @@ std::map<Window*, OnFramebufferResizeCallback> Window::onResizeCallbacks = std::
 
 Window::Window(WindowProps props)
 {
+    if (_instance != nullptr)
+        throw std::runtime_error("Window is already initialized!");
+
     glfwSetErrorCallback([](int code, const char* msg) {
         throw std::runtime_error(fmt::format("Error occurred: {}\n", msg));
     });
@@ -39,6 +44,8 @@ Window::Window(WindowProps props)
     this->_glfwWindow = glfwCreateWindow(props.width, props.height, props.title.c_str(), NULL, NULL);
     if (this->_glfwWindow == nullptr)
         throw std::runtime_error("Failed to create window!");
+
+    _instance = this;
 }
 
 Window::~Window()

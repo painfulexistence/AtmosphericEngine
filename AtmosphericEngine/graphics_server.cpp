@@ -90,7 +90,7 @@ void GraphicsServer::Init(Application* app)
     CreateDebugVAO();
     CreateScreenVAO();
 
-    debugLines.reserve(4096);
+    debugLines.reserve(1 << 16);
 }
 
 void GraphicsServer::Process(float dt)

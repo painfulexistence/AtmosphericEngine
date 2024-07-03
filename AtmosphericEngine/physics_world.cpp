@@ -11,6 +11,9 @@ PhysicsWorld::PhysicsWorld()
 
     _debugDrawer = new PhysicsDebugDrawer();
     _world->setDebugDrawer(_debugDrawer);
+    // 0: no debug
+    // 1: wireframe
+    // 14: fast wireframe
     _debugDrawer->setDebugMode(1);
 
     _timeAccum = 0.0f;

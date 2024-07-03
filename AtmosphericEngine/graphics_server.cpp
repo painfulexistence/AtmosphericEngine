@@ -701,8 +701,6 @@ void GraphicsServer::ColorPass(float dt)
 
 void GraphicsServer::DebugPass(float dt)
 {
-    glLineWidth(1.0);
-
     if (debugLines.size() == 0)
         return;
 

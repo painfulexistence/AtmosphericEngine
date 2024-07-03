@@ -1,4 +1,6 @@
 #include "application.hpp"
+#include <vector>
+#include "stb_image.h"
 using namespace std;
 
 static vector<vector<bool>> generateMazeData(int size, int shouldConsumed);
@@ -13,6 +15,7 @@ class MazeGame : public Application
     bool isLightFlashing = false;
     glm::vec3 winCoord = glm::vec3(0, 0, 0);
     GameObject* player = nullptr;
+    std::vector<float> terrainData;
 
     void Load()
     {
@@ -42,7 +45,21 @@ class MazeGame : public Application
         const int worldResolution = 128;
         auto terrainModel = Mesh::CreateTerrain(worldSize, worldResolution);
         terrainModel->material = graphics.materials[6];
-        terrainModel->collisionShape = new btBoxShape(btVector3(halfWorldSize, 0.2f, halfWorldSize));
+        // terrainModel->collisionShape = new btBoxShape(btVector3(halfWorldSize, 0.2f, halfWorldSize));
+        int w, h, numChannels;
+        unsigned char* data = stbi_load("assets/textures/heightmap_debug.jpg", &w, &h, &numChannels, 0);
+        if (data != nullptr)
+        {
+            const int terrainDataSize = w * h;
+            terrainData.resize(terrainDataSize);
+            for (int i = 0; i < terrainDataSize; ++i)
+            {
+                terrainData[i] = (static_cast<float>(data[i]) / 255.0f) * 32.0f;
+            }
+            terrainModel->collisionShape = new btHeightfieldTerrainShape(w, h, terrainData.data(), 1.0f, -64.0f, 64.0f, 1, PHY_FLOAT, true);
+            terrainModel->collisionShape->setLocalScaling(btVector3(10.0f, 1.0f, 10.0f));
+        }
+        stbi_image_free(data);
         Mesh::MeshList.insert({"Terrain", terrainModel});
 
         auto cubeModel = Mesh::CreateCube((float)TILE_SIZE);
@@ -58,7 +75,7 @@ class MazeGame : public Application
         script.Print("Models loaded.");
 
         // Create game objects in scene
-        player->SetPosition(glm::vec3(0, 2, 0));
+        player->SetPosition(glm::vec3(0, 64, 0));
         Impostor* rb = ComponentFactory::CreateImpostor(player, &physics, "Character", 10.0f);
         rb->SetLinearFactor(glm::vec3(1, 1, 1));
         rb->SetAngularFactor(glm::vec3(0, 0, 0));
@@ -69,7 +86,7 @@ class MazeGame : public Application
 
         auto terrain = new GameObject();
         terrain->SetPosition(glm::vec3(0.0f, -10.0f, 0.0f));
-        ComponentFactory::CreateMesh(terrain, &graphics, "Terrain");
+        // ComponentFactory::CreateMesh(terrain, &graphics, "Terrain");
         ComponentFactory::CreateImpostor(terrain, &physics, "Terrain");
         gameObjects.push_back(terrain);
 
@@ -117,6 +134,7 @@ class MazeGame : public Application
                     }
                     if (!characterPlaced)
                     {
+                        // FIXME: SetModelWorldTransform is not working properly
                         player->SetModelWorldTransform(glm::translate(glm::mat4(1.0f), TILE_SIZE * glm::vec3(x - MAZE_SIZE / 2.f, 1, z - MAZE_SIZE / 2.f)));
                         characterPlaced = true;
                     }

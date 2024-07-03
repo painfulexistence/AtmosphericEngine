@@ -42,15 +42,13 @@ public:
 
     ~GraphicsServer();
 
-    void Init(MessageBus* mb, Application* app);
+    void Init(Application* app);
 
     void Process(float dt) override;
 
     void Render(float dt);
 
     void RenderUI(float dt);
-
-    void OnMessage(Message msg) override;
 
     void LoadTextures(const std::vector<std::string>& paths);
 

@@ -13,11 +13,9 @@ public:
 
     ~Script();
 
-    void Init(MessageBus* mb, Application* app);
+    void Init(Application* app);
 
     void Process(float dt) override;
-
-    void OnMessage(Message msg) override;
 
     void Bind(const std::string& func);
 

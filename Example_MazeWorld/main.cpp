@@ -35,7 +35,8 @@ class MazeGame : public Application
 
         const float worldSize = 1024.f;
         const float halfWorldSize = worldSize / 2.f;
-        auto terrainModel = Mesh::CreateTerrain(worldSize, 128);
+        const int worldResolution = 128;
+        auto terrainModel = Mesh::CreateTerrain(worldSize, worldResolution);
         terrainModel->material = graphics.materials[6];
         terrainModel->collisionShape = new btBoxShape(btVector3(halfWorldSize, 0.2f, halfWorldSize));
         Mesh::MeshList.insert({"Terrain", terrainModel});
@@ -208,7 +209,7 @@ class MazeGame : public Application
         }
         if (input.GetKeyDown(KEY_ESCAPE))
         {
-            input.ReceiveMessage(MessageType::ON_QUIT);
+            Quit();
         }
     }
 };

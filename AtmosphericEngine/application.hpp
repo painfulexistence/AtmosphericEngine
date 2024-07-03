@@ -61,7 +61,6 @@ private:
     bool _initialized = false;
     bool _quitted = false;
 
-    MessageBus* _mb = new MessageBus(this);
     Window* _window = nullptr;
     uint64_t _clock = 0;
 
@@ -74,8 +73,6 @@ private:
     void Render(const FrameProps& frame); // TODO: Properly separate rendering and drawing logic if the backend supports command buffering
 
     void Draw(const FrameProps& frame);
-
-    void BroadcastMessages();
 
     void SyncTransformWithPhysics();
 };

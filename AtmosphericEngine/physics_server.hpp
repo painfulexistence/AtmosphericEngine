@@ -1,13 +1,16 @@
 #pragma once
 #include "globals.hpp"
 #include "server.hpp"
-#include "dynamics_world.hpp"
-#include "impostor.hpp"
+#include <memory>
+
+class Impostor;
+
+class PhysicsWorld;
 
 class PhysicsServer : public Server
 {
 private:
-    DynamicsWorld* _world;
+    std::shared_ptr<PhysicsWorld> _world;
     std::vector<Impostor*> _impostors;
 
 public:
@@ -15,9 +18,13 @@ public:
 
     ~PhysicsServer();
 
+    void Init(Application* app);
+
+    virtual void Process(float dt) override;
+
     void AddImpostor(Impostor*);
 
-    void Process(float dt) override;
+    void RemoveImpostor(Impostor*);
 
-    DynamicsWorld* World();
+    void RenderDebug();
 };

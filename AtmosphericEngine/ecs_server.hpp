@@ -21,8 +21,6 @@ public:
 
     void Process(float dt) override;
 
-    void OnMessage(Message msg) override;
-
     uint64_t Create();
 
     void Destroy(uint64_t eid);

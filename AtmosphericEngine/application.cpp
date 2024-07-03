@@ -32,7 +32,6 @@ Application::~Application()
         delete go;
     for (const auto& [name, mesh] : Mesh::MeshList)
         delete mesh;
-    delete this->_mb;
     delete this->_window;
 }
 
@@ -49,12 +48,12 @@ void Application::Run()
     #endif
     ImGui::StyleColorsDark();
 
-    console.Init(_mb, this);
-    input.Init(_mb, this);
-    physics.Init(_mb, this);
-    graphics.Init(_mb, this);
-    script.Init(_mb, this);
-    //ecs.Init(_mb, this);
+    console.Init(this);
+    input.Init(this);
+    graphics.Init(this);
+    physics.Init(this); // Note that physics debug drawer is dependent on graphics server
+    script.Init(this);
+    //ecs.Init(this);
     this->_initialized = true;
 
     Log("Loading data...");
@@ -118,7 +117,7 @@ void Application::Run()
         Tick();
         this->_window->PollEvents();
         if (this->_window->IsClosing())
-            this->_mb->PostMessage(MessageType::ON_QUIT);
+            Quit();
 
         float currentFrameTime = GetWindowTime();
         deltaTime = currentFrameTime - lastFrameTime;
@@ -162,7 +161,6 @@ void Application::Process(const FrameProps& props)
 
     Update(dt, time);
     //ecs.Process(dt); // Note that most of the entity manipulation logic should be put there
-    BroadcastMessages();
     console.Process(dt);
     input.Process(dt);
     script.Process(dt);
@@ -186,6 +184,7 @@ void Application::Render(const FrameProps& props)
     // Note that draw calls are asynchronous, which means they return immediately.
     // So the drawing time can only be calculated along with the image presenting.
     graphics.Render(dt);
+    // physics.RenderDebug();
     graphics.RenderUI(dt);
 
     ImGui::Render();
@@ -208,11 +207,6 @@ void Application::Draw(const FrameProps& props)
     #if SHOW_VSYNC_COST
     Log(fmt::format("Vsync cost {} ms", (Time() - time) * 1000));
     #endif
-}
-
-void Application::BroadcastMessages()
-{
-    this->_mb->Process();
 }
 
 void Application::SyncTransformWithPhysics()

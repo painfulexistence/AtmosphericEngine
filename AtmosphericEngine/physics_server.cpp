@@ -1,15 +1,23 @@
 #include "physics_server.hpp"
+#include "physics_world.hpp"
 #include "impostor.hpp"
 
 PhysicsServer::PhysicsServer()
 {
-    _world = new DynamicsWorld();
-    _world->SetConstantGravity(GRAVITY);
+
 }
 
 PhysicsServer::~PhysicsServer()
 {
-    delete this->_world;
+
+}
+
+void PhysicsServer::Init(Application* app)
+{
+    Server::Init(app);
+
+    _world = std::make_shared<PhysicsWorld>();
+    _world->SetConstantGravity(GRAVITY);
 }
 
 void PhysicsServer::Process(float dt)
@@ -17,12 +25,17 @@ void PhysicsServer::Process(float dt)
     _world->Step(dt);
 }
 
-DynamicsWorld* PhysicsServer::World()
-{
-    return this->_world;
-}
-
 void PhysicsServer::AddImpostor(Impostor* impostor)
 {
     _world->AddRigidbody(impostor->_rigidbody);
+}
+
+void PhysicsServer::RemoveImpostor(Impostor* impostor)
+{
+    _world->RemoveRigidbody(impostor->_rigidbody);
+}
+
+void PhysicsServer::RenderDebug()
+{
+    _world->RenderDebug();
 }

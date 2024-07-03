@@ -26,9 +26,6 @@ set(SOURCES
     window.cpp
     server.cpp
     console.cpp
-    messagable.cpp
-    message_bus.cpp
-    message.cpp
     component_factory.cpp
     game_object.cpp
     impostor.cpp
@@ -40,7 +37,8 @@ set(SOURCES
     shader.cpp
     graphics_server.cpp
     physics_server.cpp
-    dynamics_world.cpp
+    physics_world.cpp
+    physics_debug_drawer.cpp
     input.cpp
     entity.cpp
     script.cpp

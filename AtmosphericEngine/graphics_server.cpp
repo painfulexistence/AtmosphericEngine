@@ -43,9 +43,9 @@ GraphicsServer::~GraphicsServer()
     glDeleteTextures(textures.size(), textures.data());
 }
 
-void GraphicsServer::Init(MessageBus* mb, Application* app)
+void GraphicsServer::Init(Application* app)
 {
-    Server::Init(mb, app);
+    Server::Init(app);
 
     stbi_set_flip_vertically_on_load(true);
 
@@ -151,11 +151,6 @@ void GraphicsServer::RenderUI(float dt)
     //ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 
     ImGui::End();
-}
-
-void GraphicsServer::OnMessage(Message msg)
-{
-
 }
 
 void GraphicsServer::LoadTextures(const std::vector<std::string>& paths)

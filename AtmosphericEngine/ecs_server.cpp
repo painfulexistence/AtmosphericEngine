@@ -20,11 +20,6 @@ void ECSServer::Process(float dt)
 
 }
 
-void ECSServer::OnMessage(Message msg)
-{
-
-}
-
 uint64_t ECSServer::Create()
 {
     uint64_t eid = this->_registry->Create();

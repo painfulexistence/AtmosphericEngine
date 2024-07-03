@@ -11,9 +11,9 @@ Script::~Script()
 
 }
 
-void Script::Init(MessageBus* mb, Application* app)
+void Script::Init(Application* app)
 {
-    Server::Init(mb, app);
+    Server::Init(app);
 
     this->_env.open_libraries();
     Source("./assets/config.lua");
@@ -29,11 +29,6 @@ void Script::Init(MessageBus* mb, Application* app)
 void Script::Process(float dt)
 {
     Run(fmt::format("update({})", dt));
-}
-
-void Script::OnMessage(Message msg)
-{
-
 }
 
 // TODO: an extra argument is needed here

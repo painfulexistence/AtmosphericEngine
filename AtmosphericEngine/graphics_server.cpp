@@ -200,7 +200,7 @@ void GraphicsServer::LoadTextures(const std::vector<std::string>& paths)
                 default:
                     throw std::runtime_error(fmt::format("Unknown texture format at {}\n", paths[i]));
             }
-            glGenerateMipmap(GL_TEXTURE_2D);
+            glGenerateMipmap(GL_TEXTURE_2D); // must be called after glTexImage2D
         } else {
             throw std::runtime_error(fmt::format("Failed to load texture at {}\n", paths[i]));
         }

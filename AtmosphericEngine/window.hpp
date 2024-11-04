@@ -1,5 +1,6 @@
 #pragma once
 #include "globals.hpp"
+#include "config.hpp"
 
 #define OnMouseMoveCallback std::function<void(GLFWwindow*, float, float)>
 #define OnMouseEnterCallback std::function<void(GLFWwindow*)>

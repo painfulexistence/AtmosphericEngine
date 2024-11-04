@@ -58,3 +58,4 @@ add_library(AtmosphericEngine STATIC ${SOURCES} ${SOURCES_EXT})
 
 target_include_directories(AtmosphericEngine PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} ${BULLET_INCLUDE_DIR} ${LUA_INCLUDE_DIR} external/stb external/imgui)
 target_link_libraries(AtmosphericEngine PUBLIC GLEW::GLEW glfw glm::glm fmt::fmt EnTT::EnTT BulletSoftBody BulletDynamics BulletCollision LinearMath ${LUA_LIBRARIES} sol2)
+target_precompile_headers(AtmosphericEngine PUBLIC pch.hpp)

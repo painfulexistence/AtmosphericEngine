@@ -1,31 +1,11 @@
 #pragma once
-
+#ifdef __APPLE__
+#define GL_SILENCE_DEPRECATION
+#endif
 #define GLEW_BUILD //For Windows
 #include <GL/glew.h>
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/type_ptr.hpp>
-#include <fmt/core.h>
 
-#include <cstdlib>
-#include <ctime>
-#include <cstdint>
-#include <string>
-#include <array>
-#include <vector>
-#include <list>
-#include <map>
-#include <queue>
-#include <stack>
-#include <memory>
-#include <thread>
-#include <functional>
-#include <optional>
-#include <utility>
-#include <stdexcept>
-
-#include "graphics_config.hpp"
-#include "runtime_config.hpp"
+#include <pch.hpp>
 
 #define CAMERA_ANGULAR_OFFSET 0.05
 #define CAMERA_SPEED 15

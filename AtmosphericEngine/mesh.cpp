@@ -1,5 +1,5 @@
 #include "mesh.hpp"
-#include "graphics_config.hpp"
+#include "config.hpp"
 
 std::map<std::string, Mesh*> Mesh::MeshList;
 

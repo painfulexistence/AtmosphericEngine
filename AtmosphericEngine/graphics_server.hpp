@@ -1,5 +1,6 @@
 #pragma once
 #include "globals.hpp"
+#include "config.hpp"
 #include "server.hpp"
 #include "material.hpp"
 #include "shader.hpp"

@@ -1,5 +1,4 @@
 #include "physics_debug_drawer.hpp"
-#include "fmt/core.h"
 #include "graphics_server.hpp"
 
 PhysicsDebugDrawer::PhysicsDebugDrawer()

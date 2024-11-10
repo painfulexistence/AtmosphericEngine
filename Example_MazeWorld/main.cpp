@@ -17,22 +17,18 @@ class MazeGame : public Application {
     bool isPostProcessEnabled = false;
     bool isWireframeEnabled = false;
 
-    sol::table initState;
+    const int MAZE_SIZE = 30;
+    const bool MAZE_ROOFED = false;
+    const float TILE_SIZE = 3.0;
+    const int TILES_TO_REMOVE = 500;
+    const float CHISM_CHANCE = 10.0;
+
     bool isLightFlashing = false;
     glm::vec3 winCoord = glm::vec3(0, 0, 0);
     GameObject* player = nullptr;
     std::vector<float> terrainData;
 
     void Load() override {
-        // Read data from script
-        script.GetData(std::string("init_game_state"), initState);
-        const int MAZE_SIZE = (int)initState["maze_size"];
-        const float TILE_SIZE = (float)initState["tile_size"];
-        const int TILES_TO_REMOVE = (int)initState["tiles_to_remove"];
-        float chismProb = (float)initState["chism_probability"];
-        bool mazeRoofed = (bool)initState["maze_roofed"];
-        isLightFlashing = (bool)initState["is_light_flashing"];
-
         // Load models
         auto characterModel = new Mesh();
         characterModel->AddCapsuleShape(0.5f, 3.0f);
@@ -103,7 +99,7 @@ class MazeGame : public Application {
         vector<vector<bool>> maze = generateMazeData(MAZE_SIZE, TILES_TO_REMOVE);
         for (int x = 0; x < MAZE_SIZE; x++) {
             for (int z = 0; z < MAZE_SIZE; z++) {
-                if (mazeRoofed) {
+                if (MAZE_ROOFED) {
                     auto cube = CreateGameObject();
                     cube->SetPosition(TILE_SIZE * glm::vec3(x - MAZE_SIZE / 2.f, 3, z - MAZE_SIZE / 2.f));
                     cube->AddMesh("Cube");
@@ -117,7 +113,7 @@ class MazeGame : public Application {
                         cube->AddImpostor("Cube", 0.0f);
                     }
                 } else {
-                    if (rand() % 100 < chismProb) {
+                    if (rand() % 100 < CHISM_CHANCE) {
                         continue; //Create chism
                     }
                     if (!characterPlaced) {

@@ -43,7 +43,7 @@ glm::mat4 Camera::GetProjectionMatrix()
     return glm::perspective(fov, aspectRatio, nearZ, farZ);
 }
 
-glm::vec3 Camera::CreateLinearVelocity(Axis axis)
+glm::vec3 Camera::GetDirection(Axis axis)
 {
     glm::vec3 dir;
     switch (axis)

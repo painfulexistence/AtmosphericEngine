@@ -1,5 +1,6 @@
 #include "mesh.hpp"
 #include "config.hpp"
+#include "stb_image.h"
 
 std::map<std::string, Mesh*> Mesh::MeshList;
 
@@ -333,4 +334,49 @@ Mesh* Mesh::CreateTerrain(const float& worldSize, const int& resolution)
     terrain->bounds[7] = glm::vec3(.5f * worldSize, -.5f, .5f * worldSize);
 
     return terrain;
+}
+
+Mesh* Mesh::CreateCubeWithPhysics(const float& size) {
+    auto cube = CreateCube(size);
+    cube->_shape = new btBoxShape(0.5 * btVector3(size, size, size));
+    return cube;
+}
+
+Mesh* Mesh::CreateSphereWithPhysics(const float& radius, const int& division) {
+    auto sphere = CreateSphere(radius, division);
+    sphere->_shape = new btSphereShape(0.5 * radius);
+    return sphere;
+}
+
+Mesh* Mesh::CreateTerrainWithPhysics(const float& size, const int& resolution, const std::string& heightmap) {
+    auto terrain = CreateTerrain(size, resolution);
+    // terrain->_shape = new btBoxShape(btVector3(size * 0.5f, 0.2f, size * 0.5f));
+
+    int w, h, numChannels;
+    unsigned char* data = stbi_load(heightmap.c_str(), &w, &h, &numChannels, 0);
+    if (data != nullptr) {
+        std::vector<float> terrainData; //FIXME: this needs to be stored somewhere, or the collision shape data will be deleted
+
+        const int terrainDataSize = w * h;
+        terrainData.resize(terrainDataSize);
+        for (int i = 0; i < terrainDataSize; ++i) {
+            terrainData[i] = (static_cast<float>(data[i]) / 255.0f) * 32.0f;
+        }
+        terrain->_shape = new btHeightfieldTerrainShape(w, h, terrainData.data(), 1.0f, -64.0f, 64.0f, 1, PHY_FLOAT, true);
+        terrain->_shape->setLocalScaling(btVector3(10.0f, 1.0f, 10.0f));
+
+        stbi_image_free(data);
+    } else {
+        throw std::runtime_error("Could not load heightmap");
+    }
+
+    return terrain;
+}
+
+void Mesh::SetMaterial(Material* material) {
+    _material = material;
+}
+
+void Mesh::AddCapsuleShape(float radius, float height) {
+    _shape = new btCapsuleShape(radius, height);
 }

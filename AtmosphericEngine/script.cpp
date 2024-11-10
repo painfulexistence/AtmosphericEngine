@@ -1,4 +1,8 @@
 #include "script.hpp"
+#include "material.hpp"
+#include "light.hpp"
+#include "camera.hpp"
+#include "scene.hpp"
 #include <string>
 
 Script* Script::_instance = nullptr;
@@ -62,6 +66,50 @@ void Script::Print(const std::string& msg)
 sol::table Script::GetData(const std::string& key)
 {
     return this->_env.globals()[key];
+}
+
+std::vector<Scene> Script::GetScenes()
+{
+    std::vector<Scene> scenes;
+
+    SceneData sceneData;
+
+    // const sol::table sceneTable = this->_env.globals()["scene"];
+
+    // const sol::table texturesTable = sceneTable["textures"];
+    // for (const auto& kv : texturesTable) {
+    //     sol::table tex = (sol::table)kv.second;
+    //     sceneData.texturePaths.push_back((std::string)tex["path"]);
+    // }
+
+    // const sol::table shadersTable = sceneTable["shaders"];
+    // for (const auto& kv : shadersTable) {
+
+    // }
+
+    // const sol::table materialsTable = sceneTable["materials"];
+    // for (const auto& kv : materialsTable)
+    // {
+    //     auto mat = new Material((sol::table)kv.second);
+    //     sceneData.materialDataList.push_back(mat);
+    // }
+
+    // const sol::table lightsTable = sceneTable["lights"];
+    // for (const auto& kv : lightsTable) {
+    //     auto lightData = LightProps((sol::table)kv.second);
+    //     sceneData.lightDataList.push_back(lightData);
+    // }
+
+    // sol::table camerasTable = sceneTable["cameras"];
+    // for (const auto& kv : camerasTable) {
+    //     sceneData.cameraDataList.push_back(
+    //         CameraProps((sol::table)kv.second)
+    //     );
+    // }
+
+    scenes.push_back(Scene(sceneData));
+
+    return scenes;
 }
 
 void Script::GetData(const std::string& key, sol::table& data)

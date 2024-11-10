@@ -1,9 +1,13 @@
 #include "game_object.hpp"
 #include "component.hpp"
+#include "graphics_server.hpp"
+#include "physics_server.hpp"
+#include "impostor.hpp"
 
-GameObject::GameObject()
+GameObject::GameObject(GraphicsServer* graphics, PhysicsServer* physics)
 {
-
+    _graphics = graphics;
+    _physics = physics;
 }
 
 GameObject::~GameObject()
@@ -27,6 +31,50 @@ Component* GameObject::GetComponent(std::string name)
         return nullptr;
     else
         return it->second;
+}
+
+GameObject* GameObject::AddLight(const LightProps& props)
+{
+    if (_graphics) {
+        auto light = new Light(this, props);
+        _graphics->lights.push_back(light);
+    }
+    return this;
+}
+
+GameObject* GameObject::AddCamera(const CameraProps& props)
+{
+    if (_graphics) {
+        auto camera = new Camera(this, props);
+        _graphics->cameras.push_back(camera);
+    }
+    return this;
+}
+
+GameObject* GameObject::AddMesh(const std::string& meshName)
+{
+    if (_graphics) {
+        if (Mesh::MeshList.count(meshName) == 0)
+            throw std::runtime_error("Could not find the specified mesh!");
+
+        auto mesh = Mesh::MeshList.find(meshName)->second;
+        auto renderable = new Renderable(this, mesh);
+        _graphics->renderables.push_back(renderable);
+    }
+    return this;
+}
+
+GameObject* GameObject::AddImpostor(const std::string& meshName, float mass)
+{
+    if (_physics) {
+        if (Mesh::MeshList.count(meshName) == 0)
+            throw std::runtime_error("Could not find the specified mesh!");
+
+        auto mesh = Mesh::MeshList.find(meshName)->second;
+        auto impostor =  new Impostor(this, mesh->GetShape(), mass);
+        _physics->AddImpostor(impostor);
+    }
+    return this;
 }
 
 glm::mat4 GameObject::GetModelTransform() const
@@ -86,4 +134,40 @@ void GameObject::SetScale(glm::vec3 value)
 glm::mat4 GameObject::GetTransform() const
 {
     return _m2w * _mod;
+}
+
+glm::vec3 GameObject::GetVelocity()
+{
+    Impostor* rb = dynamic_cast<Impostor*>(this->GetComponent("Physics"));
+    if (rb == nullptr)
+        throw std::runtime_error("Impostor not found");
+
+    return rb->GetLinearVelocity();
+}
+
+void GameObject::SetVelocity(glm::vec3 value)
+{
+    Impostor* rb = dynamic_cast<Impostor*>(this->GetComponent("Physics"));
+    if (rb == nullptr)
+        throw std::runtime_error("Impostor not found");
+
+    rb->SetLinearVelocity(value);
+}
+
+void GameObject::ActivatePhyisics()
+{
+    Impostor* rb = dynamic_cast<Impostor*>(this->GetComponent("Physics"));
+    if (rb == nullptr)
+        throw std::runtime_error("Impostor not found");
+
+    rb->Activate();
+}
+
+void GameObject::FreezePhyisics()
+{
+    Impostor* rb = dynamic_cast<Impostor*>(this->GetComponent("Physics"));
+    if (rb == nullptr)
+        throw std::runtime_error("Impostor not found");
+
+    rb->Freeze();
 }

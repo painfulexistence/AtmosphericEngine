@@ -3,19 +3,35 @@
 
 class Component;
 
+class LightProps;
+
+class CameraProps;
+
+class GraphicsServer;
+
+class PhysicsServer;
+
 class GameObject
 {
 public:
     GameObject* parent = nullptr;
     std::map<std::string, Component*> components;
 
-    GameObject();
+    GameObject(GraphicsServer* graphics = nullptr, PhysicsServer* physics = nullptr);
 
     ~GameObject();
 
     void AddComponent(Component* component);
 
     Component* GetComponent(std::string name);
+
+    GameObject* AddLight(const LightProps&);
+
+    GameObject* AddCamera(const CameraProps&);
+
+    GameObject* AddMesh(const std::string& meshName);
+
+    GameObject* AddImpostor(const std::string& meshName, float mass = 0.0f);
 
     glm::mat4 GetModelTransform() const;
 
@@ -39,7 +55,17 @@ public:
 
     glm::mat4 GetTransform() const; // World space
 
+    glm::vec3 GetVelocity();
+
+    void SetVelocity(glm::vec3 value);
+
+    void ActivatePhyisics();
+
+    void FreezePhyisics();
+
 private:
+    GraphicsServer* _graphics = nullptr;
+    PhysicsServer* _physics = nullptr;
     glm::mat4 _mod = glm::mat4(1.0f);
     glm::mat4 _m2w = glm::mat4(1.0f);
     glm::vec3 _position = glm::vec3(0, 0, 0);

@@ -584,7 +584,7 @@ void GraphicsServer::ColorPass(float dt)
         else
             glDisable(GL_CULL_FACE);
 
-        glEnable(GL_PRIMITIVE_RESTART);
+        // glEnable(GL_PRIMITIVE_RESTART);
 
         glm::mat4 cameraTransform = cameras[0]->gameObject->GetModelWorldTransform();
         glm::vec3 eyePos = cameras[0]->GetEye(cameraTransform);
@@ -602,14 +602,14 @@ void GraphicsServer::ColorPass(float dt)
             terrainShader.SetUniform(std::string("main_light.cast_shadow"), lights[0]->castShadow);
             terrainShader.SetUniform(std::string("main_light.ProjectionView"), lights[0]->GetProjectionViewMatrix(0));
 
-            colorShader.SetUniform(std::string("surf_params.diffuse"), mesh->material->diffuse);
-            colorShader.SetUniform(std::string("surf_params.specular"), mesh->material->specular);
-            colorShader.SetUniform(std::string("surf_params.ambient"), mesh->material->ambient);
-            colorShader.SetUniform(std::string("surf_params.shininess"), mesh->material->shininess);
+            colorShader.SetUniform(std::string("surf_params.diffuse"), mesh->GetMaterial()->diffuse);
+            colorShader.SetUniform(std::string("surf_params.specular"), mesh->GetMaterial()->specular);
+            colorShader.SetUniform(std::string("surf_params.ambient"), mesh->GetMaterial()->ambient);
+            colorShader.SetUniform(std::string("surf_params.shininess"), mesh->GetMaterial()->shininess);
 
             terrainShader.SetUniform(std::string("tessellation_factor"), (float)16.0);
             terrainShader.SetUniform(std::string("height_scale"), (float)32.0);
-            terrainShader.SetUniform(std::string("height_map_unit"), NUM_MAP_UNITS + mesh->material->heightMap);
+            terrainShader.SetUniform(std::string("height_map_unit"), NUM_MAP_UNITS + mesh->GetMaterial()->heightMap);
             terrainShader.SetUniform(std::string("ProjectionView"), projectionView);
             terrainShader.SetUniform(std::string("World"), meshInstances.find(mesh)->second[0]);
 
@@ -655,34 +655,34 @@ void GraphicsServer::ColorPass(float dt)
             colorShader.SetUniform(std::string("omni_shadow_map_unit"), (int)1);
             colorShader.SetUniform(std::string("ProjectionView"), projectionView);
             // Surface parameters
-            colorShader.SetUniform(std::string("surf_params.diffuse"), mesh->material->diffuse);
-            colorShader.SetUniform(std::string("surf_params.specular"), mesh->material->specular);
-            colorShader.SetUniform(std::string("surf_params.ambient"), mesh->material->ambient);
-            colorShader.SetUniform(std::string("surf_params.shininess"), mesh->material->shininess);
+            colorShader.SetUniform(std::string("surf_params.diffuse"), mesh->GetMaterial()->diffuse);
+            colorShader.SetUniform(std::string("surf_params.specular"), mesh->GetMaterial()->specular);
+            colorShader.SetUniform(std::string("surf_params.ambient"), mesh->GetMaterial()->ambient);
+            colorShader.SetUniform(std::string("surf_params.shininess"), mesh->GetMaterial()->shininess);
 
             // Material textures
-            if (mesh->material->baseMap >= 0) {
-                colorShader.SetUniform(std::string("base_map_unit"), NUM_MAP_UNITS + mesh->material->baseMap);
+            if (mesh->GetMaterial()->baseMap >= 0) {
+                colorShader.SetUniform(std::string("base_map_unit"), NUM_MAP_UNITS + mesh->GetMaterial()->baseMap);
             } else {
                 colorShader.SetUniform(std::string("base_map_unit"), NUM_MAP_UNITS + 0);
             }
-            if (mesh->material->normalMap >= 0) {
-                colorShader.SetUniform(std::string("normal_map_unit"), NUM_MAP_UNITS + mesh->material->normalMap);
+            if (mesh->GetMaterial()->normalMap >= 0) {
+                colorShader.SetUniform(std::string("normal_map_unit"), NUM_MAP_UNITS + mesh->GetMaterial()->normalMap);
             } else {
                 colorShader.SetUniform(std::string("normal_map_unit"), NUM_MAP_UNITS + 1);
             }
-            if (mesh->material->aoMap >= 0) {
-                colorShader.SetUniform(std::string("ao_map_unit"), NUM_MAP_UNITS + mesh->material->aoMap);
+            if (mesh->GetMaterial()->aoMap >= 0) {
+                colorShader.SetUniform(std::string("ao_map_unit"), NUM_MAP_UNITS + mesh->GetMaterial()->aoMap);
             } else {
                 colorShader.SetUniform(std::string("ao_map_unit"), NUM_MAP_UNITS + 2);
             }
-            if (mesh->material->roughnessMap >= 0) {
-                colorShader.SetUniform(std::string("roughness_map_unit"), NUM_MAP_UNITS + mesh->material->roughnessMap);
+            if (mesh->GetMaterial()->roughnessMap >= 0) {
+                colorShader.SetUniform(std::string("roughness_map_unit"), NUM_MAP_UNITS + mesh->GetMaterial()->roughnessMap);
             } else {
                 colorShader.SetUniform(std::string("roughness_map_unit"), NUM_MAP_UNITS + 3);
             }
-            if (mesh->material->metallicMap >= 0) {
-                colorShader.SetUniform(std::string("metallic_map_unit"), NUM_MAP_UNITS + mesh->material->metallicMap);
+            if (mesh->GetMaterial()->metallicMap >= 0) {
+                colorShader.SetUniform(std::string("metallic_map_unit"), NUM_MAP_UNITS + mesh->GetMaterial()->metallicMap);
             } else {
                 colorShader.SetUniform(std::string("metallic_map_unit"), NUM_MAP_UNITS + 4);
             }
@@ -708,7 +708,7 @@ void GraphicsServer::DebugPass(float dt)
     glm::vec3 eyePos = cameras[0]->GetEye(cameraTransform);
     glm::mat4 projectionView = cameras[0]->GetProjectionMatrix() * cameras[0]->GetViewMatrix(cameraTransform);
 
-    glDisable(GL_DEPTH_TEST);
+    //glDisable(GL_DEPTH_TEST);
 
     debugShader.Activate();
     debugShader.SetUniform(std::string("ProjectionView"), projectionView);
@@ -719,7 +719,7 @@ void GraphicsServer::DebugPass(float dt)
     glDrawArrays(GL_LINES, 0, debugLines.size());
     glBindVertexArray(0);
 
-    glEnable(GL_DEPTH_TEST);
+    //glEnable(GL_DEPTH_TEST);
 
     debugLines.clear();
 }

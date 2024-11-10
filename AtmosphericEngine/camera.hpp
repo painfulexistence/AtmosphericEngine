@@ -5,7 +5,7 @@
 
 struct CameraProps
 {
-    CameraProps(sol::table data)
+    CameraProps(const sol::table& data)
     {
         this->fieldOfView = (float)data.get_or("field_of_view", glm::radians(60.f));
         this->aspectRatio = (float)data.get_or("aspect_ratio", 4.f / 3.f);
@@ -53,5 +53,5 @@ public:
 
     void pitch(float);
 
-    glm::vec3 CreateLinearVelocity(Axis);
+    glm::vec3 GetDirection(Axis);
 };

@@ -5,8 +5,14 @@ using namespace std;
 
 static vector<vector<bool>> generateMazeData(int size, int shouldConsumed);
 
-class MazeGame : public Application
-{
+enum GameScreen {
+    MENU,
+    PLAY,
+    WIN,
+    LOSE,
+};
+
+class MazeGame : public Application {
     bool isPhysicsDebugUIEnabled = false;
     bool isPostProcessEnabled = false;
     bool isWireframeEnabled = false;
@@ -17,8 +23,7 @@ class MazeGame : public Application
     GameObject* player = nullptr;
     std::vector<float> terrainData;
 
-    void Load()
-    {
+    void Load() override {
         // Read data from script
         script.GetData(std::string("init_game_state"), initState);
         const int MAZE_SIZE = (int)initState["maze_size"];
@@ -28,112 +33,94 @@ class MazeGame : public Application
         bool mazeRoofed = (bool)initState["maze_roofed"];
         isLightFlashing = (bool)initState["is_light_flashing"];
 
-        player = cameras.at(0);
-
         // Load models
         auto characterModel = new Mesh();
-        characterModel->collisionShape = new btCapsuleShape(0.5f, 3.0f);
+        characterModel->AddCapsuleShape(0.5f, 3.0f);
         Mesh::MeshList.insert({"Character", characterModel});
 
         auto skyboxModel = Mesh::CreateCube(800.0f);
-        skyboxModel->material = graphics.materials[1];
+        skyboxModel->SetMaterial(graphics.materials[1]);
         skyboxModel->cullFaceEnabled = false;
         Mesh::MeshList.insert({"Skybox", skyboxModel});
 
         const float worldSize = 1024.f;
-        const float halfWorldSize = worldSize / 2.f;
         const int worldResolution = 128;
         auto terrainModel = Mesh::CreateTerrain(worldSize, worldResolution);
-        terrainModel->material = graphics.materials[6];
-        // terrainModel->collisionShape = new btBoxShape(btVector3(halfWorldSize, 0.2f, halfWorldSize));
+        terrainModel->SetMaterial(graphics.materials[6]);
+
         int w, h, numChannels;
         unsigned char* data = stbi_load("assets/textures/heightmap_debug.jpg", &w, &h, &numChannels, 0);
-        if (data != nullptr)
-        {
+        if (data != nullptr) {
             const int terrainDataSize = w * h;
             terrainData.resize(terrainDataSize);
-            for (int i = 0; i < terrainDataSize; ++i)
-            {
+            for (int i = 0; i < terrainDataSize; ++i) {
                 terrainData[i] = (static_cast<float>(data[i]) / 255.0f) * 32.0f;
             }
-            terrainModel->collisionShape = new btHeightfieldTerrainShape(w, h, terrainData.data(), 1.0f, -64.0f, 64.0f, 1, PHY_FLOAT, true);
-            terrainModel->collisionShape->setLocalScaling(btVector3(10.0f, 1.0f, 10.0f));
+            terrainModel->SetShape(new btHeightfieldTerrainShape(w, h, terrainData.data(), 1.0f, -64.0f, 64.0f, 1, PHY_FLOAT, true));
+            terrainModel->GetShape()->setLocalScaling(btVector3(10.0f, 1.0f, 10.0f));
+
+            stbi_image_free(data);
+        } else {
+            throw std::runtime_error("Could not load heightmap");
         }
-        stbi_image_free(data);
         Mesh::MeshList.insert({"Terrain", terrainModel});
 
-        auto cubeModel = Mesh::CreateCube((float)TILE_SIZE);
-        cubeModel->material = graphics.materials[3];
-        cubeModel->collisionShape = new btBoxShape(0.5f * btVector3(TILE_SIZE, TILE_SIZE, TILE_SIZE));
+        auto cubeModel = Mesh::CreateCubeWithPhysics((float)TILE_SIZE);
+        cubeModel->SetMaterial(graphics.materials[3]);
         Mesh::MeshList.insert({"Cube", cubeModel});
 
-        auto sphereModel = Mesh::CreateSphere();
-        sphereModel->material = graphics.materials[5];
-        sphereModel->collisionShape = new btSphereShape(0.5f);
+        auto sphereModel = Mesh::CreateSphereWithPhysics();
+        sphereModel->SetMaterial(graphics.materials[5]);
         Mesh::MeshList.insert({"Sphere", sphereModel});
 
         script.Print("Models loaded.");
 
         // Create game objects in scene
+        player = cameras.at(0);
         player->SetPosition(glm::vec3(0, 64, 0));
         Impostor* rb = ComponentFactory::CreateImpostor(player, &physics, "Character", 10.0f);
         rb->SetLinearFactor(glm::vec3(1, 1, 1));
         rb->SetAngularFactor(glm::vec3(0, 0, 0));
 
-        auto skybox = new GameObject();
-        ComponentFactory::CreateMesh(skybox, &graphics, "Skybox");
-        gameObjects.push_back(skybox);
+        auto skybox = CreateGameObject();
+        skybox->AddMesh("Skybox");
 
-        auto terrain = new GameObject();
+        auto terrain = CreateGameObject();
         terrain->SetPosition(glm::vec3(0.0f, -10.0f, 0.0f));
-        // ComponentFactory::CreateMesh(terrain, &graphics, "Terrain");
-        ComponentFactory::CreateImpostor(terrain, &physics, "Terrain");
-        gameObjects.push_back(terrain);
+        // terrain->AddMesh("Terrain");
+        terrain->AddImpostor("Terrain");
 
-        for (int i = 0; i < 50; ++i)
-        {
+        for (int i = 0; i < 50; ++i) {
             float diameter = (float)(rand() % 10 + 1);
 
-            auto sphere = new GameObject(); //glm::scale(glm::mat4(1.0), glm::vec3(diameter))
+            auto sphere = CreateGameObject(); //glm::scale(glm::mat4(1.0), glm::vec3(diameter))
             sphere->SetPosition(glm::vec3(rand() % 10 - 5, rand() % 100 + 20, rand() % 10 - 5));
-            ComponentFactory::CreateMesh(sphere, &graphics, "Sphere");
-            ComponentFactory::CreateImpostor(sphere, &physics, "Sphere", 1.0f);
-            gameObjects.push_back(sphere);
+            sphere->AddMesh("Sphere");
+            sphere->AddImpostor("Sphere", 1.0f);
         }
 
         bool characterPlaced = false;
         vector<vector<bool>> maze = generateMazeData(MAZE_SIZE, TILES_TO_REMOVE);
-        for (int x = 0; x < MAZE_SIZE; x++)
-        {
-            for (int z = 0; z < MAZE_SIZE; z++)
-            {
-                if (mazeRoofed)
-                {
-                    auto cube = new GameObject();
+        for (int x = 0; x < MAZE_SIZE; x++) {
+            for (int z = 0; z < MAZE_SIZE; z++) {
+                if (mazeRoofed) {
+                    auto cube = CreateGameObject();
                     cube->SetPosition(TILE_SIZE * glm::vec3(x - MAZE_SIZE / 2.f, 3, z - MAZE_SIZE / 2.f));
-                    ComponentFactory::CreateMesh(cube, &graphics, "Cube");
-                    ComponentFactory::CreateImpostor(cube, &physics, "Cube", 0.0f);
-                    gameObjects.push_back(cube);
+                    cube->AddMesh("Cube");
+                    cube->AddImpostor("Cube", 0.0f);
                 }
-                if (maze[x][z])
-                {
-                    for (int h = 0; h < 3; h++)
-                    {
-                        auto cube = new GameObject();
+                if (maze[x][z]) {
+                    for (int h = 0; h < 3; h++) {
+                        auto cube = CreateGameObject();
                         cube->SetPosition(TILE_SIZE * glm::vec3(x - MAZE_SIZE / 2.f, h, z - MAZE_SIZE / 2.f));
-                        ComponentFactory::CreateMesh(cube, &graphics, "Cube");
-                        ComponentFactory::CreateImpostor(cube, &physics, "Cube", 0.0f);
-                        gameObjects.push_back(cube);
+                        cube->AddMesh("Cube");
+                        cube->AddImpostor("Cube", 0.0f);
                     }
-                }
-                else
-                {
-                    if (rand() % 100 < chismProb)
-                    {
+                } else {
+                    if (rand() % 100 < chismProb) {
                         continue; //Create chism
                     }
-                    if (!characterPlaced)
-                    {
+                    if (!characterPlaced) {
                         // FIXME: SetModelWorldTransform is not working properly
                         player->SetModelWorldTransform(glm::translate(glm::mat4(1.0f), TILE_SIZE * glm::vec3(x - MAZE_SIZE / 2.f, 1, z - MAZE_SIZE / 2.f)));
                         characterPlaced = true;
@@ -142,11 +129,10 @@ class MazeGame : public Application
                     winCoord.y = 0.f;
                     winCoord.z = TILE_SIZE * (z - MAZE_SIZE / 2.f);
                 }
-                auto cube = new GameObject();
+                auto cube = CreateGameObject();
                 cube->SetPosition(TILE_SIZE * glm::vec3(x - MAZE_SIZE / 2.f, -1, z - MAZE_SIZE / 2.f));
-                ComponentFactory::CreateMesh(cube, &graphics, "Cube");
-                ComponentFactory::CreateImpostor(cube, &physics, "Cube", 0.0f);
-                gameObjects.push_back(cube);
+                cube->AddMesh("Cube");
+                cube->AddImpostor("Cube", 0.0f);
             }
         }
 
@@ -154,94 +140,72 @@ class MazeGame : public Application
         script.Print(fmt::format("Game fully loaded in {:.1f} seconds", GetWindowTime()));
     }
 
-    void Update(float dt, float time)
-    {
+    void Update(float dt, float time) override {
         // Update environment
-        if (isLightFlashing)
-        {
+        if (isLightFlashing) {
             glm::vec3 col = glm::vec3(1, 1, 1);
             mainLight->diffuse = abs(glm::cos(glm::radians(10.0f) * time)) * (float)(rand() % 2 / 2.0 + 0.5) * col;
         }
 
         // Input handling
-        Impostor* rb = dynamic_cast<Impostor*>(player->GetComponent("Physics"));
-        if (rb == nullptr)
-            throw runtime_error("Impostor not found");
-
-        glm::vec3 currentVel = rb->GetLinearVelocity();
-        if (input.GetKeyDown(KEY_W))
-        {
-            glm::vec3 v = mainCamera->CreateLinearVelocity(Axis::FRONT);
-            rb->SetLinearVelocity(glm::vec3(v.x, currentVel.y, v.z));
+        glm::vec3 currentVel = player->GetVelocity();
+        if (input.GetKeyDown(KEY_W)) {
+            glm::vec3 v = mainCamera->GetDirection(Axis::FRONT);
+            player->SetVelocity(glm::vec3(v.x, currentVel.y, v.z));
         }
-        if (input.GetKeyDown(KEY_S))
-        {
-            glm::vec3 v = mainCamera->CreateLinearVelocity(Axis::FRONT);
-            rb->SetLinearVelocity(glm::vec3(-v.x, currentVel.y, -v.z));
+        if (input.GetKeyDown(KEY_S)) {
+            glm::vec3 v = mainCamera->GetDirection(Axis::FRONT);
+            player->SetVelocity(glm::vec3(-v.x, currentVel.y, -v.z));
         }
-        if (input.GetKeyDown(KEY_D))
-        {
+        if (input.GetKeyDown(KEY_D)) {
             mainCamera->yaw(0.3 * CAMERA_ANGULAR_OFFSET);
-            glm::vec3 v = mainCamera->CreateLinearVelocity(Axis::RIGHT);
-            rb->SetLinearVelocity(glm::vec3(v.x, currentVel.y, v.z));
+            glm::vec3 v = mainCamera->GetDirection(Axis::RIGHT);
+            player->SetVelocity(glm::vec3(v.x, currentVel.y, v.z));
         }
-        if (input.GetKeyDown(KEY_A))
-        {
+        if (input.GetKeyDown(KEY_A)) {
             mainCamera->yaw(-0.3 * CAMERA_ANGULAR_OFFSET);
-            glm::vec3 v = mainCamera->CreateLinearVelocity(Axis::RIGHT);
-            rb->SetLinearVelocity(glm::vec3(-v.x, currentVel.y, -v.z));
+            glm::vec3 v = mainCamera->GetDirection(Axis::RIGHT);
+            player->SetVelocity(glm::vec3(-v.x, currentVel.y, -v.z));
         }
-        if (input.GetKeyDown(KEY_UP))
-        {
+        if (input.GetKeyDown(KEY_UP)) {
             mainCamera->pitch(CAMERA_ANGULAR_OFFSET);
         }
-        if (input.GetKeyDown(KEY_DOWN))
-        {
+        if (input.GetKeyDown(KEY_DOWN)) {
             mainCamera->pitch(-CAMERA_ANGULAR_OFFSET);
         }
-        if (input.GetKeyDown(KEY_RIGHT))
-        {
+        if (input.GetKeyDown(KEY_RIGHT)) {
             mainCamera->yaw(CAMERA_ANGULAR_OFFSET);
         }
-        if (input.GetKeyDown(KEY_LEFT))
-        {
+        if (input.GetKeyDown(KEY_LEFT)) {
             mainCamera->yaw(-CAMERA_ANGULAR_OFFSET);
         }
-        if (input.GetKeyDown(KEY_SPACE))
-        {
-            currentVel = rb->GetLinearVelocity(); // update velcoity to reflect current horizontal speed
-            glm::vec3 v = mainCamera->CreateLinearVelocity(Axis::UP);
-            rb->SetLinearVelocity(glm::vec3(currentVel.x, v.y, currentVel.z));
+        if (input.GetKeyDown(KEY_SPACE)) {
+            currentVel = player->GetVelocity(); // update velcoity to reflect current horizontal speed
+            glm::vec3 v = mainCamera->GetDirection(Axis::UP);
+            player->SetVelocity(glm::vec3(currentVel.x, v.y, currentVel.z));
         }
-        if (input.GetKeyDown(KEY_X))
-        {
+        if (input.GetKeyDown(KEY_X)) {
             isLightFlashing = !isLightFlashing;
         }
-        if (input.GetKeyDown(KEY_Z))
-        {
-            rb->Freeze();
+        if (input.GetKeyDown(KEY_Z)) {
+            player->FreezePhyisics();
         }
-        if (input.GetKeyDown(KEY_I))
-        {
+        if (input.GetKeyDown(KEY_I)) {
             physics.EnableDebugUI(!isPhysicsDebugUIEnabled);
             isPhysicsDebugUIEnabled = !isPhysicsDebugUIEnabled;
         }
-        if (input.GetKeyDown(KEY_O))
-        {
+        if (input.GetKeyDown(KEY_O)) {
             graphics.EnableWireframe(!isWireframeEnabled);
             isWireframeEnabled = !isWireframeEnabled;
         }
-        if (input.GetKeyDown(KEY_P))
-        {
+        if (input.GetKeyDown(KEY_P)) {
             graphics.EnablePostProcess(!isPostProcessEnabled);
             isPostProcessEnabled = !isPostProcessEnabled;
         }
-        if (input.GetKeyDown(KEY_R))
-        {
+        if (input.GetKeyDown(KEY_R)) {
             graphics.ReloadShaders();
         }
-        if (input.GetKeyDown(KEY_ESCAPE))
-        {
+        if (input.GetKeyDown(KEY_ESCAPE)) {
             Quit();
         }
     }
@@ -286,8 +250,7 @@ static vector<vector<bool>> generateMazeData(int size, int shouldConsumed) {
 }
 
 
-int main(int argc, char* argv[])
-{
+int main(int argc, char* argv[]) {
     //setbuf(stdout, NULL); // Cancel output stream buffering so that output can be seen immediately
     srand(time(NULL));
 

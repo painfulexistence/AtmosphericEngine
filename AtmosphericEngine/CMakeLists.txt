@@ -42,6 +42,7 @@ set(SOURCES
     input.cpp
     entity.cpp
     script.cpp
+    scene.cpp
     utility/file.cpp
 )
 

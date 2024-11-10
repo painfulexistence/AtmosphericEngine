@@ -33,7 +33,7 @@ Impostor* ComponentFactory::CreateImpostor(GameObject* gameObject, PhysicsServer
         throw std::runtime_error("Could not find the specified mesh!");
 
     auto mesh = Mesh::MeshList.find(meshName)->second;
-    auto impostor =  new Impostor(gameObject, mesh->collisionShape, mass);
+    auto impostor =  new Impostor(gameObject, mesh->GetShape(), mass);
     physics->AddImpostor(impostor);
     return impostor;
 }

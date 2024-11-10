@@ -1,6 +1,7 @@
 #include "application.hpp"
 #include "backends/imgui_impl_glfw.h"
 #include "backends/imgui_impl_opengl3.h"
+#include "game_object.hpp"
 //#include <iostream> // Note that IO should only be used for debugging here
 using namespace std;
 
@@ -28,7 +29,7 @@ Application::Application()
 Application::~Application()
 {
     Log("Exiting...");
-    for (const auto& go : gameObjects)
+    for (const auto& go : _entities)
         delete go;
     for (const auto& [name, mesh] : Mesh::MeshList)
         delete mesh;
@@ -90,9 +91,8 @@ void Application::Run()
     std::vector<GameObject*> lights;
     for (const auto& kv : lightTable)
     {
-        auto light = new GameObject();
-        ComponentFactory::CreateLight(light, &graphics, LightProps((sol::table)kv.second));
-        gameObjects.push_back(light);
+        auto light = CreateGameObject();
+        light->AddLight(LightProps((sol::table)kv.second));
         lights.push_back(light);
     }
     mainLight = dynamic_cast<Light*>(lights.at(0)->GetComponent("Light"));
@@ -100,9 +100,8 @@ void Application::Run()
     sol::table cameraTable = scene["cameras"];
     for (const auto& kv : cameraTable)
     {
-        auto camera = new GameObject();
-        ComponentFactory::CreateCamera(camera, &graphics, CameraProps((sol::table)kv.second));
-        gameObjects.push_back(camera);
+        auto camera = CreateGameObject();
+        camera->AddCamera(CameraProps((sol::table)kv.second));
         cameras.push_back(camera);
     }
     mainCamera = dynamic_cast<Camera*>(cameras.at(0)->GetComponent("Camera"));
@@ -214,7 +213,7 @@ void Application::SyncTransformWithPhysics()
     float time = GetWindowTime();
 
     //ecs.SyncTransformWithPhysics();
-    for (auto go : gameObjects)
+    for (auto go : _entities)
     {
         auto impostor = dynamic_cast<Impostor*>(go->GetComponent("Physics"));
         if (impostor == nullptr)
@@ -252,4 +251,11 @@ float Application::GetWindowTime()
 Window* Application::GetWindow()
 {
     return this->_window;
+}
+
+GameObject* Application::CreateGameObject()
+{
+    auto e = new GameObject(&graphics, &physics);
+    _entities.push_back(e);
+    return e;
 }

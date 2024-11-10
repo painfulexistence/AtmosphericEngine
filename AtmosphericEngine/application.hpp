@@ -11,6 +11,8 @@
 #include "game_object.hpp"
 #include "component_factory.hpp"
 
+class Scene;
+
 struct FrameProps
 {
     FrameProps(uint64_t number, float time, float deltaTime)
@@ -45,6 +47,8 @@ public:
 
     Window* GetWindow();
 
+    GameObject* CreateGameObject();
+
 protected:
     // These subsystems will be game accessible
     GraphicsServer graphics;
@@ -52,7 +56,8 @@ protected:
     Console console;
     Input input;
     Script script;
-    std::vector<GameObject*> gameObjects;
+    std::vector<Scene> scenes;
+    std::vector<GameObject*> _entities;
     std::vector<GameObject*> cameras;
     Camera* mainCamera = nullptr;
     Light* mainLight = nullptr;
@@ -63,6 +68,8 @@ private:
 
     Window* _window = nullptr;
     uint64_t _clock = 0;
+
+    uint16_t _sceneIndex = 0;
 
     void Log(std::string message);
 

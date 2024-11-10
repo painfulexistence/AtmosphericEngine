@@ -1,6 +1,8 @@
 #pragma once
 #include "globals.hpp"
 #include "server.hpp"
+#include "scene.hpp"
+
 //#define SOL_ALL_SAFETIES_ON 1
 #define SOL_LUA_VERSION 504
 #include "sol/sol.hpp"
@@ -34,6 +36,8 @@ public:
     void Print(const std::string& msg);
 
     sol::table GetData(const std::string& key);
+
+    std::vector<Scene> GetScenes();
 
     void GetData(const std::string& key, sol::table& data);
 

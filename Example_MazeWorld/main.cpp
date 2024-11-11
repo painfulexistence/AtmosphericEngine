@@ -1,9 +1,8 @@
 #include "application.hpp"
 #include <vector>
 #include "stb_image.h"
-using namespace std;
 
-static vector<vector<bool>> generateMazeData(int size, int shouldConsumed);
+static std::vector<std::vector<bool>> generateMazeData(int size, int shouldConsumed);
 
 enum GameScreen {
     MENU,
@@ -30,18 +29,16 @@ class MazeGame : public Application {
 
     void Load() override {
         // Load models
-        auto characterModel = new Mesh();
+        auto characterModel = graphics.CreateMesh("Character");
         characterModel->AddCapsuleShape(0.5f, 3.0f);
-        Mesh::MeshList.insert({"Character", characterModel});
 
-        auto skyboxModel = Mesh::CreateCube(800.0f);
+        auto skyboxModel = graphics.CreateCubeMesh("Skybox", 800.0f);
         skyboxModel->SetMaterial(graphics.materials[1]);
         skyboxModel->cullFaceEnabled = false;
-        Mesh::MeshList.insert({"Skybox", skyboxModel});
 
         const float worldSize = 1024.f;
         const int worldResolution = 128;
-        auto terrainModel = Mesh::CreateTerrain(worldSize, worldResolution);
+        auto terrainModel = graphics.CreateTerrainMesh("Terrain", worldSize, worldResolution);
         terrainModel->SetMaterial(graphics.materials[6]);
 
         int w, h, numChannels;
@@ -59,24 +56,19 @@ class MazeGame : public Application {
         } else {
             throw std::runtime_error("Could not load heightmap");
         }
-        Mesh::MeshList.insert({"Terrain", terrainModel});
 
-        auto cubeModel = Mesh::CreateCubeWithPhysics((float)TILE_SIZE);
+        auto cubeModel = graphics.CreateMesh("Cube", Mesh::CreateCubeWithPhysics((float)TILE_SIZE));
         cubeModel->SetMaterial(graphics.materials[3]);
-        Mesh::MeshList.insert({"Cube", cubeModel});
 
-        auto sphereModel = Mesh::CreateSphereWithPhysics();
+        auto sphereModel = graphics.CreateMesh("Sphere", Mesh::CreateSphereWithPhysics());
         sphereModel->SetMaterial(graphics.materials[5]);
-        Mesh::MeshList.insert({"Sphere", sphereModel});
 
         script.Print("Models loaded.");
 
         // Create game objects in scene
         player = cameras.at(0);
         player->SetPosition(glm::vec3(0, 64, 0));
-        Impostor* rb = ComponentFactory::CreateImpostor(player, &physics, "Character", 10.0f);
-        rb->SetLinearFactor(glm::vec3(1, 1, 1));
-        rb->SetAngularFactor(glm::vec3(0, 0, 0));
+        player->AddImpostor("Character", 10.0f, glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
 
         auto skybox = CreateGameObject();
         skybox->AddMesh("Skybox");
@@ -96,7 +88,7 @@ class MazeGame : public Application {
         }
 
         bool characterPlaced = false;
-        vector<vector<bool>> maze = generateMazeData(MAZE_SIZE, TILES_TO_REMOVE);
+        std::vector<std::vector<bool>> maze = generateMazeData(MAZE_SIZE, TILES_TO_REMOVE);
         for (int x = 0; x < MAZE_SIZE; x++) {
             for (int z = 0; z < MAZE_SIZE; z++) {
                 if (MAZE_ROOFED) {
@@ -117,8 +109,8 @@ class MazeGame : public Application {
                         continue; //Create chism
                     }
                     if (!characterPlaced) {
-                        // FIXME: SetModelWorldTransform is not working properly
-                        player->SetModelWorldTransform(glm::translate(glm::mat4(1.0f), TILE_SIZE * glm::vec3(x - MAZE_SIZE / 2.f, 1, z - MAZE_SIZE / 2.f)));
+                        // FIXME: SetObjectTransform is not working properly
+                        player->SetObjectTransform(glm::translate(glm::mat4(1.0f), TILE_SIZE * glm::vec3(x - MAZE_SIZE / 2.f, 1, z - MAZE_SIZE / 2.f)));
                         characterPlaced = true;
                     }
                     winCoord.x = TILE_SIZE * (x - MAZE_SIZE / 2.f);
@@ -207,11 +199,11 @@ class MazeGame : public Application {
     }
 };
 
-static vector<vector<bool>> generateMazeData(int size, int shouldConsumed) {
+static std::vector<std::vector<bool>> generateMazeData(int size, int shouldConsumed) {
     int mazeX = 1;
     int mazeY = 1;
 
-    vector<vector<bool>> data(size);
+    std::vector<std::vector<bool>> data(size);
     for (int i = 0; i < data.size(); ++i)
     {
         for (int j = 0; j < size; ++j)
@@ -232,8 +224,8 @@ static vector<vector<bool>> generateMazeData(int size, int shouldConsumed) {
         int moves = rand() % (size - 1) + 1;
         for (int i = 0; i < moves; i++)
         {
-            mazeX = max(1, min(mazeX + xDir, size - 2));
-            mazeY = max(1, min(mazeY + yDir, size - 2));
+            mazeX = std::max(1, std::min(mazeX + xDir, size - 2));
+            mazeY = std::max(1, std::min(mazeY + yDir, size - 2));
             if (data[mazeX][mazeY])
             {
                 data[mazeX][mazeY] = false;

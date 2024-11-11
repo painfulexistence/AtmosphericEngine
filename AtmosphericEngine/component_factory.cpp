@@ -18,10 +18,10 @@ Camera* ComponentFactory::CreateCamera(GameObject* gameObject, GraphicsServer* g
 
 Renderable* ComponentFactory::CreateMesh(GameObject* gameObject, GraphicsServer* graphics, const std::string& meshName)
 {
-    if (Mesh::MeshList.count(meshName) == 0)
+    if (graphics->MeshList.count(meshName) == 0)
         throw std::runtime_error("Could not find the specified mesh!");
 
-    auto mesh = Mesh::MeshList.find(meshName)->second;
+    auto mesh = graphics->MeshList.find(meshName)->second;
     auto renderable = new Renderable(gameObject, mesh);
     graphics->renderables.push_back(renderable);
     return renderable;
@@ -29,11 +29,11 @@ Renderable* ComponentFactory::CreateMesh(GameObject* gameObject, GraphicsServer*
 
 Impostor* ComponentFactory::CreateImpostor(GameObject* gameObject, PhysicsServer* physics, const std::string& meshName, float mass)
 {
-    if (Mesh::MeshList.count(meshName) == 0)
-        throw std::runtime_error("Could not find the specified mesh!");
+    // if (graphics->MeshList.count(meshName) == 0)
+    //     throw std::runtime_error("Could not find the specified mesh!");
 
-    auto mesh = Mesh::MeshList.find(meshName)->second;
-    auto impostor =  new Impostor(gameObject, mesh->GetShape(), mass);
-    physics->AddImpostor(impostor);
-    return impostor;
+    // auto mesh = graphics-MeshList.find(meshName)->second;
+    // auto impostor =  new Impostor(gameObject, mesh->GetShape(), mass);
+    // physics->AddImpostor(impostor);
+    // return impostor;
 }

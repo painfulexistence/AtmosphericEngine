@@ -108,7 +108,13 @@ public:
 
     bool GetKeyUp(int key);
 
+    std::string GetTitle();
+
+    void SetTitle(const std::string& title);
+
     float GetTime();
+
+    void SetTime(double time);
 
     GLFWwindow* GetGLFWWindow();
 

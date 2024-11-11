@@ -16,8 +16,6 @@ enum MeshType
 class Mesh
 {
 public:
-    static std::map<std::string, Mesh*> MeshList;
-
     GLuint vao;
     GLuint ibo;
     bool initialized = false;

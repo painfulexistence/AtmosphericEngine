@@ -45,6 +45,8 @@ GraphicsServer::GraphicsServer()
 
 GraphicsServer::~GraphicsServer()
 {
+    for (const auto& [name, mesh] : MeshList)
+        delete mesh;
     for (auto& mat : materials)
         delete mat;
     glDeleteTextures(textures.size(), textures.data());
@@ -443,7 +445,7 @@ void GraphicsServer::ShadowPass(float dt)
     depthShader.Activate();
     depthShader.SetUniform(std::string("ProjectionView"), lights[0]->GetProjectionMatrix(0) * lights[0]->GetViewMatrix());
 
-    for (const auto& [name, mesh] : Mesh::MeshList)
+    for (const auto& [name, mesh] : MeshList)
     {
         if (meshInstances.count(mesh) == 0)
             continue;
@@ -488,7 +490,7 @@ void GraphicsServer::ShadowPass(float dt)
             depthCubemapShader.SetUniform(std::string("LightPosition"), l->position);
             depthCubemapShader.SetUniform(std::string("ProjectionView"), l->GetProjectionMatrix(0) * l->GetViewMatrix(face));
 
-            for (const auto& [name, mesh] : Mesh::MeshList)
+            for (const auto& [name, mesh] : MeshList)
             {
                 if (meshInstances.count(mesh) == 0)
                     continue;
@@ -540,7 +542,7 @@ void GraphicsServer::ColorPass(float dt)
     glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    for (const auto& [name, mesh] : Mesh::MeshList)
+    for (const auto& [name, mesh] : MeshList)
     {
         if (meshInstances.count(mesh) == 0)
             continue;
@@ -586,7 +588,7 @@ void GraphicsServer::ColorPass(float dt)
 
         // glEnable(GL_PRIMITIVE_RESTART);
 
-        glm::mat4 cameraTransform = cameras[0]->gameObject->GetModelWorldTransform();
+        glm::mat4 cameraTransform = cameras[0]->gameObject->GetObjectTransform();
         glm::vec3 eyePos = cameras[0]->GetEye(cameraTransform);
         glm::mat4 projectionView = cameras[0]->GetProjectionMatrix() * cameras[0]->GetViewMatrix(cameraTransform);
         switch (mesh->type) {
@@ -704,7 +706,7 @@ void GraphicsServer::DebugPass(float dt)
     if (debugLines.size() == 0)
         return;
 
-    glm::mat4 cameraTransform = cameras[0]->gameObject->GetModelWorldTransform();
+    glm::mat4 cameraTransform = cameras[0]->gameObject->GetObjectTransform();
     glm::vec3 eyePos = cameras[0]->GetEye(cameraTransform);
     glm::mat4 projectionView = cameras[0]->GetProjectionMatrix() * cameras[0]->GetViewMatrix(cameraTransform);
 
@@ -764,4 +766,45 @@ void GraphicsServer::PushDebugLine(DebugVertex from, DebugVertex to)
 {
     debugLines.push_back(from);
     debugLines.push_back(to);
+}
+
+Mesh* GraphicsServer::CreateMesh(const std::string& name)
+{
+    auto mesh = new Mesh();
+    MeshList.insert({name, mesh});
+    return mesh;
+}
+
+Mesh* GraphicsServer::CreateMesh(const std::string& name, Mesh* mesh)
+{
+    MeshList.insert({name, mesh});
+    return mesh;
+}
+
+Mesh* GraphicsServer::CreateCubeMesh(const std::string& name, float size)
+{
+    auto mesh = Mesh::CreateCube(size);
+    MeshList.insert({name, mesh});
+    return mesh;
+}
+
+Mesh* GraphicsServer::CreateSphereMesh(const std::string& name, float radius, int division)
+{
+    auto mesh = Mesh::CreateSphere(radius, division);
+    MeshList.insert({name, mesh});
+    return mesh;
+}
+
+Mesh* GraphicsServer::CreateCapsuleMesh(const std::string& name, float radius, float height)
+{
+    // auto mesh = Mesh::CreateCapsule(radius, height);
+    // MeshList.insert({name, mesh});
+    // return mesh;
+}
+
+Mesh* GraphicsServer::CreateTerrainMesh(const std::string& name, float worldSize, int resolution)
+{
+    auto mesh = Mesh::CreateTerrain(worldSize, resolution);
+    MeshList.insert({name, mesh});
+    return mesh;
 }

@@ -31,8 +31,6 @@ Application::~Application()
     Log("Exiting...");
     for (const auto& go : _entities)
         delete go;
-    for (const auto& [name, mesh] : Mesh::MeshList)
-        delete mesh;
     delete this->_window;
 }
 
@@ -218,7 +216,7 @@ void Application::SyncTransformWithPhysics()
         auto impostor = dynamic_cast<Impostor*>(go->GetComponent("Physics"));
         if (impostor == nullptr)
             continue;
-        go->SetModelWorldTransform(impostor->GetCenterOfMassWorldTransform());
+        go->SyncObjectTransform(impostor->GetCenterOfMassWorldTransform());
     }
 
     #if SHOW_SYNC_COST
@@ -243,14 +241,29 @@ uint64_t Application::GetClock()
     return this->_clock;
 }
 
+Window* Application::GetWindow()
+{
+    return this->_window;
+}
+
 float Application::GetWindowTime()
 {
     return this->_window->GetTime();
 }
 
-Window* Application::GetWindow()
+void Application::SetWindowTime(float time)
 {
-    return this->_window;
+    this->_window->SetTime(time);
+}
+
+std::string Application::GetWindowTitle()
+{
+    return this->_window->GetTitle();
+}
+
+void Application::SetWindowTitle(const std::string& title)
+{
+    this->_window->SetTitle(title);
 }
 
 GameObject* Application::CreateGameObject()

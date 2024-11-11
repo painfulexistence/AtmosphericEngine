@@ -31,15 +31,17 @@ public:
 
     GameObject* AddMesh(const std::string& meshName);
 
-    GameObject* AddImpostor(const std::string& meshName, float mass = 0.0f);
+    GameObject* AddImpostor(const std::string& meshName, float mass = 0.0f, glm::vec3 linearFactor = glm::vec3(1, 1, 1), glm::vec3 angularFactor = glm::vec3(1, 1, 1));
 
-    glm::mat4 GetModelTransform() const;
+    glm::mat4 GetLocalTransform() const;
 
-    void SetModelTransform(glm::mat4 mod);
+    void SetLocalTransform(glm::mat4 xform);
 
-    glm::mat4 GetModelWorldTransform() const;
+    glm::mat4 GetObjectTransform() const;
 
-    void SetModelWorldTransform(glm::mat4 m2w);
+    void SetObjectTransform(glm::mat4 xform);
+
+    void SyncObjectTransform(glm::mat4 xform);
 
     glm::vec3 GetPosition();
 
@@ -66,8 +68,8 @@ public:
 private:
     GraphicsServer* _graphics = nullptr;
     PhysicsServer* _physics = nullptr;
-    glm::mat4 _mod = glm::mat4(1.0f);
     glm::mat4 _m2w = glm::mat4(1.0f);
+    glm::mat4 _w2w = glm::mat4(1.0f);
     glm::vec3 _position = glm::vec3(0, 0, 0);
     glm::vec3 _rotation = glm::vec3(0, 0, 0);
     glm::vec3 _scale = glm::vec3(1, 1, 1);

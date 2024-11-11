@@ -2,8 +2,6 @@
 #include "config.hpp"
 #include "stb_image.h"
 
-std::map<std::string, Mesh*> Mesh::MeshList;
-
 void PrintVertex(const Vertex& v)
 {
     fmt::print("P: ({},{},{}), UV: ({},{})\n, N: ({},{},{}), T: ({},{},{}), B: ({},{},{})\n", v.position.x, v.position.y, v.position.z, v.uv.x, v.uv.y, v.normal.x, v.normal.y, v.normal.z, v.tangent.x, v.tangent.y, v.tangent.z, v.bitangent.x, v.bitangent.y, v.bitangent.z);

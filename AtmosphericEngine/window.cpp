@@ -248,9 +248,24 @@ bool Window::GetKeyUp(int key)
     return isUp;
 }
 
+std::string Window::GetTitle()
+{
+    return std::string(glfwGetWindowTitle(this->_glfwWindow));
+}
+
+void Window::SetTitle(const std::string& title)
+{
+    glfwSetWindowTitle(this->_glfwWindow, title.c_str());
+}
+
 float Window::GetTime()
 {
     return (float)glfwGetTime(); // Note that glfwGetTime() only starts to calculate time after the window is created;
+}
+
+void Window::SetTime(double time)
+{
+    glfwSetTime(time);
 }
 
 GLFWwindow* Window::GetGLFWWindow()

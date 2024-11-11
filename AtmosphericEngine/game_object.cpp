@@ -54,48 +54,63 @@ GameObject* GameObject::AddCamera(const CameraProps& props)
 GameObject* GameObject::AddMesh(const std::string& meshName)
 {
     if (_graphics) {
-        if (Mesh::MeshList.count(meshName) == 0)
+        if (_graphics->MeshList.count(meshName) == 0)
             throw std::runtime_error("Could not find the specified mesh!");
 
-        auto mesh = Mesh::MeshList.find(meshName)->second;
+        auto mesh = _graphics->MeshList.find(meshName)->second;
         auto renderable = new Renderable(this, mesh);
         _graphics->renderables.push_back(renderable);
     }
     return this;
 }
 
-GameObject* GameObject::AddImpostor(const std::string& meshName, float mass)
+GameObject* GameObject::AddImpostor(const std::string& meshName, float mass, glm::vec3 linearFactor, glm::vec3 angularFactor)
 {
-    if (_physics) {
-        if (Mesh::MeshList.count(meshName) == 0)
+    if (_graphics && _physics) {
+        if (_graphics->MeshList.count(meshName) == 0)
             throw std::runtime_error("Could not find the specified mesh!");
 
-        auto mesh = Mesh::MeshList.find(meshName)->second;
+        auto mesh = _graphics->MeshList.find(meshName)->second;
         auto impostor =  new Impostor(this, mesh->GetShape(), mass);
+        impostor->SetLinearFactor(linearFactor);
+        impostor->SetAngularFactor(angularFactor);
         _physics->AddImpostor(impostor);
     }
     return this;
 }
 
-glm::mat4 GameObject::GetModelTransform() const
-{
-    //return glm::scale(glm::translate(glm::mat4(1.0f), _position),  _scale);
-    return _mod;
-}
-
-void GameObject::SetModelTransform(glm::mat4 mod)
-{
-    _mod = mod;
-}
-
-glm::mat4 GameObject::GetModelWorldTransform() const
+glm::mat4 GameObject::GetLocalTransform() const
 {
     return _m2w;
 }
 
-void GameObject::SetModelWorldTransform(glm::mat4 m2w)
+void GameObject::SetLocalTransform(glm::mat4 xform)
 {
-    this->_m2w = m2w;
+    _m2w = xform;
+}
+
+glm::mat4 GameObject::GetObjectTransform() const
+{
+    return _w2w;
+}
+
+// FIXME: This is not working properly
+void GameObject::SetObjectTransform(glm::mat4 xform)
+{
+    this->_w2w = xform;
+    _position = glm::vec3(_w2w[3]);
+    _scale = glm::vec3(glm::length(_w2w[0]), glm::length(_w2w[1]), glm::length(_w2w[2]));
+
+    // Impostor* rb = dynamic_cast<Impostor*>(this->GetComponent("Physics"));
+    // if (rb)
+    //     rb->SetTransform(_rotation, _position);
+}
+
+void GameObject::SyncObjectTransform(glm::mat4 xform)
+{
+    this->_w2w = xform;
+    _position = glm::vec3(_w2w[3]);
+    _scale = glm::vec3(glm::length(_w2w[0]), glm::length(_w2w[1]), glm::length(_w2w[2]));
 }
 
 glm::vec3 GameObject::GetPosition()
@@ -116,24 +131,24 @@ glm::vec3 GameObject::GetScale()
 void GameObject::SetPosition(glm::vec3 value)
 {
     _position = value;
-    _m2w = glm::scale(glm::translate(glm::mat4(1.0f), _position),  _scale);
+    _w2w = glm::scale(glm::translate(glm::mat4(1.0f), _position),  _scale);
 }
 
 void GameObject::SetRotation(glm::vec3 value)
 {
     _rotation = value;
-    _m2w = glm::scale(glm::translate(glm::mat4(1.0f), _position),  _scale);
+    _w2w = glm::scale(glm::translate(glm::mat4(1.0f), _position),  _scale);
 }
 
 void GameObject::SetScale(glm::vec3 value)
 {
     _scale = value;
-    _m2w = glm::scale(glm::translate(glm::mat4(1.0f), _position),  _scale);
+    _w2w = glm::scale(glm::translate(glm::mat4(1.0f), _position),  _scale);
 }
 
 glm::mat4 GameObject::GetTransform() const
 {
-    return _m2w * _mod;
+    return _w2w * _m2w;
 }
 
 glm::vec3 GameObject::GetVelocity()

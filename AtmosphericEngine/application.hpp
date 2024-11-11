@@ -35,19 +35,9 @@ public:
 
     void Run();
 
-    void Quit();
-
     virtual void Load() = 0;
 
     virtual void Update(float dt, float time) = 0;
-
-    uint64_t GetClock();
-
-    float GetWindowTime();
-
-    Window* GetWindow();
-
-    GameObject* CreateGameObject();
 
 protected:
     // These subsystems will be game accessible
@@ -57,10 +47,25 @@ protected:
     Input input;
     Script script;
     std::vector<Scene> scenes;
-    std::vector<GameObject*> _entities;
     std::vector<GameObject*> cameras;
     Camera* mainCamera = nullptr;
     Light* mainLight = nullptr;
+
+    void Quit();
+
+    uint64_t GetClock();
+
+    Window* GetWindow();
+
+    float GetWindowTime();
+
+    void SetWindowTime(float time);
+
+    std::string GetWindowTitle();
+
+    void SetWindowTitle(const std::string& title);
+
+    GameObject* CreateGameObject();
 
 private:
     bool _initialized = false;
@@ -68,8 +73,8 @@ private:
 
     Window* _window = nullptr;
     uint64_t _clock = 0;
-
     uint16_t _sceneIndex = 0;
+    std::vector<GameObject*> _entities;
 
     void Log(std::string message);
 

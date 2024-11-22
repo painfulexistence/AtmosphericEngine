@@ -6,6 +6,8 @@ class GameObject;
 
 class Mesh;
 
+class Material;
+
 class Renderable : public Component
 {
 public:
@@ -15,8 +17,15 @@ public:
 
     std::string GetName() const override;
 
-    Mesh* mesh = nullptr;
+    Mesh* GetMesh() const;
+
+    void SetMesh(Mesh* mesh);
+
+    Material* GetMaterial() const;
+
+    void SetMaterial(Material* material);
+
 private:
-    //Material* material;
-    //btCollisionShape* collider;
+    Mesh* _mesh = nullptr;
+    Material* _material = nullptr;
 };

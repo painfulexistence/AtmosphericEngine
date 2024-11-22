@@ -23,7 +23,7 @@ public:
 
     ~Script();
 
-    void Init(Application* app);
+    void Init(Application* app) override;
 
     void Process(float dt) override;
 

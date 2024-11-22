@@ -1,8 +1,9 @@
 #include "application.hpp"
-#include "backends/imgui_impl_glfw.h"
-#include "backends/imgui_impl_opengl3.h"
+#include "window.hpp"
 #include "game_object.hpp"
-//#include <iostream> // Note that IO should only be used for debugging here
+#include "scene.hpp"
+#include "impostor.hpp"
+
 using namespace std;
 
 static glm::mat4 ConvertPhysicalMatrix(const btTransform& trans)
@@ -21,38 +22,31 @@ static glm::mat4 ConvertPhysicalMatrix(const btTransform& trans)
 Application::Application()
 {
     Log("Launching...");
-    Window* win = new Window();
-    win->Init();
-    this->_window = win; // Multi-window not supported now
+    _window = std::make_shared<Window>();; // Multi-window not supported now
+    _window->Init();
+    _window->InitImGui();
 }
 
 Application::~Application()
 {
     Log("Exiting...");
+    _window->DeinitImGui();
     for (const auto& go : _entities)
         delete go;
-    delete this->_window;
 }
 
 void Application::Run()
 {
     Log("Initializing...");
-    IMGUI_CHECKVERSION();
-    ImGui::CreateContext();
-    #if USE_VULKAN_DRIVER
-    throw std::runtime_error("When using Vulkan, GUI context should be manually handled!");
-    #else
-    ImGui_ImplGlfw_InitForOpenGL(this->GetWindow()->GetGLFWWindow(), true);
-    ImGui_ImplOpenGL3_Init("#version 410");
-    #endif
-    ImGui::StyleColorsDark();
 
     console.Init(this);
     input.Init(this);
     graphics.Init(this);
     physics.Init(this); // Note that physics debug drawer is dependent on graphics server
     script.Init(this);
-    //ecs.Init(this);
+    for (auto& subsystem : _subsystems) {
+        subsystem->Init(this);
+    }
     this->_initialized = true;
 
     Log("Loading data...");
@@ -80,112 +74,164 @@ void Application::Run()
     const sol::table materialTable = scene["materials"];
     for (const auto& kv : materialTable)
     {
-        auto mat = new Material((sol::table)kv.second);
+        sol::table data = kv.second;
+        auto mat = new Material {
+            .baseMap = (int)data.get_or("baseMapId", -1),
+            .normalMap = (int)data.get_or("normalMapId", -1),
+            .aoMap = (int)data.get_or("aoMapId", -1),
+            .roughnessMap = (int)data.get_or("roughtnessMapId", -1),
+            .metallicMap = (int)data.get_or("metallicMapId", -1),
+            .heightMap = (int)data.get_or("heightMapId", -1),
+            .diffuse = glm::vec3(data["diffuse"][1], data["diffuse"][2], data["diffuse"][3]),
+            .specular = glm::vec3(data["specular"][1], data["specular"][2], data["specular"][3]),
+            .ambient = glm::vec3(data["ambient"][1], data["ambient"][2], data["ambient"][3]),
+            .shininess = (float)data.get_or("shininess", 0.25)
+        };
         graphics.materials.push_back(mat);
     }
     script.Print("Materials initialized.");
 
     const sol::table lightTable = scene["lights"];
-    std::vector<GameObject*> lights;
     for (const auto& kv : lightTable)
     {
+        sol::table data = kv.second;
+        LightProps props = {
+            .type = (int)data.get_or("type", 1),
+            .position = glm::vec3(
+                data["position"][1],
+                data["position"][2],
+                data["position"][3]
+            ),
+            .direction = glm::vec3(
+                data["direction"][1],
+                data["direction"][2],
+                data["direction"][3]
+            ),
+            .ambient = glm::vec3(
+                data["ambient"][1],
+                data["ambient"][2],
+                data["ambient"][3]
+            ),
+            .diffuse = glm::vec3(
+                data["diffuse"][1],
+                data["diffuse"][2],
+                data["diffuse"][3]
+            ),
+            .specular = glm::vec3(
+                data["specular"][1],
+                data["specular"][2],
+                data["specular"][3]
+            ),
+            .attenuation = glm::vec3(
+                data["attenuation"][1],
+                data["attenuation"][2],
+                data["attenuation"][3]
+            ),
+            .intensity = (float)data.get_or("intensity", 1.0),
+            .castShadow = (bool)data.get_or("castShadow", 0)
+        };
         auto light = CreateGameObject();
-        light->AddLight(LightProps((sol::table)kv.second));
-        lights.push_back(light);
+        light->AddLight(props);
     }
-    mainLight = dynamic_cast<Light*>(lights.at(0)->GetComponent("Light"));
+    mainLight = graphics.GetMainLight();
 
     sol::table cameraTable = scene["cameras"];
     for (const auto& kv : cameraTable)
     {
-        auto camera = CreateGameObject();
-        camera->AddCamera(CameraProps((sol::table)kv.second));
-        cameras.push_back(camera);
+        sol::table data = kv.second;
+        CameraProps props = {
+            .fieldOfView = (float)data.get_or("field_of_view", glm::radians(60.f)),
+            .aspectRatio = (float)data.get_or("aspect_ratio", 4.f / 3.f),
+            .nearClip = (float)data.get_or("near_clip_plane", 0.1f),
+            .farClip = (float)data.get_or("far_clip_plane", 1000.0f),
+            .verticalAngle = (float)data.get_or("vertical_angle", 0),
+            .horizontalAngle = (float)data.get_or("horizontal_angle", 0),
+            .eyeOffset = glm::vec3(
+                (float)data.get_or("eye_offset.x", 0),
+                (float)data.get_or("eye_offset.y", 0),
+                (float)data.get_or("eye_offset.z", 0)
+            )
+        };
+        auto go = CreateGameObject();
+        go->AddCamera(props);
     }
-    mainCamera = dynamic_cast<Camera*>(cameras.at(0)->GetComponent("Camera"));
+    mainCamera = graphics.GetMainCamera();
 
+    OnLoad();
 
-
-    Load();
-
-    float lastFrameTime = GetWindowTime();
+    float lastTime = GetWindowTime();
     float deltaTime = 0;
-    while (!this->_quitted)
+    while (!this->_closed)
     {
-        Tick();
-        this->_window->PollEvents();
-        if (this->_window->IsClosing())
-            Quit();
+        _window->PollEvents();
+        if (_window->IsClosing()) {
+            Log("Requested to quit.");
+            this->_closed = true;
+        }
 
-        float currentFrameTime = GetWindowTime();
-        deltaTime = currentFrameTime - lastFrameTime;
-        lastFrameTime = currentFrameTime;
-        FrameProps currentFrame = FrameProps(this->GetClock(), GetWindowTime(), deltaTime);
+        float currentTime = GetWindowTime();
+        deltaTime = currentTime - lastTime;
+        lastTime = currentTime;
 
-        #if SINGLE_THREAD
-        #pragma region main_loop_single_thread
-        Process(currentFrame);
+        FrameData currentFrame = { GetClock(), GetWindowTime(), deltaTime };
+#if SINGLE_THREAD
+        Update(currentFrame);
         SyncTransformWithPhysics();
         Render(currentFrame);
-        Draw(currentFrame);
-        #pragma endregion
-        #else
-        #pragma region main_loop_double_thread
+        PresentWindow(currentFrame);
+#else
         std::thread fork(&Application::Process, this, currentFrame);
         Render(currentFrame);
-        Draw(currentFrame);
+        PresentWindow(currentFrame);
         fork.join();
         SyncTransformWithPhysics();
-        #pragma endregion
-        #endif
-    }
+#endif
 
-    ImGui_ImplOpenGL3_Shutdown();
-    ImGui_ImplGlfw_Shutdown();
-    ImGui::DestroyContext();
+        Tick();
+    }
     Log("Game quitted.");
 }
 
 void Application::Quit()
 {
-    Log("Requested to quit.");
-    this->_quitted = true;
+
 }
 
-void Application::Process(const FrameProps& props)
+void Application::Update(const FrameData& props)
 {
     float dt = props.deltaTime;
-    float time = GetWindowTime();
 
-    Update(dt, time);
+    OnUpdate(dt, GetWindowTime());
+
     //ecs.Process(dt); // Note that most of the entity manipulation logic should be put there
     console.Process(dt);
     input.Process(dt);
     script.Process(dt);
     physics.Process(dt); // TODO: Update only every entity's physics transform
-    graphics.Process(dt); // TODO: Generate command buffers according to entity transforms
+    for (auto& subsystem : _subsystems) {
+        subsystem->Process(dt);
+    }
 
     #if SHOW_PROCESS_COST
     Log(fmt::format("Update costs {} ms", (GetWindowTime() - time) * 1000));
     #endif
 }
 
-void Application::Render(const FrameProps& props)
+void Application::Render(const FrameData& props)
 {
     float dt = props.deltaTime;
     float time = GetWindowTime();
 
-    ImGui_ImplOpenGL3_NewFrame();
-    ImGui_ImplGlfw_NewFrame();
-    ImGui::NewFrame();
-
+    _window->BeginImGuiFrame();
     // Note that draw calls are asynchronous, which means they return immediately.
     // So the drawing time can only be calculated along with the image presenting.
-    graphics.Render(dt);
+    graphics.Process(dt); // TODO: Generate command buffers according to entity transforms
+    // graphics.Render(dt);
     graphics.RenderUI(dt);
-
-    ImGui::Render();
-    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+    for (auto subsystem : _subsystems) {
+        subsystem->DrawImGui(dt);
+    }
+    _window->EndImGuiFrame();
 
     // Nevertheless, glFinish() can force the GPU process all the commands synchronously.
     glFinish();
@@ -195,11 +241,11 @@ void Application::Render(const FrameProps& props)
     #endif
 }
 
-void Application::Draw(const FrameProps& props)
+void Application::PresentWindow(const FrameData& props)
 {
     float time = GetWindowTime();
 
-    this->_window->SwapBuffers();
+    this->_window->Present();
 
     #if SHOW_VSYNC_COST
     Log(fmt::format("Vsync cost {} ms", (Time() - time) * 1000));
@@ -216,7 +262,7 @@ void Application::SyncTransformWithPhysics()
         auto impostor = dynamic_cast<Impostor*>(go->GetComponent("Physics"));
         if (impostor == nullptr)
             continue;
-        go->SyncObjectTransform(impostor->GetCenterOfMassWorldTransform());
+        go->SyncObjectTransform(impostor->GetWorldTransform());
     }
 
     #if SHOW_SYNC_COST
@@ -241,7 +287,7 @@ uint64_t Application::GetClock()
     return this->_clock;
 }
 
-Window* Application::GetWindow()
+std::shared_ptr<Window> Application::GetWindow()
 {
     return this->_window;
 }
@@ -266,9 +312,9 @@ void Application::SetWindowTitle(const std::string& title)
     this->_window->SetTitle(title);
 }
 
-GameObject* Application::CreateGameObject()
+GameObject* Application::CreateGameObject(glm::vec3 position, glm::vec3 rotation, glm::vec3 scale)
 {
-    auto e = new GameObject(&graphics, &physics);
+    auto e = new GameObject(&graphics, &physics, position, rotation, scale);
     _entities.push_back(e);
     return e;
 }

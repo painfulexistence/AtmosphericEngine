@@ -15,6 +15,7 @@
 #include <optional>
 #include <utility>
 #include <stdexcept>
+//#include <iostream> // Note that IO should only be used for debugging here
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>

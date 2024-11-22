@@ -9,9 +9,30 @@
 #include "light.hpp"
 #include "camera.hpp"
 
+struct CanvasVertex {
+    glm::vec2 position;
+    glm::vec2 texCoord;
+    glm::vec4 color;
+    float texId;
+};
+
+struct ScreenVertex {
+    glm::vec2 position;
+    glm::vec2 texCoord;
+};
+
 struct DebugVertex {
     glm::vec3 position;
     glm::vec3 color;
+};
+
+struct CameraData {
+    glm::mat4 viewMatrix;
+    glm::mat4 projectionMatrix;
+};
+
+struct InstanceData {
+    glm::mat4 modelMatrix;
 };
 
 struct RenderTargetProps
@@ -27,7 +48,15 @@ struct RenderTargetProps
     int numSamples;
 };
 
-class GraphicsServer : Server
+// class Pipeline;
+
+// class ShaderProgram;
+
+// class Texture;
+
+// class Material;
+
+class GraphicsServer : public Server
 {
 private:
     static GraphicsServer* _instance;
@@ -37,7 +66,7 @@ public:
     {
         return _instance;
     }
-    std::map<std::string, Mesh*> MeshList;
+    std::vector<std::shared_ptr<Mesh>> meshes;
     std::vector<GLuint> textures;
     std::vector<Material*> materials;
     std::vector<Renderable*> renderables;
@@ -48,13 +77,38 @@ public:
 
     ~GraphicsServer();
 
-    void Init(Application* app);
+    void Init(Application* app) override;
 
     void Process(float dt) override;
 
     void Render(float dt);
 
     void RenderUI(float dt);
+
+    Camera* GetMainCamera() const {
+        if (cameras.size() > 0) {
+            return cameras[0];
+        } else {
+            // TODO: initialize default camera
+            return defaultCamera;
+        }
+    };
+
+    Light* GetMainLight() const {
+        if (lights.size() > 0) {
+            return lights[0];
+        } else {
+            // TODO: initialize default light
+            return defaultLight;
+        }
+    };
+
+    Mesh* GetMesh(const std::string name) const {
+        if (_meshList.count(name) == 0)
+            throw std::runtime_error("Could not find the specified mesh!");
+
+        return _meshList.find(name)->second;
+    };
 
     void LoadTextures(const std::vector<std::string>& paths);
 
@@ -116,6 +170,22 @@ public:
 
     Mesh* CreateTerrainMesh(const std::string& name, float worldSize = 1024.f, int resolution = 10);
 
+    Renderable* CreateRenderable(GameObject* gameObject, Mesh* mesh);
+
+    Camera* CreateCamera(GameObject* gameObject, const CameraProps& props);
+
+    Light* CreateLight(GameObject* gameObject, const LightProps& props);
+
+    // void ApplyMaterial(const Material& material);
+
+    // void ApplyPipeline(const Pipeline& pipeline);
+
+    // void ApplyCamera(const Camera& camera);
+
+    // void ApplyTransform(const glm::mat4 transform);
+
+    // void Draw(const std::shared_ptr<Mesh> mesh);
+
 private:
     GLuint shadowFBO, hdrFBO, msaaFBO;
 
@@ -131,11 +201,14 @@ private:
     ShaderProgram postProcessShader;
     ShaderProgram debugShader;
 
+    GLuint canvasVAO, canvasVBO;
     GLuint screenVAO, screenVBO;
     GLuint debugVAO, debugVBO;
 
     glm::vec4 clearColor = glm::vec4(0.15f, 0.183f, 0.2f, 1.0f);
-    std::map<Mesh*, std::vector<glm::mat4>> meshInstances;
+    std::map<std::string, Mesh*> _meshList;
+    std::map<Mesh*, std::vector<InstanceData>> _meshInstanceMap;
+    // std::unordered_map<std::pair<Mesh*, Material*>, std::vector<InstanceData>> groupedObjects;
 
     std::vector<DebugVertex> debugLines;
 
@@ -143,14 +216,18 @@ private:
     int auxLightCount = 0;
     bool postProcessEnabled = true;
     bool wireframeEnabled = false;
+    Camera* defaultCamera = nullptr;
+    Light* defaultLight = nullptr;
 
     void CreateRenderTargets(const RenderTargetProps& props);
 
     void UpdateRenderTargets(const RenderTargetProps& props);
 
-    void CreateDebugVAO();
+    void CreateCanvasVAO();
 
     void CreateScreenVAO();
+
+    void CreateDebugVAO();
 
     void ShadowPass(float dt);
 

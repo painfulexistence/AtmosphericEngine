@@ -4,10 +4,12 @@
 #include "physics_server.hpp"
 #include "impostor.hpp"
 
-GameObject::GameObject(GraphicsServer* graphics, PhysicsServer* physics)
+GameObject::GameObject(GraphicsServer* graphics, PhysicsServer* physics, glm::vec3 position, glm::vec3 rotation, glm::vec3 scale) : _graphics(graphics), _physics(physics)
 {
-    _graphics = graphics;
-    _physics = physics;
+    _position = position;
+    _rotation = rotation;
+    _scale = scale;
+    _w2w = glm::scale(glm::translate(glm::mat4(1.0f), position), scale);
 }
 
 GameObject::~GameObject()
@@ -24,7 +26,12 @@ void GameObject::AddComponent(Component* component)
     component->gameObject = this;
 }
 
-Component* GameObject::GetComponent(std::string name)
+void GameObject::RemoveComponent(Component* component)
+{
+    components.erase(component->GetName());
+}
+
+Component* GameObject::GetComponent(std::string name) const
 {
     auto it = components.find(name);
     if (it == components.end())
@@ -33,44 +40,39 @@ Component* GameObject::GetComponent(std::string name)
         return it->second;
 }
 
+// Shortcut for adding light component
 GameObject* GameObject::AddLight(const LightProps& props)
 {
     if (_graphics) {
-        auto light = new Light(this, props);
-        _graphics->lights.push_back(light);
+        auto light = _graphics->CreateLight(this, props);
     }
     return this;
 }
 
+// Shortcut for adding camera component
 GameObject* GameObject::AddCamera(const CameraProps& props)
 {
     if (_graphics) {
-        auto camera = new Camera(this, props);
-        _graphics->cameras.push_back(camera);
+        auto camera = _graphics->CreateCamera(this, props);
     }
     return this;
 }
 
-GameObject* GameObject::AddMesh(const std::string& meshName)
+// Shortcut for adding renderable component
+GameObject* GameObject::AddRenderable(const std::string& meshName)
 {
     if (_graphics) {
-        if (_graphics->MeshList.count(meshName) == 0)
-            throw std::runtime_error("Could not find the specified mesh!");
-
-        auto mesh = _graphics->MeshList.find(meshName)->second;
-        auto renderable = new Renderable(this, mesh);
-        _graphics->renderables.push_back(renderable);
+        auto mesh = _graphics->GetMesh(meshName);
+        auto renderable = _graphics->CreateRenderable(this, mesh);
     }
     return this;
 }
 
+// Shortcut for adding impostor component
 GameObject* GameObject::AddImpostor(const std::string& meshName, float mass, glm::vec3 linearFactor, glm::vec3 angularFactor)
 {
     if (_graphics && _physics) {
-        if (_graphics->MeshList.count(meshName) == 0)
-            throw std::runtime_error("Could not find the specified mesh!");
-
-        auto mesh = _graphics->MeshList.find(meshName)->second;
+        auto mesh = _graphics->GetMesh(meshName);
         auto impostor =  new Impostor(this, mesh->GetShape(), mass);
         impostor->SetLinearFactor(linearFactor);
         impostor->SetAngularFactor(angularFactor);
@@ -94,21 +96,20 @@ glm::mat4 GameObject::GetObjectTransform() const
     return _w2w;
 }
 
-// FIXME: This is not working properly
 void GameObject::SetObjectTransform(glm::mat4 xform)
 {
-    this->_w2w = xform;
+    _w2w = xform;
     _position = glm::vec3(_w2w[3]);
     _scale = glm::vec3(glm::length(_w2w[0]), glm::length(_w2w[1]), glm::length(_w2w[2]));
 
-    // Impostor* rb = dynamic_cast<Impostor*>(this->GetComponent("Physics"));
-    // if (rb)
-    //     rb->SetTransform(_rotation, _position);
+    Impostor* rb = dynamic_cast<Impostor*>(this->GetComponent("Physics"));
+    if (rb)
+        rb->SetWorldTransform(_position, _rotation);
 }
 
 void GameObject::SyncObjectTransform(glm::mat4 xform)
 {
-    this->_w2w = xform;
+    _w2w = xform;
     _position = glm::vec3(_w2w[3]);
     _scale = glm::vec3(glm::length(_w2w[0]), glm::length(_w2w[1]), glm::length(_w2w[2]));
 }
@@ -132,6 +133,10 @@ void GameObject::SetPosition(glm::vec3 value)
 {
     _position = value;
     _w2w = glm::scale(glm::translate(glm::mat4(1.0f), _position),  _scale);
+
+    Impostor* rb = dynamic_cast<Impostor*>(GetComponent("Physics"));
+    if (rb)
+        rb->SetWorldTransform(_position, _rotation);
 }
 
 void GameObject::SetRotation(glm::vec3 value)
@@ -153,7 +158,7 @@ glm::mat4 GameObject::GetTransform() const
 
 glm::vec3 GameObject::GetVelocity()
 {
-    Impostor* rb = dynamic_cast<Impostor*>(this->GetComponent("Physics"));
+    Impostor* rb = dynamic_cast<Impostor*>(GetComponent("Physics"));
     if (rb == nullptr)
         throw std::runtime_error("Impostor not found");
 
@@ -162,27 +167,22 @@ glm::vec3 GameObject::GetVelocity()
 
 void GameObject::SetVelocity(glm::vec3 value)
 {
-    Impostor* rb = dynamic_cast<Impostor*>(this->GetComponent("Physics"));
+    Impostor* rb = dynamic_cast<Impostor*>(GetComponent("Physics"));
     if (rb == nullptr)
         throw std::runtime_error("Impostor not found");
 
     rb->SetLinearVelocity(value);
 }
 
-void GameObject::ActivatePhyisics()
+void GameObject::SetPhysicsActivated(bool value)
 {
-    Impostor* rb = dynamic_cast<Impostor*>(this->GetComponent("Physics"));
+    Impostor* rb = dynamic_cast<Impostor*>(GetComponent("Physics"));
     if (rb == nullptr)
         throw std::runtime_error("Impostor not found");
 
-    rb->Activate();
-}
-
-void GameObject::FreezePhyisics()
-{
-    Impostor* rb = dynamic_cast<Impostor*>(this->GetComponent("Physics"));
-    if (rb == nullptr)
-        throw std::runtime_error("Impostor not found");
-
-    rb->Freeze();
+    if (value) {
+        rb->Act();
+    } else {
+        rb->Stop();
+    }
 }

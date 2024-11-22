@@ -11,19 +11,19 @@ class PhysicsServer;
 class Impostor : public Component
 {
 public:
-    Impostor(GameObject* gameObject, btCollisionShape* shape, float mass = 0.0f);
+    Impostor(GameObject* gameObject, btCollisionShape* shape, float mass = 0.0f, glm::vec3 linearFactor = glm::vec3(1.0f), glm::vec3 angularFactor = glm::vec3(1.0f));
 
     ~Impostor();
 
     std::string GetName() const override;
 
-    glm::mat4 GetCenterOfMassWorldTransform();
+    glm::mat4 GetWorldTransform();
 
-    void SetCenterOfMassWorldTransform(const glm::mat4& transform);
+    void SetWorldTransform(const glm::vec3& position, const glm::vec3& rotation);
 
-    void Activate();
+    void Act();
 
-    void Freeze();
+    void Stop();
 
     void Dampen();
 
@@ -45,8 +45,6 @@ public:
     glm::vec3 GetAngularVelocity();
 
     void SetAngularVelocity(const glm::vec3& vel);
-
-    void SetTransform(const glm::vec3& position, const glm::vec3& rotation);
 
     btRigidBody* Data() const;
 

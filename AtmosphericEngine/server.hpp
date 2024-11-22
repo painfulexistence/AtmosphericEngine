@@ -10,9 +10,11 @@ public:
 
     ~Server();
 
-    void Init(Application* app);
+    virtual void Init(Application* app);
 
     virtual void Process(float dt);
+
+    virtual void DrawImGui(float dt);
 
 protected:
     Application* _app;

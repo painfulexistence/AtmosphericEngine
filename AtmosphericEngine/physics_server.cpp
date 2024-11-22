@@ -21,7 +21,7 @@ void PhysicsServer::Init(Application* app)
 {
     Server::Init(app);
 
-    _world = std::make_shared<PhysicsWorld>();
+    _world = std::make_unique<PhysicsWorld>();
     _world->SetGravity(GRAVITY);
 }
 

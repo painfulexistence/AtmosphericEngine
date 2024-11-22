@@ -68,7 +68,15 @@ public:
 
     void Init();
 
-    void SwapBuffers();
+    void InitImGui();
+
+    void BeginImGuiFrame();
+
+    void EndImGuiFrame();
+
+    void DeinitImGui();
+
+    void Present();
 
     void PollEvents();
 
@@ -116,8 +124,6 @@ public:
 
     void SetTime(double time);
 
-    GLFWwindow* GetGLFWWindow();
-
     ImageSize GetViewportSize();
 
     ImageSize GetSize();
@@ -126,6 +132,5 @@ public:
 
 private:
     static Window* _instance;
-
-    GLFWwindow* _glfwWindow = nullptr;
+    void* _internal = nullptr;
 };

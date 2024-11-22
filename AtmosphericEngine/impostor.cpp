@@ -14,13 +14,21 @@ static glm::mat4 ConvertToGLMatrix(const btTransform& trans)
     );
 }
 
-Impostor::Impostor(GameObject* gameObject, btCollisionShape* shape, float mass)
+Impostor::Impostor(GameObject* gameObject, btCollisionShape* shape, float mass, glm::vec3 linearFactor, glm::vec3 angularFactor)
 {
     glm::vec3 position = gameObject->GetPosition();
     glm::vec3 rotation = gameObject->GetRotation();
-    btTransform transform = btTransform(btQuaternion(rotation.x, rotation.y, rotation.z), btVector3(position.x, position.y, position.z));
-    _motionState = new btDefaultMotionState(transform);
-    _rigidbody = new btRigidBody(btScalar(mass), this->_motionState, shape, btVector3(1, 1, 1));
+
+    btTransform t;
+    t.setIdentity();
+    t.setOrigin(btVector3(position.x, position.y, position.z));
+    t.setRotation(btQuaternion(rotation.x, rotation.y, rotation.z, 1.0f));
+    _motionState = new btDefaultMotionState(t);
+
+    _rigidbody = new btRigidBody(btScalar(mass), _motionState, shape, btVector3(1, 1, 1));
+    _rigidbody->setLinearFactor(btVector3(linearFactor.x, linearFactor.y, linearFactor.z));
+    _rigidbody->setAngularFactor(btVector3(angularFactor.x, angularFactor.y, angularFactor.z));
+    _rigidbody->setDamping(0.9f, 0.0f);
 
     this->gameObject = gameObject;
     this->gameObject->AddComponent(this);
@@ -38,93 +46,94 @@ std::string Impostor::GetName() const
     return std::string("Physics");
 }
 
-glm::mat4 Impostor::GetCenterOfMassWorldTransform()
+glm::mat4 Impostor::GetWorldTransform()
 {
     btTransform t;
-    this->_motionState->getWorldTransform(t); //getMotionState()->getWorldTransform(t)
+    _rigidbody->getMotionState()->getWorldTransform(t); //getMotionState()->getWorldTransform(t)
     return ConvertToGLMatrix(t);
 };
 
-void Impostor::SetCenterOfMassWorldTransform(const glm::mat4& transform)
+void Impostor::SetWorldTransform(const glm::vec3& position, const glm::vec3& rotation)
 {
-    // TODO:
-};
-
-void Impostor::Activate()
-{
-    this->_rigidbody->activate();
+    btTransform t;
+    t.setIdentity();
+    t.setOrigin(btVector3(position.x, position.y, position.z));
+    t.setRotation(btQuaternion(rotation.x, rotation.y, rotation.z, 1.0f));
+    _rigidbody->setWorldTransform(t);
+    _rigidbody->getMotionState()->setWorldTransform(t);
 }
 
-void Impostor::Freeze()
+void Impostor::Act()
 {
-    this->_rigidbody->setActivationState(0);
+    _rigidbody->activate();
+}
+
+void Impostor::Stop()
+{
+    _rigidbody->setActivationState(0);
 }
 
 void Impostor::Dampen()
 {
-    btVector3 vel = this->_rigidbody->getLinearVelocity();
-    this->_rigidbody->setLinearVelocity(btVector3(vel.x() / 2.0f, vel.y(), vel.z() / 2.0f));
+    btVector3 vel = _rigidbody->getLinearVelocity();
+    _rigidbody->setLinearVelocity(btVector3(vel.x() / 2.0f, vel.y(), vel.z() / 2.0f));
 }
 
 // This will override the dynamics world gravity
 void Impostor::SetGravity(const float& acc)
 {
-    this->_rigidbody->setGravity(btVector3(0, -acc, 0));
+    _rigidbody->setGravity(btVector3(0, -acc, 0));
 }
 
 glm::vec3 Impostor::GetLinearFactor()
 {
-    btVector3 fac = this->_rigidbody->getLinearFactor();
+    btVector3 fac = _rigidbody->getLinearFactor();
     return glm::vec3(fac.x(), fac.y(), fac.z());
 }
 
 void Impostor::SetLinearFactor(const glm::vec3& fac)
 {
-    this->_rigidbody->setLinearFactor(btVector3(fac.x, fac.y, fac.z));
+    _rigidbody->setLinearFactor(btVector3(fac.x, fac.y, fac.z));
 }
 
 glm::vec3 Impostor::GetLinearVelocity()
 {
-    btVector3 vel = this->_rigidbody->getLinearVelocity();
+    btVector3 vel = _rigidbody->getLinearVelocity();
     return glm::vec3(vel.x(), vel.y(), vel.z());
 }
 
 void Impostor::SetLinearVelocity(const glm::vec3& vel)
 {
-    this->_rigidbody->activate();
-    this->_rigidbody->setLinearVelocity(btVector3(vel.x, vel.y, vel.z));
+    _rigidbody->activate();
+    _rigidbody->setLinearVelocity(btVector3(vel.x, vel.y, vel.z));
 }
 
 glm::vec3 Impostor::GetAngularFactor()
 {
-    btVector3 fac = this->_rigidbody->getAngularFactor();
+    btVector3 fac = _rigidbody->getAngularFactor();
     return glm::vec3(fac.x(), fac.y(), fac.z());
 }
 
 void Impostor::SetAngularFactor(const glm::vec3& fac)
 {
-    this->_rigidbody->setAngularFactor(btVector3(fac.x, fac.y, fac.z));
+    _rigidbody->setAngularFactor(btVector3(fac.x, fac.y, fac.z));
 }
 
 glm::vec3 Impostor::GetAngularVelocity()
 {
-    btVector3 vel = this->_rigidbody->getAngularVelocity();
+    btVector3 vel = _rigidbody->getAngularVelocity();
     return glm::vec3(vel.x(), vel.y(), vel.z());
 }
 
 void Impostor::SetAngularVelocity(const glm::vec3& vel)
 {
-    this->_rigidbody->activate();
-    this->_rigidbody->setAngularVelocity(btVector3(vel.x, vel.y, vel.z));
+    _rigidbody->activate();
+    _rigidbody->setAngularVelocity(btVector3(vel.x, vel.y, vel.z));
 }
 
-void Impostor::SetTransform(const glm::vec3& position, const glm::vec3& rotation)
-{
-    btTransform t = btTransform(btQuaternion(rotation.x, rotation.y, rotation.z), btVector3(position.x, position.y, position.z));
-    this->_rigidbody->proceedToTransform(t);
-}
+
 
 btRigidBody* Impostor::Data() const
 {
-    return this->_rigidbody;
+    return _rigidbody;
 }

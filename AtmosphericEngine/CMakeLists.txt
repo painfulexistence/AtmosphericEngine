@@ -26,7 +26,6 @@ set(SOURCES
     window.cpp
     server.cpp
     console.cpp
-    component_factory.cpp
     game_object.cpp
     impostor.cpp
     light.cpp
@@ -43,6 +42,7 @@ set(SOURCES
     entity.cpp
     script.cpp
     scene.cpp
+    asset_manager.cpp
     utility/file.cpp
 )
 

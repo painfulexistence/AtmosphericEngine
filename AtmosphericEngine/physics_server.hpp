@@ -26,9 +26,9 @@ public:
 
     ~PhysicsServer();
 
-    void Init(Application* app);
+    void Init(Application* app) override;
 
-    virtual void Process(float dt) override;
+    void Process(float dt) override;
 
     void AddImpostor(Impostor*);
 

@@ -20,3 +20,8 @@ void Server::Process(float dt)
 {
     // Default processing
 }
+
+void Server::DrawImGui(float dt)
+{
+
+}

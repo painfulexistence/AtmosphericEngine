@@ -1,21 +1,21 @@
 #pragma once
 #include "globals.hpp"
 #include "imgui.h"
-#include "message_bus.hpp"
-#include "window.hpp"
 #include "graphics_server.hpp"
 #include "physics_server.hpp"
 #include "console.hpp"
 #include "input.hpp"
 #include "script.hpp"
-#include "game_object.hpp"
-#include "component_factory.hpp"
+
+class Window;
 
 class Scene;
 
-struct FrameProps
+class GameObject;
+
+struct FrameData
 {
-    FrameProps(uint64_t number, float time, float deltaTime)
+    FrameData(uint64_t number, float time, float deltaTime)
     {
         this->number = number;
         this->time = time;
@@ -35,9 +35,9 @@ public:
 
     void Run();
 
-    virtual void Load() = 0;
+    virtual void OnLoad() = 0;
 
-    virtual void Update(float dt, float time) = 0;
+    virtual void OnUpdate(float dt, float time) = 0;
 
 protected:
     // These subsystems will be game accessible
@@ -46,16 +46,14 @@ protected:
     Console console;
     Input input;
     Script script;
+
     std::vector<Scene> scenes;
-    std::vector<GameObject*> cameras;
     Camera* mainCamera = nullptr;
     Light* mainLight = nullptr;
 
     void Quit();
 
-    uint64_t GetClock();
-
-    Window* GetWindow();
+    std::shared_ptr<Window> GetWindow();
 
     float GetWindowTime();
 
@@ -65,13 +63,18 @@ protected:
 
     void SetWindowTitle(const std::string& title);
 
-    GameObject* CreateGameObject();
+    void AddSubsystem(std::shared_ptr<Server> subsystem);
+
+    uint64_t GetClock();
+
+    GameObject* CreateGameObject(glm::vec3 position = glm::vec3(0.0f), glm::vec3 rotation = glm::vec3(0.0f), glm::vec3 scale = glm::vec3(1.0f));
 
 private:
+    std::vector<std::shared_ptr<Server>> _subsystems;
     bool _initialized = false;
-    bool _quitted = false;
+    bool _closed = false;
 
-    Window* _window = nullptr;
+    std::shared_ptr<Window> _window = nullptr;
     uint64_t _clock = 0;
     uint16_t _sceneIndex = 0;
     std::vector<GameObject*> _entities;
@@ -80,11 +83,11 @@ private:
 
     void Tick();
 
-    void Process(const FrameProps& frame);
+    void Update(const FrameData& frame);
 
-    void Render(const FrameProps& frame); // TODO: Properly separate rendering and drawing logic if the backend supports command buffering
+    void Render(const FrameData& frame); // TODO: Properly separate rendering and drawing logic if the backend supports command buffering
 
-    void Draw(const FrameProps& frame);
+    void PresentWindow(const FrameData& frame);
 
     void SyncTransformWithPhysics();
 };

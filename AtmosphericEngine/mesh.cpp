@@ -1,6 +1,6 @@
 #include "mesh.hpp"
 #include "config.hpp"
-#include "stb_image.h"
+#include "asset_manager.hpp"
 
 void PrintVertex(const Vertex& v)
 {
@@ -45,7 +45,7 @@ void CalculateNormalsAndTangents(std::vector<Vertex>& verts, std::vector<uint16_
     // B = ((u0 - u1) * (p2 - p1) - (u2 - u1) * (p0 - p1)) / det
 }
 
-Mesh::Mesh()
+Mesh::Mesh(MeshType type) : type(type)
 {
     glGenVertexArrays(1, &vao);
     glGenBuffers(1, &vbo);
@@ -63,9 +63,10 @@ Mesh::~Mesh()
 }
 
 // Terrain mesh initialization
-void Mesh::Initialize(MeshType type, const std::vector<Vertex>& verts)
+void Mesh::Initialize(const std::vector<Vertex>& verts)
 {
-    this->type = type;
+    vertCount = verts.size();
+    triCount = 0;
 
     glBindVertexArray(vao);
 
@@ -84,15 +85,13 @@ void Mesh::Initialize(MeshType type, const std::vector<Vertex>& verts)
 
     glBindVertexArray(0);
 
-    this->vertCount = verts.size();
-    this->triCount = 0;
     this->initialized = true;
 }
 
-void Mesh::Initialize(MeshType type, const std::vector<Vertex>& verts, const std::vector<uint16_t>& tris)
+void Mesh::Initialize(const std::vector<Vertex>& verts, const std::vector<uint16_t>& tris)
 {
-    this->type = type;
-
+    vertCount = verts.size();
+    triCount = tris.size() / 3;
     // Buffer binding reference: https://stackoverflow.com/questions/17332657/does-a-vao-remember-both-a-ebo-ibo-elements-or-indices-and-a-vbo
     glBindVertexArray(vao);
 
@@ -127,12 +126,19 @@ void Mesh::Initialize(MeshType type, const std::vector<Vertex>& verts, const std
 
     glBindVertexArray(0);
 
-    this->vertCount = verts.size();
-    this->triCount = tris.size() / 3;
     this->initialized = true;
 }
 
-Mesh* Mesh::CreateCube(const float& size)
+void Mesh::SetShapeLocalScaling(glm::vec3 localScaling) {
+    _shape->setLocalScaling(btVector3(localScaling.x, localScaling.y, localScaling.z));
+}
+
+void Mesh::AddCapsuleShape(float radius, float height) {
+    _shape = new btCapsuleShape(radius, height);
+}
+
+
+Mesh* MeshBuilder::CreateCube(const float& size)
 {
     Vertex vertices[] = {
         // front
@@ -185,23 +191,23 @@ Mesh* Mesh::CreateCube(const float& size)
     std::vector<uint16_t> tris(triangles, triangles + 36);
     CalculateNormalsAndTangents(verts, tris);
 
-    auto cube = new Mesh();
-    cube->Initialize(MeshType::MESH_PRIM, verts, tris);
-
-    cube->bounds[0] = glm::vec3(.5f * size, .5f * size, .5f * size);
-    cube->bounds[1] = glm::vec3(-.5f * size, .5f * size, .5f * size);
-    cube->bounds[2] = glm::vec3(-.5f * size, -.5f * size, .5f * size);
-    cube->bounds[3] = glm::vec3(.5f * size, -.5f * size, .5f * size);
-    cube->bounds[4] = glm::vec3(.5f * size, .5f * size, .5f * size);
-    cube->bounds[5] = glm::vec3(-.5f * size, .5f * size, .5f * size);
-    cube->bounds[6] = glm::vec3(-.5f * size, -.5f * size, .5f * size);
-    cube->bounds[7] = glm::vec3(.5f * size, -.5f * size, .5f * size);
-
+    auto cube = new Mesh(MeshType::PRIM);
+    cube->Initialize(verts, tris);
+    cube->SetBoundingBox({{
+        glm::vec3(.5f * size, .5f * size, .5f * size),
+        glm::vec3(-.5f * size, .5f * size, .5f * size),
+        glm::vec3(-.5f * size, -.5f * size, .5f * size),
+        glm::vec3(.5f * size, -.5f * size, .5f * size),
+        glm::vec3(.5f * size, .5f * size, .5f * size),
+        glm::vec3(-.5f * size, .5f * size, .5f * size),
+        glm::vec3(-.5f * size, -.5f * size, .5f * size),
+        glm::vec3(.5f * size, -.5f * size, .5f * size)
+    }});
     return cube;
 }
 
 // TODO: make sure the uvs are correct
-Mesh* Mesh::CreateSphere(const float& radius, const int& division)
+Mesh* MeshBuilder::CreateSphere(const float& radius, const int& division)
 {
     float delta = (float)PI / (float)division;
 
@@ -263,24 +269,24 @@ Mesh* Mesh::CreateSphere(const float& radius, const int& division)
     }
     CalculateNormalsAndTangents(verts, tris);
 
-    auto sphere = new Mesh();
-    sphere->Initialize(MeshType::MESH_PRIM, verts, tris);
-
-    sphere->bounds[0] = glm::vec3(radius, radius, radius);
-    sphere->bounds[1] = glm::vec3(-radius, radius, radius);
-    sphere->bounds[2] = glm::vec3(-radius, -radius, radius);
-    sphere->bounds[3] = glm::vec3(radius, -radius, radius);
-    sphere->bounds[4] = glm::vec3(radius, radius, radius);
-    sphere->bounds[5] = glm::vec3(-radius, radius, radius);
-    sphere->bounds[6] = glm::vec3(-radius, -radius, radius);
-    sphere->bounds[7] = glm::vec3(radius, -radius, radius);
-
+    auto sphere = new Mesh(MeshType::PRIM);
+    sphere->Initialize(verts, tris);
+    sphere->SetBoundingBox({{
+        glm::vec3(radius, radius, radius),
+        glm::vec3(-radius, radius, radius),
+        glm::vec3(-radius, -radius, radius),
+        glm::vec3(radius, -radius, radius),
+        glm::vec3(radius, radius, radius),
+        glm::vec3(-radius, radius, radius),
+        glm::vec3(-radius, -radius, radius),
+        glm::vec3(radius, -radius, radius)
+    }});
     return sphere;
 }
 
 // TODO: make sure the uvs are correct
 // resolution: number of quads along each side of the terrain
-Mesh* Mesh::CreateTerrain(const float& worldSize, const int& resolution)
+Mesh* MeshBuilder::CreateTerrain(const float& worldSize, const int& resolution)
 {
     std::vector<Vertex> verts;
     verts.resize(resolution * resolution * 4);
@@ -319,62 +325,74 @@ Mesh* Mesh::CreateTerrain(const float& worldSize, const int& resolution)
         }
     }
 
-    auto terrain = new Mesh();
-    terrain->Initialize(MeshType::MESH_TERRAIN,verts);
-
-    terrain->bounds[0] = glm::vec3(.5f * worldSize, .5f, .5f * worldSize);
-    terrain->bounds[1] = glm::vec3(-.5f * worldSize, .5f, .5f * worldSize);
-    terrain->bounds[2] = glm::vec3(-.5f * worldSize, -.5f, .5f * worldSize);
-    terrain->bounds[3] = glm::vec3(.5f * worldSize, -.5f, .5f * worldSize);
-    terrain->bounds[4] = glm::vec3(.5f * worldSize, .5f, .5f * worldSize);
-    terrain->bounds[5] = glm::vec3(-.5f * worldSize, .5f, .5f * worldSize);
-    terrain->bounds[6] = glm::vec3(-.5f * worldSize, -.5f, .5f * worldSize);
-    terrain->bounds[7] = glm::vec3(.5f * worldSize, -.5f, .5f * worldSize);
-
+    auto terrain = new Mesh(MeshType::TERRAIN);
+    terrain->Initialize(verts);
+    terrain->SetBoundingBox({{
+        glm::vec3(.5f * worldSize, .5f, .5f * worldSize),
+        glm::vec3(-.5f * worldSize, .5f, .5f * worldSize),
+        glm::vec3(-.5f * worldSize, -.5f, .5f * worldSize),
+        glm::vec3(.5f * worldSize, -.5f, .5f * worldSize),
+        glm::vec3(.5f * worldSize, .5f, .5f * worldSize),
+        glm::vec3(-.5f * worldSize, .5f, .5f * worldSize),
+        glm::vec3(-.5f * worldSize, -.5f, .5f * worldSize),
+        glm::vec3(.5f * worldSize, -.5f, .5f * worldSize)
+    }});
     return terrain;
 }
 
-Mesh* Mesh::CreateCubeWithPhysics(const float& size) {
+Mesh* MeshBuilder::CreateCubeWithPhysics(const float& size) {
     auto cube = CreateCube(size);
-    cube->_shape = new btBoxShape(0.5 * btVector3(size, size, size));
+    cube->SetShape(new btBoxShape(0.5 * btVector3(size, size, size)));
     return cube;
 }
 
-Mesh* Mesh::CreateSphereWithPhysics(const float& radius, const int& division) {
+Mesh* MeshBuilder::CreateSphereWithPhysics(const float& radius, const int& division) {
     auto sphere = CreateSphere(radius, division);
-    sphere->_shape = new btSphereShape(0.5 * radius);
+    sphere->SetShape(new btSphereShape(radius));
     return sphere;
 }
 
-Mesh* Mesh::CreateTerrainWithPhysics(const float& size, const int& resolution, const std::string& heightmap) {
+Mesh* MeshBuilder::CreateTerrainWithPhysics(const float& size, const int& resolution, const std::string& heightmap) {
     auto terrain = CreateTerrain(size, resolution);
-    // terrain->_shape = new btBoxShape(btVector3(size * 0.5f, 0.2f, size * 0.5f));
+    // terrain->SetShape(new btBoxShape(btVector3(size * 0.5f, 0.2f, size * 0.5f)));
 
-    int w, h, numChannels;
-    unsigned char* data = stbi_load(heightmap.c_str(), &w, &h, &numChannels, 0);
-    if (data != nullptr) {
+    auto img = AssetManager::loadImage(heightmap);
+    if (img != nullptr) {
         std::vector<float> terrainData; //FIXME: this needs to be stored somewhere, or the collision shape data will be deleted
 
-        const int terrainDataSize = w * h;
+        const int terrainDataSize = img->width * img->height;
         terrainData.resize(terrainDataSize);
         for (int i = 0; i < terrainDataSize; ++i) {
-            terrainData[i] = (static_cast<float>(data[i]) / 255.0f) * 32.0f;
+            terrainData[i] = (static_cast<float>(img->byteArray[i]) / 255.0f) * 32.0f;
         }
-        terrain->_shape = new btHeightfieldTerrainShape(w, h, terrainData.data(), 1.0f, -64.0f, 64.0f, 1, PHY_FLOAT, true);
-        terrain->_shape->setLocalScaling(btVector3(10.0f, 1.0f, 10.0f));
-
-        stbi_image_free(data);
-    } else {
-        throw std::runtime_error("Could not load heightmap");
+        terrain->SetShape(new btHeightfieldTerrainShape(img->width, img->height, terrainData.data(), 1.0f, -64.0f, 64.0f, 1, PHY_FLOAT, true));
+        terrain->SetShapeLocalScaling(glm::vec3(10.0f, 1.0f, 10.0f));
     }
 
     return terrain;
 }
 
-void Mesh::SetMaterial(Material* material) {
-    _material = material;
+void MeshBuilder::PushQuad() {
+    // vertices.push_back();
+    // vertices.push_back();
+    // vertices.push_back();
+    // vertices.push_back();
+
+    uint32_t baseIndex = static_cast<uint32_t>(vertices.size() - 4);
+    indices.push_back(baseIndex + 0);
+    indices.push_back(baseIndex + 1);
+    indices.push_back(baseIndex + 2);
+    indices.push_back(baseIndex + 0);
+    indices.push_back(baseIndex + 2);
+    indices.push_back(baseIndex + 3);
 }
 
-void Mesh::AddCapsuleShape(float radius, float height) {
-    _shape = new btCapsuleShape(radius, height);
+void MeshBuilder::PushCube() {
+
+}
+
+std::shared_ptr<Mesh> MeshBuilder::Build() {
+    auto mesh = std::make_shared<Mesh>(MeshType::PRIM);
+    mesh->Initialize(vertices, indices);
+    return mesh;
 }

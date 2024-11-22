@@ -161,13 +161,9 @@ void Application::Run()
 
     float lastTime = GetWindowTime();
     float deltaTime = 0;
-    while (!this->_closed)
+    while (!_window->IsClosing())
     {
         _window->PollEvents();
-        if (_window->IsClosing()) {
-            Log("Requested to quit.");
-            this->_closed = true;
-        }
 
         float currentTime = GetWindowTime();
         deltaTime = currentTime - lastTime;
@@ -194,7 +190,8 @@ void Application::Run()
 
 void Application::Quit()
 {
-
+    Log("Requested to quit.");
+    _window->Close();
 }
 
 void Application::Update(const FrameData& props)

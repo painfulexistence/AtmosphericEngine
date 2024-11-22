@@ -72,7 +72,6 @@ protected:
 private:
     std::vector<std::shared_ptr<Server>> _subsystems;
     bool _initialized = false;
-    bool _closed = false;
 
     std::shared_ptr<Window> _window = nullptr;
     uint64_t _clock = 0;

@@ -155,6 +155,11 @@ void Window::PollEvents()
     glfwPollEvents(); // Snapshot the keyboard
 }
 
+void Window::Close()
+{
+    glfwSetWindowShouldClose(static_cast<GLFWwindow*>(_internal), true);
+}
+
 void Window::SetOnMouseMove(OnWindowMouseMoveCallback callback)
 {
     onMouseMoveCallbacks[this] = [this, callback](GLFWwindow* win, float x, float y) {

@@ -80,6 +80,8 @@ public:
 
     void PollEvents();
 
+    void Close();
+
     void AddEventListener();
 
     void SetOnMouseMove(OnWindowMouseMoveCallback callback);

@@ -19,10 +19,10 @@ class HelloWorld : public Application {
         cube->SetPosition(glm::vec3(0.0f, 0.0f, std::cos(time) * 2.0f));
         cube->SetRotation(glm::vec3(0.0, time * 0.5, time * 1.0));
 
-        if (input.GetKeyDown(KEY_R)) {
+        if (input.IsKeyDown(Key::R)) {
             graphics.ReloadShaders();
         }
-        if (input.GetKeyDown(KEY_ESCAPE)) {
+        if (input.IsKeyDown(Key::ESCAPE)) {
             Quit();
         }
     }

@@ -259,16 +259,118 @@ glm::vec2 Window::GetMousePosition()
     return glm::vec2((float)x, (float)y);
 }
 
-bool Window::GetKeyDown(int key)
+int convertToGlfwKey(Key key)
 {
-    bool isDown = (glfwGetKey(static_cast<GLFWwindow*>(_internal), key) == GLFW_PRESS);
-    return isDown;
+    switch (key) {
+    case Key::UP:
+        return GLFW_KEY_UP;
+    case Key::RIGHT:
+        return GLFW_KEY_RIGHT;
+    case Key::LEFT:
+        return GLFW_KEY_LEFT;
+    case Key::DOWN:
+        return GLFW_KEY_DOWN;
+    case Key::Q:
+        return GLFW_KEY_Q;
+    case Key::W:
+        return GLFW_KEY_W;
+    case Key::E:
+        return GLFW_KEY_E;
+    case Key::R:
+        return GLFW_KEY_R;
+    case Key::T:
+        return GLFW_KEY_T;
+    case Key::Y:
+        return GLFW_KEY_Y;
+    case Key::U:
+        return GLFW_KEY_U;
+    case Key::I:
+        return GLFW_KEY_I;
+    case Key::O:
+        return GLFW_KEY_O;
+    case Key::P:
+        return GLFW_KEY_P;
+    case Key::A:
+        return GLFW_KEY_A;
+    case Key::S:
+        return GLFW_KEY_S;
+    case Key::D:
+        return GLFW_KEY_D;
+    case Key::F:
+        return GLFW_KEY_F;
+    case Key::G:
+        return GLFW_KEY_G;
+    case Key::H:
+        return GLFW_KEY_H;
+    case Key::J:
+        return GLFW_KEY_J;
+    case Key::K:
+        return GLFW_KEY_K;
+    case Key::L:
+        return GLFW_KEY_L;
+    case Key::Z:
+        return GLFW_KEY_Z;
+    case Key::X:
+        return GLFW_KEY_X;
+    case Key::C:
+        return GLFW_KEY_C;
+    case Key::V:
+        return GLFW_KEY_V;
+    case Key::B:
+        return GLFW_KEY_B;
+    case Key::N:
+        return GLFW_KEY_N;
+    case Key::M:
+        return GLFW_KEY_M;
+    case Key::ESCAPE:
+        return GLFW_KEY_ESCAPE;
+    case Key::ENTER:
+        return GLFW_KEY_ENTER;
+    case Key::SPACE:
+        return GLFW_KEY_SPACE;
+    default:
+        return GLFW_KEY_UNKNOWN;
+    }
 }
 
-bool Window::GetKeyUp(int key)
+bool Window::GetKeyDown(Key key)
 {
-    bool isUp = (glfwGetKey(static_cast<GLFWwindow*>(_internal), key) == GLFW_RELEASE);
-    return isUp;
+    int glfwKey = convertToGlfwKey(key);
+    if (glfwKey == GLFW_KEY_UNKNOWN) {
+        return false;
+    }
+
+    return glfwGetKey(static_cast<GLFWwindow*>(_internal), glfwKey) == GLFW_PRESS;
+}
+
+bool Window::GetKeyUp(Key key)
+{
+    int glfwKey = convertToGlfwKey(key);
+    if (glfwKey == GLFW_KEY_UNKNOWN) {
+        return false;
+    }
+
+    return glfwGetKey(static_cast<GLFWwindow*>(_internal), glfwKey) == GLFW_RELEASE;
+}
+
+KeyState Window::GetKeyState(Key key)
+{
+    int glfwKey = convertToGlfwKey(key);
+    if (glfwKey == GLFW_KEY_UNKNOWN) {
+        return KeyState::UNKNOWN;
+    }
+
+    int state = glfwGetKey(static_cast<GLFWwindow*>(_internal), glfwKey);
+    switch (state) {
+    case GLFW_RELEASE:
+        return KeyState::RELEASED;
+    case GLFW_PRESS:
+        return KeyState::PRESSED;
+    case GLFW_REPEAT:
+        return KeyState::HELD;
+    default:
+        return KeyState::UNKNOWN;
+    }
 }
 
 std::string Window::GetTitle()

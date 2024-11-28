@@ -242,7 +242,7 @@ class MazeGame : public Application {
 
         // Input handling
         glm::vec3 currVel = player->GetVelocity();
-        if (input.GetKeyDown(KEY_Q)) {
+        if (input.GetKeyDown(Key::Q)) {
             glm::vec3 forward = mainCamera->GetEyeDirection();
             glm::vec3 pos = mainCamera->GetEyePosition() + forward * 0.5f;
             glm::vec3 vel = forward * 20.0f;
@@ -252,65 +252,65 @@ class MazeGame : public Application {
             bullets[currentBulletIndex]->SetPosition(pos);
             bullets[currentBulletIndex]->SetVelocity(vel);
         }
-        if (input.GetKeyDown(KEY_W)) {
+        if (input.GetKeyDown(Key::W)) {
             glm::vec3 v = mainCamera->GetMoveVector(Axis::FRONT);
             player->SetVelocity(glm::vec3(v.x, currVel.y, v.z));
         }
-        if (input.GetKeyDown(KEY_S)) {
+        if (input.GetKeyDown(Key::S)) {
             glm::vec3 v = mainCamera->GetMoveVector(Axis::FRONT);
             player->SetVelocity(glm::vec3(-v.x, currVel.y, -v.z));
         }
-        if (input.GetKeyDown(KEY_D)) {
+        if (input.GetKeyDown(Key::D)) {
             mainCamera->Yaw(0.3 * CAMERA_ANGULAR_OFFSET);
             glm::vec3 v = mainCamera->GetMoveVector(Axis::RIGHT);
             player->SetVelocity(glm::vec3(v.x, currVel.y, v.z));
         }
-        if (input.GetKeyDown(KEY_A)) {
+        if (input.GetKeyDown(Key::A)) {
             mainCamera->Yaw(-0.3 * CAMERA_ANGULAR_OFFSET);
             glm::vec3 v = mainCamera->GetMoveVector(Axis::RIGHT);
             player->SetVelocity(glm::vec3(-v.x, currVel.y, -v.z));
         }
-        if (input.GetKeyDown(KEY_UP)) {
+        if (input.GetKeyDown(Key::UP)) {
             mainCamera->Pitch(CAMERA_ANGULAR_OFFSET);
         }
-        if (input.GetKeyDown(KEY_DOWN)) {
+        if (input.GetKeyDown(Key::DOWN)) {
             mainCamera->Pitch(-CAMERA_ANGULAR_OFFSET);
         }
-        if (input.GetKeyDown(KEY_RIGHT)) {
+        if (input.GetKeyDown(Key::RIGHT)) {
             mainCamera->Yaw(CAMERA_ANGULAR_OFFSET);
         }
-        if (input.GetKeyDown(KEY_LEFT)) {
+        if (input.GetKeyDown(Key::LEFT)) {
             mainCamera->Yaw(-CAMERA_ANGULAR_OFFSET);
         }
-        if (input.GetKeyDown(KEY_SPACE) && !isPlayerJumping) {
+        if (input.GetKeyDown(Key::SPACE) && !isPlayerJumping) {
             currVel = player->GetVelocity(); // update velcoity to reflect current horizontal speed
             glm::vec3 v = mainCamera->GetMoveVector(Axis::UP);
             player->SetVelocity(glm::vec3(currVel.x, v.y, currVel.z));
 
             isPlayerJumping = true;
         }
-        if (input.GetKeyDown(KEY_X)) {
+        if (input.GetKeyDown(Key::X)) {
             isLightFlashing = !isLightFlashing;
         }
-        if (input.GetKeyDown(KEY_Z)) {
+        if (input.GetKeyDown(Key::Z)) {
             player->SetPhysicsActivated(false);
         }
-        if (input.GetKeyDown(KEY_I)) {
+        if (input.GetKeyDown(Key::I)) {
             physics.EnableDebugUI(!isPhysicsDebugUIEnabled);
             isPhysicsDebugUIEnabled = !isPhysicsDebugUIEnabled;
         }
-        if (input.GetKeyDown(KEY_O)) {
+        if (input.GetKeyDown(Key::O)) {
             graphics.EnableWireframe(!isWireframeEnabled);
             isWireframeEnabled = !isWireframeEnabled;
         }
-        if (input.GetKeyDown(KEY_P)) {
+        if (input.GetKeyDown(Key::P)) {
             graphics.EnablePostProcess(!isPostProcessEnabled);
             isPostProcessEnabled = !isPostProcessEnabled;
         }
-        if (input.GetKeyDown(KEY_R)) {
+        if (input.GetKeyDown(Key::R)) {
             graphics.ReloadShaders();
         }
-        if (input.GetKeyDown(KEY_ESCAPE)) {
+        if (input.GetKeyDown(Key::ESCAPE)) {
             Quit();
         }
     }

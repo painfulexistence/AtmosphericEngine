@@ -29,15 +29,52 @@ struct ImageSize
 
 struct WindowProps
 {
-    WindowProps(std::string title = INIT_SCREEN_TITLE, int width = INIT_SCREEN_WIDTH, int height = INIT_SCREEN_HEIGHT)
-    {
-        this->title = title;
-        this->width = width;
-        this->height = height;
-    };
-    std::string title;
-    int width;
-    int height;
+    std::string title = INIT_SCREEN_TITLE;
+    int width = INIT_SCREEN_WIDTH;
+    int height = INIT_SCREEN_HEIGHT;
+};
+
+enum class KeyState {
+    PRESSED,
+    RELEASED,
+    HELD,
+    UNKNOWN
+};
+
+enum class Key {
+    SPACE,
+    ENTER,
+    UP,
+    RIGHT,
+    LEFT,
+    DOWN,
+    Q,
+    W,
+    E,
+    R,
+    T,
+    Y,
+    U,
+    I,
+    O,
+    P,
+    A,
+    S,
+    D,
+    F,
+    G,
+    H,
+    J,
+    K,
+    L,
+    Z,
+    X,
+    C,
+    V,
+    B,
+    N,
+    M,
+    ESCAPE = 256,
 };
 
 class Window
@@ -114,9 +151,11 @@ public:
 
     glm::vec2 GetMousePosition();
 
-    bool GetKeyDown(int key);
+    bool GetKeyDown(Key key);
 
-    bool GetKeyUp(int key);
+    bool GetKeyUp(Key key);
+
+    KeyState GetKeyState(Key key);
 
     std::string GetTitle();
 

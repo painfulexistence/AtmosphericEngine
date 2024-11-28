@@ -46,11 +46,17 @@ public:
 
     void SyncObjectTransform(glm::mat4 xform);
 
-    glm::vec3 GetPosition();
+    inline glm::vec3 GetPosition() const {
+        return _position;
+    };
 
-    glm::vec3 GetRotation();
+    inline glm::vec3 GetRotation() const {
+        return _rotation;
+    };
 
-    glm::vec3 GetScale();
+    inline glm::vec3 GetScale() const {
+        return _scale;
+    };
 
     void SetPosition(glm::vec3 value);
 
@@ -64,7 +70,7 @@ public:
 
     void SetVelocity(glm::vec3 value);
 
-    void SetActive(bool value) { isActive = value; }
+    inline void SetActive(bool value) { isActive = value; }
 
     void SetPhysicsActivated(bool value);
 
@@ -78,4 +84,9 @@ private:
     glm::vec3 _scale = glm::vec3(1, 1, 1);
     glm::vec3 _velocity = glm::vec3(0, 0, 0);
     glm::vec3 _angularVelocity = glm::vec3(0, 0, 0);
+    bool _isTransformDirty = false;
+
+    void UpdateTransform();
+
+    void UpdatePositionRotationScale();
 };

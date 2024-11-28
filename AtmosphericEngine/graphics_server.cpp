@@ -50,7 +50,7 @@ GraphicsServer::GraphicsServer()
 
 GraphicsServer::~GraphicsServer()
 {
-    for (const auto& [name, mesh] : _meshList)
+    for (const auto& [name, mesh] : _namedMeshes)
         delete mesh;
     for (auto& mat : materials)
         delete mat;
@@ -99,8 +99,26 @@ void GraphicsServer::Init(Application* app)
 
     debugLines.reserve(1 << 16);
 
-    // CameraProps cameraProps;
-    // defaultCamera = new Camera(nullptr, cameraProps);
+    defaultCamera = new Camera(app->GetDefaultGameObject(), {
+        .fieldOfView = 45.0f,
+        .aspectRatio = 4.0f / 3.0f,
+        .nearClip = 0.1f,
+        .farClip = 1000.0f,
+        .verticalAngle = 0.0f,
+        .horizontalAngle = 0.0f,
+        .eyeOffset = glm::vec3(0.0f)
+    });
+
+    defaultLight = new Light(app->GetDefaultGameObject(), {
+        .type = 1,
+        .position = glm::vec3(0.0f, 0.0f, 0.0f),
+        .direction = glm::vec3(0.0f, 0.0f, 0.0f),
+        .ambient = glm::vec3(0.2f, 0.2f, 0.2f),
+        .diffuse = glm::vec3(1.0f, 1.0f, 1.0f),
+        .specular = glm::vec3(1.0f, 1.0f, 1.0f),
+        .intensity = 1.0f,
+        .castShadow = false
+    });
 }
 
 void GraphicsServer::Process(float dt)
@@ -808,44 +826,88 @@ void GraphicsServer::PushDebugLine(DebugVertex from, DebugVertex to)
     debugLines.push_back(to);
 }
 
-Mesh* GraphicsServer::CreateMesh(const std::string& name)
+Material* GraphicsServer::CreateMaterial(Material* material)
 {
-    auto mesh = new Mesh();
-    _meshList.insert({name, mesh});
-    return mesh;
+    if (material) {
+        materials.push_back(material);
+        return material;
+    } else {
+        auto emptyMaterial = new Material();
+        materials.push_back(emptyMaterial);
+        return emptyMaterial;
+    }
+}
+
+Material* GraphicsServer::CreateMaterial(const std::string& name, Material* material)
+{
+    if (material) {
+        materials.push_back(material);
+        _namedMaterials.insert({name, material});
+        return material;
+    } else {
+        auto emptyMaterial = new Material();
+        materials.push_back(emptyMaterial);
+        _namedMaterials.insert({name, emptyMaterial});
+        return emptyMaterial;
+    }
+}
+
+
+Mesh* GraphicsServer::CreateMesh(Mesh* mesh)
+{
+    if (mesh) {
+        meshes.push_back(mesh);
+        return mesh;
+    } else {
+        auto emptyMesh = new Mesh();
+        meshes.push_back(emptyMesh);
+        return emptyMesh;
+    }
 }
 
 Mesh* GraphicsServer::CreateMesh(const std::string& name, Mesh* mesh)
 {
-    _meshList.insert({name, mesh});
-    return mesh;
+    if (mesh) {
+        meshes.push_back(mesh);
+        _namedMeshes.insert({name, mesh});
+        return mesh;
+    } else {
+        auto emptyMesh = new Mesh();
+        meshes.push_back(emptyMesh);
+        _namedMeshes.insert({name, emptyMesh});
+        return emptyMesh;
+    }
 }
 
 Mesh* GraphicsServer::CreateCubeMesh(const std::string& name, float size)
 {
     auto mesh = MeshBuilder::CreateCube(size);
-    _meshList.insert({name, mesh});
+    meshes.push_back(mesh);
+    _namedMeshes.insert({name, mesh});
     return mesh;
 }
 
 Mesh* GraphicsServer::CreateSphereMesh(const std::string& name, float radius, int division)
 {
     auto mesh = MeshBuilder::CreateSphere(radius, division);
-    _meshList.insert({name, mesh});
+    meshes.push_back(mesh);
+    _namedMeshes.insert({name, mesh});
     return mesh;
 }
 
 Mesh* GraphicsServer::CreateCapsuleMesh(const std::string& name, float radius, float height)
 {
     // auto mesh = MeshBuilder::CreateCapsule(radius, height);
-    // MeshList.insert({name, mesh});
+    // meshes.push_back(mesh);
+    // _namedMeshes.insert({name, mesh});
     // return mesh;
 }
 
 Mesh* GraphicsServer::CreateTerrainMesh(const std::string& name, float worldSize, int resolution)
 {
     auto mesh = MeshBuilder::CreateTerrain(worldSize, resolution);
-    _meshList.insert({name, mesh});
+    meshes.push_back(mesh);
+    _namedMeshes.insert({name, mesh});
     return mesh;
 }
 

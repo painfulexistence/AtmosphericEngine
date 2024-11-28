@@ -101,6 +101,7 @@ void GameObject::SetObjectTransform(glm::mat4 xform)
     _w2w = xform;
     _position = glm::vec3(_w2w[3]);
     _scale = glm::vec3(glm::length(_w2w[0]), glm::length(_w2w[1]), glm::length(_w2w[2]));
+    _rotation = glm::eulerAngles(glm::quat_cast(glm::mat3(_w2w)));
 
     Impostor* rb = dynamic_cast<Impostor*>(this->GetComponent("Physics"));
     if (rb)
@@ -112,6 +113,7 @@ void GameObject::SyncObjectTransform(glm::mat4 xform)
     _w2w = xform;
     _position = glm::vec3(_w2w[3]);
     _scale = glm::vec3(glm::length(_w2w[0]), glm::length(_w2w[1]), glm::length(_w2w[2]));
+    _rotation = glm::eulerAngles(glm::quat_cast(glm::mat3(_w2w)));
 }
 
 glm::vec3 GameObject::GetPosition()
@@ -132,7 +134,9 @@ glm::vec3 GameObject::GetScale()
 void GameObject::SetPosition(glm::vec3 value)
 {
     _position = value;
-    _w2w = glm::scale(glm::translate(glm::mat4(1.0f), _position),  _scale);
+     _w2w = glm::translate(glm::mat4(1.0f), _position) *
+        glm::mat4_cast(glm::quat(_rotation)) *
+        glm::scale(glm::mat4(1.0f), _scale);
 
     Impostor* rb = dynamic_cast<Impostor*>(GetComponent("Physics"));
     if (rb)
@@ -142,13 +146,17 @@ void GameObject::SetPosition(glm::vec3 value)
 void GameObject::SetRotation(glm::vec3 value)
 {
     _rotation = value;
-    _w2w = glm::scale(glm::translate(glm::mat4(1.0f), _position),  _scale);
+    _w2w = glm::translate(glm::mat4(1.0f), _position) *
+        glm::mat4_cast(glm::quat(_rotation)) *
+        glm::scale(glm::mat4(1.0f), _scale);
 }
 
 void GameObject::SetScale(glm::vec3 value)
 {
     _scale = value;
-    _w2w = glm::scale(glm::translate(glm::mat4(1.0f), _position),  _scale);
+    _w2w = glm::translate(glm::mat4(1.0f), _position) *
+        glm::mat4_cast(glm::quat(_rotation)) *
+        glm::scale(glm::mat4(1.0f), _scale);
 }
 
 glm::mat4 GameObject::GetTransform() const

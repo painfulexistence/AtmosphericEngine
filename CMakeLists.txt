@@ -38,3 +38,4 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
 add_subdirectory(AtmosphericEngine)
 add_subdirectory(Example_MazeWorld)
+add_subdirectory(Example_HelloWorld)

@@ -66,7 +66,7 @@ public:
     {
         return _instance;
     }
-    std::vector<std::shared_ptr<Mesh>> meshes;
+    std::vector<Mesh*> meshes;
     std::vector<GLuint> textures;
     std::vector<Material*> materials;
     std::vector<Renderable*> renderables;
@@ -89,7 +89,6 @@ public:
         if (cameras.size() > 0) {
             return cameras[0];
         } else {
-            // TODO: initialize default camera
             return defaultCamera;
         }
     };
@@ -98,16 +97,15 @@ public:
         if (lights.size() > 0) {
             return lights[0];
         } else {
-            // TODO: initialize default light
             return defaultLight;
         }
     };
 
     Mesh* GetMesh(const std::string name) const {
-        if (_meshList.count(name) == 0)
+        if (_namedMeshes.count(name) == 0)
             throw std::runtime_error("Could not find the specified mesh!");
 
-        return _meshList.find(name)->second;
+        return _namedMeshes.find(name)->second;
     };
 
     void LoadTextures(const std::vector<std::string>& paths);
@@ -158,9 +156,13 @@ public:
         }
     }
 
-    Mesh* CreateMesh(const std::string& name);
+    Material* CreateMaterial(Material* material = nullptr);
 
-    Mesh* CreateMesh(const std::string& name, Mesh* mesh);
+    Material* CreateMaterial(const std::string& name, Material* material = nullptr);
+
+    Mesh* CreateMesh(Mesh* mesh = nullptr);
+
+    Mesh* CreateMesh(const std::string& name, Mesh* mesh = nullptr);
 
     Mesh* CreateCubeMesh(const std::string& name, float size = 1.0f);
 
@@ -206,7 +208,8 @@ private:
     GLuint debugVAO, debugVBO;
 
     glm::vec4 clearColor = glm::vec4(0.15f, 0.183f, 0.2f, 1.0f);
-    std::map<std::string, Mesh*> _meshList;
+    std::map<std::string, Mesh*> _namedMeshes;
+    std::map<std::string, Material*> _namedMaterials;
     std::map<Mesh*, std::vector<InstanceData>> _meshInstanceMap;
     // std::unordered_map<std::pair<Mesh*, Material*>, std::vector<InstanceData>> groupedObjects;
 

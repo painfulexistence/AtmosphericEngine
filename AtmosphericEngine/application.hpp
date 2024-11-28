@@ -39,6 +39,13 @@ public:
 
     virtual void OnUpdate(float dt, float time) = 0;
 
+    GameObject* GetDefaultGameObject() {
+        if (!_defaultGameObject) {
+            _defaultGameObject = CreateGameObject();
+        }
+        return _defaultGameObject;
+    }
+
 protected:
     // These subsystems will be game accessible
     GraphicsServer graphics;
@@ -77,6 +84,7 @@ private:
     uint64_t _clock = 0;
     uint16_t _sceneIndex = 0;
     std::vector<GameObject*> _entities;
+    GameObject* _defaultGameObject = nullptr;
 
     void Log(std::string message);
 

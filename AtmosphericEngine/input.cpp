@@ -13,6 +13,7 @@ Input::Input()
     for (int k = static_cast<int>(Key::SPACE); k <= static_cast<int>(Key::ESCAPE); ++k) {
         auto key = static_cast<Key>(k);
         _keyStates[key] = KeyState::UNKNOWN;
+        _prevKeyStates[key] = KeyState::UNKNOWN;
     }
 }
 
@@ -25,6 +26,7 @@ void Input::Process(float dt)
 {
     for (int k = static_cast<int>(Key::SPACE); k <= static_cast<int>(Key::ESCAPE); ++k) {
         auto key = static_cast<Key>(k);
+        _prevKeyStates[key] = _keyStates[key];
         _keyStates[key] = Window::Get()->GetKeyState(key);
     }
 }
@@ -47,6 +49,16 @@ bool Input::IsKeyDown(Key key)
 bool Input::IsKeyUp(Key key)
 {
     return _keyStates[key] == KeyState::RELEASED;
+}
+
+bool Input::IsKeyPressed(Key key)
+{
+    return _keyStates[key] == KeyState::PRESSED && _prevKeyStates[key] == KeyState::RELEASED;
+}
+
+bool Input::IsKeyReleased(Key key)
+{
+    return _keyStates[key] == KeyState::RELEASED && _prevKeyStates[key] == KeyState::PRESSED;
 }
 
 glm::vec2 Input::GetMousePosition() // In pixel coordinate

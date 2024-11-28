@@ -28,8 +28,13 @@ public:
 
     bool IsKeyUp(Key key);
 
+    bool IsKeyPressed(Key key);
+
+    bool IsKeyReleased(Key key);
+
     glm::vec2 GetMousePosition();
 
 private:
     std::unordered_map<Key, KeyState> _keyStates;
+    std::unordered_map<Key, KeyState> _prevKeyStates;
 };

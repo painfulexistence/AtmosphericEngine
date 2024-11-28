@@ -295,22 +295,22 @@ class MazeGame : public Application {
         if (input.GetKeyDown(Key::Z)) {
             player->SetPhysicsActivated(false);
         }
-        if (input.GetKeyDown(Key::I)) {
+        if (input.IsKeyPressed(Key::I)) {
             physics.EnableDebugUI(!isPhysicsDebugUIEnabled);
             isPhysicsDebugUIEnabled = !isPhysicsDebugUIEnabled;
         }
-        if (input.GetKeyDown(Key::O)) {
+        if (input.IsKeyPressed(Key::O)) {
             graphics.EnableWireframe(!isWireframeEnabled);
             isWireframeEnabled = !isWireframeEnabled;
         }
-        if (input.GetKeyDown(Key::P)) {
+        if (input.IsKeyPressed(Key::P)) {
             graphics.EnablePostProcess(!isPostProcessEnabled);
             isPostProcessEnabled = !isPostProcessEnabled;
         }
-        if (input.GetKeyDown(Key::R)) {
+        if (input.IsKeyPressed(Key::R)) {
             graphics.ReloadShaders();
         }
-        if (input.GetKeyDown(Key::ESCAPE)) {
+        if (input.IsKeyPressed(Key::ESCAPE)) {
             Quit();
         }
     }

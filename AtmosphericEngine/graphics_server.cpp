@@ -100,10 +100,13 @@ void GraphicsServer::Init(Application* app)
     debugLines.reserve(1 << 16);
 
     defaultCamera = new Camera(app->GetDefaultGameObject(), {
-        .fieldOfView = 45.0f,
-        .aspectRatio = 4.0f / 3.0f,
-        .nearClip = 0.1f,
-        .farClip = 1000.0f,
+        .isOrthographic = false,
+        .perspective = {
+            .fieldOfView = 45.0f,
+            .aspectRatio = 4.0f / 3.0f,
+            .nearClip = 0.1f,
+            .farClip = 1000.0f
+        },
         .verticalAngle = 0.0f,
         .horizontalAngle = 0.0f,
         .eyeOffset = glm::vec3(0.0f)

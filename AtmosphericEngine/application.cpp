@@ -140,10 +140,13 @@ void Application::Run()
     {
         sol::table data = kv.second;
         CameraProps props = {
-            .fieldOfView = (float)data.get_or("field_of_view", glm::radians(60.f)),
-            .aspectRatio = (float)data.get_or("aspect_ratio", 4.f / 3.f),
-            .nearClip = (float)data.get_or("near_clip_plane", 0.1f),
-            .farClip = (float)data.get_or("far_clip_plane", 1000.0f),
+            .isOrthographic = false,
+            .perspective = {
+                .fieldOfView = (float)data.get_or("field_of_view", glm::radians(60.f)),
+                .aspectRatio = (float)data.get_or("aspect_ratio", 4.f / 3.f),
+                .nearClip = (float)data.get_or("near_clip_plane", 0.1f),
+                .farClip = (float)data.get_or("far_clip_plane", 1000.0f),
+            },
             .verticalAngle = (float)data.get_or("vertical_angle", 0),
             .horizontalAngle = (float)data.get_or("horizontal_angle", 0),
             .eyeOffset = glm::vec3(

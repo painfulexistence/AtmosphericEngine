@@ -96,7 +96,7 @@ void Application::Run()
     {
         sol::table data = kv.second;
         LightProps props = {
-            .type = (int)data.get_or("type", 1),
+            .type = static_cast<LightType>(data.get_or("type", 1)),
             .position = glm::vec3(
                 data["position"][1],
                 data["position"][2],

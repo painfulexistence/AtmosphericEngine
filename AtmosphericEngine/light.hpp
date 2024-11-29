@@ -2,11 +2,18 @@
 #include "globals.hpp"
 #include "component.hpp"
 
+enum class LightType {
+    Directional = 0,
+    Point = 1,
+    Spot = 2,
+    Area = 3
+};
+
 struct LightProps
 {
     //Color reference: http://planetpixelemporium.com/tutorialpages/light.html
     //Attenuation reference: http://wiki.ogre3d.org/tiki-index.php?page=-Point+Light+Attenuation
-    int type;
+    LightType type;
     glm::vec3 ambient;
     glm::vec3 diffuse;
     glm::vec3 specular;
@@ -20,7 +27,7 @@ struct LightProps
 class Light : public Component
 {
 public:
-    int type;
+    LightType type;
     glm::vec3 direction;
     glm::vec3 position;
     glm::vec3 attenuation;

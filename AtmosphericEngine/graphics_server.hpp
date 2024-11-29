@@ -138,9 +138,9 @@ public:
         postProcessEnabled = enable;
     }
 
-    GLuint GetShadowMap(int lightType, int lightIdx = 0)
+    GLuint GetShadowMap(LightType lightType, int lightIdx = 0)
     {
-        if (lightType == DIR_LIGHT)
+        if (lightType == LightType::Directional)
         {
             return uniShadowMaps[lightIdx];
         }

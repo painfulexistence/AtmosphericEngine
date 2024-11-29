@@ -68,7 +68,7 @@ std::string Light::GetName() const
 
 glm::mat4 Light::GetProjectionMatrix(int cascadedIndex)
 {
-    if (type == DIR_LIGHT)
+    if (type == LightType::Directional)
     {
         float nearZ = -200.0f, farZ = 200.0f;
         glm::mat4 view = glm::lookAt(-glm::normalize(direction), glm::vec3(0.f), glm::vec3(0.f, 1.f, 0.f)); //NOTES: should be placed as far as possible, but here
@@ -85,7 +85,7 @@ glm::mat4 Light::GetProjectionMatrix(int cascadedIndex)
 
 glm::mat4 Light::GetViewMatrix(GLenum facing)
 {
-    if (type == DIR_LIGHT)
+    if (type == LightType::Directional)
     {
         //NOTES:
         // To simulate real world lighting, directional light should be placed as far as possible,
@@ -100,7 +100,7 @@ glm::mat4 Light::GetViewMatrix(GLenum facing)
 
 glm::mat4 Light::GetProjectionViewMatrix(int cascadedIndex, GLenum face)
 {
-    if (type == DIR_LIGHT)
+    if (type == LightType::Directional)
     {
         float nearZ = -200.0f, farZ = 200.0f;
         glm::mat4 projection = glm::ortho(-200.0f, 200.0f, -200.0f, 200.0f, nearZ, farZ);

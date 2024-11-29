@@ -14,11 +14,6 @@
 #define GRAVITY 9.8
 #define FIXED_TIME_STEP 1.0 / 60.0
 
-#define DIR_LIGHT 0
-#define POINT_LIGHT 1
-#define SPOT_LIGHT 2
-#define AREA_LIGHT 3
-
 enum Axis {
     UP, DOWN,
     BACK, FRONT,

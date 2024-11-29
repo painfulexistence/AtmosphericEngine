@@ -113,7 +113,7 @@ void GraphicsServer::Init(Application* app)
     });
 
     defaultLight = new Light(app->GetDefaultGameObject(), {
-        .type = 1,
+        .type = LightType::Directional,
         .position = glm::vec3(0.0f, 0.0f, 0.0f),
         .direction = glm::vec3(0.0f, 0.0f, 0.0f),
         .ambient = glm::vec3(0.2f, 0.2f, 0.2f),
@@ -494,7 +494,7 @@ void GraphicsServer::ShadowPass(float dt)
     glBindFramebuffer(GL_FRAMEBUFFER, shadowFBO);
 
     // 1. Render shadow map for directional light
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, GetShadowMap(DIR_LIGHT, 0), 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, GetShadowMap(LightType::Directional, 0), 0);
     glClear(GL_DEPTH_BUFFER_BIT);
     depthShader.Activate();
     depthShader.SetUniform(std::string("ProjectionView"), lights[0]->GetProjectionMatrix(0) * lights[0]->GetViewMatrix());
@@ -542,7 +542,7 @@ void GraphicsServer::ShadowPass(float dt)
         for (int f = 0; f < 6; ++f)
         {
             GLenum face = GL_TEXTURE_CUBE_MAP_POSITIVE_X + f;
-            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, face, GetShadowMap(POINT_LIGHT, i), 0);
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, face, GetShadowMap(LightType::Point, i), 0);
             glClear(GL_DEPTH_BUFFER_BIT);
             depthCubemapShader.SetUniform(std::string("LightPosition"), l->position);
             depthCubemapShader.SetUniform(std::string("ProjectionView"), l->GetProjectionMatrix(0) * l->GetViewMatrix(face));

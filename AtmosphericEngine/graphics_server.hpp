@@ -217,7 +217,7 @@ private:
 
     const int mainLightCount = 1;
     int auxLightCount = 0;
-    bool postProcessEnabled = true;
+    bool postProcessEnabled = false;
     bool wireframeEnabled = false;
     Camera* defaultCamera = nullptr;
     Light* defaultLight = nullptr;

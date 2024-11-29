@@ -58,21 +58,42 @@ GameObject* GameObject::AddCamera(const CameraProps& props)
     return this;
 }
 
-// Shortcut for adding renderable component
+// Shortcut 1 for adding renderable component
 GameObject* GameObject::AddRenderable(const std::string& meshName)
 {
     if (_graphics) {
         auto mesh = _graphics->GetMesh(meshName);
-        auto renderable = _graphics->CreateRenderable(this, mesh);
+        _graphics->CreateRenderable(this, mesh);
     }
     return this;
 }
 
-// Shortcut for adding impostor component
+// Shortcut 2 for adding renderable component
+GameObject* GameObject::AddRenderable(Mesh* mesh)
+{
+    if (_graphics) {
+        _graphics->CreateRenderable(this, mesh);
+    }
+    return this;
+}
+
+// Shortcut 1 for adding impostor component
 GameObject* GameObject::AddImpostor(const std::string& meshName, float mass, glm::vec3 linearFactor, glm::vec3 angularFactor)
 {
     if (_graphics && _physics) {
         auto mesh = _graphics->GetMesh(meshName);
+        auto impostor =  new Impostor(this, mesh->GetShape(), mass);
+        impostor->SetLinearFactor(linearFactor);
+        impostor->SetAngularFactor(angularFactor);
+        _physics->AddImpostor(impostor);
+    }
+    return this;
+}
+
+// Shortcut 2 for adding impostor component
+GameObject* GameObject::AddImpostor(Mesh* mesh, float mass, glm::vec3 linearFactor, glm::vec3 angularFactor)
+{
+    if (_physics) {
         auto impostor =  new Impostor(this, mesh->GetShape(), mass);
         impostor->SetLinearFactor(linearFactor);
         impostor->SetAngularFactor(angularFactor);

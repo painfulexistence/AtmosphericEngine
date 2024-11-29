@@ -663,10 +663,10 @@ void GraphicsServer::ColorPass(float dt)
             terrainShader.SetUniform(std::string("main_light.cast_shadow"), lights[0]->castShadow);
             terrainShader.SetUniform(std::string("main_light.ProjectionView"), lights[0]->GetProjectionViewMatrix(0));
 
-            colorShader.SetUniform(std::string("surf_params.diffuse"), mesh->GetMaterial()->diffuse);
-            colorShader.SetUniform(std::string("surf_params.specular"), mesh->GetMaterial()->specular);
-            colorShader.SetUniform(std::string("surf_params.ambient"), mesh->GetMaterial()->ambient);
-            colorShader.SetUniform(std::string("surf_params.shininess"), mesh->GetMaterial()->shininess);
+            terrainShader.SetUniform(std::string("surf_params.diffuse"), mesh->GetMaterial()->diffuse);
+            terrainShader.SetUniform(std::string("surf_params.specular"), mesh->GetMaterial()->specular);
+            terrainShader.SetUniform(std::string("surf_params.ambient"), mesh->GetMaterial()->ambient);
+            terrainShader.SetUniform(std::string("surf_params.shininess"), mesh->GetMaterial()->shininess);
 
             terrainShader.SetUniform(std::string("tessellation_factor"), (float)16.0);
             terrainShader.SetUniform(std::string("height_scale"), (float)32.0);

@@ -7,6 +7,8 @@ class LightProps;
 
 class CameraProps;
 
+class Mesh;
+
 class GraphicsServer;
 
 class PhysicsServer;
@@ -34,7 +36,11 @@ public:
 
     GameObject* AddRenderable(const std::string& meshName);
 
+    GameObject* AddRenderable(Mesh* mesh);
+
     GameObject* AddImpostor(const std::string& meshName, float mass = 0.0f, glm::vec3 linearFactor = glm::vec3(1.0f), glm::vec3 angularFactor = glm::vec3(1.0f));
+
+    GameObject* AddImpostor(Mesh* mesh, float mass = 0.0f, glm::vec3 linearFactor = glm::vec3(1.0f), glm::vec3 angularFactor = glm::vec3(1.0f));
 
     glm::mat4 GetLocalTransform() const;
 

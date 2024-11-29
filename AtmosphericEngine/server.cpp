@@ -13,7 +13,7 @@ Server::~Server()
 
 void Server::Init(Application* app)
 {
-    this->_app = app;
+    _app = app;
 }
 
 void Server::Process(float dt)

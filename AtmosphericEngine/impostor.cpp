@@ -29,6 +29,9 @@ Impostor::Impostor(GameObject* gameObject, btCollisionShape* shape, float mass, 
     _rigidbody->setLinearFactor(btVector3(linearFactor.x, linearFactor.y, linearFactor.z));
     _rigidbody->setAngularFactor(btVector3(angularFactor.x, angularFactor.y, angularFactor.z));
     _rigidbody->setDamping(0.9f, 0.0f);
+    // _rigidbody->setCollisionFlags(_rigidbody->getCollisionFlags() |
+    //     btCollisionObject::CF_NO_CONTACT_RESPONSE);
+    _rigidbody->setUserPointer(gameObject);
 
     this->gameObject = gameObject;
     this->gameObject->AddComponent(this);

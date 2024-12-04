@@ -1,5 +1,6 @@
 #include "physics_world.hpp"
 #include "physics_debug_drawer.hpp"
+#include "game_object.hpp"
 
 PhysicsWorld::PhysicsWorld()
 {
@@ -57,6 +58,26 @@ void PhysicsWorld::Update(float dt)
     {
         _world->stepSimulation(FIXED_TIME_STEP, 0);
         _timeAccum -= FIXED_TIME_STEP;
+    }
+
+    int numManifolds = _dispatcher->getNumManifolds();
+    for (int i = 0; i < numManifolds; i++) {
+        btPersistentManifold* contactManifold = _dispatcher->getManifoldByIndexInternal(i);
+
+        btCollisionObject* objA =
+            const_cast<btCollisionObject*>(contactManifold->getBody0());
+        btCollisionObject* objB =
+            const_cast<btCollisionObject*>(contactManifold->getBody1());
+
+        GameObject* gameObjA = static_cast<GameObject*>(objA->getUserPointer());
+        GameObject* gameObjB = static_cast<GameObject*>(objB->getUserPointer());
+
+        if (gameObjA && gameObjB) {
+            if (contactManifold->getNumContacts() > 0) {
+                gameObjA->OnCollision(gameObjB);
+                gameObjB->OnCollision(gameObjA);
+            }
+        }
     }
 }
 

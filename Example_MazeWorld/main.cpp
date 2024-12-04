@@ -182,6 +182,9 @@ class MazeGame : public Application {
         player = graphics.GetMainCamera()->gameObject;
         player->AddImpostor("Character", 10.0f, glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
         player->SetPosition(glm::vec3(0, 64, 0));
+        player->SetCollisionCallback([](GameObject* other) {
+            fmt::print("Player collided with game object {}!\n", other->GetName());
+        });
 
         auto skybox = CreateGameObject();
         skybox->AddRenderable("Skybox");
@@ -196,6 +199,10 @@ class MazeGame : public Application {
             bullet->AddRenderable("Sphere");
             bullet->AddImpostor("Sphere", 1.0f);
             bullet->SetActive(false);
+            bullet->SetCollisionCallback([](GameObject* other) {
+                other->SetActive(false);
+            });
+
             bullets.push_back(bullet);
         }
 

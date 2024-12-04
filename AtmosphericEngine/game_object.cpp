@@ -195,6 +195,12 @@ void GameObject::SetPhysicsActivated(bool value)
     }
 }
 
+void GameObject::OnCollision(GameObject* other) {
+    if (_collisionCallback) {
+        _collisionCallback(other);
+    }
+}
+
 void GameObject::UpdateTransform() {
     // if (_isTransformDirty) {
         _w2w = glm::translate(glm::mat4(1.0f), _position) *

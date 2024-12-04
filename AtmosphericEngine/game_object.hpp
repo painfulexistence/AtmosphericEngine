@@ -80,7 +80,21 @@ public:
 
     void SetPhysicsActivated(bool value);
 
+    inline const std::string& GetName() {
+        return _name;
+    }
+    inline void SetName(const std::string& name) {
+        _name = name;
+    }
+
+    void SetCollisionCallback(std::function<void(GameObject*)> callback) {
+        _collisionCallback = callback;
+    }
+
+    void OnCollision(GameObject* other);
+
 private:
+    std::string _name = " ";
     GraphicsServer* _graphics = nullptr;
     PhysicsServer* _physics = nullptr;
     glm::mat4 _m2w = glm::mat4(1.0f);
@@ -91,6 +105,7 @@ private:
     glm::vec3 _velocity = glm::vec3(0, 0, 0);
     glm::vec3 _angularVelocity = glm::vec3(0, 0, 0);
     bool _isTransformDirty = false;
+    std::function<void(GameObject*)> _collisionCallback;
 
     void UpdateTransform();
 

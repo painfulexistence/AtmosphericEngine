@@ -37,10 +37,11 @@ Application::~Application()
 
 void Application::Run()
 {
-    Log("Initializing...");
+    Log("Initializing subsystems...");
 
     console.Init(this);
     input.Init(this);
+    audio.Init(this);
     graphics.Init(this);
     physics.Init(this); // Note that physics debug drawer is dependent on graphics server
     script.Init(this);
@@ -49,116 +50,7 @@ void Application::Run()
     }
     this->_initialized = true;
 
-    Log("Loading data...");
-    const sol::table scene = script.GetData(std::string("scene"));
-
-    const sol::table textureTable = scene["textures"];
-    std::vector<std::string> paths;
-    for (const auto& kv : textureTable)
-    {
-        sol::table tex = (sol::table)kv.second;
-        paths.push_back((std::string)tex["path"]);
-    }
-    graphics.LoadTextures(paths);
-    script.Print("Textures loaded.");
-
-    const sol::table shaderTable = scene["shaders"];
-    graphics.LoadColorShader(ShaderProgram(shaderTable["color"]["vert"], shaderTable["color"]["frag"]));
-    graphics.LoadDebugShader(ShaderProgram(shaderTable["debug_line"]["vert"], shaderTable["debug_line"]["frag"]));
-    graphics.LoadDepthShader(ShaderProgram(shaderTable["depth"]["vert"], shaderTable["depth"]["frag"]));
-    graphics.LoadDepthCubemapShader(ShaderProgram(shaderTable["depth_cubemap"]["vert"], shaderTable["depth_cubemap"]["frag"]));
-    graphics.LoadTerrainShader(ShaderProgram(shaderTable["terrain"]["vert"], shaderTable["terrain"]["frag"], shaderTable["terrain"]["tesc"], shaderTable["terrain"]["tese"]));
-    graphics.LoadPostProcessShader(ShaderProgram(shaderTable["hdr"]["vert"], shaderTable["hdr"]["frag"]));
-    script.Print("Shaders initialized.");
-
-    const sol::table materialTable = scene["materials"];
-    for (const auto& kv : materialTable)
-    {
-        sol::table data = kv.second;
-        auto mat = new Material {
-            .baseMap = (int)data.get_or("baseMapId", -1),
-            .normalMap = (int)data.get_or("normalMapId", -1),
-            .aoMap = (int)data.get_or("aoMapId", -1),
-            .roughnessMap = (int)data.get_or("roughtnessMapId", -1),
-            .metallicMap = (int)data.get_or("metallicMapId", -1),
-            .heightMap = (int)data.get_or("heightMapId", -1),
-            .diffuse = glm::vec3(data["diffuse"][1], data["diffuse"][2], data["diffuse"][3]),
-            .specular = glm::vec3(data["specular"][1], data["specular"][2], data["specular"][3]),
-            .ambient = glm::vec3(data["ambient"][1], data["ambient"][2], data["ambient"][3]),
-            .shininess = (float)data.get_or("shininess", 0.25)
-        };
-        graphics.materials.push_back(mat);
-    }
-    script.Print("Materials initialized.");
-
-    const sol::table lightTable = scene["lights"];
-    for (const auto& kv : lightTable)
-    {
-        sol::table data = kv.second;
-        LightProps props = {
-            .type = static_cast<LightType>(data.get_or("type", 1)),
-            .position = glm::vec3(
-                data["position"][1],
-                data["position"][2],
-                data["position"][3]
-            ),
-            .direction = glm::vec3(
-                data["direction"][1],
-                data["direction"][2],
-                data["direction"][3]
-            ),
-            .ambient = glm::vec3(
-                data["ambient"][1],
-                data["ambient"][2],
-                data["ambient"][3]
-            ),
-            .diffuse = glm::vec3(
-                data["diffuse"][1],
-                data["diffuse"][2],
-                data["diffuse"][3]
-            ),
-            .specular = glm::vec3(
-                data["specular"][1],
-                data["specular"][2],
-                data["specular"][3]
-            ),
-            .attenuation = glm::vec3(
-                data["attenuation"][1],
-                data["attenuation"][2],
-                data["attenuation"][3]
-            ),
-            .intensity = (float)data.get_or("intensity", 1.0),
-            .castShadow = (bool)data.get_or("castShadow", 0)
-        };
-        auto light = CreateGameObject();
-        light->AddLight(props);
-    }
-    mainLight = graphics.GetMainLight();
-
-    sol::table cameraTable = scene["cameras"];
-    for (const auto& kv : cameraTable)
-    {
-        sol::table data = kv.second;
-        CameraProps props = {
-            .isOrthographic = false,
-            .perspective = {
-                .fieldOfView = (float)data.get_or("field_of_view", glm::radians(60.f)),
-                .aspectRatio = (float)data.get_or("aspect_ratio", 4.f / 3.f),
-                .nearClip = (float)data.get_or("near_clip_plane", 0.1f),
-                .farClip = (float)data.get_or("far_clip_plane", 1000.0f),
-            },
-            .verticalAngle = (float)data.get_or("vertical_angle", 0),
-            .horizontalAngle = (float)data.get_or("horizontal_angle", 0),
-            .eyeOffset = glm::vec3(
-                (float)data.get_or("eye_offset.x", 0),
-                (float)data.get_or("eye_offset.y", 0),
-                (float)data.get_or("eye_offset.z", 0)
-            )
-        };
-        auto go = CreateGameObject();
-        go->AddCamera(props);
-    }
-    mainCamera = graphics.GetMainCamera();
+    Log("Subsystems initialized.");
 
     OnLoad();
 
@@ -191,6 +83,42 @@ void Application::Run()
     Log("Game quitted.");
 }
 
+void Application::LoadScene(SceneDef& scene)
+{
+    Log("Loading scene...");
+
+    graphics.LoadTextures(scene.textures);
+    script.Print("Textures created.");
+
+    graphics.LoadColorShader(ShaderProgram(scene.shaders["color"]));
+    graphics.LoadDebugShader(ShaderProgram(scene.shaders["debug_line"]));
+    graphics.LoadDepthShader(ShaderProgram(scene.shaders["depth"]));
+    graphics.LoadDepthCubemapShader(ShaderProgram(scene.shaders["depth_cubemap"]));
+    graphics.LoadTerrainShader(ShaderProgram(scene.shaders["terrain"]));
+    graphics.LoadPostProcessShader(ShaderProgram(scene.shaders["hdr"]));
+    script.Print("Shaders created.");
+
+    for (const auto& mat : scene.materials) {
+        graphics.materials.push_back(new Material(mat));
+    }
+    script.Print("Materials created.");
+
+    for (const auto& go : scene.gameObjects) {
+        auto entity = CreateGameObject();
+        if (go.camera.has_value()) {
+            entity->AddCamera(go.camera.value());
+        }
+        if (go.light.has_value()) {
+            Log(fmt::format("Adding light to {}", go.name));
+            entity->AddLight(go.light.value());
+        }
+    }
+    script.Print("Game objects created.");
+
+    mainCamera = graphics.GetMainCamera();
+    mainLight = graphics.GetMainLight();
+}
+
 void Application::Quit()
 {
     Log("Requested to quit.");
@@ -206,6 +134,7 @@ void Application::Update(const FrameData& props)
     //ecs.Process(dt); // Note that most of the entity manipulation logic should be put there
     console.Process(dt);
     input.Process(dt);
+    audio.Process(dt);
     script.Process(dt);
     physics.Process(dt); // TODO: Update only every entity's physics transform
     for (auto& subsystem : _subsystems) {
@@ -222,19 +151,58 @@ void Application::Render(const FrameData& props)
     float dt = props.deltaTime;
     float time = GetWindowTime();
 
-    _window->BeginImGuiFrame();
     // Note that draw calls are asynchronous, which means they return immediately.
     // So the drawing time can only be calculated along with the image presenting.
     graphics.Process(dt); // TODO: Generate command buffers according to entity transforms
     // graphics.Render(dt);
-    graphics.RenderUI(dt);
-    for (auto subsystem : _subsystems) {
-        subsystem->DrawImGui(dt);
-    }
-    _window->EndImGuiFrame();
-
     // Nevertheless, glFinish() can force the GPU process all the commands synchronously.
-    glFinish();
+    // glFinish();
+
+    _window->BeginImGuiFrame();
+
+    ImGui::Begin("System Information");
+    {
+        ImGui::Text("OpenGL version: %s", glGetString(GL_VERSION));
+        ImGui::Text("GLSL version: %s", glGetString(GL_SHADING_LANGUAGE_VERSION));
+        ImGui::Text("Vendor: %s", glGetString(GL_VENDOR));
+        ImGui::Text("Renderer: %s", glGetString(GL_RENDERER));
+
+        GLint depth, stencil;
+        glGetFramebufferAttachmentParameteriv(GL_DRAW_FRAMEBUFFER, GL_DEPTH, GL_FRAMEBUFFER_ATTACHMENT_DEPTH_SIZE, &depth);
+        glGetFramebufferAttachmentParameteriv(GL_DRAW_FRAMEBUFFER, GL_STENCIL, GL_FRAMEBUFFER_ATTACHMENT_STENCIL_SIZE, &stencil);
+        ImGui::Text("Depth bits: %d", depth);
+        ImGui::Text("Stencil bits: %d", stencil);
+
+        GLint maxVertUniforms, maxFragUniforms;
+        glGetIntegerv(GL_MAX_VERTEX_UNIFORM_COMPONENTS, &maxVertUniforms);
+        glGetIntegerv(GL_MAX_FRAGMENT_UNIFORM_COMPONENTS, &maxFragUniforms);
+        ImGui::Text("Max vertex uniforms: %d bytes", maxVertUniforms / 4);
+        ImGui::Text("Max fragment uniforms: %d bytes", maxFragUniforms / 4);
+
+        GLint maxVertUniBlocks, maxFragUniBlocks;
+        glGetIntegerv(GL_MAX_VERTEX_UNIFORM_BLOCKS, &maxVertUniBlocks);
+        glGetIntegerv(GL_MAX_FRAGMENT_UNIFORM_BLOCKS, &maxFragUniBlocks);
+        ImGui::Text("Max vertex uniform blocks: %d", maxVertUniBlocks);
+        ImGui::Text("Max fragment uniform blocks: %d", maxFragUniBlocks);
+
+        GLint maxElementIndices, maxElementVertices;
+        glGetIntegerv(GL_MAX_ELEMENTS_INDICES, &maxElementIndices);
+        glGetIntegerv(GL_MAX_ELEMENTS_VERTICES, &maxElementVertices);
+        ImGui::Text("Max element indices: %d", maxElementIndices);
+        ImGui::Text("Max element vertices: %d", maxElementVertices);
+    }
+    ImGui::End();
+
+    ImGui::Begin("Engine Subsystems");
+    {
+        graphics.DrawImGui(dt);
+        for (auto subsystem : _subsystems) {
+            subsystem->DrawImGui(dt);
+        }
+    }
+    ImGui::End();
+
+    _window->EndImGuiFrame();
 
     #if SHOW_RENDER_AND_DRAW_COST
     Log(fmt::format("Render & draw cost {} ms", (GetWindowTime() - time) * 1000));

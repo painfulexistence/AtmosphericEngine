@@ -64,13 +64,13 @@ glm::vec3 Camera::GetMoveVector(Axis axis)
     switch (axis) {
     case BACK:
     case FRONT:
-        return (float)CAMERA_SPEED * glm::normalize(glm::vec3(dir.x, 0, dir.z));
+        return glm::normalize(glm::vec3(dir.x, 0, dir.z));
     case RIGHT:
     case LEFT:
-        return (float)CAMERA_SPEED * glm::normalize(glm::cross(dir, glm::vec3(0, 1, 0)));
+        return glm::normalize(glm::cross(dir, glm::vec3(0, 1, 0)));
     case UP:
     case DOWN:
-        return (float)CAMERA_VERTICAL_SPEED * glm::vec3(0, 1, 0);
+        return glm::vec3(0, 1, 0);
     default:
         throw std::runtime_error("Invalid camera move axis");
     }

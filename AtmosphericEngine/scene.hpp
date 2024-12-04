@@ -1,17 +1,43 @@
 #pragma once
+#include "game_object.hpp"
+#include "material.hpp"
+#include "shader.hpp"
+#include "light.hpp"
+#include "camera.hpp"
 
-struct LightProps;
+struct GameObjectProps {
+    std::string name;
+    glm::vec3 position;
+    glm::vec3 rotation;
+    glm::vec3 scale;
+    std::optional<CameraProps> camera;
+    std::optional<LightProps> light;
+};
 
-struct CameraProps;
+struct SceneDef {
+    std::vector<std::string> textures;
+    std::unordered_map<std::string, ShaderProgramProps> shaders;
+    std::vector<MaterialProps> materials;
+    std::vector<GameObjectProps> gameObjects;
+};
 
-struct SceneData {
-    std::vector<std::string> texturePaths;
-    std::unordered_map<std::string, std::string> shaderPaths;
-    std::vector<LightProps> lightDataList;
-    std::vector<CameraProps> cameraDataList;
+struct SceneNode {
+    std::string name;
+    SceneNode* parent;
+    std::vector<SceneNode*> children;
+    GameObject* gameObject;
+
+    void AddChild(SceneNode* node);
+
+    void RemoveChild(SceneNode* node);
 };
 
 class Scene {
 public:
-    Scene(const SceneData& data);
+    Scene(const SceneDef& data);
+
+    SceneNode* GetRoot() { return root; }
+
+private:
+    SceneNode* root;
 };

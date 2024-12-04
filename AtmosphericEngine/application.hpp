@@ -1,6 +1,7 @@
 #pragma once
 #include "globals.hpp"
 #include "imgui.h"
+#include "audio_manager.hpp"
 #include "graphics_server.hpp"
 #include "physics_server.hpp"
 #include "console.hpp"
@@ -48,6 +49,7 @@ public:
 
 protected:
     // These subsystems will be game accessible
+    AudioManager audio;
     GraphicsServer graphics;
     PhysicsServer physics;
     Console console;
@@ -57,6 +59,8 @@ protected:
     std::vector<Scene> scenes;
     Camera* mainCamera = nullptr;
     Light* mainLight = nullptr;
+
+    void LoadScene(SceneDef& scene);
 
     void Quit();
 

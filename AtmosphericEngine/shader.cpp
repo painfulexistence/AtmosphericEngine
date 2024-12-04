@@ -25,7 +25,16 @@ Shader::Shader(const std::string& path, ShaderType type)
     }
 }
 
-ShaderProgram::ShaderProgram() {}
+ShaderProgram::ShaderProgram(const ShaderProgramProps& props) : program(glCreateProgram())
+{
+    glAttachShader(program, Shader(props.vert, ShaderType::VERTEX).shader);
+    glAttachShader(program, Shader(props.frag, ShaderType::FRAGMENT).shader);
+    if (props.tesc.has_value() && props.tese.has_value()) {
+        glAttachShader(program, Shader(props.tesc.value(), ShaderType::TESS_CONTROL).shader);
+        glAttachShader(program, Shader(props.tese.value(), ShaderType::TESS_EVALUATION).shader);
+    }
+    glLinkProgram(program);
+}
 
 ShaderProgram::ShaderProgram(std::string vert, std::string frag, std::optional<std::string> tesc, std::optional<std::string> tese) : program(glCreateProgram())
 {

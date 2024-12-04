@@ -131,11 +131,23 @@ class MazeGame : public Application {
     GameObject* player = nullptr;
     std::vector<float> terrainData;
     bool isPlayerJumping = false;
+    float playerSpeed = 10.0f;
+    float playerJumpSpeed = 6.0f;
     std::vector<GameObject*> bullets;
     const int numMaxBullets = 200;
     int currentBulletIndex = 0;
+    MusicID bgm = 0;
+    SoundID sfxShoot = 0;
 
     void OnLoad() override {
+        LoadScene(script.GetScenes()[0]);
+
+        // Load sounds
+        bgm = audio.LoadMusic("assets/sounds/Lost Highway.mp3");
+        audio.SetMusicVolume(bgm, 2.0f);
+        audio.PlayMusic(bgm);
+        sfxShoot = audio.LoadSound("assets/sounds/fire.wav");
+
         // Load models
         auto characterMesh = graphics.CreateMesh("Character");
         characterMesh->AddCapsuleShape(0.5f, 3.0f);
@@ -148,7 +160,6 @@ class MazeGame : public Application {
         const int worldResolution = 128;
         auto terrainMesh = graphics.CreateTerrainMesh("Terrain", worldSize, worldResolution);
         terrainMesh->SetMaterial(graphics.materials[6]);
-
         auto img = AssetManager::loadImage("assets/textures/heightmap_debug.jpg");
         if (img) {
             const int terrainDataSize = img->width * img->height;
@@ -162,8 +173,8 @@ class MazeGame : public Application {
             throw std::runtime_error("Could not load heightmap");
         }
 
-        auto ballMesh = graphics.CreateMesh("Sphere", MeshBuilder::CreateSphereWithPhysics(0.2f, 12));
-        ballMesh->SetMaterial(graphics.materials[5]);
+        auto bulletMesh = graphics.CreateMesh("Sphere", MeshBuilder::CreateSphereWithPhysics(0.1f, 12));
+        bulletMesh->SetMaterial(graphics.materials[5]);
 
         script.Print("Models loaded.");
 
@@ -177,7 +188,7 @@ class MazeGame : public Application {
 
         auto terrain = CreateGameObject(glm::vec3(0.0f, -10.0f, 0.0f));
         // terrain->AddRenderable("Terrain");
-        terrain->AddImpostor("Terrain");
+        // terrain->AddImpostor("Terrain");
 
         for (int i = 0; i < numMaxBullets; ++i) {
             glm::vec3 pos = glm::vec3(rand() % 10 - 5, rand() % 100 + 20, rand() % 10 - 5);
@@ -245,30 +256,39 @@ class MazeGame : public Application {
         if (input.GetKeyDown(Key::Q)) {
             glm::vec3 forward = mainCamera->GetEyeDirection();
             glm::vec3 pos = mainCamera->GetEyePosition() + forward * 0.5f;
-            glm::vec3 vel = forward * 20.0f;
+            glm::vec3 vel = forward * 50.0f;
             // bullets[currentBulletIndex]->SetActive(false);
             currentBulletIndex = (currentBulletIndex + 1) % numMaxBullets;
             bullets[currentBulletIndex]->SetActive(true);
             bullets[currentBulletIndex]->SetPosition(pos);
             bullets[currentBulletIndex]->SetVelocity(vel);
+
+            audio.PlaySound(sfxShoot);
         }
         if (input.GetKeyDown(Key::W)) {
-            glm::vec3 v = mainCamera->GetMoveVector(Axis::FRONT);
+            glm::vec3 v = mainCamera->GetMoveVector(Axis::FRONT) * (float)CAMERA_SPEED;
             player->SetVelocity(glm::vec3(v.x, currVel.y, v.z));
         }
         if (input.GetKeyDown(Key::S)) {
-            glm::vec3 v = mainCamera->GetMoveVector(Axis::FRONT);
+            glm::vec3 v = mainCamera->GetMoveVector(Axis::FRONT) * playerSpeed;
             player->SetVelocity(glm::vec3(-v.x, currVel.y, -v.z));
         }
         if (input.GetKeyDown(Key::D)) {
             mainCamera->Yaw(0.3 * CAMERA_ANGULAR_OFFSET);
-            glm::vec3 v = mainCamera->GetMoveVector(Axis::RIGHT);
+            glm::vec3 v = mainCamera->GetMoveVector(Axis::RIGHT) * playerSpeed;
             player->SetVelocity(glm::vec3(v.x, currVel.y, v.z));
         }
         if (input.GetKeyDown(Key::A)) {
             mainCamera->Yaw(-0.3 * CAMERA_ANGULAR_OFFSET);
-            glm::vec3 v = mainCamera->GetMoveVector(Axis::RIGHT);
+            glm::vec3 v = mainCamera->GetMoveVector(Axis::RIGHT) * playerSpeed;
             player->SetVelocity(glm::vec3(-v.x, currVel.y, -v.z));
+        }
+        if (input.GetKeyDown(Key::SPACE) && !isPlayerJumping) {
+            currVel = player->GetVelocity(); // update velcoity to reflect current horizontal speed
+            glm::vec3 v = mainCamera->GetMoveVector(Axis::UP) * playerJumpSpeed;
+            player->SetVelocity(glm::vec3(currVel.x, v.y, currVel.z));
+            // TODO: implement jumping and grounded state
+            // isPlayerJumping = true;
         }
         if (input.GetKeyDown(Key::UP)) {
             mainCamera->Pitch(CAMERA_ANGULAR_OFFSET);
@@ -281,13 +301,6 @@ class MazeGame : public Application {
         }
         if (input.GetKeyDown(Key::LEFT)) {
             mainCamera->Yaw(-CAMERA_ANGULAR_OFFSET);
-        }
-        if (input.GetKeyDown(Key::SPACE) && !isPlayerJumping) {
-            currVel = player->GetVelocity(); // update velcoity to reflect current horizontal speed
-            glm::vec3 v = mainCamera->GetMoveVector(Axis::UP);
-            player->SetVelocity(glm::vec3(currVel.x, v.y, currVel.z));
-
-            isPlayerJumping = true;
         }
         if (input.GetKeyDown(Key::X)) {
             isLightFlashing = !isLightFlashing;

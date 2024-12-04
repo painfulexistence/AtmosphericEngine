@@ -37,7 +37,9 @@ public:
 
     sol::table GetData(const std::string& key);
 
-    std::vector<Scene> GetScenes();
+    SceneDef GetScene(const sol::table& sceneData);
+
+    std::vector<SceneDef> GetScenes();
 
     void GetData(const std::string& key, sol::table& data);
 

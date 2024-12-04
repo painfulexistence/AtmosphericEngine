@@ -16,10 +16,20 @@ struct Shader
     GLuint shader;
 };
 
+struct ShaderProgramProps
+{
+    std::string vert;
+    std::string frag;
+    std::optional<std::string> tesc = std::nullopt;
+    std::optional<std::string> tese = std::nullopt;
+};
+
 class ShaderProgram
 {
 public:
-    ShaderProgram();
+    ShaderProgram() = default;
+
+    ShaderProgram(const ShaderProgramProps& props);
 
     ShaderProgram(std::string vert, std::string frag, std::optional<std::string> tesc = std::nullopt, std::optional<std::string> tese = std::nullopt);
 

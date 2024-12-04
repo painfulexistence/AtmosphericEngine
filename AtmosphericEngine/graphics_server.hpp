@@ -81,9 +81,9 @@ public:
 
     void Process(float dt) override;
 
-    void Render(float dt);
+    void DrawImGui(float dt) override;
 
-    void RenderUI(float dt);
+    void Render(float dt);
 
     Camera* GetMainCamera() const {
         if (cameras.size() > 0) {

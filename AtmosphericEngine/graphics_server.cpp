@@ -115,8 +115,8 @@ void GraphicsServer::Init(Application* app)
     defaultLight = new Light(app->GetDefaultGameObject(), {
         .type = LightType::Directional,
         .position = glm::vec3(0.0f, 0.0f, 0.0f),
-        .direction = glm::vec3(0.0f, 0.0f, 0.0f),
-        .ambient = glm::vec3(0.2f, 0.2f, 0.2f),
+        .direction = glm::vec3(0.0f, -1.0f, 0.0f),
+        .ambient = glm::vec3(1.0f, 1.0f, 1.0f),
         .diffuse = glm::vec3(1.0f, 1.0f, 1.0f),
         .specular = glm::vec3(1.0f, 1.0f, 1.0f),
         .intensity = 1.0f,
@@ -161,50 +161,15 @@ void GraphicsServer::Render(float dt)
     }
 }
 
-void GraphicsServer::RenderUI(float dt)
+void GraphicsServer::DrawImGui(float dt)
 {
-    ImGui::Begin("General Graphics");
-
-    ImGui::Text("OpenGL version: %s", glGetString(GL_VERSION));
-    ImGui::Text("GLSL version: %s", glGetString(GL_SHADING_LANGUAGE_VERSION));
-    ImGui::Text("Vendor: %s", glGetString(GL_VENDOR));
-    ImGui::Text("Renderer: %s", glGetString(GL_RENDERER));
-
-    GLint depth, stencil;
-    glGetFramebufferAttachmentParameteriv(GL_DRAW_FRAMEBUFFER, GL_DEPTH, GL_FRAMEBUFFER_ATTACHMENT_DEPTH_SIZE, &depth);
-    glGetFramebufferAttachmentParameteriv(GL_DRAW_FRAMEBUFFER, GL_STENCIL, GL_FRAMEBUFFER_ATTACHMENT_STENCIL_SIZE, &stencil);
-    ImGui::Text("Depth bits: %d", depth);
-    ImGui::Text("Stencil bits: %d", stencil);
-
-    GLint maxVertUniforms, maxFragUniforms;
-    glGetIntegerv(GL_MAX_VERTEX_UNIFORM_COMPONENTS, &maxVertUniforms);
-    glGetIntegerv(GL_MAX_FRAGMENT_UNIFORM_COMPONENTS, &maxFragUniforms);
-    ImGui::Text("Max vertex uniforms: %d bytes", maxVertUniforms / 4);
-    ImGui::Text("Max fragment uniforms: %d bytes", maxFragUniforms / 4);
-
-    GLint maxVertUniBlocks, maxFragUniBlocks;
-    glGetIntegerv(GL_MAX_VERTEX_UNIFORM_BLOCKS, &maxVertUniBlocks);
-    glGetIntegerv(GL_MAX_FRAGMENT_UNIFORM_BLOCKS, &maxFragUniBlocks);
-    ImGui::Text("Max vertex uniform blocks: %d", maxVertUniBlocks);
-    ImGui::Text("Max fragment uniform blocks: %d", maxFragUniBlocks);
-
-    GLint maxElementIndices, maxElementVertices;
-    glGetIntegerv(GL_MAX_ELEMENTS_INDICES, &maxElementIndices);
-    glGetIntegerv(GL_MAX_ELEMENTS_VERTICES, &maxElementVertices);
-    ImGui::Text("Max element indices: %d", maxElementIndices);
-    ImGui::Text("Max element vertices: %d", maxElementVertices);
-
-    ImGui::End();
-
-    ImGui::Begin("Realtime Rendering");
-
-    ImGui::ColorEdit3("Clear color", (float*)&clearColor);
-    //ImGui::Text("Entities count: %lu", entities.size());
-    ImGui::Text("Draw time: %.3f s/frame", dt);
-    ImGui::Text("Frame rate: %.1f FPS", 1.0f / dt);
-    //ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
-
-    ImGui::End();
+    if (ImGui::CollapsingHeader("Graphics", ImGuiTreeNodeFlags_DefaultOpen)) {
+        ImGui::ColorEdit3("Clear color", (float*)&clearColor);
+        //ImGui::Text("Entities count: %lu", entities.size());
+        ImGui::Text("Draw time: %.3f s/frame", dt);
+        ImGui::Text("Frame rate: %.1f FPS", 1.0f / dt);
+        //ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+    }
 }
 
 void GraphicsServer::LoadTextures(const std::vector<std::string>& paths)
@@ -835,7 +800,7 @@ Material* GraphicsServer::CreateMaterial(Material* material)
         materials.push_back(material);
         return material;
     } else {
-        auto emptyMaterial = new Material();
+        auto emptyMaterial = new Material({});
         materials.push_back(emptyMaterial);
         return emptyMaterial;
     }
@@ -848,7 +813,7 @@ Material* GraphicsServer::CreateMaterial(const std::string& name, Material* mate
         _namedMaterials.insert({name, material});
         return material;
     } else {
-        auto emptyMaterial = new Material();
+        auto emptyMaterial = new Material({});
         materials.push_back(emptyMaterial);
         _namedMaterials.insert({name, emptyMaterial});
         return emptyMaterial;

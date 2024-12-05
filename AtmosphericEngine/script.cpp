@@ -108,12 +108,21 @@ SceneDef Script::GetScene(const sol::table& sceneData)
         sol::table entityData = eVal;
         GameObjectProps def = {
             .name = eKey.as<std::string>(),
-            // .position = glm::vec3(entityData["position"][1], entityData["position"][2], entityData["position"][3]),
-            // .rotation = glm::vec3(entityData["rotation"][1], entityData["rotation"][2], entityData["rotation"][3]),
-            // .scale = glm::vec3(entityData["scale"][1], entityData["scale"][2], entityData["scale"][3]),
             .camera = std::nullopt,
             .light = std::nullopt
         };
+        auto pos = entityData.get_or("position", sol::table());
+        if (pos.valid()) {
+            def.position = glm::vec3(pos[1], pos[2], pos[3]);
+        }
+        auto rot = entityData.get_or("rotation", sol::table());
+        if (rot.valid()) {
+            def.rotation = glm::vec3(rot[1], rot[2], rot[3]);
+        }
+        auto scale = entityData.get_or("scale", sol::table());
+        if (scale.valid()) {
+            def.scale = glm::vec3(scale[1], scale[2], scale[3]);
+        }
         sol::table components = entityData["components"];
         for (const auto& [cKey, cVal] : components) {
             std::string componentType = cKey.as<std::string>();

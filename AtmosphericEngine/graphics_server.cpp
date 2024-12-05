@@ -164,11 +164,48 @@ void GraphicsServer::Render(float dt)
 void GraphicsServer::DrawImGui(float dt)
 {
     if (ImGui::CollapsingHeader("Graphics", ImGuiTreeNodeFlags_DefaultOpen)) {
+        ImGui::Text("Frame rate: %.3f ms/frame (%.1f FPS)", 1000.0f * dt, 1.0f / dt);
+        ImGui::Text("Average frame rate: %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
         ImGui::ColorEdit3("Clear color", (float*)&clearColor);
-        //ImGui::Text("Entities count: %lu", entities.size());
-        ImGui::Text("Draw time: %.3f s/frame", dt);
-        ImGui::Text("Frame rate: %.1f FPS", 1.0f / dt);
-        //ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+        if (ImGui::Button("Post-processing")) {
+            postProcessEnabled = !postProcessEnabled;
+        }
+
+        ImGui::Separator();
+
+        if (ImGui::TreeNode("Cameras")) {
+            for (auto c : cameras) {
+                ImGui::Text("%s (camera)", c->gameObject->GetName().c_str());
+            }
+            ImGui::TreePop();
+        }
+        if (ImGui::TreeNode("Lights")) {
+            for (auto l : directionalLights) {
+                const std::string& name = l->gameObject->GetName();
+                if (ImGui::TreeNode(name.c_str(), "%s (light)", name.c_str())) {
+                    ImGui::Text("Direction: %.3f, %.3f, %.3f", l->direction.x, l->direction.y, l->direction.z);
+                    ImGui::Text("Ambient: %.3f, %.3f, %.3f", l->ambient.x, l->ambient.y, l->ambient.z);
+                    ImGui::Text("Diffuse: %.3f, %.3f, %.3f", l->diffuse.x, l->diffuse.y, l->diffuse.z);
+                    ImGui::Text("Specular: %.3f, %.3f, %.3f", l->specular.x, l->specular.y, l->specular.z);
+                    ImGui::Text("Intensity: %.3f", l->intensity);
+                    ImGui::Text("Cast shadow: %s", l->castShadow ? "true" : "false");
+                    ImGui::TreePop();
+                }
+            }
+            for (auto l : pointLights) {
+                const std::string& name = l->gameObject->GetName();
+                if (ImGui::TreeNode(name.c_str(), "%s (light)", name.c_str())) {
+                    ImGui::Text("Position: %.3f, %.3f, %.3f", l->position.x, l->position.y, l->position.z);
+                    ImGui::Text("Ambient: %.3f, %.3f, %.3f", l->ambient.x, l->ambient.y, l->ambient.z);
+                    ImGui::Text("Diffuse: %.3f, %.3f, %.3f", l->diffuse.x, l->diffuse.y, l->diffuse.z);
+                    ImGui::Text("Specular: %.3f, %.3f, %.3f", l->specular.x, l->specular.y, l->specular.z);
+                    ImGui::Text("Intensity: %.3f", l->intensity);
+                    ImGui::Text("Cast shadow: %s", l->castShadow ? "true" : "false");
+                    ImGui::TreePop();
+                }
+            }
+            ImGui::TreePop();
+        }
     }
 }
 

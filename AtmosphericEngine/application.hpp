@@ -43,6 +43,7 @@ public:
     GameObject* GetDefaultGameObject() {
         if (!_defaultGameObject) {
             _defaultGameObject = CreateGameObject();
+            _defaultGameObject->SetName("__root__");
         }
         return _defaultGameObject;
     }
@@ -89,6 +90,11 @@ private:
     uint16_t _sceneIndex = 0;
     std::vector<GameObject*> _entities;
     GameObject* _defaultGameObject = nullptr;
+
+    bool _showSystemInfo = false;
+    bool _showAppView = true;
+    bool _showEngineView = true;
+    GameObject* _selectedEntity = nullptr;
 
     void Log(std::string message);
 

@@ -17,12 +17,12 @@ scenes = {
                 }
             },
             main_light = {
+                position = {0, 100, 0},
                 components = {
                     light = {
                         type = 0,
                         position = {0, 100, 0}, --stub
-                        -- direction = {-0.168, -0.576, -0.8},
-                        direction = {0.0, -1.0, 0.0},
+                        direction = {-0.168, -0.576, -0.8},
                         ambient = {0.2, 0.2, 0.2},
                         diffuse = {1, 1, 1},
                         specular = {1, 1, 1},

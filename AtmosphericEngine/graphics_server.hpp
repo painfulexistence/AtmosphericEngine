@@ -70,7 +70,8 @@ public:
     std::vector<GLuint> textures;
     std::vector<Material*> materials;
     std::vector<Renderable*> renderables;
-    std::vector<Light*> lights;
+    std::vector<Light*> directionalLights;
+    std::vector<Light*> pointLights;
     std::vector<Camera*> cameras;
 
     GraphicsServer();
@@ -94,8 +95,8 @@ public:
     };
 
     Light* GetMainLight() const {
-        if (lights.size() > 0) {
-            return lights[0];
+        if (directionalLights.size() > 0) {
+            return directionalLights[0];
         } else {
             return defaultLight;
         }

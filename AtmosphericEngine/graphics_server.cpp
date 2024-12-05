@@ -149,7 +149,7 @@ void GraphicsServer::Render(float dt)
         _meshInstanceMap[mesh].push_back(instanceData);
     }
 
-    auxLightCount = (int)lights.size() - mainLightCount;
+    auxLightCount = (int)pointLights.size();
 
     ShadowPass(dt);
     ColorPass(dt);
@@ -454,6 +454,8 @@ void GraphicsServer::CreateDebugVAO()
 
 void GraphicsServer::ShadowPass(float dt)
 {
+    auto mainLight = GetMainLight();
+
     glViewport(0, 0, SHADOW_W, SHADOW_H);
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
     glBindFramebuffer(GL_FRAMEBUFFER, shadowFBO);
@@ -462,7 +464,7 @@ void GraphicsServer::ShadowPass(float dt)
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, GetShadowMap(LightType::Directional, 0), 0);
     glClear(GL_DEPTH_BUFFER_BIT);
     depthShader.Activate();
-    depthShader.SetUniform(std::string("ProjectionView"), lights[0]->GetProjectionMatrix(0) * lights[0]->GetViewMatrix());
+    depthShader.SetUniform(std::string("ProjectionView"), mainLight->GetProjectionMatrix(0) * mainLight->GetViewMatrix());
 
     for (const auto& [mesh, instances] : _meshInstanceMap)
     {
@@ -498,8 +500,8 @@ void GraphicsServer::ShadowPass(float dt)
     int auxShadows = 0;
     for (int i = 0; i < auxLightCount; ++i)
     {
-        Light* l = lights[i + mainLightCount];
-        if ((bool)l->castShadow)
+        Light* l = pointLights[i];
+        if (!l->castShadow)
             continue;
         if (auxShadows++ >= MAX_OMNI_LIGHTS)
             break;
@@ -547,6 +549,7 @@ void GraphicsServer::ShadowPass(float dt)
 void GraphicsServer::ColorPass(float dt)
 {
     auto size = Window::Get()->GetSize();
+    auto mainLight = GetMainLight();
 
     glViewport(0, 0, size.x, size.y);
     glBindFramebuffer(GL_FRAMEBUFFER, hdrFBO);
@@ -620,13 +623,13 @@ void GraphicsServer::ColorPass(float dt)
         case MeshType::TERRAIN:
             terrainShader.Activate();
             terrainShader.SetUniform(std::string("cam_pos"), eyePos);
-            terrainShader.SetUniform(std::string("main_light.direction"), lights[0]->direction);
-            terrainShader.SetUniform(std::string("main_light.ambient"), lights[0]->ambient);
-            terrainShader.SetUniform(std::string("main_light.diffuse"), lights[0]->diffuse);
-            terrainShader.SetUniform(std::string("main_light.specular"), lights[0]->specular);
-            terrainShader.SetUniform(std::string("main_light.intensity"), lights[0]->intensity);
-            terrainShader.SetUniform(std::string("main_light.cast_shadow"), lights[0]->castShadow);
-            terrainShader.SetUniform(std::string("main_light.ProjectionView"), lights[0]->GetProjectionViewMatrix(0));
+            terrainShader.SetUniform(std::string("main_light.direction"), mainLight->direction);
+            terrainShader.SetUniform(std::string("main_light.ambient"), mainLight->ambient);
+            terrainShader.SetUniform(std::string("main_light.diffuse"), mainLight->diffuse);
+            terrainShader.SetUniform(std::string("main_light.specular"), mainLight->specular);
+            terrainShader.SetUniform(std::string("main_light.intensity"), mainLight->intensity);
+            terrainShader.SetUniform(std::string("main_light.cast_shadow"), mainLight->castShadow ? 1 : 0);
+            terrainShader.SetUniform(std::string("main_light.ProjectionView"), mainLight->GetProjectionViewMatrix(0));
 
             terrainShader.SetUniform(std::string("surf_params.diffuse"), mesh->GetMaterial()->diffuse);
             terrainShader.SetUniform(std::string("surf_params.specular"), mesh->GetMaterial()->specular);
@@ -653,23 +656,23 @@ void GraphicsServer::ColorPass(float dt)
             colorShader.Activate();
             colorShader.SetUniform(std::string("cam_pos"), eyePos);
             colorShader.SetUniform(std::string("time"), 0);
-            colorShader.SetUniform(std::string("main_light.direction"), lights[0]->direction);
-            colorShader.SetUniform(std::string("main_light.ambient"), lights[0]->ambient);
-            colorShader.SetUniform(std::string("main_light.diffuse"), lights[0]->diffuse);
-            colorShader.SetUniform(std::string("main_light.specular"), lights[0]->specular);
-            colorShader.SetUniform(std::string("main_light.intensity"), lights[0]->intensity);
-            colorShader.SetUniform(std::string("main_light.cast_shadow"), lights[0]->castShadow);
-            colorShader.SetUniform(std::string("main_light.ProjectionView"), lights[0]->GetProjectionViewMatrix(0));
+            colorShader.SetUniform(std::string("main_light.direction"), mainLight->direction);
+            colorShader.SetUniform(std::string("main_light.ambient"), mainLight->ambient);
+            colorShader.SetUniform(std::string("main_light.diffuse"), mainLight->diffuse);
+            colorShader.SetUniform(std::string("main_light.specular"), mainLight->specular);
+            colorShader.SetUniform(std::string("main_light.intensity"), mainLight->intensity);
+            colorShader.SetUniform(std::string("main_light.cast_shadow"), mainLight->castShadow ? 1 : 0);
+            colorShader.SetUniform(std::string("main_light.ProjectionView"), mainLight->GetProjectionViewMatrix(0));
             for (int i = 0; i < auxLightCount; ++i)
             {
-                Light* l = lights[i + mainLightCount];
+                Light* l = pointLights[i];
                 colorShader.SetUniform(std::string("aux_lights[") + std::to_string(i) + std::string("].position"), l->position);
                 colorShader.SetUniform(std::string("aux_lights[") + std::to_string(i) + std::string("].ambient"), l->ambient);
                 colorShader.SetUniform(std::string("aux_lights[") + std::to_string(i) + std::string("].diffuse"), l->diffuse);
                 colorShader.SetUniform(std::string("aux_lights[") + std::to_string(i) + std::string("].specular"), l->specular);
                 colorShader.SetUniform(std::string("aux_lights[") + std::to_string(i) + std::string("].attenuation"), l->attenuation);
                 colorShader.SetUniform(std::string("aux_lights[") + std::to_string(i) + std::string("].intensity"), l->intensity);
-                colorShader.SetUniform(std::string("aux_lights[") + std::to_string(i) + std::string("].cast_shadow"), l->castShadow);
+                colorShader.SetUniform(std::string("aux_lights[") + std::to_string(i) + std::string("].cast_shadow"), l->castShadow ? 1 : 0);
                 for (int f = 0; f < 6; ++f)
                 {
                     GLenum face = GL_TEXTURE_CUBE_MAP_POSITIVE_X + f;
@@ -896,6 +899,10 @@ Camera* GraphicsServer::CreateCamera(GameObject* go, const CameraProps& props)
 Light* GraphicsServer::CreateLight(GameObject* go, const LightProps& props)
 {
     auto light = new Light(go, props);
-    lights.push_back(light);
+    if (props.type == LightType::Point) {
+        pointLights.push_back(light);
+    } else if (props.type == LightType::Directional) {
+        directionalLights.push_back(light);
+    }
     return light;
 }

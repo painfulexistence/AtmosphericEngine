@@ -21,7 +21,7 @@ struct LightProps
     glm::vec3 position;
     glm::vec3 attenuation;
     float intensity;
-    int castShadow;
+    bool castShadow;
 };
 
 class Light : public Component
@@ -35,7 +35,7 @@ public:
     glm::vec3 diffuse;
     glm::vec3 specular;
     float intensity;
-    int castShadow;
+    bool castShadow;
 
     Light(GameObject* gameObject, LightProps props);
 

@@ -35,17 +35,10 @@ struct InstanceData {
     glm::mat4 modelMatrix;
 };
 
-struct RenderTargetProps
-{
-    RenderTargetProps(int width = INIT_FRAMEBUFFER_WIDTH, int height = INIT_FRAMEBUFFER_HEIGHT, int numSamples = MSAA_NUM_SAMPLES)
-    {
-        this->width = width;
-        this->height = height;
-        this->numSamples = numSamples;
-    };
-    int width;
-    int height;
-    int numSamples;
+struct RenderTargetProps {
+    int width = INIT_FRAMEBUFFER_WIDTH;
+    int height = INIT_FRAMEBUFFER_HEIGHT;
+    int numSamples = MSAA_NUM_SAMPLES;
 };
 
 // class Pipeline;
@@ -67,6 +60,8 @@ public:
         return _instance;
     }
     std::vector<Mesh*> meshes;
+    std::vector<GLuint> defaultTextures;
+    std::vector<GLuint> canvasTextures;
     std::vector<GLuint> textures;
     std::vector<Material*> materials;
     std::vector<Renderable*> renderables;
@@ -79,9 +74,7 @@ public:
     ~GraphicsServer();
 
     void Init(Application* app) override;
-
     void Process(float dt) override;
-
     void DrawImGui(float dt) override;
 
     void Render(float dt);
@@ -190,56 +183,55 @@ public:
     // void Draw(const std::shared_ptr<Mesh> mesh);
 
 private:
-    GLuint shadowFBO, hdrFBO, msaaFBO;
+    GLuint debugVAO, debugVBO;
+    GLuint canvasVAO, canvasVBO;
+    GLuint screenVAO, screenVBO;
 
     std::array<GLuint, MAX_UNI_LIGHTS> uniShadowMaps;
     std::array<GLuint, MAX_OMNI_LIGHTS> omniShadowMaps;
-    GLuint hdrColorTexture, hdrDepthTexture, hdrStencilTexture;
-    GLuint screenTexture;
+    GLuint sceneColorTexture, sceneDepthTexture, sceneStencilTexture;
+    GLuint msaaResolveTexture;
 
     ShaderProgram colorShader;
     ShaderProgram depthShader;
     ShaderProgram depthCubemapShader;
+    ShaderProgram skyboxShader;
     ShaderProgram terrainShader;
-    ShaderProgram postProcessShader;
     ShaderProgram debugShader;
+    ShaderProgram canvasShader;
+    ShaderProgram postProcessShader;
 
-    GLuint canvasVAO, canvasVBO;
-    GLuint screenVAO, screenVBO;
-    GLuint debugVAO, debugVBO;
+    GLuint shadowFBO, sceneFBO, msaaResolveFBO;
+    GLuint finalFBO = 0;
 
-    glm::vec4 clearColor = glm::vec4(0.15f, 0.183f, 0.2f, 1.0f);
     std::map<std::string, Mesh*> _namedMeshes;
     std::map<std::string, Material*> _namedMaterials;
     std::map<Mesh*, std::vector<InstanceData>> _meshInstanceMap;
     // std::unordered_map<std::pair<Mesh*, Material*>, std::vector<InstanceData>> groupedObjects;
 
     std::vector<DebugVertex> debugLines;
+    std::vector<CanvasVertex> canvasDrawList;
 
-    const int mainLightCount = 1;
-    int auxLightCount = 0;
+    glm::vec4 clearColor = glm::vec4(0.15f, 0.183f, 0.2f, 1.0f);
     bool postProcessEnabled = false;
     bool wireframeEnabled = false;
+
     Camera* defaultCamera = nullptr;
     Light* defaultLight = nullptr;
 
-    void CreateRenderTargets(const RenderTargetProps& props);
+    int auxLightCount = 0;
+    int _debugLineCount = 0;
 
+    void CreateRenderTargets(const RenderTargetProps& props);
     void UpdateRenderTargets(const RenderTargetProps& props);
 
     void CreateCanvasVAO();
-
     void CreateScreenVAO();
-
     void CreateDebugVAO();
 
     void ShadowPass(float dt);
-
     void ColorPass(float dt);
-
-    void DebugPass(float dt);
-
-    void MSAAPass(float dt);
-
+    void MSAAResolvePass(float dt);
+    void CanvasPass(float dt);
     void PostProcessPass(float dt);
 };

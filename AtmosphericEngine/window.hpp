@@ -22,9 +22,9 @@ class GLFWwindow;
 
 struct ImageSize
 {
-    ImageSize(int width, int height) : x(width), y(height) {};
-    int x;
-    int y;
+    ImageSize(int width, int height) : width(width), height(height) {};
+    int width;
+    int height;
 };
 
 struct WindowProps

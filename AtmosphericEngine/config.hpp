@@ -14,12 +14,17 @@
 #define SHOW_VSYNC_COST 0
 
 // Graphics
-#define MAX_UNI_LIGHTS 1
-#define MAX_OMNI_LIGHTS 0
 #define SHADOW_W 1024
 #define SHADOW_H 1024
 #define SHADOW_CASCADES 3
-#define NUM_MAP_UNITS 6
+#define MAX_UNI_LIGHTS 1
+#define MAX_OMNI_LIGHTS 1 // NOTE: Currently, at least one omni shadow map is necessary, as there is no way to disable shadows for now
+#define UNI_SHADOW_MAP_COUNT MAX_UNI_LIGHTS
+#define OMNI_SHADOW_MAP_COUNT MAX_OMNI_LIGHTS
+#define SHADOW_MAP_COUNT UNI_SHADOW_MAP_COUNT + OMNI_SHADOW_MAP_COUNT
+#define DEFAULT_TEXTURE_BASE_INDEX SHADOW_MAP_COUNT
+#define DEFAULT_TEXTURE_COUNT 0
+#define SCENE_TEXTURE_BASE_INDEX SHADOW_MAP_COUNT + DEFAULT_TEXTURE_COUNT
 #define VSYNC_ON 1
 #define FRUSTUM_CULLING_ON 0
 #define MSAA_ON 1

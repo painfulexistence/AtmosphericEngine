@@ -118,6 +118,33 @@ void Application::LoadScene(SceneDef& scene)
 
     mainCamera = graphics.GetMainCamera();
     mainLight = graphics.GetMainLight();
+
+    _currentSceneDef = scene;
+}
+
+void Application::ReloadScene() {
+    // TODO: clean up resources to avoid memory leaks
+    graphics.textures.clear();
+    graphics.materials.clear();
+    graphics.meshes.clear();
+    graphics.cameras.clear();
+    graphics.directionalLights.clear();
+    graphics.pointLights.clear();
+
+    audio.StopAll();
+
+    physics.Reset();
+
+    for (auto e : _entities) {
+        delete e;
+    }
+    _entities.clear();
+
+    // TODO: reload scene
+    if (_currentSceneDef.has_value()) {
+        OnLoad();
+        // LoadScene(_currentSceneDef.value());
+    }
 }
 
 void Application::Quit()

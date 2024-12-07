@@ -21,33 +21,23 @@ public:
     bool isActive = true;
 
     GameObject(GraphicsServer* graphics = nullptr, PhysicsServer* physics = nullptr, glm::vec3 position = glm::vec3(0.0f), glm::vec3 rotation = glm::vec3(0.0f), glm::vec3 scale = glm::vec3(1.0f));
-
     ~GameObject();
 
     void AddComponent(Component* component);
-
     void RemoveComponent(Component* component);
-
     Component* GetComponent(std::string name) const;
 
     GameObject* AddLight(const LightProps&);
-
     GameObject* AddCamera(const CameraProps&);
-
     GameObject* AddRenderable(const std::string& meshName);
-
     GameObject* AddRenderable(Mesh* mesh);
-
     GameObject* AddImpostor(const std::string& meshName, float mass = 0.0f, glm::vec3 linearFactor = glm::vec3(1.0f), glm::vec3 angularFactor = glm::vec3(1.0f));
-
     GameObject* AddImpostor(Mesh* mesh, float mass = 0.0f, glm::vec3 linearFactor = glm::vec3(1.0f), glm::vec3 angularFactor = glm::vec3(1.0f));
 
     glm::mat4 GetLocalTransform() const;
-
     void SetLocalTransform(glm::mat4 xform);
 
     glm::mat4 GetObjectTransform() const;
-
     void SetObjectTransform(glm::mat4 xform);
 
     void SyncObjectTransform(glm::mat4 xform);
@@ -55,25 +45,19 @@ public:
     inline glm::vec3 GetPosition() const {
         return _position;
     };
-
     inline glm::vec3 GetRotation() const {
         return _rotation;
     };
-
     inline glm::vec3 GetScale() const {
         return _scale;
     };
-
     void SetPosition(glm::vec3 value);
-
     void SetRotation(glm::vec3 value);
-
     void SetScale(glm::vec3 value);
 
     glm::mat4 GetTransform() const; // World space
 
     glm::vec3 GetVelocity();
-
     void SetVelocity(glm::vec3 value);
 
     inline void SetActive(bool value) { isActive = value; }

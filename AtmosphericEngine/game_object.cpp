@@ -14,10 +14,7 @@ GameObject::GameObject(GraphicsServer* graphics, PhysicsServer* physics, glm::ve
 
 GameObject::~GameObject()
 {
-    for (const auto& [name, component] : components)
-    {
-        delete component;
-    }
+
 }
 
 void GameObject::AddComponent(Component* component)

@@ -11,8 +11,9 @@ public:
     ~AudioManager();
 
     void Init(Application* app) override;
-
     void Process(float dt) override;
+    void DrawImGui(float dt) override;
+    void Reset();
 
     // Music API
     MusicID LoadMusic(const char* filename);

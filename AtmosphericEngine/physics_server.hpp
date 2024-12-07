@@ -23,15 +23,14 @@ public:
     }
 
     PhysicsServer();
-
     ~PhysicsServer();
 
     void Init(Application* app) override;
-
     void Process(float dt) override;
+    void DrawImGui(float dt) override;
+    void Reset();
 
     void AddImpostor(Impostor*);
-
     void RemoveImpostor(Impostor*);
 
     void EnableDebugUI(bool enable = true);

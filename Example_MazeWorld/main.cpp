@@ -328,7 +328,7 @@ class MazeGame : public Application {
             isPostProcessEnabled = !isPostProcessEnabled;
         }
         if (input.IsKeyPressed(Key::R)) {
-            graphics.ReloadShaders();
+            ReloadScene();
         }
         if (input.IsKeyPressed(Key::ESCAPE)) {
             Quit();

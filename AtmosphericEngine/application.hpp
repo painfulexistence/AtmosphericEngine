@@ -27,17 +27,14 @@ struct FrameData
     float deltaTime;
 };
 
-class Application
-{
+class Application {
 public:
     Application();
-
     ~Application();
 
     void Run();
 
     virtual void OnLoad() = 0;
-
     virtual void OnUpdate(float dt, float time) = 0;
 
     GameObject* GetDefaultGameObject() {
@@ -62,17 +59,16 @@ protected:
     Light* mainLight = nullptr;
 
     void LoadScene(SceneDef& scene);
+    void ReloadScene();
 
     void Quit();
 
     std::shared_ptr<Window> GetWindow();
 
     float GetWindowTime();
-
     void SetWindowTime(float time);
 
     std::string GetWindowTitle();
-
     void SetWindowTitle(const std::string& title);
 
     void AddSubsystem(std::shared_ptr<Server> subsystem);
@@ -88,6 +84,7 @@ private:
     std::shared_ptr<Window> _window = nullptr;
     uint64_t _clock = 0;
     uint16_t _sceneIndex = 0;
+    std::optional<SceneDef> _currentSceneDef = std::nullopt;
     std::vector<GameObject*> _entities;
     GameObject* _defaultGameObject = nullptr;
 

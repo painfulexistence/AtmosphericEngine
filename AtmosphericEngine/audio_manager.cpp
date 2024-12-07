@@ -24,6 +24,62 @@ void AudioManager::Process(float dt) {
     }
 }
 
+void AudioManager::DrawImGui(float dt) {
+    if (ImGui::CollapsingHeader("Audio", ImGuiTreeNodeFlags_DefaultOpen)) {
+        if (ImGui::Button("Stop All")) {
+            StopAll();
+        }
+        ImGui::Separator();
+        if (ImGui::TreeNode("Musics")) {
+            for (auto [id, music] : musics) {
+                if (ImGui::TreeNode(fmt::format("Music {}", id).c_str())) {
+                    if (ImGui::SmallButton("Play")) {
+                        PlayMusic(id);
+                    }
+                    ImGui::SameLine();
+                    if (ImGui::SmallButton("Stop")) {
+                        StopMusic(id);
+                    }
+                    ImGui::TreePop();
+                }
+            }
+            ImGui::TreePop();
+        }
+        if (ImGui::TreeNode("Sounds")) {
+            for (auto [id, sound] : sounds) {
+                if (ImGui::TreeNode(fmt::format("Sound {}", id).c_str())) {
+                    if (ImGui::SmallButton("Play")) {
+                        PlaySound(id);
+                    }
+                    ImGui::SameLine();
+                    if (ImGui::SmallButton("Stop")) {
+                        StopSound(id);
+                    }
+                    ImGui::TreePop();
+                }
+            }
+            ImGui::TreePop();
+        }
+    }
+}
+
+void AudioManager::Reset() {
+    StopAll();
+
+    for (auto [id, music] : musics) {
+        ::UnloadMusicStream(music);
+    }
+    musics.clear();
+
+    for (auto [id, sound] : sounds) {
+        ::UnloadSound(sound);
+    }
+    sounds.clear();
+
+    nextMusicId = 1;
+    nextSoundId = 1;
+}
+
 MusicID AudioManager::LoadMusic(const char* filename) {
     MusicID id = nextMusicId;
     musics[id] = ::LoadMusicStream(filename);

@@ -4,72 +4,74 @@ class HelloWorld : public Application {
     GameObject* cube;
 
     void OnLoad() override {
-        // TODO: fix scene loading
-        // SceneDef scene = {
-        //     .textures = {
-        //         "assets/textures/default_diff.jpg",
-        //         "assets/textures/default_norm.jpg",
-        //         "assets/textures/default_ao.jpg",
-        //         "assets/textures/default_rough.jpg",
-        //         "assets/textures/default_metallic.jpg"
-        //     },
-        //     .shaders = {
-        //         {
-        //             "color", {
-        //                 .vert = "assets/shaders/tbn.vert",
-        //                 .frag = "assets/shaders/pbr.frag"
-        //             },
-        //         },
-        //         {
-        //             "debug_line", {
-        //                 .vert = "assets/shaders/debug.vert",
-        //                 .frag = "assets/shaders/flat.frag",
-        //             }
-        //         },
-        //         {
-        //             "depth", {
-        //                 .vert = "assets/shaders/depth_simple.vert",
-        //                 .frag = "assets/shaders/depth_simple.frag"
-        //             },
-        //         },
-        //         {
-        //             "depth_cubemap", {
-        //                 .vert = "assets/shaders/depth_cubemap.vert",
-        //                 .frag = "assets/shaders/depth_cubemap.frag"
-        //             },
-        //         },
-        //         {
-        //             "hdr", {
-        //                 .vert = "assets/shaders/hdr.vert",
-        //                 .frag = "assets/shaders/hdr_ca.frag"
-        //             },
-        //         },
-        //         {
-        //             "terrain", {
-        //                 .vert = "assets/shaders/terrain.vert",
-        //                 .frag = "assets/shaders/terrain.frag",
-        //                 .tesc = "assets/shaders/terrain.tesc",
-        //                 .tese = "assets/shaders/terrain.tese"
-        //             },
-        //         }
-        //     },
-        //     .materials = {
-        //         {
-        //             .diffuse = {1., 1., 1.},
-        //             .specular = {.296648, .296648, .296648},
-        //             .ambient = {.25, .20725, .20725},
-        //             .shininess = 0.088
-        //         },
-        //     },
-        //     .gameObjects = {}
-        // };
-        // LoadScene(scene);
-        LoadScene(script.GetScenes()[0]);
+        SceneDef scene = {
+            .textures = {
+                "assets/textures/default_diff.jpg",
+                "assets/textures/default_norm.jpg",
+                "assets/textures/default_ao.jpg",
+                "assets/textures/default_rough.jpg",
+                "assets/textures/default_metallic.jpg"
+            },
+            .shaders = {
+                {
+                    "color", {
+                        .vert = "assets/shaders/tbn.vert",
+                        .frag = "assets/shaders/pbr.frag"
+                    },
+                },
+                {
+                    "debug_line", {
+                        .vert = "assets/shaders/debug.vert",
+                        .frag = "assets/shaders/flat.frag",
+                    }
+                },
+                {
+                    "depth", {
+                        .vert = "assets/shaders/depth_simple.vert",
+                        .frag = "assets/shaders/depth_simple.frag"
+                    },
+                },
+                {
+                    "depth_cubemap", {
+                        .vert = "assets/shaders/depth_cubemap.vert",
+                        .frag = "assets/shaders/depth_cubemap.frag"
+                    },
+                },
+                {
+                    "hdr", {
+                        .vert = "assets/shaders/hdr.vert",
+                        .frag = "assets/shaders/hdr_ca.frag"
+                    },
+                },
+                {
+                    "terrain", {
+                        .vert = "assets/shaders/terrain.vert",
+                        .frag = "assets/shaders/terrain.frag",
+                        .tesc = "assets/shaders/terrain.tesc",
+                        .tese = "assets/shaders/terrain.tese"
+                    },
+                }
+            },
+            .materials = {
+                {
+                    .baseMap = 0,
+                    .normalMap = 1,
+                    .aoMap = 2,
+                    .roughnessMap = 3,
+                    .diffuse = {1., 1., 1.},
+                    .specular = {.296648, .296648, .296648},
+                    .ambient = {.25, .20725, .20725},
+                    .shininess = 0.088
+                }
+            },
+            .gameObjects = {}
+        };
+        LoadScene(scene);
 
         mainCamera->gameObject->SetPosition(glm::vec3(-5.0, 0.0, 0.0));
 
         auto cubeMesh = graphics.CreateCubeMesh("CubeMesh", 1.0f);
-        cubeMesh->SetMaterial(graphics.materials[1]);
+        cubeMesh->SetMaterial(graphics.materials[0]);
 
         cube = CreateGameObject();
         cube->AddRenderable(cubeMesh);

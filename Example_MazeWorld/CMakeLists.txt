@@ -11,6 +11,13 @@ set_target_properties(${GAME_NAME} PROPERTIES
 
 target_link_libraries(${GAME_NAME} PRIVATE AtmosphericEngine)
 
+add_custom_command(
+    TARGET ${GAME_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    ${CMAKE_SOURCE_DIR}/AtmosphericEngine/default_assets
+    ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${GAME_NAME}/assets
+)
+
 if(EXISTS ${GAME_ASSETS_DIR})
     add_custom_target(copy_assets
         COMMAND ${CMAKE_COMMAND} -E copy_directory

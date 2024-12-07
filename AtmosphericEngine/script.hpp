@@ -29,7 +29,7 @@ public:
 
     void Bind(const std::string& func);
 
-    void Source(const std::string& file);
+    void Source(const std::string& filename);
 
     void Run(const std::string&);
 

@@ -26,7 +26,7 @@ void Script::Init(Application* app)
 {
     Server::Init(app);
 
-    this->_env.open_libraries();
+    _env.open_libraries();
     Source("./assets/config.lua");
     Source("./assets/manifest.lua");
     Source("./assets/main.lua");
@@ -48,14 +48,22 @@ void Script::Bind(const std::string& func)
     //this->_env.set_function(func);
 }
 
-void Script::Source(const std::string& file)
+void Script::Source(const std::string& filename)
 {
-    this->_env.script_file(file);
+    try {
+        this->_env.script_file(filename);
+    } catch (const sol::error& e) {
+        fmt::print("Skip loading script file {}\n", filename);
+    }
 }
 
 void Script::Run(const std::string& script)
 {
-    this->_env.script(script);
+    try {
+        this->_env.script(script);
+    } catch (const sol::error& e) {
+        fmt::print("Skip running script: \n{}\n", script);
+    }
 }
 
 void Script::Print(const std::string& msg)

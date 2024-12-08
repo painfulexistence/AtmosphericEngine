@@ -1,16 +1,6 @@
 #include "physics_debug_drawer.hpp"
 #include "graphics_server.hpp"
 
-PhysicsDebugDrawer::PhysicsDebugDrawer()
-{
-
-}
-
-PhysicsDebugDrawer::~PhysicsDebugDrawer()
-{
-
-}
-
 void PhysicsDebugDrawer::reportErrorWarning(const char* text)
 {
     fmt::print("Bullet Warning: {}\n", text);

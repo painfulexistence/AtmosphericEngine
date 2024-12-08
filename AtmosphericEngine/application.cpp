@@ -406,6 +406,7 @@ void Application::SetWindowTitle(const std::string& title)
 GameObject* Application::CreateGameObject(glm::vec3 position, glm::vec3 rotation, glm::vec3 scale)
 {
     auto e = new GameObject(&graphics, &physics, position, rotation, scale);
+    e->SetName(fmt::format("entity #{}", _nextEntityID++));
     _entities.push_back(e);
     return e;
 }

@@ -27,6 +27,8 @@ struct FrameData
     float deltaTime;
 };
 
+using EntityID = uint64_t;
+
 class Application {
 public:
     Application();
@@ -86,6 +88,7 @@ private:
     uint16_t _sceneIndex = 0;
     std::optional<SceneDef> _currentSceneDef = std::nullopt;
     std::vector<GameObject*> _entities;
+    EntityID _nextEntityID = 0;
     GameObject* _defaultGameObject = nullptr;
 
     bool _showSystemInfo = false;

@@ -18,7 +18,6 @@ struct LightProps
     glm::vec3 diffuse;
     glm::vec3 specular;
     glm::vec3 direction;
-    glm::vec3 position;
     glm::vec3 attenuation;
     float intensity;
     bool castShadow;
@@ -29,7 +28,6 @@ class Light : public Component
 public:
     LightType type;
     glm::vec3 direction;
-    glm::vec3 position;
     glm::vec3 attenuation;
     glm::vec3 ambient;
     glm::vec3 diffuse;
@@ -40,6 +38,8 @@ public:
     Light(GameObject* gameObject, LightProps props);
 
     std::string GetName() const override;
+
+    glm::vec3 GetPosition() const;
 
     glm::mat4 GetProjectionMatrix(int cascadedIndex = 0);
 

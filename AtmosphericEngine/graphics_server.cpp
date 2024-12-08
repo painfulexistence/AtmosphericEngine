@@ -116,7 +116,6 @@ void GraphicsServer::Init(Application* app)
 
     defaultLight = new Light(app->GetDefaultGameObject(), {
         .type = LightType::Directional,
-        .position = glm::vec3(0.0f, 0.0f, 0.0f),
         .direction = glm::vec3(0.0f, -1.0f, 0.0f),
         .ambient = glm::vec3(1.0f, 1.0f, 1.0f),
         .diffuse = glm::vec3(1.0f, 1.0f, 1.0f),
@@ -196,7 +195,7 @@ void GraphicsServer::DrawImGui(float dt)
             for (auto l : pointLights) {
                 const std::string& name = l->gameObject->GetName();
                 if (ImGui::TreeNode(name.c_str(), "%s (light)", name.c_str())) {
-                    ImGui::Text("Position: %.3f, %.3f, %.3f", l->position.x, l->position.y, l->position.z);
+                    ImGui::Text("Attenuation: %.3f, %.3f, %.3f", l->attenuation.x, l->attenuation.y, l->attenuation.z);
                     ImGui::Text("Ambient: %.3f, %.3f, %.3f", l->ambient.x, l->ambient.y, l->ambient.z);
                     ImGui::Text("Diffuse: %.3f, %.3f, %.3f", l->diffuse.x, l->diffuse.y, l->diffuse.z);
                     ImGui::Text("Specular: %.3f, %.3f, %.3f", l->specular.x, l->specular.y, l->specular.z);
@@ -209,6 +208,36 @@ void GraphicsServer::DrawImGui(float dt)
         }
         if (ImGui::TreeNode("Physics Debug")) {
             ImGui::Text("Debug line count: %d", _debugLineCount);
+            ImGui::TreePop();
+        }
+        if (ImGui::TreeNode("Textures")) {
+            for (auto t : uniShadowMaps) {
+                if (ImGui::TreeNode(fmt:: format("Directional shadow map #{}", t).c_str())) {
+                    ImGui::Image((ImTextureID)(intptr_t)t, ImVec2(64, 64));
+                    ImGui::TreePop();
+                }
+            }
+            for (auto t : omniShadowMaps) {
+                // FIXME: cubemap textures are not supported yet
+                if (ImGui::TreeNode(fmt:: format("Point shadow map #{}", t).c_str())) {
+                    // ImGui::Image((ImTextureID)(intptr_t)t, ImVec2(64, 64));
+                    ImGui::TreePop();
+                }
+            }
+            ImGui::Separator();
+            for (auto t : defaultTextures) {
+                if (ImGui::TreeNode(fmt:: format("Default Tex #{}", t).c_str())) {
+                    ImGui::Image((ImTextureID)(intptr_t)t, ImVec2(64, 64));
+                    ImGui::TreePop();
+                }
+            }
+            ImGui::Separator();
+            for (auto t : textures) {
+                if (ImGui::TreeNode(fmt:: format("Tex #{}", t).c_str())) {
+                    ImGui::Image((ImTextureID)(intptr_t)t, ImVec2(64, 64));
+                    ImGui::TreePop();
+                }
+            }
             ImGui::TreePop();
         }
         if (ImGui::TreeNode("Materials")) {
@@ -375,7 +404,7 @@ void GraphicsServer::CreateRenderTargets(const RenderTargetProps& props)
     glBindFramebuffer(GL_FRAMEBUFFER, shadowFBO);
     for (int i = 0; i < (int)uniShadowMaps.size(); ++i)
     {
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, uniShadowMaps[0], 0);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, uniShadowMaps[i], 0);
         glDrawBuffer(GL_NONE);
         glReadBuffer(GL_NONE);
     }
@@ -521,7 +550,7 @@ void GraphicsServer::ShadowPass(float dt)
     auto mainLight = GetMainLight();
 
     // 1. Render shadow map for directional light
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, GetShadowMap(LightType::Directional, 0), 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, uniShadowMaps[0], 0);
     glClear(GL_DEPTH_BUFFER_BIT);
     depthShader.Activate();
     depthShader.SetUniform(std::string("ProjectionView"), mainLight->GetProjectionMatrix(0) * mainLight->GetViewMatrix());
@@ -569,9 +598,9 @@ void GraphicsServer::ShadowPass(float dt)
         for (int f = 0; f < 6; ++f)
         {
             GLenum face = GL_TEXTURE_CUBE_MAP_POSITIVE_X + f;
-            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, face, GetShadowMap(LightType::Point, i), 0);
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, face, omniShadowMaps[i], 0);
             glClear(GL_DEPTH_BUFFER_BIT);
-            depthCubemapShader.SetUniform(std::string("LightPosition"), l->position);
+            depthCubemapShader.SetUniform(std::string("LightPosition"), l->GetPosition());
             depthCubemapShader.SetUniform(std::string("ProjectionView"), l->GetProjectionMatrix(0) * l->GetViewMatrix(face));
 
             for (const auto& [mesh, instances] : _meshInstanceMap)
@@ -590,7 +619,7 @@ void GraphicsServer::ShadowPass(float dt)
                 else
                     glDisable(GL_CULL_FACE);
 
-                if (mesh->type == MeshType::TERRAIN) {
+                if (mesh->type == MeshType::PRIM) {
                     glBindVertexArray(mesh->vao);
                     if (instances.size() > 0) { // TODO: use non-instanced rendering for one-off meshes
                         glBindBuffer(GL_ARRAY_BUFFER, mesh->ibo);
@@ -731,7 +760,7 @@ void GraphicsServer::ColorPass(float dt)
             for (int i = 0; i < auxLightCount; ++i)
             {
                 Light* l = pointLights[i];
-                colorShader.SetUniform(std::string("aux_lights[") + std::to_string(i) + std::string("].position"), l->position);
+                colorShader.SetUniform(std::string("aux_lights[") + std::to_string(i) + std::string("].position"), l->GetPosition());
                 colorShader.SetUniform(std::string("aux_lights[") + std::to_string(i) + std::string("].ambient"), l->ambient);
                 colorShader.SetUniform(std::string("aux_lights[") + std::to_string(i) + std::string("].diffuse"), l->diffuse);
                 colorShader.SetUniform(std::string("aux_lights[") + std::to_string(i) + std::string("].specular"), l->specular);

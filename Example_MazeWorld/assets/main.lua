@@ -17,74 +17,72 @@ scenes = {
                 }
             },
             main_light = {
-                position = {0, 100, 0},
+                position = {0, 0, 0},
                 components = {
                     light = {
                         type = 0,
-                        position = {0, 100, 0}, --stub
                         direction = {-0.168, -0.576, -0.8},
                         ambient = {0.2, 0.2, 0.2},
                         diffuse = {1, 1, 1},
                         specular = {1, 1, 1},
                         intensity = 1.0,
-                        attenuation = {0, 0, 0},
                         castShadow = 1
                     }
                 }
             },
             aux_light_1 = {
+                position = {0, 10, 0},
                 components = {
                     light = {
                         type = 1,
-                        position = {0, 20, 0},
-                        direction = {0, 0, 0},  --stub
                         ambient = {0.2, 0.2, 0.2},
                         diffuse = {1, 1, 1},
                         specular = {1, 1, 1},
                         intensity = 3.0,
-                        attenuation = {1, 0.045, 0.0075}
+                        attenuation = {1, 0.045, 0.0075},
+                        castShadow = 1
                     }
                 }
             },
             aux_light_2 = {
+                position = {-math.random(50), 10, -math.random(50)},
                 components = {
                     light = {
                         type = 1,
-                        position = {-math.random(50), 20, -math.random(50)},
-                        direction = {0, 0, 0},  --stub
                         ambient = {0.2, 0.2, 0.2},
                         diffuse = {1, 1, 0},
                         specular = {1, 1, 1},
                         intensity = 10.0,
-                        attenuation = {1, 0.045, 0.0075}
+                        attenuation = {1, 0.045, 0.0075},
+                        castShadow = 1
                     }
                 }
             },
             aux_light_3 = {
+                position = {math.random(50), 10, math.random(50)},
                 components = {
                     light = {
                         type = 1,
-                        position = {math.random(50), 20, math.random(50)},
-                        direction = {0, 0, 0},  --stub
                         ambient = {0.2, 0.2, 0.2},
                         diffuse = {1, 0, 1},
                         specular = {1, 1, 1},
                         intensity = 10.0,
-                        attenuation = {1, 0.045, 0.0075}
+                        attenuation = {1, 0.045, 0.0075},
+                        castShadow = 1
                     }
                 }
             },
             aux_light_4 = {
+                position = {math.random(50), 10, -math.random(50)},
                 components = {
                     light = {
                         type = 1,
-                        position = {math.random(50), 20, -math.random(50)},
-                        direction = {0, 0, 0},  --stub
                         ambient = {0.2, 0.2, 0.2},
                         diffuse = {0, 1, 1},
                         specular = {1, 1, 1},
                         intensity = 10.0,
-                        attenuation = {1, 0.045, 0.0075}
+                        attenuation = {1, 0.045, 0.0075},
+                        castShadow = 1
                     }
                 }
             }

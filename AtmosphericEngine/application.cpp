@@ -294,7 +294,7 @@ void Application::Render(const FrameData& props)
                         }
                     } else if (light->type == LightType::Point) {
                         if (ImGui::CollapsingHeader("Light", ImGuiTreeNodeFlags_DefaultOpen)) {
-                            ImGui::DragFloat3("position", &light->position.x);
+                            ImGui::DragFloat3("attenuation", &light->attenuation.x);
                             ImGui::ColorEdit3("diffuse", &light->diffuse.r);
                             ImGui::ColorEdit3("spcular", &light->specular.r);
                             ImGui::ColorEdit3("ambient", &light->ambient.r);

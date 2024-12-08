@@ -89,7 +89,7 @@ vec3 CalculateDirectionalLight(DirLight light, vec3 norm, vec3 viewDir, Surface 
     vec4 lightSpaceFragPos = light.ProjectionView * vec4(frag_pos, 1.0);
     vec3 lightSpaceFragCoords = lightSpaceFragPos.xyz / lightSpaceFragPos.w;
     float shadow = light.cast_shadow * DirectionalShadow(lightSpaceFragCoords * 0.5 + 0.5, ShadowBias(norm, lightDir));
-    vec3 radiance = light.diffuse * clamp(1.0 - shadow, 0.0, 1.0);
+    vec3 radiance = light.intensity * light.diffuse * clamp(1.0 - shadow, 0.0, 1.0);
 
     return CookTorranceBRDF(norm, lightDir, viewDir, surf) * radiance * clamp(dot(norm, lightDir), 0.0, 1.0);
 }
@@ -99,9 +99,9 @@ vec3 CalculatePointLight(PointLight light, vec3 norm, vec3 viewDir, Surface surf
     vec3 lightDir = normalize(light.position - frag_pos);
 
     float dist = distance(light.position, frag_pos);
-    float attenuation = 1.0 / (dist * dist);
+    float attenuation = 1.0 / (light.attenuation.x + light.attenuation.y * dist + light.attenuation.z * dist * dist);
     float shadow = light.cast_shadow * PointShadow((frag_pos - light.position) / 400.0f, ShadowBias(norm, lightDir));
-    vec3 radiance = attenuation * light.diffuse * clamp(1.0 - shadow, 0.0, 1.0);
+    vec3 radiance = light.intensity * attenuation * light.diffuse * clamp(1.0 - shadow, 0.0, 1.0);
 
     return CookTorranceBRDF(norm, lightDir, viewDir, surf) * radiance * clamp(dot(norm, lightDir), 0.0, 1.0);
 }

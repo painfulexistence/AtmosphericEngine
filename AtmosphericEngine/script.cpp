@@ -153,18 +153,9 @@ SceneDef Script::GetScene(const sol::table& sceneData)
                     )
                 };
             } else if (componentType == "light") {
+                auto lightType = static_cast<LightType>(componentData.get_or("type", 1));
                 def.light = {
-                    .type = static_cast<LightType>(componentData.get_or("type", 1)),
-                    .position = glm::vec3(
-                        componentData["position"][1],
-                        componentData["position"][2],
-                        componentData["position"][3]
-                    ),
-                    .direction = glm::vec3(
-                        componentData["direction"][1],
-                        componentData["direction"][2],
-                        componentData["direction"][3]
-                    ),
+                    .type = lightType,
                     .ambient = glm::vec3(
                         componentData["ambient"][1],
                         componentData["ambient"][2],
@@ -180,14 +171,22 @@ SceneDef Script::GetScene(const sol::table& sceneData)
                         componentData["specular"][2],
                         componentData["specular"][3]
                     ),
-                    .attenuation = glm::vec3(
-                        componentData["attenuation"][1],
-                        componentData["attenuation"][2],
-                        componentData["attenuation"][3]
-                    ),
                     .intensity = (float)componentData.get_or("intensity", 1.0),
                     .castShadow = (bool)componentData.get_or("castShadow", 0)
                 };
+                if (lightType == LightType::Point) {
+                    def.light->attenuation = glm::vec3(
+                        componentData["attenuation"][1],
+                        componentData["attenuation"][2],
+                        componentData["attenuation"][3]
+                    );
+                } else if (lightType == LightType::Directional) {
+                    def.light->direction = glm::vec3(
+                        componentData["direction"][1],
+                        componentData["direction"][2],
+                        componentData["direction"][3]
+                    );
+                }
             }
         }
         scene.gameObjects.push_back(def);

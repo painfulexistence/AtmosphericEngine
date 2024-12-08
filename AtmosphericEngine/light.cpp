@@ -47,7 +47,6 @@ static glm::vec3 WorldUp(GLenum face)
 
 Light::Light(GameObject* gameObject, LightProps props) {
     type = props.type;
-    position = props.position;
     direction = props.direction;
     ambient = props.ambient;
     diffuse = props.diffuse;
@@ -64,11 +63,15 @@ std::string Light::GetName() const {
     return std::string("Light");
 }
 
+glm::vec3 Light::GetPosition() const {
+    return gameObject->GetPosition();
+}
+
 glm::mat4 Light::GetProjectionMatrix(int cascadedIndex) {
     if (type == LightType::Directional) {
         float nearZ = -200.0f, farZ = 200.0f;
         float orthoSize = 200.0f;
-        return glm::ortho(-orthoSize, orthoSize, orthoSize, orthoSize, nearZ, farZ);
+        return glm::ortho(-orthoSize, orthoSize, -orthoSize, orthoSize, nearZ, farZ);
     } else {
         //NOTES:
         // Here a small farZ would be used to avoid unnecessary shadow calculation of cutoff point lights
@@ -78,15 +81,16 @@ glm::mat4 Light::GetProjectionMatrix(int cascadedIndex) {
 }
 
 glm::mat4 Light::GetViewMatrix(GLenum facing) {
+    auto pos = GetPosition();
     if (type == LightType::Directional) {
         //NOTES:
         // To simulate real world lighting, directional light should be placed as far as possible,
         // but here the light would be placed depending on farZ to ensure the scene can completely fit itself into clip space
         float viewDist = 200.0f;
-        glm::vec3 center = gameObject->GetPosition();
+        glm::vec3 center = pos;
         return glm::lookAt(center - glm::normalize(direction) * viewDist, center, glm::vec3(0.f, 1.f, 0.f));
     } else {
-        return glm::lookAt(position, position + Direction(facing), WorldUp(facing));
+        return glm::lookAt(pos, pos + Direction(facing), WorldUp(facing));
     }
 }
 

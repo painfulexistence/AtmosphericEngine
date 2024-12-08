@@ -308,6 +308,23 @@ void Application::Render(const FrameData& props)
                     if (ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen)) {
                     }
                 }
+                auto renderable = static_cast<Renderable*>(_selectedEntity->GetComponent("Drawable"));
+                if (renderable != nullptr) {
+                    if (ImGui::CollapsingHeader("Renderable", ImGuiTreeNodeFlags_DefaultOpen)) {
+                        auto mat = renderable->GetMaterial();
+                        ImGui::SliderInt("Base map ID", &mat->baseMap, -1, graphics.textures.size() - 1);
+                        ImGui::SliderInt("Normal map ID", &mat->normalMap, -1, graphics.textures.size() - 1);
+                        ImGui::SliderInt("AO map ID", &mat->aoMap, -1, graphics.textures.size() - 1);
+                        ImGui::SliderInt("Roughness map ID", &mat->roughnessMap, -1, graphics.textures.size() - 1);
+                        ImGui::SliderInt("Metallic map ID", &mat->metallicMap, -1, graphics.textures.size() - 1);
+                        ImGui::SliderInt("Height map ID", &mat->heightMap, -1, graphics.textures.size() - 1);
+                        ImGui::ColorEdit3("Diffuse", &mat->diffuse.r);
+                        ImGui::ColorEdit3("Specular", &mat->specular.r);
+                        ImGui::ColorEdit3("Ambient", &mat->ambient.r);
+                        ImGui::ColorEdit3("Shininess", &mat->shininess);
+                        ImGui::Checkbox("Cull face enabled", &mat->cullFaceEnabled);
+                    }
+                }
             }
             ImGui::EndChild();
         }
@@ -317,7 +334,9 @@ void Application::Render(const FrameData& props)
     if (_showEngineView) {
         ImGui::Begin("Engine Subsystems");
         {
+            audio.DrawImGui(dt);
             graphics.DrawImGui(dt);
+            physics.DrawImGui(dt);
             for (auto subsystem : _subsystems) {
                 subsystem->DrawImGui(dt);
             }

@@ -15,7 +15,7 @@ Renderable::~Renderable() {
 }
 
 std::string Renderable::GetName() const {
-    return std::string("Mesh");
+    return std::string("Drawable");
 }
 
 Mesh* Renderable::GetMesh() const {

@@ -31,7 +31,7 @@ public:
 
 class Maze {
 public:
-    Maze(int width, int height, float blockSize, bool isRoofed, float chismChance) : _width(width), _height(height), _data(width * height, 1), _blockSize(blockSize), _isRoofed(isRoofed), _chismChance(chismChance) {
+    Maze(int width, int height, float blockSize, int numBlocksToRemove, bool isRoofed, float chismChance) : _width(width), _height(height), _data(width * height, 1), _blockSize(blockSize), _numBlocksToRemove(numBlocksToRemove), _isRoofed(isRoofed), _chismChance(chismChance) {
         int currX = 1, currZ = 1, blocksRemoved = 0;
         while (blocksRemoved < _numBlocksToRemove && blocksRemoved < (_width - 2) * (_height - 2)) {
             int xDir = 0, zDir = 0, moves = 0;
@@ -111,12 +111,12 @@ public:
     };
 
 private:
-    int _width = 30;
-    int _height = 30;
-    const int _blockSize = 3.0;
-    const bool _isRoofed = false;
-    const int _numBlocksToRemove = 500;
-    const float _chismChance = 10.0;
+    const int _width;
+    const int _height;
+    const int _blockSize;
+    const bool _isRoofed;
+    const int _numBlocksToRemove;
+    const float _chismChance;
 
     std::vector<uint8_t> _data;
 };
@@ -126,6 +126,7 @@ class MazeGame : public Application {
     bool isPostProcessEnabled = false;
     bool isWireframeEnabled = false;
 
+    uint16_t seed = time(NULL);
     bool isLightFlashing = false;
     glm::vec3 winCoord = glm::vec3(0, 0, 0);
     GameObject* player = nullptr;
@@ -140,6 +141,8 @@ class MazeGame : public Application {
     SoundID sfxShoot = 0;
 
     void OnLoad() override {
+        srand(seed);
+
         LoadScene(script.GetScenes()[0]);
 
         // Load sounds
@@ -208,26 +211,27 @@ class MazeGame : public Application {
 
         const int MAZE_SIZE = 30;
         const float MAZE_BLOCK_SIZE = 3.0;
+        const int BLOCKS_TO_REMOVE = 500;
         const bool MAZE_ROOFED = false;
         const float CHISM_CHANCE = 10.0;
 
-        auto cubeMesh = graphics.CreateMesh("Cube", MeshBuilder::CreateCubeWithPhysics((float)MAZE_BLOCK_SIZE));
-        cubeMesh->SetMaterial(graphics.materials[3]);
+        auto mazeBlockMesh = graphics.CreateMesh("MazeBlock", MeshBuilder::CreateCubeWithPhysics((float)MAZE_BLOCK_SIZE));
+        mazeBlockMesh->SetMaterial(graphics.materials[3]);
 
         bool characterPlaced = false;
-        auto maze = Maze(MAZE_SIZE, MAZE_SIZE, MAZE_BLOCK_SIZE, MAZE_ROOFED, CHISM_CHANCE);
+        auto maze = Maze(MAZE_SIZE, MAZE_SIZE, MAZE_BLOCK_SIZE, BLOCKS_TO_REMOVE,MAZE_ROOFED, CHISM_CHANCE);
         for (int x = 0; x < MAZE_SIZE; x++) {
             for (int z = 0; z < MAZE_SIZE; z++) {
                 if (MAZE_ROOFED) {
                     auto cube = CreateGameObject(MAZE_BLOCK_SIZE * glm::vec3(x - MAZE_SIZE / 2.f, 3, z - MAZE_SIZE / 2.f));
-                    cube->AddRenderable("Cube");
-                    cube->AddImpostor("Cube", 0.0f);
+                    cube->AddRenderable("MazeBlock");
+                    cube->AddImpostor("MazeBlock", 0.0f);
                 }
                 if (!maze.IsEmpty(x, z)) {
                     for (int h = 0; h < 3; h++) {
                         auto cube = CreateGameObject(MAZE_BLOCK_SIZE * glm::vec3(x - MAZE_SIZE / 2.f, h, z - MAZE_SIZE / 2.f));
-                        cube->AddRenderable("Cube");
-                        cube->AddImpostor("Cube", 0.0f);
+                        cube->AddRenderable("MazeBlock");
+                        cube->AddImpostor("MazeBlock", 0.0f);
                     }
                 } else {
                     if (rand() % 100 < CHISM_CHANCE) {
@@ -242,8 +246,8 @@ class MazeGame : public Application {
                     winCoord.z = MAZE_BLOCK_SIZE * (z - MAZE_SIZE / 2.f);
                 }
                 auto cube = CreateGameObject(MAZE_BLOCK_SIZE * glm::vec3(x - MAZE_SIZE / 2.f, -1, z - MAZE_SIZE / 2.f));
-                cube->AddRenderable("Cube");
-                cube->AddImpostor("Cube", 0.0f);
+                cube->AddRenderable("MazeBlock");
+                cube->AddImpostor("MazeBlock", 0.0f);
             }
         }
 
@@ -338,9 +342,6 @@ class MazeGame : public Application {
 
 
 int main(int argc, char* argv[]) {
-    //setbuf(stdout, NULL); // Cancel output stream buffering so that output can be seen immediately
-    srand(time(NULL));
-
     MazeGame game;
     game.Run();
 

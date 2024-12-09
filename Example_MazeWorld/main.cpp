@@ -132,6 +132,7 @@ class MazeGame : public Application {
     GameObject* player = nullptr;
     std::vector<float> terrainData;
     bool isPlayerJumping = false;
+    bool isPlayerGrounded = false;
     float playerSpeed = 10.0f;
     float playerJumpSpeed = 6.0f;
     std::vector<GameObject*> bullets;
@@ -185,9 +186,9 @@ class MazeGame : public Application {
         player = graphics.GetMainCamera()->gameObject;
         player->AddImpostor("Character", 10.0f, glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
         player->SetPosition(glm::vec3(0, 64, 0));
-        player->SetCollisionCallback([](GameObject* other) {
-            fmt::print("Player collided with game object {}!\n", other->GetName());
-        });
+        // player->SetCollisionCallback([](GameObject* other) {
+        //     fmt::print("Player collided with game object {}!\n", other->GetName());
+        // });
 
         auto skybox = CreateGameObject();
         skybox->AddRenderable("Skybox");
@@ -262,6 +263,14 @@ class MazeGame : public Application {
             mainLight->diffuse = abs(glm::cos(glm::radians(10.0f) * time)) * (float)(rand() % 2 / 2.0 + 0.5) * col;
         }
 
+        RaycastHit hit;
+        if (physics.Raycast(player->GetPosition(), player->GetPosition() + glm::vec3(0, -2.05, 0), hit)) {
+            isPlayerGrounded = true;
+            isPlayerJumping = false;
+        } else {
+            isPlayerGrounded = false;
+        }
+
         // Input handling
         glm::vec3 currVel = player->GetVelocity();
         if (input.GetKeyDown(Key::Q)) {
@@ -294,12 +303,11 @@ class MazeGame : public Application {
             glm::vec3 v = mainCamera->GetMoveVector(Axis::RIGHT) * playerSpeed;
             player->SetVelocity(glm::vec3(-v.x, currVel.y, -v.z));
         }
-        if (input.GetKeyDown(Key::SPACE) && !isPlayerJumping) {
+        if (input.GetKeyDown(Key::SPACE) && !isPlayerJumping && isPlayerGrounded) {
             currVel = player->GetVelocity(); // update velcoity to reflect current horizontal speed
             glm::vec3 v = mainCamera->GetMoveVector(Axis::UP) * playerJumpSpeed;
             player->SetVelocity(glm::vec3(currVel.x, v.y, currVel.z));
-            // TODO: implement jumping and grounded state
-            // isPlayerJumping = true;
+            isPlayerJumping = true;
         }
         if (input.GetKeyDown(Key::UP)) {
             mainCamera->Pitch(CAMERA_ANGULAR_OFFSET);

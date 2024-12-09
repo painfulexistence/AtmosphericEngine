@@ -37,7 +37,6 @@ set(SOURCES
     shader.cpp
     graphics_server.cpp
     physics_server.cpp
-    physics_world.cpp
     physics_debug_drawer.cpp
     input.cpp
     entity.cpp

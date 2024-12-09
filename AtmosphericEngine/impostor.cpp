@@ -23,9 +23,9 @@ Impostor::Impostor(GameObject* gameObject, btCollisionShape* shape, float mass, 
     t.setIdentity();
     t.setOrigin(btVector3(position.x, position.y, position.z));
     t.setRotation(btQuaternion(rotation.x, rotation.y, rotation.z, 1.0f));
-    _motionState = new btDefaultMotionState(t);
 
-    _rigidbody = new btRigidBody(btScalar(mass), _motionState, shape, btVector3(1, 1, 1));
+    auto motionState = new btDefaultMotionState(t);
+    _rigidbody = new btRigidBody(btScalar(mass), motionState, shape, btVector3(1, 1, 1));
     _rigidbody->setLinearFactor(btVector3(linearFactor.x, linearFactor.y, linearFactor.z));
     _rigidbody->setAngularFactor(btVector3(angularFactor.x, angularFactor.y, angularFactor.z));
     _rigidbody->setDamping(0.9f, 0.0f);
@@ -41,7 +41,6 @@ Impostor::~Impostor()
 {
     // TODO: Check if bullet objects are destoryed by the destructor in btDynamicsWorld class
     //delete this->_rigidbody;
-    //delete this->_motionState;
 };
 
 std::string Impostor::GetName() const
@@ -83,9 +82,9 @@ void Impostor::Dampen()
 }
 
 // This will override the dynamics world gravity
-void Impostor::SetGravity(const float& acc)
+void Impostor::SetGravity(const glm::vec3& acc)
 {
-    _rigidbody->setGravity(btVector3(0, -acc, 0));
+    _rigidbody->setGravity(btVector3(acc.x, acc.y, acc.z));
 }
 
 glm::vec3 Impostor::GetLinearFactor()

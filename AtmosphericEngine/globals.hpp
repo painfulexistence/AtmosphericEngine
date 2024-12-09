@@ -19,3 +19,47 @@ enum Axis {
     BACK, FRONT,
     RIGHT, LEFT
 };
+
+enum class ShapeType {
+    Cube,
+    Sphere,
+    Capsule,
+    Cylinder,
+    Cone,
+    Plane,
+    Custom,
+};
+
+struct CubeShapeData {
+    glm::vec3 size;
+};
+
+struct SphereShapeData {
+    float radius;
+};
+
+struct CapsuleShapeData {
+    float radius;
+    float height;
+};
+
+struct CylinderShapeData {
+    float radius;
+    float height;
+};
+
+struct ConeShapeData {
+    float radius;
+    float height;
+};
+
+struct Shape {
+    ShapeType type;
+    union {
+        CubeShapeData cubeData;
+        SphereShapeData sphereData;
+        CapsuleShapeData capsuleData;
+        CylinderShapeData cylinderData;
+        ConeShapeData coneData;
+    } data;
+};

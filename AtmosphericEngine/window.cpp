@@ -3,21 +3,107 @@
 #include "backends/imgui_impl_glfw.h"
 #include "backends/imgui_impl_opengl3.h"
 
+static int convertToGlfwKey(Key key)
+{
+    switch (key) {
+    case Key::UP: return GLFW_KEY_UP;
+    case Key::RIGHT: return GLFW_KEY_RIGHT;
+    case Key::LEFT: return GLFW_KEY_LEFT;
+    case Key::DOWN: return GLFW_KEY_DOWN;
+    case Key::Num1: return GLFW_KEY_1;
+    case Key::Num2: return GLFW_KEY_2;
+    case Key::Num3: return GLFW_KEY_3;
+    case Key::Num4: return GLFW_KEY_4;
+    case Key::Num5: return GLFW_KEY_5;
+    case Key::Num6: return GLFW_KEY_6;
+    case Key::Num7: return GLFW_KEY_7;
+    case Key::Num8: return GLFW_KEY_8;
+    case Key::Num9: return GLFW_KEY_9;
+    case Key::Num0: return GLFW_KEY_0;
+    case Key::Q: return GLFW_KEY_Q;
+    case Key::W: return GLFW_KEY_W;
+    case Key::E: return GLFW_KEY_E;
+    case Key::R: return GLFW_KEY_R;
+    case Key::T: return GLFW_KEY_T;
+    case Key::Y: return GLFW_KEY_Y;
+    case Key::U: return GLFW_KEY_U;
+    case Key::I: return GLFW_KEY_I;
+    case Key::O: return GLFW_KEY_O;
+    case Key::P: return GLFW_KEY_P;
+    case Key::A: return GLFW_KEY_A;
+    case Key::S: return GLFW_KEY_S;
+    case Key::D: return GLFW_KEY_D;
+    case Key::F: return GLFW_KEY_F;
+    case Key::G: return GLFW_KEY_G;
+    case Key::H: return GLFW_KEY_H;
+    case Key::J: return GLFW_KEY_J;
+    case Key::K: return GLFW_KEY_K;
+    case Key::L: return GLFW_KEY_L;
+    case Key::Z: return GLFW_KEY_Z;
+    case Key::X: return GLFW_KEY_X;
+    case Key::C: return GLFW_KEY_C;
+    case Key::V: return GLFW_KEY_V;
+    case Key::B: return GLFW_KEY_B;
+    case Key::N: return GLFW_KEY_N;
+    case Key::M: return GLFW_KEY_M;
+    case Key::ESCAPE: return GLFW_KEY_ESCAPE;
+    case Key::ENTER: return GLFW_KEY_ENTER;
+    case Key::SPACE: return GLFW_KEY_SPACE;
+    default: return GLFW_KEY_UNKNOWN;
+    }
+}
+
+static Key convertFromGlfwKey(int key)
+{
+    switch (key) {
+    case GLFW_KEY_UP: return Key::UP;
+    case GLFW_KEY_RIGHT: return Key::RIGHT;
+    case GLFW_KEY_LEFT: return Key::LEFT;
+    case GLFW_KEY_DOWN: return Key::DOWN;
+    case GLFW_KEY_Q: return Key::Q;
+    case GLFW_KEY_W: return Key::W;
+    case GLFW_KEY_E: return Key::E;
+    case GLFW_KEY_R: return Key::R;
+    case GLFW_KEY_T: return Key::T;
+    case GLFW_KEY_Y: return Key::Y;
+    case GLFW_KEY_U: return Key::U;
+    case GLFW_KEY_I: return Key::I;
+    case GLFW_KEY_O: return Key::O;
+    case GLFW_KEY_P: return Key::P;
+    case GLFW_KEY_A: return Key::A;
+    case GLFW_KEY_S: return Key::S;
+    case GLFW_KEY_D: return Key::D;
+    case GLFW_KEY_F: return Key::F;
+    case GLFW_KEY_G: return Key::G;
+    case GLFW_KEY_H: return Key::H;
+    case GLFW_KEY_J: return Key::J;
+    case GLFW_KEY_K: return Key::K;
+    case GLFW_KEY_L: return Key::L;
+    case GLFW_KEY_Z: return Key::Z;
+    case GLFW_KEY_X: return Key::X;
+    case GLFW_KEY_C: return Key::C;
+    case GLFW_KEY_V: return Key::V;
+    case GLFW_KEY_B: return Key::B;
+    case GLFW_KEY_N: return Key::N;
+    case GLFW_KEY_M: return Key::M;
+    case GLFW_KEY_ESCAPE: return Key::ESCAPE;
+    case GLFW_KEY_ENTER: return Key::ENTER;
+    case GLFW_KEY_SPACE: return Key::SPACE;
+    case GLFW_KEY_1: return Key::Num1;
+    case GLFW_KEY_2: return Key::Num2;
+    case GLFW_KEY_3: return Key::Num3;
+    case GLFW_KEY_4: return Key::Num4;
+    case GLFW_KEY_5: return Key::Num5;
+    case GLFW_KEY_6: return Key::Num6;
+    case GLFW_KEY_7: return Key::Num7;
+    case GLFW_KEY_8: return Key::Num8;
+    case GLFW_KEY_9: return Key::Num9;
+    case GLFW_KEY_0: return Key::Num0;
+    default: return Key::UNKNOWN;
+    }
+}
+
 Window* Window::_instance = nullptr;
-
-std::map<Window*, OnMouseMoveCallback> Window::onMouseMoveCallbacks = std::map<Window*, OnMouseMoveCallback>();
-
-std::map<Window*, OnMouseEnterCallback> Window::onMouseEnterCallbacks = std::map<Window*, OnMouseEnterCallback>();
-
-std::map<Window*, OnMouseLeaveCallback> Window::onMouseLeaveCallbacks = std::map<Window*, OnMouseLeaveCallback>();
-
-std::map<Window*, OnKeyPressCallback> Window::onKeyPressCallbacks = std::map<Window*, OnKeyPressCallback>();
-
-std::map<Window*, OnKeyReleaseCallback> Window::onKeyReleaseCallbacks = std::map<Window*, OnKeyReleaseCallback>();
-
-std::map<Window*, OnViewportResizeCallback> Window::onViewportResizeCallbacks = std::map<Window*, OnViewportResizeCallback>();
-
-std::map<Window*, OnFramebufferResizeCallback> Window::onResizeCallbacks = std::map<Window*, OnFramebufferResizeCallback>();
 
 Window::Window(WindowProps props)
 {
@@ -40,6 +126,7 @@ Window::Window(WindowProps props)
     this->_internal = glfwCreateWindow(props.width, props.height, props.title.c_str(), NULL, NULL);
     if (this->_internal == nullptr)
         throw std::runtime_error("Failed to create window!");
+    glfwSetWindowUserPointer(static_cast<GLFWwindow*>(_internal), this);
 
     _instance = this;
 }
@@ -64,52 +151,55 @@ void Window::Init()
     if (glfwRawMouseMotionSupported())
         glfwSetInputMode(static_cast<GLFWwindow*>(_internal), GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
 
-    // TODO: debug this section by adding callbacks, and then creating windows
-    // Setup event listeners on this window -- any event will be broadcasted to all windows which listens
-    #pragma region window_event_listeners
     glfwSetCursorPosCallback(static_cast<GLFWwindow*>(_internal), [](GLFWwindow* win, double x, double y) {
-        for (auto kv : Window::onMouseMoveCallbacks)
-            kv.second(win, (float)x, (float)y);
+        auto self = static_cast<Window*>(glfwGetWindowUserPointer(win));
+        for (auto [id, callback] : self->_mouseMoveCallbacks) {
+            callback((float)x, (float)y);
+        }
     });
     glfwSetCursorEnterCallback(static_cast<GLFWwindow*>(_internal), [](GLFWwindow* win, int entered) {
-        if (entered)
-        {
-            for (auto kv : Window::onMouseEnterCallbacks)
-                kv.second(win);
-        }
-        else
-        {
-            for (auto kv : Window::onMouseLeaveCallbacks)
-                kv.second(win);
+        auto self = static_cast<Window*>(glfwGetWindowUserPointer(win));
+        if (entered) {
+            for (auto [id, callback] : self->_mouseEnterCallbacks) {
+                callback();
+            }
+        } else {
+            for (auto [id, callback] : self->_mouseLeaveCallbacks) {
+                callback();
+            }
         }
     });
     glfwSetKeyCallback(static_cast<GLFWwindow*>(_internal), [](GLFWwindow* win, int key, int scancode, int action, int mods) {
-        if (action == GLFW_PRESS)
-        {
-            for (auto kv : onKeyPressCallbacks)
-                kv.second(win, key, scancode, mods);
-        }
-        else
-        {
-            for (auto kv : onKeyReleaseCallbacks)
-                kv.second(win, key, scancode, mods);
+        auto self = static_cast<Window*>(glfwGetWindowUserPointer(win));
+        // TODO: implement key mods and scancode
+        if (action == GLFW_PRESS) {
+            for (auto [id, callback] : self->_keyPressCallbacks) {
+                callback(convertFromGlfwKey(key), mods);
+            }
+        } else {
+            for (auto [id, callback] : self->_keyReleaseCallbacks) {
+                callback(convertFromGlfwKey(key), mods);
+            }
         }
     });
     glfwSetWindowSizeCallback(static_cast<GLFWwindow*>(_internal), [](GLFWwindow* win, int width, int height) {
-        for (auto kv : onViewportResizeCallbacks)
-            kv.second(win, width, height);
+        auto self = static_cast<Window*>(glfwGetWindowUserPointer(win));
+        for (auto [id, callback] : self->_viewportResizeCallbacks) {
+            callback(width, height);
+        }
     });
     glfwSetFramebufferSizeCallback(static_cast<GLFWwindow*>(_internal), [](GLFWwindow* win, int width, int height) {
-        for (auto kv : onResizeCallbacks)
-            kv.second(win, width, height);
+        auto self = static_cast<Window*>(glfwGetWindowUserPointer(win));
+        for (auto [id, callback] : self->_framebufferResizeCallbacks) {
+            callback(width, height);
+        }
     });
-    #pragma endregion
 
     // Default event listeners
-    SetOnMouseMove([](float x, float y) {
+    AddMouseMoveCallback([](float x, float y) {
         //fmt::print("-- Mouse moved to ({},{})\n", x, y);
     });
-    SetOnViewportResize([](int width, int height) {
+    AddViewportResizeCallback([](int width, int height) {
         //fmt::print("-- Viewport resized to {}X{}\n", width, height);
     });
 }
@@ -160,96 +250,92 @@ void Window::Close()
     glfwSetWindowShouldClose(static_cast<GLFWwindow*>(_internal), true);
 }
 
-void Window::SetOnMouseMove(OnWindowMouseMoveCallback callback)
+WindowEventCallbackID Window::AddMouseMoveCallback(MouseMoveCallback callback)
 {
-    onMouseMoveCallbacks[this] = [this, callback](GLFWwindow* win, float x, float y) {
-        if (this->_internal == win)
-            callback(x, y);
-    };
+    _mouseMoveCallbacks[_nextCallbackID] = callback;
+    return _nextCallbackID++;
 }
 
-void Window::SetOnMouseMove()
+WindowEventCallbackID Window::AddMouseEnterCallback(MouseEnterCallback callback)
 {
-    onMouseMoveCallbacks[this] = [](GLFWwindow*, float, float) {};
+    _mouseEnterCallbacks[_nextCallbackID] = callback;
+    return _nextCallbackID++;
 }
 
-void Window::SetOnMouseEnter(OnWindowMouseEnterCallback callback)
+WindowEventCallbackID Window::AddMouseLeaveCallback(MouseLeaveCallback callback)
 {
-    onMouseEnterCallbacks[this] = [this, callback](GLFWwindow* win) {
-        if (this->_internal == win)
-            callback();
-    };
+    _mouseLeaveCallbacks[_nextCallbackID] = callback;
+    return _nextCallbackID++;
 }
 
-void Window::SetOnMouseEnter()
+WindowEventCallbackID Window::AddKeyPressCallback(KeyPressCallback callback)
 {
-    onMouseEnterCallbacks[this] = [](GLFWwindow*) {};
+    _keyPressCallbacks[_nextCallbackID] = callback;
+    return _nextCallbackID++;
 }
 
-void Window::SetOnMouseLeave(OnWindowMouseLeaveCallback callback)
+WindowEventCallbackID Window::AddKeyReleaseCallback(KeyReleaseCallback callback)
 {
-    onMouseLeaveCallbacks[this] = [this, callback](GLFWwindow* win) {
-        if (this->_internal == win)
-            callback();
-    };
+    _keyReleaseCallbacks[_nextCallbackID] = callback;
+    return _nextCallbackID++;
 }
 
-void Window::SetOnMouseLeave()
+WindowEventCallbackID Window::AddViewportResizeCallback(ViewportResizeCallback callback)
 {
-    onMouseLeaveCallbacks[this] = [](GLFWwindow*) {};
+    _viewportResizeCallbacks[_nextCallbackID] = callback;
+    return _nextCallbackID++;
 }
 
-void Window::SetOnKeyPress(OnWindowKeyPressCallback callback)
+WindowEventCallbackID Window::AddFramebufferResizeCallback(FramebufferResizeCallback callback)
 {
-    onKeyPressCallbacks[this] = [this, callback](GLFWwindow* win, int key, int scancode, int mods) {
-        if (this->_internal == win)
-            callback(key, scancode, mods);
-    };
+    _framebufferResizeCallbacks[_nextCallbackID] = callback;
+    return _nextCallbackID++;
 }
 
-void Window::SetOnKeyPress()
+void Window::RemoveMouseMoveCallback(WindowEventCallbackID id)
 {
-    onKeyPressCallbacks[this] = [](GLFWwindow*, int, int, int) {};
+    _mouseMoveCallbacks.erase(id);
 }
 
-void Window::SetOnKeyRelease(OnWindowKeyReleaseCallback callback)
+void Window::RemoveMouseEnterCallback(WindowEventCallbackID id)
 {
-    onKeyReleaseCallbacks[this] = [this, callback](GLFWwindow* win, int key, int scancode, int mods) {
-        if (this->_internal == win)
-            callback(key, scancode, mods);
-    };
+    _mouseEnterCallbacks.erase(id);
 }
 
-void Window::SetOnKeyRelease()
+void Window::RemoveMouseLeaveCallback(WindowEventCallbackID id)
 {
-    onKeyReleaseCallbacks[this] = [](GLFWwindow*, int, int, int) {};
+    _mouseLeaveCallbacks.erase(id);
 }
 
-void Window::SetOnViewportResize(OnWindowViewportResizeCallback callback)
+void Window::RemoveKeyPressCallback(WindowEventCallbackID id)
 {
-    onViewportResizeCallbacks[this] = [this, callback](GLFWwindow* win, int width, int height) {
-        if (this->_internal == win)
-            callback(width, height);
-    };
+    _keyPressCallbacks.erase(id);
 }
 
-void Window::SetOnViewportResize()
+void Window::RemoveKeyReleaseCallback(WindowEventCallbackID id)
 {
-    onViewportResizeCallbacks[this] = [](GLFWwindow*, int, int) {};
-
+    _keyReleaseCallbacks.erase(id);
 }
 
-void Window::SetOnResize(OnWindowResizeCallback callback)
+void Window::RemoveViewportResizeCallback(WindowEventCallbackID id)
 {
-    onResizeCallbacks[this] = [this, callback](GLFWwindow* win, int width, int height) {
-        if (this->_internal == win)
-            callback(width, height);
-    };
+    _viewportResizeCallbacks.erase(id);
 }
 
-void Window::SetOnResize()
+void Window::RemoveFramebufferResizeCallback(WindowEventCallbackID id)
 {
-    onResizeCallbacks[this] =  [](GLFWwindow*, int, int) {};
+    _framebufferResizeCallbacks.erase(id);
+}
+
+void Window::RemoveAllEventCallbacks()
+{
+    _mouseMoveCallbacks.clear();
+    _mouseEnterCallbacks.clear();
+    _mouseLeaveCallbacks.clear();
+    _keyPressCallbacks.clear();
+    _keyReleaseCallbacks.clear();
+    _viewportResizeCallbacks.clear();
+    _framebufferResizeCallbacks.clear();
 }
 
 glm::vec2 Window::GetMousePosition()
@@ -259,78 +345,10 @@ glm::vec2 Window::GetMousePosition()
     return glm::vec2((float)x, (float)y);
 }
 
-int convertToGlfwKey(Key key)
+// TODO: implement mouse button state
+bool Window::GetMouseButtonState()
 {
-    switch (key) {
-    case Key::UP:
-        return GLFW_KEY_UP;
-    case Key::RIGHT:
-        return GLFW_KEY_RIGHT;
-    case Key::LEFT:
-        return GLFW_KEY_LEFT;
-    case Key::DOWN:
-        return GLFW_KEY_DOWN;
-    case Key::Q:
-        return GLFW_KEY_Q;
-    case Key::W:
-        return GLFW_KEY_W;
-    case Key::E:
-        return GLFW_KEY_E;
-    case Key::R:
-        return GLFW_KEY_R;
-    case Key::T:
-        return GLFW_KEY_T;
-    case Key::Y:
-        return GLFW_KEY_Y;
-    case Key::U:
-        return GLFW_KEY_U;
-    case Key::I:
-        return GLFW_KEY_I;
-    case Key::O:
-        return GLFW_KEY_O;
-    case Key::P:
-        return GLFW_KEY_P;
-    case Key::A:
-        return GLFW_KEY_A;
-    case Key::S:
-        return GLFW_KEY_S;
-    case Key::D:
-        return GLFW_KEY_D;
-    case Key::F:
-        return GLFW_KEY_F;
-    case Key::G:
-        return GLFW_KEY_G;
-    case Key::H:
-        return GLFW_KEY_H;
-    case Key::J:
-        return GLFW_KEY_J;
-    case Key::K:
-        return GLFW_KEY_K;
-    case Key::L:
-        return GLFW_KEY_L;
-    case Key::Z:
-        return GLFW_KEY_Z;
-    case Key::X:
-        return GLFW_KEY_X;
-    case Key::C:
-        return GLFW_KEY_C;
-    case Key::V:
-        return GLFW_KEY_V;
-    case Key::B:
-        return GLFW_KEY_B;
-    case Key::N:
-        return GLFW_KEY_N;
-    case Key::M:
-        return GLFW_KEY_M;
-    case Key::ESCAPE:
-        return GLFW_KEY_ESCAPE;
-    case Key::ENTER:
-        return GLFW_KEY_ENTER;
-    case Key::SPACE:
-        return GLFW_KEY_SPACE;
-    default:
-        return GLFW_KEY_UNKNOWN;
-    }
+    return glfwGetMouseButton(static_cast<GLFWwindow*>(_internal), GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS;
 }
 
 bool Window::GetKeyDown(Key key)

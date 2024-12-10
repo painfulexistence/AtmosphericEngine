@@ -39,6 +39,8 @@ public:
     virtual void OnLoad() = 0;
     virtual void OnUpdate(float dt, float time) = 0;
 
+    uint64_t GetClock();
+
     GameObject* GetDefaultGameObject() {
         if (!_defaultGameObject) {
             _defaultGameObject = CreateGameObject();
@@ -74,8 +76,6 @@ protected:
     void SetWindowTitle(const std::string& title);
 
     void AddSubsystem(std::shared_ptr<Server> subsystem);
-
-    uint64_t GetClock();
 
     GameObject* CreateGameObject(glm::vec3 position = glm::vec3(0.0f), glm::vec3 rotation = glm::vec3(0.0f), glm::vec3 scale = glm::vec3(1.0f));
 

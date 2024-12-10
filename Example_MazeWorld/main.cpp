@@ -273,7 +273,7 @@ class MazeGame : public Application {
 
         // Input handling
         glm::vec3 currVel = player->GetVelocity();
-        if (input.GetKeyDown(Key::Q)) {
+        if (input.IsKeyDown(Key::Q)) {
             glm::vec3 forward = mainCamera->GetEyeDirection();
             glm::vec3 pos = mainCamera->GetEyePosition() + forward * 0.5f;
             glm::vec3 vel = forward * 50.0f;
@@ -285,46 +285,46 @@ class MazeGame : public Application {
 
             audio.PlaySound(sfxShoot);
         }
-        if (input.GetKeyDown(Key::W)) {
+        if (input.IsKeyDown(Key::W)) {
             glm::vec3 v = mainCamera->GetMoveVector(Axis::FRONT) * (float)CAMERA_SPEED;
             player->SetVelocity(glm::vec3(v.x, currVel.y, v.z));
         }
-        if (input.GetKeyDown(Key::S)) {
+        if (input.IsKeyDown(Key::S)) {
             glm::vec3 v = mainCamera->GetMoveVector(Axis::FRONT) * playerSpeed;
             player->SetVelocity(glm::vec3(-v.x, currVel.y, -v.z));
         }
-        if (input.GetKeyDown(Key::D)) {
+        if (input.IsKeyDown(Key::D)) {
             mainCamera->Yaw(0.3 * CAMERA_ANGULAR_OFFSET);
             glm::vec3 v = mainCamera->GetMoveVector(Axis::RIGHT) * playerSpeed;
             player->SetVelocity(glm::vec3(v.x, currVel.y, v.z));
         }
-        if (input.GetKeyDown(Key::A)) {
+        if (input.IsKeyDown(Key::A)) {
             mainCamera->Yaw(-0.3 * CAMERA_ANGULAR_OFFSET);
             glm::vec3 v = mainCamera->GetMoveVector(Axis::RIGHT) * playerSpeed;
             player->SetVelocity(glm::vec3(-v.x, currVel.y, -v.z));
         }
-        if (input.GetKeyDown(Key::SPACE) && !isPlayerJumping && isPlayerGrounded) {
+        if (input.IsKeyPressed(Key::SPACE) && !isPlayerJumping && isPlayerGrounded) {
             currVel = player->GetVelocity(); // update velcoity to reflect current horizontal speed
             glm::vec3 v = mainCamera->GetMoveVector(Axis::UP) * playerJumpSpeed;
             player->SetVelocity(glm::vec3(currVel.x, v.y, currVel.z));
             isPlayerJumping = true;
         }
-        if (input.GetKeyDown(Key::UP)) {
+        if (input.IsKeyDown(Key::UP)) {
             mainCamera->Pitch(CAMERA_ANGULAR_OFFSET);
         }
-        if (input.GetKeyDown(Key::DOWN)) {
+        if (input.IsKeyDown(Key::DOWN)) {
             mainCamera->Pitch(-CAMERA_ANGULAR_OFFSET);
         }
-        if (input.GetKeyDown(Key::RIGHT)) {
+        if (input.IsKeyDown(Key::RIGHT)) {
             mainCamera->Yaw(CAMERA_ANGULAR_OFFSET);
         }
-        if (input.GetKeyDown(Key::LEFT)) {
+        if (input.IsKeyDown(Key::LEFT)) {
             mainCamera->Yaw(-CAMERA_ANGULAR_OFFSET);
         }
-        if (input.GetKeyDown(Key::X)) {
+        if (input.IsKeyPressed(Key::X)) {
             isLightFlashing = !isLightFlashing;
         }
-        if (input.GetKeyDown(Key::Z)) {
+        if (input.IsKeyPressed(Key::Z)) {
             player->SetPhysicsActivated(false);
         }
         if (input.IsKeyPressed(Key::I)) {

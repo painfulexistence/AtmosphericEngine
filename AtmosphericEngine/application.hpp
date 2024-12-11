@@ -65,6 +65,7 @@ protected:
     void LoadScene(SceneDef& scene);
     void ReloadScene();
 
+    void Log(std::string message);
     void Quit();
 
     std::shared_ptr<Window> GetWindow();
@@ -96,15 +97,7 @@ private:
     bool _showEngineView = true;
     GameObject* _selectedEntity = nullptr;
 
-    void Log(std::string message);
-
-    void Tick();
-
     void Update(const FrameData& frame);
-
     void Render(const FrameData& frame); // TODO: Properly separate rendering and drawing logic if the backend supports command buffering
-
-    void PresentWindow(const FrameData& frame);
-
     void SyncTransformWithPhysics();
 };

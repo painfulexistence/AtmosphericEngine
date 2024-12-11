@@ -4,21 +4,6 @@
 #include "scene.hpp"
 #include "impostor.hpp"
 
-using namespace std;
-
-static glm::mat4 ConvertPhysicalMatrix(const btTransform& trans)
-{
-    btScalar mat[16] = {0.0f};
-    trans.getOpenGLMatrix(mat);
-
-    return glm::mat4(
-        mat[0], mat[1], mat[2], mat[3],
-        mat[4], mat[5], mat[6], mat[7],
-        mat[8], mat[9], mat[10], mat[11],
-        mat[12], mat[13], mat[14], mat[15]
-    );
-}
-
 Application::Application()
 {
     Log("Launching...");
@@ -54,33 +39,19 @@ void Application::Run()
 
     OnLoad();
 
-    float lastTime = GetWindowTime();
-    float deltaTime = 0;
-    while (!_window->IsClosing())
-    {
-        _window->PollEvents();
-
-        float currentTime = GetWindowTime();
-        deltaTime = currentTime - lastTime;
-        lastTime = currentTime;
-
-        FrameData currentFrame = { GetClock(), GetWindowTime(), deltaTime };
+    _window->MainLoop([this](float currTime, float deltaTime) {
+        FrameData currFrame = { GetClock(), currTime, deltaTime };
 #if SINGLE_THREAD
-        Update(currentFrame);
-        SyncTransformWithPhysics();
-        Render(currentFrame);
-        PresentWindow(currentFrame);
+        Update(currFrame);
+        Render(currFrame);
 #else
-        std::thread fork(&Application::Process, this, currentFrame);
-        Render(currentFrame);
-        PresentWindow(currentFrame);
+        std::thread fork(&Application::Update, this, currFrame);
+        Render(currFrame);
         fork.join();
         SyncTransformWithPhysics();
 #endif
-
-        Tick();
-    }
-    Log("Game quitted.");
+        _clock++;
+    });
 }
 
 void Application::LoadScene(SceneDef& scene)
@@ -347,18 +318,7 @@ void Application::Render(const FrameData& props)
     _window->EndImGuiFrame();
 
     #if SHOW_RENDER_AND_DRAW_COST
-    Log(fmt::format("Render & draw cost {} ms", (GetWindowTime() - time) * 1000));
-    #endif
-}
-
-void Application::PresentWindow(const FrameData& props)
-{
-    float time = GetWindowTime();
-
-    this->_window->Present();
-
-    #if SHOW_VSYNC_COST
-    Log(fmt::format("Vsync cost {} ms", (Time() - time) * 1000));
+    Log(fmt::format("[Engine] Render & draw cost {} ms", (GetWindowTime() - time) * 1000));
     #endif
 }
 
@@ -385,11 +345,6 @@ void Application::Log(std::string message)
     #if RUNTIME_LOG_ON
         fmt::print("[Engine] {}\n", message);
     #endif
-}
-
-void Application::Tick()
-{
-    this->_clock++;
 }
 
 uint64_t Application::GetClock()

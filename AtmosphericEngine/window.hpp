@@ -108,10 +108,7 @@ public:
     void EndImGuiFrame();
     void DeinitImGui();
 
-    void Present();
-
-    void PollEvents();
-
+    void MainLoop(std::function<void(float, float)> callback);
     void Close();
 
     WindowEventCallbackID AddMouseMoveCallback(MouseMoveCallback callback);
@@ -149,8 +146,6 @@ public:
     ImageSize GetViewportSize();
 
     ImageSize GetSize();
-
-    bool IsClosing();
 
 private:
     void* _internal = nullptr;

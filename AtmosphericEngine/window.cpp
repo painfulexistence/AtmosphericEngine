@@ -235,14 +235,21 @@ void Window::DeinitImGui()
     ImGui::DestroyContext();
 }
 
-void Window::Present()
+void Window::MainLoop(std::function<void(float, float)> callback)
 {
-    glfwSwapBuffers(static_cast<GLFWwindow*>(_internal));
-}
+    float lastTime = GetTime();
+    float deltaTime = 0;
+    while (!glfwWindowShouldClose(static_cast<GLFWwindow*>(_internal))) {
+        glfwPollEvents();
 
-void Window::PollEvents()
-{
-    glfwPollEvents(); // Snapshot the keyboard
+        float currTime = GetTime();
+        deltaTime = currTime - lastTime;
+        lastTime = currTime;
+
+        callback(currTime, deltaTime);
+
+        glfwSwapBuffers(static_cast<GLFWwindow*>(_internal));
+    }
 }
 
 void Window::Close()
@@ -423,9 +430,4 @@ ImageSize Window::GetSize()
     int width, height;
     glfwGetFramebufferSize(static_cast<GLFWwindow*>(_internal), &width, &height);
     return ImageSize(width, height);
-}
-
-bool Window::IsClosing()
-{
-    return glfwWindowShouldClose(static_cast<GLFWwindow*>(_internal));
 }

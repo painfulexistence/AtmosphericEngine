@@ -104,19 +104,7 @@ public:
 
     void LoadTextures(const std::vector<std::string>& paths);
 
-    void LoadDepthShader(const ShaderProgram& program);
-
-    void LoadDepthCubemapShader(const ShaderProgram& program);
-
-    void LoadColorShader(const ShaderProgram& program);
-
-    void LoadDebugShader(const ShaderProgram& program);
-
-    void LoadTerrainShader(const ShaderProgram& program);
-
-    void LoadPostProcessShader(const ShaderProgram& program);
-
-    void PushDebugLine(DebugVertex from, DebugVertex to);
+    void LoadShaders(const std::unordered_map<std::string, ShaderProgramProps>& shaders);
 
     void ReloadShaders();
 

@@ -4,26 +4,30 @@
 #include "scene.hpp"
 #include "impostor.hpp"
 
-Application::Application()
+Application::Application(AppConfig config) : _config(config)
 {
-    Log("Launching...");
-    _window = std::make_shared<Window>();; // Multi-window not supported now
+    // setbuf(stdout, NULL); // Cancel output stream buffering so that output can be seen immediately
+
+    _window = std::make_shared<Window>(WindowProps {
+        .title = config.windowTitle,
+        .width = config.windowWidth,
+        .height = config.windowHeight
+    }); // Multi-window not supported now
     _window->Init();
     _window->InitImGui();
 }
 
 Application::~Application()
 {
-    Log("Exiting...");
+    ENGINE_LOG("Exiting...");
     _window->DeinitImGui();
+
     for (const auto& go : _entities)
         delete go;
 }
 
 void Application::Run()
 {
-    Log("Initializing subsystems...");
-
     console.Init(this);
     input.Init(this);
     audio.Init(this);
@@ -33,9 +37,9 @@ void Application::Run()
     for (auto& subsystem : _subsystems) {
         subsystem->Init(this);
     }
-    this->_initialized = true;
+    ENGINE_LOG("Subsystems initialized.");
 
-    Log("Subsystems initialized.");
+    OnInit();
 
     OnLoad();
 
@@ -48,31 +52,24 @@ void Application::Run()
         std::thread fork(&Application::Update, this, currFrame);
         Render(currFrame);
         fork.join();
-        SyncTransformWithPhysics();
 #endif
         _clock++;
     });
 }
 
-void Application::LoadScene(SceneDef& scene)
-{
-    Log("Loading scene...");
+void Application::LoadScene(SceneDef& scene) {
+    ENGINE_LOG("Loading scene...");
 
     graphics.LoadTextures(scene.textures);
-    script.Print("Textures created.");
+    ENGINE_LOG("Textures created.");
 
-    graphics.LoadColorShader(ShaderProgram(scene.shaders["color"]));
-    graphics.LoadDebugShader(ShaderProgram(scene.shaders["debug_line"]));
-    graphics.LoadDepthShader(ShaderProgram(scene.shaders["depth"]));
-    graphics.LoadDepthCubemapShader(ShaderProgram(scene.shaders["depth_cubemap"]));
-    graphics.LoadTerrainShader(ShaderProgram(scene.shaders["terrain"]));
-    graphics.LoadPostProcessShader(ShaderProgram(scene.shaders["hdr"]));
-    script.Print("Shaders created.");
+    graphics.LoadShaders(scene.shaders);
+    ENGINE_LOG("Shaders created.");
 
     for (const auto& mat : scene.materials) {
         graphics.materials.push_back(new Material(mat));
     }
-    script.Print("Materials created.");
+    ENGINE_LOG("Materials created.");
 
     for (const auto& go : scene.gameObjects) {
         auto entity = CreateGameObject(go.position, go.rotation, go.scale);
@@ -81,11 +78,10 @@ void Application::LoadScene(SceneDef& scene)
             entity->AddCamera(go.camera.value());
         }
         if (go.light.has_value()) {
-            Log(fmt::format("Adding light to {}", go.name));
             entity->AddLight(go.light.value());
         }
     }
-    script.Print("Game objects created.");
+    ENGINE_LOG("Game objects created.");
 
     mainCamera = graphics.GetMainCamera();
     mainLight = graphics.GetMainLight();
@@ -120,7 +116,7 @@ void Application::ReloadScene() {
 
 void Application::Quit()
 {
-    Log("Requested to quit.");
+    ENGINE_LOG("Requested to quit.");
     _window->Close();
 }
 
@@ -140,9 +136,9 @@ void Application::Update(const FrameData& props)
         subsystem->Process(dt);
     }
 
-    #if SHOW_PROCESS_COST
-    Log(fmt::format("Update costs {} ms", (GetWindowTime() - time) * 1000));
-    #endif
+#if SHOW_PROCESS_COST
+    ENGINE_LOG(fmt::format("Update costs {} ms", (GetWindowTime() - time) * 1000));
+#endif
 }
 
 void Application::Render(const FrameData& props)
@@ -305,6 +301,7 @@ void Application::Render(const FrameData& props)
     if (_showEngineView) {
         ImGui::Begin("Engine Subsystems");
         {
+            console.DrawImGui(dt);
             input.DrawImGui(dt);
             audio.DrawImGui(dt);
             graphics.DrawImGui(dt);
@@ -318,34 +315,13 @@ void Application::Render(const FrameData& props)
 
     _window->EndImGuiFrame();
 
-    #if SHOW_RENDER_AND_DRAW_COST
-    Log(fmt::format("[Engine] Render & draw cost {} ms", (GetWindowTime() - time) * 1000));
-    #endif
+#if SHOW_RENDER_AND_DRAW_COST
+    ENGINE_LOG(fmt::format("Render & draw cost {} ms", (GetWindowTime() - time) * 1000));
+#endif
 }
 
 void Application::SyncTransformWithPhysics()
 {
-    float time = GetWindowTime();
-
-    //ecs.SyncTransformWithPhysics();
-    for (auto go : _entities)
-    {
-        auto impostor = dynamic_cast<Impostor*>(go->GetComponent("Physics"));
-        if (impostor == nullptr)
-            continue;
-        go->SyncObjectTransform(impostor->GetWorldTransform());
-    }
-
-    #if SHOW_SYNC_COST
-    Log(fmt::format("Sync cost {} ms", (Time() - time) * 1000));
-    #endif
-}
-
-void Application::Log(std::string message)
-{
-    #if RUNTIME_LOG_ON
-        fmt::print("[Engine] {}\n", message);
-    #endif
 }
 
 uint64_t Application::GetClock()

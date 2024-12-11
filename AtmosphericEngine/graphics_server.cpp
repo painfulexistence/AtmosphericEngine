@@ -300,34 +300,13 @@ void GraphicsServer::LoadTextures(const std::vector<std::string>& paths)
     }
 }
 
-void GraphicsServer::LoadDepthShader(const ShaderProgram& program)
-{
-    depthShader = program;
-}
-
-void GraphicsServer::LoadDepthCubemapShader(const ShaderProgram& program)
-{
-    depthCubemapShader = program;
-}
-
-void GraphicsServer::LoadColorShader(const ShaderProgram& program)
-{
-    colorShader = program;
-}
-
-void GraphicsServer::LoadDebugShader(const ShaderProgram& program)
-{
-    debugShader = program;
-}
-
-void GraphicsServer::LoadTerrainShader(const ShaderProgram& program)
-{
-    terrainShader = program;
-}
-
-void GraphicsServer::LoadPostProcessShader(const ShaderProgram& program)
-{
-    postProcessShader = program;
+void GraphicsServer::LoadShaders(const std::unordered_map<std::string, ShaderProgramProps>& shaders) {
+    depthShader = ShaderProgram(shaders.at("depth"));
+    depthCubemapShader = ShaderProgram(shaders.at("depth_cubemap"));
+    colorShader = ShaderProgram(shaders.at("color"));
+    debugShader = ShaderProgram(shaders.at("debug_line"));
+    terrainShader = ShaderProgram(shaders.at("terrain"));
+    postProcessShader = ShaderProgram(shaders.at("hdr"));
 }
 
 void GraphicsServer::ReloadShaders()

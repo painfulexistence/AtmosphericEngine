@@ -14,6 +14,7 @@ Server::~Server()
 void Server::Init(Application* app)
 {
     _app = app;
+    _initialized = true;
 }
 
 void Server::Process(float dt)

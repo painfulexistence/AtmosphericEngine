@@ -15,6 +15,7 @@ public:
 
 protected:
     Application* _app;
+    bool _initialized = false;
     float _timeStep;
     int _maxNumSteps;
     float _paused = false;

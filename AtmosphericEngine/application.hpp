@@ -1,10 +1,11 @@
 #pragma once
+#include "config.hpp"
 #include "globals.hpp"
 #include "imgui.h"
+#include "console.hpp"
 #include "audio_manager.hpp"
 #include "graphics_server.hpp"
 #include "physics_server.hpp"
-#include "console.hpp"
 #include "input.hpp"
 #include "script.hpp"
 
@@ -27,17 +28,31 @@ struct FrameData
     float deltaTime;
 };
 
+struct AppConfig {
+    std::string windowTitle = INIT_SCREEN_TITLE;
+    int windowWidth = INIT_SCREEN_WIDTH;
+    int windowHeight = INIT_SCREEN_HEIGHT;
+    bool fullscreen = false;
+    bool vsync = true;
+    bool enable3D = true;
+    bool enableAudio = true;
+    bool enablePhysics = true;
+    float physicsTimeStep = 1.0f / 60.0f;
+};
+
 using EntityID = uint64_t;
 
 class Application {
 public:
-    Application();
+    Application(AppConfig config = {});
     ~Application();
 
     void Run();
 
-    virtual void OnLoad() = 0;
+    virtual void OnInit() {} // Load resources
+    virtual void OnLoad() = 0; // Setup game objects (side effects)
     virtual void OnUpdate(float dt, float time) = 0;
+    virtual void OnReload() {} // Reset game objects (side effects clean up and recreate)
 
     uint64_t GetClock();
 
@@ -65,7 +80,6 @@ protected:
     void LoadScene(SceneDef& scene);
     void ReloadScene();
 
-    void Log(std::string message);
     void Quit();
 
     std::shared_ptr<Window> GetWindow();
@@ -81,10 +95,12 @@ protected:
     GameObject* CreateGameObject(glm::vec3 position = glm::vec3(0.0f), glm::vec3 rotation = glm::vec3(0.0f), glm::vec3 scale = glm::vec3(1.0f));
 
 private:
+    AppConfig _config;
+
+    std::shared_ptr<Window> _window = nullptr;
     std::vector<std::shared_ptr<Server>> _subsystems;
     bool _initialized = false;
 
-    std::shared_ptr<Window> _window = nullptr;
     uint64_t _clock = 0;
     uint16_t _sceneIndex = 0;
     std::optional<SceneDef> _currentSceneDef = std::nullopt;

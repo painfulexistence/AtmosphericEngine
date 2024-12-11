@@ -15,6 +15,7 @@ option(BUILD_SHARED_LIBS OFF)
 find_package(Bullet CONFIG REQUIRED)
 
 find_package(fmt REQUIRED)
+find_package(spdlog REQUIRED)
 find_package(lua REQUIRED)
 
 add_subdirectory(external/entt)
@@ -62,5 +63,5 @@ target_include_directories(AtmosphericEngine PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} 
 target_precompile_headers(AtmosphericEngine PRIVATE pch.hpp)
 target_link_libraries(AtmosphericEngine
     PUBLIC
-        GLEW::GLEW glfw glm::glm fmt::fmt EnTT::EnTT BulletSoftBody BulletDynamics BulletCollision LinearMath ${LUA_LIBRARIES} sol2 raudio
+        GLEW::GLEW glfw glm::glm fmt::fmt spdlog::spdlog EnTT::EnTT BulletSoftBody BulletDynamics BulletCollision LinearMath ${LUA_LIBRARIES} sol2 raudio
 )

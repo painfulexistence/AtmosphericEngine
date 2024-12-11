@@ -98,7 +98,7 @@ public:
         return _instance;
     }
 
-    Window(WindowProps props = WindowProps());
+    Window(WindowProps props = {});
     ~Window();
 
     void Init();

@@ -305,6 +305,7 @@ void Application::Render(const FrameData& props)
     if (_showEngineView) {
         ImGui::Begin("Engine Subsystems");
         {
+            input.DrawImGui(dt);
             audio.DrawImGui(dt);
             graphics.DrawImGui(dt);
             physics.DrawImGui(dt);

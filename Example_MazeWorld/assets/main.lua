@@ -295,6 +295,10 @@ scenes = {
             debug_line = {
                 vert = "./assets/shaders/debug.vert",
                 frag = "./assets/shaders/flat.frag",
+            },
+            canvas = {
+                vert = "./assets/shaders/canvas.vert",
+                frag = "./assets/shaders/canvas.frag",
             }
         }
     }

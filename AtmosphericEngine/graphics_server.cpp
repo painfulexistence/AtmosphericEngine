@@ -85,12 +85,9 @@ void GraphicsServer::Init(Application* app)
     #endif
 
     auto window = Window::Get();
-    auto [width, height] = window->GetSize();
+    auto [width, height] = window->GetFramebufferSize();
     CreateRenderTargets(RenderTargetProps { width, height });
-
-    window->SetOnResize([this, window](int newWidth, int newHeight) {
-        if (window->IsClosing())
-            return;
+    window->AddFramebufferResizeCallback([this, window](int newWidth, int newHeight) {
         UpdateRenderTargets(RenderTargetProps { newWidth, newHeight });
     });
 
@@ -98,7 +95,7 @@ void GraphicsServer::Init(Application* app)
     CreateCanvasVAO();
     CreateScreenVAO();
 
-    // canvasDrawList.reserve(1 << 8);
+    canvasDrawList.reserve(1 << 16);
     debugLines.reserve(1 << 16);
 
     defaultCamera = new Camera(app->GetDefaultGameObject(), {
@@ -152,13 +149,37 @@ void GraphicsServer::Render(float dt)
         _meshInstanceMap[mesh].push_back(instanceData);
     }
 
+    for (auto d : canvasDrawables) {
+        if (!d->gameObject->isActive)
+            continue;
+
+        glm::vec2 pos = glm::vec2(d->gameObject->GetPosition());
+        float angle = d->gameObject->GetRotation().z;
+        glm::vec2 scale = glm::vec2(d->gameObject->GetScale());
+        glm::vec2 size = d->GetSize() * scale;
+        glm::vec2 pivot = d->GetPivot();
+
+        PushCanvasQuad(
+            pos.x,
+            pos.y,
+            size.x,
+            size.y,
+            angle,
+            pivot.x,
+            pivot.y,
+            d->GetColor(),
+            static_cast<int>(d->GetTextureID())
+        );
+    }
+
     ShadowPass(dt);
     ColorPass(dt);
     MSAAResolvePass(dt);
-    // CanvasPass(dt);
+    CanvasPass(dt);
     if (postProcessEnabled) {
         PostProcessPass(dt);
     }
+    CheckErrors();
 }
 
 void GraphicsServer::DrawImGui(float dt)
@@ -204,6 +225,10 @@ void GraphicsServer::DrawImGui(float dt)
                     ImGui::TreePop();
                 }
             }
+            ImGui::TreePop();
+        }
+        if (ImGui::TreeNode("Canvas")) {
+            ImGui::Text("Canvas quads: %d", _canvasQuadCount);
             ImGui::TreePop();
         }
         if (ImGui::TreeNode("Physics Debug")) {
@@ -305,6 +330,7 @@ void GraphicsServer::LoadShaders(const std::unordered_map<std::string, ShaderPro
     depthCubemapShader = ShaderProgram(shaders.at("depth_cubemap"));
     colorShader = ShaderProgram(shaders.at("color"));
     debugShader = ShaderProgram(shaders.at("debug_line"));
+    canvasShader = ShaderProgram(shaders.at("canvas"));
     terrainShader = ShaderProgram(shaders.at("terrain"));
     postProcessShader = ShaderProgram(shaders.at("hdr"));
 }
@@ -339,7 +365,7 @@ void GraphicsServer::CheckErrors()
             default:
             error = "UNKNOWN"; break;
         }
-        throw std::runtime_error(fmt::format("GL error: {}\n", error));
+        Console::Get()->Error(fmt::format("GL error: {}\n", error));
     }
 }
 
@@ -477,7 +503,7 @@ void GraphicsServer::CreateCanvasVAO()
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(CanvasVertex), (void*)0);
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(CanvasVertex), (void*)offsetof(CanvasVertex, texCoord));
     glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, sizeof(CanvasVertex), (void*)offsetof(CanvasVertex, color));
-    glVertexAttribPointer(3, 1, GL_FLOAT, GL_FALSE, sizeof(CanvasVertex), (void*)offsetof(CanvasVertex, texId));
+    glVertexAttribPointer(3, 1, GL_INT, GL_FALSE, sizeof(CanvasVertex), (void*)offsetof(CanvasVertex, texIndex));
     glEnableVertexAttribArray(0);
     glEnableVertexAttribArray(1);
     glEnableVertexAttribArray(2);
@@ -616,7 +642,7 @@ void GraphicsServer::ShadowPass(float dt)
 
 void GraphicsServer::ColorPass(float dt)
 {
-    auto [width, height] = Window::Get()->GetSize();
+    auto [width, height] = Window::Get()->GetFramebufferSize();
 
     glViewport(0, 0, width, height);
     glBindFramebuffer(GL_FRAMEBUFFER, sceneFBO);
@@ -826,7 +852,7 @@ void GraphicsServer::MSAAResolvePass(float dt)
 {
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
-    auto [width, height] = Window::Get()->GetSize();
+    auto [width, height] = Window::Get()->GetFramebufferSize();
 
     glBindFramebuffer(GL_READ_FRAMEBUFFER, sceneFBO);
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, postProcessEnabled ? msaaResolveFBO : finalFBO);
@@ -836,26 +862,33 @@ void GraphicsServer::MSAAResolvePass(float dt)
 
 void GraphicsServer::CanvasPass(float dt)
 {
-    auto [width, height] = Window::Get()->GetSize();
-
-    glViewport(0, 0, width, height);
-    glBindFramebuffer(GL_FRAMEBUFFER, postProcessEnabled ? msaaResolveFBO : finalFBO);
-    glDisable(GL_DEPTH_TEST);
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-
-    for (int i = 0; i < textures.size(); i++) {
-        glActiveTexture(GL_TEXTURE0 + i);
-        glBindTexture(GL_TEXTURE_2D, textures[i]);
-    }
-
-    canvasShader.Activate();
-    // TODO: set uniforms
-
-    glBindVertexArray(canvasVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, canvasVBO);
+    _canvasQuadCount = canvasDrawList.size() / 6;
     if (canvasDrawList.size() > 0) {
+
+        auto [width, height] = Window::Get()->GetFramebufferSize();
+
+        glViewport(0, 0, width, height);
+        glBindFramebuffer(GL_FRAMEBUFFER, postProcessEnabled ? msaaResolveFBO : finalFBO);
+        glDisable(GL_DEPTH_TEST);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+
+        // TODO: use canvas textures
+        for (int i = 0; i < textures.size(); i++) {
+            glActiveTexture(GL_TEXTURE0 + i);
+            glBindTexture(GL_TEXTURE_2D, textures[i]);
+        }
+
+        canvasShader.Activate();
+        glm::mat4 projection = glm::ortho(0.0f, (float)width, (float)height, 0.0f, -1.0f, 1.0f);
+        canvasShader.SetUniform(std::string("Projection"), projection);
+        for (int i = 0; i < MAX_CANVAS_TEXTURES; i++) {
+            canvasShader.SetUniform(fmt::format("Textures[{}]", i), i);
+        }
+
+        glBindVertexArray(canvasVAO);
+        glBindBuffer(GL_ARRAY_BUFFER, canvasVBO);
         glBufferData(GL_ARRAY_BUFFER, canvasDrawList.size() * sizeof(CanvasVertex), canvasDrawList.data(), GL_DYNAMIC_DRAW);
         glDrawArrays(GL_TRIANGLES, 0, canvasDrawList.size());
         glBindVertexArray(0);
@@ -865,7 +898,7 @@ void GraphicsServer::CanvasPass(float dt)
 
 void GraphicsServer::PostProcessPass(float dt)
 {
-    auto size = Window::Get()->GetSize();
+    auto size = Window::Get()->GetFramebufferSize();
 
     glViewport(0, 0, size.width, size.height);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -888,6 +921,73 @@ void GraphicsServer::PushDebugLine(DebugVertex from, DebugVertex to)
 {
     debugLines.push_back(from);
     debugLines.push_back(to);
+}
+
+void GraphicsServer::PushCanvasQuad(
+    float x, float y, float w, float h, float angle, float pivotX, float pivotY,
+    const glm::vec4& color, int texIndex, const glm::vec2& uvMin, const glm::vec2& uvMax)
+{
+    glm::vec2 pivotOffset = glm::vec2(w * pivotX, h * pivotY);
+    // glm::mat4 transform = glm::translate(glm::mat4(1.0f), glm::vec3(position, 0.0f));
+    // transform = glm::rotate(transform, rotation, glm::vec3(0.0f, 0.0f, 1.0f));
+    // transform = glm::scale(transform, glm::vec3(size, 1.0f));
+
+    glm::mat4 T = glm::translate(glm::mat4(1.0f), glm::vec3(x + pivotOffset.x, y + pivotOffset.y, 0.0f));
+    glm::mat4 R = glm::rotate(glm::mat4(1.0f), angle, glm::vec3(0.0f, 0.0f, 1.0f));
+    glm::mat4 S = glm::scale(glm::mat4(1.0f), glm::vec3(w, h, 1.0f));
+    glm::mat4 O = glm::translate(glm::mat4(1.0f), glm::vec3(-pivotX, -pivotY, 0.0f));
+    glm::mat4 transform = T * R * S * O;
+
+    glm::vec4 bl = transform * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
+    glm::vec4 br = transform * glm::vec4(1.0f, 0.0f, 0.0f, 1.0f);
+    glm::vec4 tr = transform * glm::vec4(1.0f, 1.0f, 0.0f, 1.0f);
+    glm::vec4 tl = transform * glm::vec4(0.0f, 1.0f, 0.0f, 1.0f);
+
+    canvasDrawList.push_back({
+        glm::vec2(bl),
+        glm::vec2(uvMin.x, uvMin.y),
+        color,
+        texIndex
+    });
+    canvasDrawList.push_back({
+        glm::vec2(br),
+        glm::vec2(uvMax.x, uvMin.y),
+        color,
+        texIndex
+    });
+    canvasDrawList.push_back({
+        glm::vec2(tr),
+        glm::vec2(uvMax.x, uvMax.y),
+        color,
+        texIndex
+    });
+    canvasDrawList.push_back({
+        glm::vec2(bl),
+        glm::vec2(uvMin.x, uvMin.y),
+        color,
+        texIndex
+    });
+    canvasDrawList.push_back({
+        glm::vec2(tr),
+        glm::vec2(uvMax.x, uvMax.y),
+        color,
+        texIndex
+    });
+    canvasDrawList.push_back({
+        glm::vec2(tl),
+        glm::vec2(uvMin.x, uvMax.y),
+        color,
+        texIndex
+    });
+}
+
+void GraphicsServer::PushCanvasQuadTiled(
+    float x, float y, float w, float h, float angle, float pivotX, float pivotY,
+    const glm::vec4& color, int texIndex, const glm::vec2& tilesetSize, const glm::vec2& tileIndex)
+{
+    glm::vec2 uvMin = tileIndex / tilesetSize;
+    glm::vec2 uvMax = (tileIndex + glm::vec2(1.0f)) / tilesetSize;
+    PushCanvasQuad(x, y, w, h, angle, pivotX, pivotY, color, texIndex, uvMin, uvMax);
 }
 
 Material* GraphicsServer::CreateMaterial(Material* material)
@@ -980,6 +1080,13 @@ Renderable* GraphicsServer::CreateRenderable(GameObject* go, Mesh* mesh)
     auto renderable = new Renderable(go, mesh);
     renderables.push_back(renderable);
     return renderable;
+}
+
+Drawable2D* GraphicsServer::CreateDrawable2D(GameObject* go)
+{
+    auto drawable = new Drawable2D(go);
+    canvasDrawables.push_back(drawable);
+    return drawable;
 }
 
 Camera* GraphicsServer::CreateCamera(GameObject* go, const CameraProps& props)

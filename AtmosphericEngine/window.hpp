@@ -143,9 +143,9 @@ public:
     float GetTime();
     void SetTime(double time);
 
-    ImageSize GetViewportSize();
-
     ImageSize GetSize();
+
+    ImageSize GetFramebufferSize();
 
 private:
     void* _internal = nullptr;

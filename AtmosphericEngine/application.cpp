@@ -3,6 +3,7 @@
 #include "game_object.hpp"
 #include "scene.hpp"
 #include "impostor.hpp"
+#include "drawable_2d.hpp"
 
 Application::Application(AppConfig config) : _config(config)
 {
@@ -288,8 +289,30 @@ void Application::Render(const FrameData& props)
                         ImGui::ColorEdit3("Diffuse", &mat->diffuse.r);
                         ImGui::ColorEdit3("Specular", &mat->specular.r);
                         ImGui::ColorEdit3("Ambient", &mat->ambient.r);
-                        ImGui::ColorEdit3("Shininess", &mat->shininess);
+                        ImGui::DragFloat("Shininess", &mat->shininess, 0.0f, 1.0f);
                         ImGui::Checkbox("Cull face enabled", &mat->cullFaceEnabled);
+                    }
+                }
+                auto drawable2D = static_cast<Drawable2D*>(_selectedEntity->GetComponent("Drawable2D"));
+                if (drawable2D != nullptr) {
+                    if (ImGui::CollapsingHeader("Drawable2D", ImGuiTreeNodeFlags_DefaultOpen)) {
+                        glm::vec2 size = drawable2D->GetSize();
+                        glm::vec2 pivot = drawable2D->GetPivot();
+                        glm::vec4 color = drawable2D->GetColor();
+                        uint8_t textureID = drawable2D->GetTextureID();
+                        if (ImGui::DragFloat2("Size:", &size.x, 0.001f, 9999.999f)) {
+                            drawable2D->SetSize(size);
+                        }
+                        if (ImGui::DragFloat2("Pivot:", &pivot.x, 0.0f, 1.0f)) {
+                            drawable2D->SetPivot(pivot);
+                        }
+                        if (ImGui::ColorEdit4("Color", &color.r)) {
+                            drawable2D->SetColor(color);
+                        }
+                        uint8_t minTexIndex = 0, maxTexIndex = graphics.canvasTextures.size() - 1;
+                        if (ImGui::SliderScalar("Texture ID", ImGuiDataType_U8, &textureID, &minTexIndex, &maxTexIndex)) {
+                            drawable2D->SetTextureID(textureID);
+                        }
                     }
                 }
             }
@@ -357,6 +380,14 @@ void Application::SetWindowTitle(const std::string& title)
 GameObject* Application::CreateGameObject(glm::vec3 position, glm::vec3 rotation, glm::vec3 scale)
 {
     auto e = new GameObject(&graphics, &physics, position, rotation, scale);
+    e->SetName(fmt::format("entity #{}", _nextEntityID++));
+    _entities.push_back(e);
+    return e;
+}
+
+GameObject* Application::CreateGameObject(glm::vec2 position, float angle)
+{
+    auto e = new GameObject(&graphics, &physics, glm::vec3(position.x, position.y, 0.0f), glm::vec3(0.0f, 0.0f, angle), glm::vec3(1.0f));
     e->SetName(fmt::format("entity #{}", _nextEntityID++));
     _entities.push_back(e);
     return e;

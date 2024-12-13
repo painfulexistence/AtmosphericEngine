@@ -87,12 +87,15 @@ SceneDef Script::GetScene(const sol::table& sceneData)
     }
 
     const sol::table shadersTable = sceneData["shaders"];
-    scene.shaders["color"] = { shadersTable["color"]["vert"], shadersTable["color"]["frag"] };
-    scene.shaders["debug_line"] = { shadersTable["debug_line"]["vert"], shadersTable["debug_line"]["frag"] };
-    scene.shaders["depth"] = { shadersTable["depth"]["vert"], shadersTable["depth"]["frag"] };
-    scene.shaders["depth_cubemap"] = { shadersTable["depth_cubemap"]["vert"], shadersTable["depth_cubemap"]["frag"] };
-    scene.shaders["hdr"] = { shadersTable["hdr"]["vert"], shadersTable["hdr"]["frag"] };
-    scene.shaders["terrain"] = { shadersTable["terrain"]["vert"], shadersTable["terrain"]["frag"], shadersTable["terrain"]["tesc"], shadersTable["terrain"]["tese"] };
+    for (const auto& [key, value] : shadersTable) {
+        std::string shaderName = key.as<std::string>();
+        sol::table shaderData = value;
+        if (shaderData["tesc"].valid() && shaderData["tese"].valid()) {
+            scene.shaders[shaderName] = { shaderData["vert"], shaderData["frag"], shaderData["tesc"], shaderData["tese"] };
+        } else {
+            scene.shaders[shaderName] = { shaderData["vert"], shaderData["frag"] };
+        }
+    }
 
     const sol::table materialsTable = sceneData["materials"];
     for (const auto& kv : materialsTable) {

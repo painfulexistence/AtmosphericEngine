@@ -5,6 +5,7 @@
 #include "material.hpp"
 #include "shader.hpp"
 #include "renderable.hpp"
+#include "drawable_2d.hpp"
 #include "mesh.hpp"
 #include "light.hpp"
 #include "camera.hpp"
@@ -13,7 +14,7 @@ struct CanvasVertex {
     glm::vec2 position;
     glm::vec2 texCoord;
     glm::vec4 color;
-    float texId;
+    int texIndex;
 };
 
 struct ScreenVertex {
@@ -61,16 +62,16 @@ public:
     }
     std::vector<Mesh*> meshes;
     std::vector<GLuint> defaultTextures;
-    std::vector<GLuint> canvasTextures;
     std::vector<GLuint> textures;
+    std::vector<GLuint> canvasTextures;
     std::vector<Material*> materials;
     std::vector<Renderable*> renderables;
+    std::vector<Drawable2D*> canvasDrawables;
     std::vector<Light*> directionalLights;
     std::vector<Light*> pointLights;
     std::vector<Camera*> cameras;
 
     GraphicsServer();
-
     ~GraphicsServer();
 
     void Init(Application* app) override;
@@ -110,6 +111,18 @@ public:
 
     void CheckErrors();
 
+    void PushDebugLine(DebugVertex from, DebugVertex to);
+
+    void PushCanvasQuad(float x, float y, float w, float h, float angle,
+        float pivotX, float pivotY,
+        const glm::vec4& color, int texIndex,
+        const glm::vec2& uvMin = glm::vec2(0.0f),
+        const glm::vec2& uvMax = glm::vec2(1.0f));
+    void PushCanvasQuadTiled(float x, float y, float w, float h, float angle,
+        float pivotX, float pivotY,
+        const glm::vec4& color, int texIndex,
+        const glm::vec2& tilesetSize, const glm::vec2& tileIndex);
+
     void EnableWireframe(bool enable = true)
     {
         wireframeEnabled = enable;
@@ -118,15 +131,6 @@ public:
     void EnablePostProcess(bool enable = true)
     {
         postProcessEnabled = enable;
-    }
-
-    GLuint GetShadowMap(LightType lightType, int lightIdx = 0)
-    {
-        if (lightType == LightType::Directional)
-        {
-            return uniShadowMaps[lightIdx];
-        }
-        return omniShadowMaps[lightIdx];
     }
 
     void SetCapability(const GLenum& cap, bool enable = true)
@@ -157,8 +161,8 @@ public:
     Renderable* CreateRenderable(GameObject* gameObject, Mesh* mesh);
 
     Camera* CreateCamera(GameObject* gameObject, const CameraProps& props);
-
     Light* CreateLight(GameObject* gameObject, const LightProps& props);
+    Drawable2D* CreateDrawable2D(GameObject* gameObject);
 
     // void ApplyMaterial(const Material& material);
 
@@ -208,6 +212,7 @@ private:
     Light* defaultLight = nullptr;
 
     int auxLightCount = 0;
+    int _canvasQuadCount = 0;
     int _debugLineCount = 0;
 
     void CreateRenderTargets(const RenderTargetProps& props);
@@ -222,4 +227,6 @@ private:
     void MSAAResolvePass(float dt);
     void CanvasPass(float dt);
     void PostProcessPass(float dt);
+
+    static constexpr int MAX_CANVAS_TEXTURES = 32;
 };

@@ -2,6 +2,7 @@
 #include <GLFW/glfw3.h>
 #include "backends/imgui_impl_glfw.h"
 #include "backends/imgui_impl_opengl3.h"
+#include "console.hpp"
 
 static int convertToGlfwKey(Key key)
 {
@@ -197,10 +198,13 @@ void Window::Init()
 
     // Default event listeners
     AddMouseMoveCallback([](float x, float y) {
-        //fmt::print("-- Mouse moved to ({},{})\n", x, y);
+        // ENGINE_LOG("-- Mouse moved to ({},{})\n", x, y);
     });
     AddViewportResizeCallback([](int width, int height) {
-        //fmt::print("-- Viewport resized to {}X{}\n", width, height);
+        ENGINE_LOG("Viewport resized to {}X{}\n", width, height);
+    });
+    AddFramebufferResizeCallback([](int width, int height) {
+        ENGINE_LOG("Framebuffer resized to {}X{}\n", width, height);
     });
 }
 
@@ -418,14 +422,14 @@ void Window::SetTime(double time)
     glfwSetTime(time);
 }
 
-ImageSize Window::GetViewportSize()
+ImageSize Window::GetSize()
 {
     int width, height;
     glfwGetWindowSize(static_cast<GLFWwindow*>(_internal), &width, &height);
     return ImageSize(width, height);
 }
 
-ImageSize Window::GetSize()
+ImageSize Window::GetFramebufferSize()
 {
     int width, height;
     glfwGetFramebufferSize(static_cast<GLFWwindow*>(_internal), &width, &height);

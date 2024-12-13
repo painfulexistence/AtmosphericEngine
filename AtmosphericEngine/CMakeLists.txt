@@ -35,6 +35,7 @@ set(SOURCES
     mesh.cpp
     frustum.cpp
     renderable.cpp
+    drawable_2d.cpp
     shader.cpp
     graphics_server.cpp
     physics_server.cpp

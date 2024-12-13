@@ -74,6 +74,14 @@ GameObject* GameObject::AddRenderable(Mesh* mesh)
     return this;
 }
 
+GameObject* GameObject::AddDrawable2D()
+{
+    if (_graphics) {
+        _graphics->CreateDrawable2D(this);
+    }
+    return this;
+}
+
 // Shortcut 1 for adding impostor component
 GameObject* GameObject::AddImpostor(const std::string& meshName, float mass, glm::vec3 linearFactor, glm::vec3 angularFactor)
 {

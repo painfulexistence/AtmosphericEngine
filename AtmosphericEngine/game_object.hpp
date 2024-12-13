@@ -31,6 +31,7 @@ public:
     GameObject* AddCamera(const CameraProps&);
     GameObject* AddRenderable(const std::string& meshName);
     GameObject* AddRenderable(Mesh* mesh);
+    GameObject* AddDrawable2D();
     GameObject* AddImpostor(const std::string& meshName, float mass = 0.0f, glm::vec3 linearFactor = glm::vec3(1.0f), glm::vec3 angularFactor = glm::vec3(1.0f));
     GameObject* AddImpostor(Mesh* mesh, float mass = 0.0f, glm::vec3 linearFactor = glm::vec3(1.0f), glm::vec3 angularFactor = glm::vec3(1.0f));
 

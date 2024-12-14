@@ -50,6 +50,12 @@ class HelloWorld : public Application {
                         .tesc = "assets/shaders/terrain.tesc",
                         .tese = "assets/shaders/terrain.tese"
                     },
+                },
+                {
+                    "canvas", {
+                        .vert = "assets/shaders/canvas.vert",
+                        .frag = "assets/shaders/canvas.frag",
+                    }
                 }
             },
             .materials = {

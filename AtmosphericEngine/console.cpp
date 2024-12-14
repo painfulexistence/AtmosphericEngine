@@ -50,10 +50,9 @@ void Console::DrawImGui(float dt)
 
         ImGui::Separator();
 
-        if (ImGui::BeginChild("Log", ImVec2(0, 300))) {
-            ImGui::Text("Log:");
-            ImGui::EndChild();
-        }
+        ImGui::BeginChild("Log", ImVec2(0, 300));
+        ImGui::Text("Log:");
+        ImGui::EndChild();
 
         ImGui::Separator();
 

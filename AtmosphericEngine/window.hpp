@@ -15,6 +15,7 @@ struct WindowProps
     std::string title = INIT_SCREEN_TITLE;
     int width = INIT_SCREEN_WIDTH;
     int height = INIT_SCREEN_HEIGHT;
+    bool fullscreen = false;
 };
 
 enum class KeyState {
@@ -109,6 +110,7 @@ public:
     void DeinitImGui();
 
     void MainLoop(std::function<void(float, float)> callback);
+    void ToggleFullscreen();
     void Close();
 
     WindowEventCallbackID AddMouseMoveCallback(MouseMoveCallback callback);
@@ -144,11 +146,18 @@ public:
     void SetTime(double time);
 
     ImageSize GetSize();
-
     ImageSize GetFramebufferSize();
+    glm::vec2 GetDPI();
 
 private:
     void* _internal = nullptr;
+    bool _isFullscreen = false;
+    int _windowedX;
+    int _windowedY;
+    int _windowedWidth;
+    int _windowedHeight;
+    float _scaleX = 1.0f;
+    float _scaleY = 1.0f;
     WindowEventCallbackID _nextCallbackID = 0;
     std::unordered_map<WindowEventCallbackID, MouseMoveCallback> _mouseMoveCallbacks;
     std::unordered_map<WindowEventCallbackID, MouseEnterCallback> _mouseEnterCallbacks;

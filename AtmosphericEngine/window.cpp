@@ -124,7 +124,13 @@ Window::Window(WindowProps props)
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
     glfwWindowHint(GLFW_SAMPLES, 4);
 
-    this->_internal = glfwCreateWindow(props.width, props.height, props.title.c_str(), NULL, NULL);
+    if (props.fullscreen) {
+        this->_internal = glfwCreateWindow(props.width, props.height, props.title.c_str(), glfwGetPrimaryMonitor(), NULL);
+        _isFullscreen = true;
+    } else {
+        this->_internal = glfwCreateWindow(props.width, props.height, props.title.c_str(), NULL, NULL);
+        _isFullscreen = false;
+    }
     if (this->_internal == nullptr)
         throw std::runtime_error("Failed to create window!");
     glfwSetWindowUserPointer(static_cast<GLFWwindow*>(_internal), this);
@@ -141,24 +147,27 @@ Window::~Window()
 
 void Window::Init()
 {
-    glfwMakeContextCurrent(static_cast<GLFWwindow*>(_internal));
+    GLFWwindow* window = static_cast<GLFWwindow*>(_internal);
+    glfwGetWindowSize(window, &_windowedWidth, &_windowedHeight);
+    glfwGetWindowPos(window, &_windowedX, &_windowedY);
+    glfwMakeContextCurrent(window);
 #if VSYNC_ON
     glfwSwapInterval(1);
 #else
     glfwSwapInterval(0);
 #endif
     // Setup input management
-    //glfwSetInputMode(this->_glfwWindow, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    // glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     if (glfwRawMouseMotionSupported())
-        glfwSetInputMode(static_cast<GLFWwindow*>(_internal), GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
+        glfwSetInputMode(window, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
 
-    glfwSetCursorPosCallback(static_cast<GLFWwindow*>(_internal), [](GLFWwindow* win, double x, double y) {
+    glfwSetCursorPosCallback(window, [](GLFWwindow* win, double x, double y) {
         auto self = static_cast<Window*>(glfwGetWindowUserPointer(win));
         for (auto [id, callback] : self->_mouseMoveCallbacks) {
             callback((float)x, (float)y);
         }
     });
-    glfwSetCursorEnterCallback(static_cast<GLFWwindow*>(_internal), [](GLFWwindow* win, int entered) {
+    glfwSetCursorEnterCallback(window, [](GLFWwindow* win, int entered) {
         auto self = static_cast<Window*>(glfwGetWindowUserPointer(win));
         if (entered) {
             for (auto [id, callback] : self->_mouseEnterCallbacks) {
@@ -170,7 +179,7 @@ void Window::Init()
             }
         }
     });
-    glfwSetKeyCallback(static_cast<GLFWwindow*>(_internal), [](GLFWwindow* win, int key, int scancode, int action, int mods) {
+    glfwSetKeyCallback(window, [](GLFWwindow* win, int key, int scancode, int action, int mods) {
         auto self = static_cast<Window*>(glfwGetWindowUserPointer(win));
         // TODO: implement key mods and scancode
         if (action == GLFW_PRESS) {
@@ -183,13 +192,13 @@ void Window::Init()
             }
         }
     });
-    glfwSetWindowSizeCallback(static_cast<GLFWwindow*>(_internal), [](GLFWwindow* win, int width, int height) {
+    glfwSetWindowSizeCallback(window, [](GLFWwindow* win, int width, int height) {
         auto self = static_cast<Window*>(glfwGetWindowUserPointer(win));
         for (auto [id, callback] : self->_viewportResizeCallbacks) {
             callback(width, height);
         }
     });
-    glfwSetFramebufferSizeCallback(static_cast<GLFWwindow*>(_internal), [](GLFWwindow* win, int width, int height) {
+    glfwSetFramebufferSizeCallback(window, [](GLFWwindow* win, int width, int height) {
         auto self = static_cast<Window*>(glfwGetWindowUserPointer(win));
         for (auto [id, callback] : self->_framebufferResizeCallbacks) {
             callback(width, height);
@@ -253,6 +262,21 @@ void Window::MainLoop(std::function<void(float, float)> callback)
         callback(currTime, deltaTime);
 
         glfwSwapBuffers(static_cast<GLFWwindow*>(_internal));
+    }
+}
+
+void Window::ToggleFullscreen()
+{
+    GLFWwindow* window = static_cast<GLFWwindow*>(_internal);
+    if (!_isFullscreen) {
+        GLFWmonitor* monitor = glfwGetPrimaryMonitor();
+        const GLFWvidmode* mode = glfwGetVideoMode(monitor);
+        // FIXME: not working on macOS
+        glfwSetWindowMonitor(window, monitor, 0, 0, mode->width, mode->height, mode->refreshRate);
+        _isFullscreen = true;
+    } else {
+        glfwSetWindowMonitor(window, nullptr, _windowedX, _windowedY, _windowedWidth, _windowedHeight, 0);
+        _isFullscreen = false;
     }
 }
 
@@ -434,4 +458,11 @@ ImageSize Window::GetFramebufferSize()
     int width, height;
     glfwGetFramebufferSize(static_cast<GLFWwindow*>(_internal), &width, &height);
     return ImageSize(width, height);
+}
+
+glm::vec2 Window::GetDPI()
+{
+    float scaleX, scaleY;
+    glfwGetWindowContentScale(static_cast<GLFWwindow*>(_internal), &scaleX, &scaleY);
+    return glm::vec2(scaleX, scaleY);
 }

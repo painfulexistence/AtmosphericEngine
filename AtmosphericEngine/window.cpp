@@ -123,6 +123,8 @@ Window::Window(WindowProps props)
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
     glfwWindowHint(GLFW_SAMPLES, 4);
+    glfwWindowHint(GLFW_RESIZABLE, props.resizable ? GLFW_TRUE : GLFW_FALSE);
+    glfwWindowHint(GLFW_FLOATING, props.floating ? GLFW_TRUE : GLFW_FALSE);
 
     if (props.fullscreen) {
         this->_internal = glfwCreateWindow(props.width, props.height, props.title.c_str(), glfwGetPrimaryMonitor(), NULL);
@@ -133,7 +135,11 @@ Window::Window(WindowProps props)
     }
     if (this->_internal == nullptr)
         throw std::runtime_error("Failed to create window!");
-    glfwSetWindowUserPointer(static_cast<GLFWwindow*>(_internal), this);
+
+    GLFWwindow* window = static_cast<GLFWwindow*>(this->_internal);
+    glfwSetWindowUserPointer(window, this);
+    glfwMakeContextCurrent(window);
+    glfwSwapInterval(props.vsync ? 1 : 0);
 
     _instance = this;
 }
@@ -150,12 +156,7 @@ void Window::Init()
     GLFWwindow* window = static_cast<GLFWwindow*>(_internal);
     glfwGetWindowSize(window, &_windowedWidth, &_windowedHeight);
     glfwGetWindowPos(window, &_windowedX, &_windowedY);
-    glfwMakeContextCurrent(window);
-#if VSYNC_ON
-    glfwSwapInterval(1);
-#else
-    glfwSwapInterval(0);
-#endif
+
     // Setup input management
     // glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     if (glfwRawMouseMotionSupported())

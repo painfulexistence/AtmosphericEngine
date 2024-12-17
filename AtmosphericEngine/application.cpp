@@ -12,7 +12,11 @@ Application::Application(AppConfig config) : _config(config)
     _window = std::make_shared<Window>(WindowProps {
         .title = config.windowTitle,
         .width = config.windowWidth,
-        .height = config.windowHeight
+        .height = config.windowHeight,
+        .resizable = config.windowResizable,
+        .floating = config.windowFloating,
+        .fullscreen = config.fullscreen,
+        .vsync = config.vsync,
     }); // Multi-window not supported now
     _window->Init();
     _window->InitImGui();

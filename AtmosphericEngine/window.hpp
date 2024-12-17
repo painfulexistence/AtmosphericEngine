@@ -15,7 +15,10 @@ struct WindowProps
     std::string title = INIT_SCREEN_TITLE;
     int width = INIT_SCREEN_WIDTH;
     int height = INIT_SCREEN_HEIGHT;
+    bool resizable = false;
+    bool floating = false;
     bool fullscreen = false;
+    bool vsync = VSYNC_ON;
 };
 
 enum class KeyState {

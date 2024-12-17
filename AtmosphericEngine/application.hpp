@@ -32,12 +32,14 @@ struct AppConfig {
     std::string windowTitle = INIT_SCREEN_TITLE;
     int windowWidth = INIT_SCREEN_WIDTH;
     int windowHeight = INIT_SCREEN_HEIGHT;
+    bool windowResizable = false;
+    bool windowFloating = false;
     bool fullscreen = false;
     bool vsync = true;
-    bool enable3D = true;
     bool enableAudio = true;
-    bool enablePhysics = true;
-    float physicsTimeStep = 1.0f / 60.0f;
+    bool enableGraphics3D = true;
+    bool enablePhysics3D = true;
+    float fixedTimeStep = FIXED_TIME_STEP;
 };
 
 using EntityID = uint64_t;

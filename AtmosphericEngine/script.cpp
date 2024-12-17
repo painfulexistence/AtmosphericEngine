@@ -50,19 +50,21 @@ void Script::Bind(const std::string& func)
 
 void Script::Source(const std::string& filename)
 {
-    try {
-        this->_env.script_file(filename);
-    } catch (const sol::error& e) {
+    sol::protected_function_result result = _env.script_file(filename, sol::script_pass_on_error);
+    if (!result.valid()) {
+        sol::error err = result;
+        std::string what = err.what();
         fmt::print("Skip loading script file {}\n", filename);
     }
 }
 
 void Script::Run(const std::string& script)
 {
-    try {
-        this->_env.script(script);
-    } catch (const sol::error& e) {
-        fmt::print("Skip running script: \n{}\n", script);
+    sol::protected_function_result result = _env.script(script, sol::script_pass_on_error);
+    if (!result.valid()) {
+        sol::error err = result;
+        std::string what = err.what();
+        // TODO: handle error messages
     }
 }
 

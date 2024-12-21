@@ -11,6 +11,9 @@
 #include <stack>
 #include <memory>
 #include <thread>
+#include <mutex>
+#include <condition_variable>
+#include <atomic>
 #include <functional>
 #include <optional>
 #include <utility>
@@ -22,3 +25,5 @@
 #include <glm/gtc/type_ptr.hpp>
 
 #include "fmt/core.h"
+
+using Vector3 = glm::vec3;

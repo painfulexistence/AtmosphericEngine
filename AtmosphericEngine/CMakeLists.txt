@@ -45,6 +45,7 @@ set(SOURCES
     script.cpp
     scene.cpp
     asset_manager.cpp
+    job_system.cpp
     utility/file.cpp
     audio_manager.cpp
 )

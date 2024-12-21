@@ -1,4 +1,5 @@
 #include "application.hpp"
+#include "job_system.hpp"
 #include "window.hpp"
 #include "game_object.hpp"
 #include "scene.hpp"
@@ -20,6 +21,8 @@ Application::Application(AppConfig config) : _config(config)
     }); // Multi-window not supported now
     _window->Init();
     _window->InitImGui();
+
+    JobSystem::Get()->Init();
 }
 
 Application::~Application()

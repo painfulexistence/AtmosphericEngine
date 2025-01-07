@@ -6,13 +6,13 @@
 #include "component.hpp"
 
 struct ImpostorProps {
-    float mass;
-    float friction;
-    float restitution;
-    float linearDamping;
-    float angularDamping;
-    glm::vec3 linearFactor;
-    glm::vec3 angularFactor;
+    float mass = 1.0f;
+    float friction = 1.0f;
+    float restitution = 0.0f;
+    float linearDamping = 0.0f;
+    float angularDamping = 0.0f;
+    glm::vec3 linearFactor = glm::vec3(1.0f, 1.0f, 1.0f);
+    glm::vec3 angularFactor = glm::vec3(1.0f, 1.0f, 1.0f);
     btCollisionShape* shape = nullptr;
     bool useGravity = true;
 };

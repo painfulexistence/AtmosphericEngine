@@ -168,7 +168,8 @@ int main(int argc, char* argv[]) {
         .windowWidth = 480,
         .windowHeight = 720,
         .windowFloating = true,
-        .useDefaultTextures = false
+        .useDefaultTextures = false,
+        .enablePhysics3D = false
     });
     game.Run();
     return 0;

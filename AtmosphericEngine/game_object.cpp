@@ -3,6 +3,7 @@
 #include "graphics_server.hpp"
 #include "physics_server.hpp"
 #include "impostor.hpp"
+#include "drawable_2d.hpp"
 
 GameObject::GameObject(GraphicsServer* graphics, PhysicsServer* physics, glm::vec3 position, glm::vec3 rotation, glm::vec3 scale) : _graphics(graphics), _physics(physics)
 {

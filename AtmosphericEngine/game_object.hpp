@@ -6,6 +6,7 @@ class Component;
 struct LightProps;
 struct CameraProps;
 struct ImpostorProps;
+struct Drawable2DProps;
 
 class Mesh;
 

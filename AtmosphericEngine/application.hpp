@@ -81,7 +81,7 @@ protected:
     Camera* mainCamera = nullptr;
     Light* mainLight = nullptr;
 
-    void LoadScene(SceneDef& scene);
+    void LoadScene(const SceneDef& scene);
     void ReloadScene();
 
     void Quit();

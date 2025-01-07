@@ -1,63 +1,12 @@
 #include "Atmospheric.hpp"
 
 class HelloWorld : public Application {
+    using Application::Application;
+
     GameObject* cube;
 
     void OnLoad() override {
         SceneDef scene = {
-            .textures = {
-                "assets/textures/default_diff.jpg",
-                "assets/textures/default_norm.jpg",
-                "assets/textures/default_ao.jpg",
-                "assets/textures/default_rough.jpg",
-                "assets/textures/default_metallic.jpg"
-            },
-            .shaders = {
-                {
-                    "color", {
-                        .vert = "assets/shaders/tbn.vert",
-                        .frag = "assets/shaders/pbr.frag"
-                    },
-                },
-                {
-                    "debug_line", {
-                        .vert = "assets/shaders/debug.vert",
-                        .frag = "assets/shaders/flat.frag",
-                    }
-                },
-                {
-                    "depth", {
-                        .vert = "assets/shaders/depth_simple.vert",
-                        .frag = "assets/shaders/depth_simple.frag"
-                    },
-                },
-                {
-                    "depth_cubemap", {
-                        .vert = "assets/shaders/depth_cubemap.vert",
-                        .frag = "assets/shaders/depth_cubemap.frag"
-                    },
-                },
-                {
-                    "hdr", {
-                        .vert = "assets/shaders/hdr.vert",
-                        .frag = "assets/shaders/hdr_ca.frag"
-                    },
-                },
-                {
-                    "terrain", {
-                        .vert = "assets/shaders/terrain.vert",
-                        .frag = "assets/shaders/terrain.frag",
-                        .tesc = "assets/shaders/terrain.tesc",
-                        .tese = "assets/shaders/terrain.tese"
-                    },
-                },
-                {
-                    "canvas", {
-                        .vert = "assets/shaders/canvas.vert",
-                        .frag = "assets/shaders/canvas.frag",
-                    }
-                }
-            },
             .materials = {
                 {
                     .baseMap = 0,
@@ -70,7 +19,6 @@ class HelloWorld : public Application {
                     .shininess = 0.088
                 }
             },
-            .gameObjects = {}
         };
         LoadScene(scene);
 
@@ -99,7 +47,10 @@ class HelloWorld : public Application {
 };
 
 int main(int argc, char* argv[]) {
-    HelloWorld game;
+    HelloWorld game({
+        .useDefaultTextures = true,
+        .useDefaultShaders = true,
+    });
     game.Run();
     return 0;
 }

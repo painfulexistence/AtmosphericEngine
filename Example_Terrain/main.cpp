@@ -68,6 +68,7 @@ class TerrainDemo : public Application {
         auto terrain = CreateGameObject(glm::vec3(0.0f, -10.0f, 0.0f));
         terrain->AddRenderable("Terrain");
         terrain->AddImpostor({
+            .mass = 0.0f,
             .shape = graphics.GetMesh("Terrain")->GetShape(),
         });
     }

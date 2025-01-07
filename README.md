@@ -3,7 +3,10 @@
 The project is a labor of love, acting as my stepping stone to gain a deeper understanding of graphics programming concepts and practices.
 
 ### Demo
+#### Time Rewinding
 [![Time Rewinding Demo](https://img.youtube.com/vi/6OVBciQAt_A/0.jpg)](https://www.youtube.com/watch?v=6OVBciQAt_A)
+#### Heightmap Terrain w/ Dynamic Tessellation
+[![Time Rewinding Demo](https://img.youtube.com/vi/djCToZGKLkc/0.jpg)](https://www.youtube.com/watch?v=djCToZGKLkc)
 
 ### Features
 - PBR texturing, point/directional shadows, post-processing effects

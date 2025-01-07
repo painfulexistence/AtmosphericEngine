@@ -134,11 +134,12 @@ class MazeGame : public Application {
     bool isLightFlashing = false;
     glm::vec3 winCoord = glm::vec3(0, 0, 0);
     GameObject* player = nullptr;
-    std::vector<float> terrainData;
     bool isPlayerJumping = false;
     bool isPlayerGrounded = false;
     float playerSpeed = 10.0f;
     float playerJumpSpeed = 6.0f;
+    float bulletCooldown = 0.05f;
+    float bulletCooldownTimer = 0.0f;
     std::vector<GameObject*> bullets;
     const int numMaxBullets = 200;
     int currentBulletIndex = 0;
@@ -168,23 +169,6 @@ class MazeGame : public Application {
         skyboxMesh->SetMaterial(graphics.materials[1]);
         skyboxMesh->GetMaterial()->cullFaceEnabled = false;
 
-        const float worldSize = 1024.f;
-        const int worldResolution = 128;
-        auto terrainMesh = graphics.CreateTerrainMesh("Terrain", worldSize, worldResolution);
-        terrainMesh->SetMaterial(graphics.materials[6]);
-        auto img = AssetManager::loadImage("assets/textures/heightmap_debug.jpg");
-        if (img) {
-            const int terrainDataSize = img->width * img->height;
-            terrainData.resize(terrainDataSize);
-            for (int i = 0; i < terrainDataSize; ++i) {
-                terrainData[i] = (static_cast<float>(img->byteArray[i]) / 255.0f) * 32.0f;
-            }
-            terrainMesh->SetShape(new btHeightfieldTerrainShape(img->width, img->height, terrainData.data(), 1.0f, -64.0f, 64.0f, 1, PHY_FLOAT, true));
-            // terrainMesh->SetShapeLocalScaling(glm::vec3(10.0f, 1.0f, 10.0f));
-        } else {
-            throw std::runtime_error("Could not load heightmap");
-        }
-
         auto bulletMesh = graphics.CreateMesh("Sphere", MeshBuilder::CreateSphereWithPhysics(0.1f, 12));
         bulletMesh->SetMaterial(graphics.materials[5]);
 
@@ -195,7 +179,13 @@ class MazeGame : public Application {
 
         // Create game objects in scene
         player = graphics.GetMainCamera()->gameObject;
-        player->AddImpostor("Character", 10.0f, glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
+        player->AddImpostor({
+            .mass = 10.0f,
+            .friction = 2.0f,
+            .linearFactor = glm::vec3(1, 1, 1),
+            .angularFactor = glm::vec3(0, 0, 0),
+            .shape = graphics.GetMesh("Character")->GetShape()
+        });
         player->SetPosition(glm::vec3(0, 64, 0));
         // player->SetCollisionCallback([](GameObject* other) {
         //     fmt::print("Player collided with game object {}!\n", other->GetName());
@@ -204,27 +194,31 @@ class MazeGame : public Application {
         auto skybox = CreateGameObject();
         skybox->AddRenderable("Skybox");
 
-        auto terrain = CreateGameObject(glm::vec3(0.0f, -10.0f, 0.0f));
-        // terrain->AddRenderable("Terrain");
-        // terrain->AddImpostor("Terrain");
-
         for (int i = 0; i < 100; i++) {
             glm::vec3 pos = glm::vec3(rand() % 100 - 50, rand() % 100 + 20, rand() % 100 - 50);
             glm::vec3 rot = glm::vec3(rand() % 360, rand() % 360, rand() % 360);
             auto box = CreateGameObject(pos, rot);
             box->AddRenderable("Box");
-            box->AddImpostor("Box", 1.0f);
+            box->AddImpostor({
+                .shape = graphics.GetMesh("Box")->GetShape(),
+                .mass = 1.0f
+            });
             boxes.push_back(box);
         }
 
         for (int i = 0; i < numMaxBullets; ++i) {
-            glm::vec3 pos = glm::vec3(rand() % 10 - 5, rand() % 100 + 20, rand() % 10 - 5);
+            glm::vec3 pos = glm::vec3(rand() % 100 - 50, -50, rand() % 100 - 50);
             auto bullet = CreateGameObject(pos);
             bullet->AddRenderable("Sphere");
-            bullet->AddImpostor("Sphere", 1.0f);
+            bullet->AddImpostor({
+                .shape = graphics.GetMesh("Sphere")->GetShape(),
+                .mass = 1.0f
+            });
+            bullet->SetPhysicsActivated(false);
             bullet->SetActive(false);
-            bullet->SetCollisionCallback([](GameObject* other) {
-                other->SetActive(false);
+            bullet->SetCollisionCallback([this](GameObject* other) {
+                // other->SetActive(false);
+                // Rewind(other);
             });
 
             bullets.push_back(bullet);
@@ -252,13 +246,19 @@ class MazeGame : public Application {
                 if (MAZE_ROOFED) {
                     auto cube = CreateGameObject(MAZE_BLOCK_SIZE * glm::vec3(x - MAZE_SIZE / 2.f, 3, z - MAZE_SIZE / 2.f));
                     cube->AddRenderable("MazeBlock");
-                    cube->AddImpostor("MazeBlock", 0.0f);
+                    cube->AddImpostor({
+                        .shape = graphics.GetMesh("MazeBlock")->GetShape(),
+                        .mass = 0.0f
+                    });
                 }
                 if (!maze.IsEmpty(x, z)) {
                     for (int h = 0; h < 3; h++) {
                         auto cube = CreateGameObject(MAZE_BLOCK_SIZE * glm::vec3(x - MAZE_SIZE / 2.f, h, z - MAZE_SIZE / 2.f));
                         cube->AddRenderable("MazeBlock");
-                        cube->AddImpostor("MazeBlock", 0.0f);
+                        cube->AddImpostor({
+                            .shape = graphics.GetMesh("MazeBlock")->GetShape(),
+                            .mass = 0.0f
+                        });
                     }
                 } else {
                     if (rand() % 100 < CHISM_CHANCE) {
@@ -274,7 +274,10 @@ class MazeGame : public Application {
                 }
                 auto cube = CreateGameObject(MAZE_BLOCK_SIZE * glm::vec3(x - MAZE_SIZE / 2.f, -1, z - MAZE_SIZE / 2.f));
                 cube->AddRenderable("MazeBlock");
-                cube->AddImpostor("MazeBlock", 0.0f);
+                cube->AddImpostor({
+                    .shape = graphics.GetMesh("MazeBlock")->GetShape(),
+                    .mass = 0.0f
+                });
             }
         }
 
@@ -300,16 +303,22 @@ class MazeGame : public Application {
         // Input handling
         glm::vec3 currVel = player->GetVelocity();
         if (input.IsKeyDown(Key::Q)) {
-            glm::vec3 forward = mainCamera->GetEyeDirection();
-            glm::vec3 pos = mainCamera->GetEyePosition() + forward * 0.5f;
-            glm::vec3 vel = forward * 50.0f;
-            // bullets[currentBulletIndex]->SetActive(false);
-            currentBulletIndex = (currentBulletIndex + 1) % numMaxBullets;
-            bullets[currentBulletIndex]->SetActive(true);
-            bullets[currentBulletIndex]->SetPosition(pos);
-            bullets[currentBulletIndex]->SetVelocity(vel);
+            if (bulletCooldownTimer <= 0.0f) {
+                glm::vec3 forward = mainCamera->GetEyeDirection();
+                glm::vec3 pos = mainCamera->GetEyePosition() + forward * 0.5f;
+                glm::vec3 vel = forward * 50.0f;
+                // bullets[currentBulletIndex]->SetActive(false);
+                currentBulletIndex = (currentBulletIndex + 1) % numMaxBullets;
+                bullets[currentBulletIndex]->SetActive(true);
+                bullets[currentBulletIndex]->SetPosition(pos);
+                bullets[currentBulletIndex]->SetVelocity(vel);
 
-            audio.PlaySound(sfxShoot);
+                audio.PlaySound(sfxShoot);
+
+                bulletCooldownTimer = bulletCooldown;
+            } else {
+                bulletCooldownTimer -= dt;
+            }
         }
         if (input.IsKeyDown(Key::W)) {
             glm::vec3 v = mainCamera->GetMoveVector(Axis::FRONT) * playerSpeed;

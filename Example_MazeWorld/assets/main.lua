@@ -263,6 +263,9 @@ scenes = {
             -- Terrain maps
             {
                 path = "./assets/textures/heightmap.jpg"
+            },
+            {
+                path = "./assets/textures/aim.png"
             }
         },
         shaders = {

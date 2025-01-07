@@ -40,13 +40,15 @@ struct AppConfig {
     bool enableGraphics3D = true;
     bool enablePhysics3D = true;
     float fixedTimeStep = FIXED_TIME_STEP;
+    bool useDefaultTextures = false;
+    bool useDefaultShaders = true;
 };
 
 using EntityID = uint64_t;
 
 class Application {
 public:
-    Application(AppConfig config = {});
+    explicit Application(AppConfig config = {});
     ~Application();
 
     void Run();

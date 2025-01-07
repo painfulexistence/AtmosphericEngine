@@ -8,6 +8,7 @@
 #include "game_object.hpp"
 #include "application.hpp"
 #include "window.hpp"
+#include "job_system.hpp"
 
 #include <cstddef>
 
@@ -285,59 +286,129 @@ void GraphicsServer::DrawImGui(float dt)
         }
     }
 }
+void GraphicsServer::LoadDefaultTextures() {
+    LoadTextures({
+        "assets/textures/default_diff.jpg",
+        "assets/textures/default_norm.jpg",
+        "assets/textures/default_ao.jpg",
+        "assets/textures/default_rough.jpg",
+        "assets/textures/default_metallic.jpg"
+    });
+}
 
 void GraphicsServer::LoadTextures(const std::vector<std::string>& paths)
 {
-    int count = paths.size();
-    textures.resize(count);
-    glGenTextures(count, textures.data());
+    int oldCount = textures.size(), newCount = paths.size();
+    textures.resize(oldCount + newCount);
 
-    for (int i = 0; i < count; i++)
-    {
-        glBindTexture(GL_TEXTURE_2D, textures[i]);
+    std::vector<std::shared_ptr<Image>> images(newCount);
+    for (int i = 0; i < newCount; i++) {
+        auto path = paths[i];
+        auto image = &images[i];
+        JobSystem::Get()->Execute([path, image](int threadID) {
+            *image = AssetManager::loadImage(path);
+        });
+    }
+    JobSystem::Get()->Wait();
+
+    glGenTextures(newCount, &textures[oldCount]);
+    for (int i = 0; i < newCount; i++) {
+        auto img = images[i];
+        if (!img) {
+            throw std::runtime_error(fmt::format("Failed to load texture at {}\n", paths[i]));
+        }
+
+        glBindTexture(GL_TEXTURE_2D, textures[oldCount + i]);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         // float border[] = {1.f, 1.f, 1.f, 1.f};
         // glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, border); // for clamp to border wrapping
-
-        auto img = AssetManager::loadImage(paths[i]);
-        if (img) {
-            int format;
-            switch (img->channelCount) {
-            case 1:
-                glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, img->width,img->height, 0, GL_RED, GL_UNSIGNED_BYTE, img->byteArray.data());
-                break;
-            case 3:
-                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, img->width, img->height, 0, GL_RGB, GL_UNSIGNED_BYTE, img->byteArray.data());
-                break;
-            case 4:
-                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, img->width, img->height, 0, GL_RGBA, GL_UNSIGNED_BYTE, img->byteArray.data());
-                break;
-            default:
-                throw std::runtime_error(fmt::format("Unknown texture format at {}\n", paths[i]));
-            }
-            glGenerateMipmap(GL_TEXTURE_2D); // must be called after glTexImage2D
-        } else {
-            throw std::runtime_error(fmt::format("Failed to load texture at {}\n", paths[i]));
+        switch (img->channelCount) {
+        case 1:
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, img->width, img->height, 0, GL_RED, GL_UNSIGNED_BYTE, img->byteArray.data());
+            break;
+        case 3:
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, img->width, img->height, 0, GL_RGB, GL_UNSIGNED_BYTE, img->byteArray.data());
+            break;
+        case 4:
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, img->width, img->height, 0, GL_RGBA, GL_UNSIGNED_BYTE, img->byteArray.data());
+            break;
+        default:
+            throw std::runtime_error(fmt::format("Unknown texture format at {}\n", paths[i]));
         }
+        glGenerateMipmap(GL_TEXTURE_2D);
     }
 }
 
-void GraphicsServer::LoadShaders(const std::unordered_map<std::string, ShaderProgramProps>& shaders) {
-    depthShader = ShaderProgram(shaders.at("depth"));
-    depthCubemapShader = ShaderProgram(shaders.at("depth_cubemap"));
-    colorShader = ShaderProgram(shaders.at("color"));
-    debugShader = ShaderProgram(shaders.at("debug_line"));
-    canvasShader = ShaderProgram(shaders.at("canvas"));
-    terrainShader = ShaderProgram(shaders.at("terrain"));
-    postProcessShader = ShaderProgram(shaders.at("hdr"));
+void GraphicsServer::LoadDefaultShaders() {
+    LoadShaders({
+        {
+            "color", {
+                .vert = "assets/shaders/tbn.vert",
+                .frag = "assets/shaders/pbr.frag"
+            },
+        },
+        {
+            "debug_line", {
+                .vert = "assets/shaders/debug.vert",
+                .frag = "assets/shaders/flat.frag",
+            }
+        },
+        {
+            "depth", {
+                .vert = "assets/shaders/depth_simple.vert",
+                .frag = "assets/shaders/depth_simple.frag"
+            },
+        },
+        {
+            "depth_cubemap", {
+                .vert = "assets/shaders/depth_cubemap.vert",
+                .frag = "assets/shaders/depth_cubemap.frag"
+            },
+        },
+        {
+            "hdr", {
+                .vert = "assets/shaders/hdr.vert",
+                .frag = "assets/shaders/hdr_ca.frag"
+            },
+        },
+        {
+            "terrain", {
+                .vert = "assets/shaders/terrain.vert",
+                .frag = "assets/shaders/terrain.frag",
+                .tesc = "assets/shaders/terrain.tesc",
+                .tese = "assets/shaders/terrain.tese"
+            },
+        },
+        {
+            "canvas", {
+                .vert = "assets/shaders/canvas.vert",
+                .frag = "assets/shaders/canvas.frag"
+            }
+        }
+    });
+}
+
+void GraphicsServer::LoadShaders(const std::unordered_map<std::string, ShaderProgramProps>& shaderDefs) {
+    for (const auto& [uName, props] : shaderDefs) {
+        shaders.push_back(std::move(ShaderProgram(props)));
+        // TODO: check if entry already exists
+        ENGINE_LOG("Shader {} loaded", uName);
+        _shaderIDMap[uName] = _nextShaderID++;
+    }
 }
 
 void GraphicsServer::ReloadShaders()
 {
     // TODO: reload shaders
+}
+
+void GraphicsServer::LoadMaterials(const std::vector<MaterialProps>& materialDefs) {
+    for (const auto& mat : materialDefs) {
+        materials.push_back(new Material(mat));
+    }
 }
 
 void GraphicsServer::CheckErrors()
@@ -557,6 +628,7 @@ void GraphicsServer::ShadowPass(float dt)
     // 1. Render shadow map for directional light
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, uniShadowMaps[0], 0);
     glClear(GL_DEPTH_BUFFER_BIT);
+    auto depthShader = GetShaderByName("depth");
     depthShader.Activate();
     depthShader.SetUniform(std::string("ProjectionView"), mainLight->GetProjectionMatrix(0) * mainLight->GetViewMatrix());
 
@@ -590,6 +662,7 @@ void GraphicsServer::ShadowPass(float dt)
     }
 
     // 2. Render shadow cubemaps for omni-directional lights
+    auto depthCubemapShader = GetShaderByName("depth_cubemap");
     depthCubemapShader.Activate();
     int auxShadows = 0;
     for (int i = 0; i < auxLightCount; ++i)
@@ -671,6 +744,8 @@ void GraphicsServer::ColorPass(float dt)
     glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+    auto terrainShader = GetShaderByName("terrain");
+    auto colorShader = GetShaderByName("color");
     for (const auto& [mesh, instances] : _meshInstanceMap)
     {
         if (instances.empty())
@@ -832,7 +907,7 @@ void GraphicsServer::ColorPass(float dt)
     _debugLineCount = debugLines.size() / 2;
     if (debugLines.size() > 0) {
         //glDisable(GL_DEPTH_TEST);
-
+        auto debugShader = GetShaderByName("debug_line");
         debugShader.Activate();
         debugShader.SetUniform(std::string("ProjectionView"), projectionView);
 
@@ -880,6 +955,7 @@ void GraphicsServer::CanvasPass(float dt)
             glBindTexture(GL_TEXTURE_2D, textures[i]);
         }
 
+        auto canvasShader = GetShaderByName("canvas");
         canvasShader.Activate();
         glm::mat4 projection = glm::ortho(0.0f, (float)width, (float)height, 0.0f, -1.0f, 1.0f);
         canvasShader.SetUniform(std::string("Projection"), projection);
@@ -911,6 +987,7 @@ void GraphicsServer::PostProcessPass(float dt)
 
     glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    auto postProcessShader = GetShaderByName("hdr");
     postProcessShader.Activate();
     postProcessShader.SetUniform(std::string("color_map_unit"), (int)0);
     glBindVertexArray(screenVAO);

@@ -96,6 +96,14 @@ public:
         }
     };
 
+    const ShaderProgram& GetShader(ShaderID id) const {
+        return shaders[id];
+    };
+
+    const ShaderProgram& GetShaderByName(const std::string& name) const {
+        return shaders[_shaderIDMap.at(name)];
+    };
+
     Mesh* GetMesh(const std::string name) const {
         if (_namedMeshes.count(name) == 0)
             throw std::runtime_error("Could not find the specified mesh!");
@@ -103,11 +111,14 @@ public:
         return _namedMeshes.find(name)->second;
     };
 
+    void LoadDefaultTextures();
     void LoadTextures(const std::vector<std::string>& paths);
 
-    void LoadShaders(const std::unordered_map<std::string, ShaderProgramProps>& shaders);
-
+    void LoadDefaultShaders();
+    void LoadShaders(const std::unordered_map<std::string, ShaderProgramProps>& shaderDefs);
     void ReloadShaders();
+
+    void LoadMaterials(const std::vector<MaterialProps>& materialDefs);
 
     void CheckErrors();
 
@@ -184,21 +195,17 @@ private:
     GLuint sceneColorTexture, sceneDepthTexture, sceneStencilTexture;
     GLuint msaaResolveTexture;
 
-    ShaderProgram colorShader;
-    ShaderProgram depthShader;
-    ShaderProgram depthCubemapShader;
-    ShaderProgram skyboxShader;
-    ShaderProgram terrainShader;
-    ShaderProgram debugShader;
-    ShaderProgram canvasShader;
-    ShaderProgram postProcessShader;
+    ShaderID _nextShaderID = 0;
+    std::unordered_map<std::string, ShaderID> _shaderIDMap;
+    std::vector<ShaderProgram> shaders = {};
 
     GLuint shadowFBO, sceneFBO, msaaResolveFBO;
     GLuint finalFBO = 0;
 
-    std::map<std::string, Mesh*> _namedMeshes;
-    std::map<std::string, Material*> _namedMaterials;
-    std::map<Mesh*, std::vector<InstanceData>> _meshInstanceMap;
+    std::unordered_map<std::string, Mesh*> _namedMeshes;
+    std::unordered_map<Mesh*, std::vector<InstanceData>> _meshInstanceMap;
+    std::unordered_map<std::string, Material*> _namedMaterials;
+    std::unordered_map<std::string, ShaderProgram*> _namedShaders;
     // std::unordered_map<std::pair<Mesh*, Material*>, std::vector<InstanceData>> groupedObjects;
 
     std::vector<DebugVertex> debugLines;

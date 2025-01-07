@@ -65,18 +65,22 @@ void Application::Run()
     });
 }
 
-void Application::LoadScene(SceneDef& scene) {
+void Application::LoadScene(const SceneDef& scene) {
     ENGINE_LOG("Loading scene...");
 
+    if (_config.useDefaultTextures) {
+        graphics.LoadDefaultTextures();
+    }
     graphics.LoadTextures(scene.textures);
     ENGINE_LOG("Textures created.");
 
+    if (_config.useDefaultShaders) {
+        graphics.LoadDefaultShaders();
+    }
     graphics.LoadShaders(scene.shaders);
     ENGINE_LOG("Shaders created.");
 
-    for (const auto& mat : scene.materials) {
-        graphics.materials.push_back(new Material(mat));
-    }
+    graphics.LoadMaterials(scene.materials);
     ENGINE_LOG("Materials created.");
 
     for (const auto& go : scene.gameObjects) {

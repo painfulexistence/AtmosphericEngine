@@ -94,7 +94,13 @@ protected:
     std::string GetWindowTitle();
     void SetWindowTitle(const std::string& title);
 
-    void AddSubsystem(std::shared_ptr<Server> subsystem);
+    template<typename T>
+    std::shared_ptr<T> AddSubsystem() {
+        static_assert(std::is_base_of<Server, T>::value, "Type T must be a subclass of Server");
+        auto subsystem = std::make_shared<T>();
+        _subsystems.push_back(subsystem);
+        return subsystem;
+    }
 
     GameObject* CreateGameObject(glm::vec3 position = glm::vec3(0.0f), glm::vec3 rotation = glm::vec3(0.0f), glm::vec3 scale = glm::vec3(1.0f));
 

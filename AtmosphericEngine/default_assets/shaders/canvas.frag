@@ -12,7 +12,7 @@ void main() {
     // TODO: use GL_TEXTURE_ARRAY
     // vec4 texColor = texture(textureArray, vec3(texUV, texIndex));
     vec4 texColor = vec4(1.0f);
-    switch (texIndex) { // Using switch-case coz non-const indexing into uniform array is not supported by OpenGL spec
+    switch (texIndex) { // Using switch-case coz non-const indexing into uniform array is not supported by OpenGL spec (see https://stackoverflow.com/questions/57854484/passing-unsigned-int-input-attribute-to-vertex-shader)
         case 0:
             texColor = texture(Textures[0], texUV);
             break;

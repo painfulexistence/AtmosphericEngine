@@ -10,6 +10,10 @@
 #include "light.hpp"
 #include "camera.hpp"
 
+using TextureID = uint32_t;
+using ShaderID = uint32_t;
+using MaterialID = uint32_t;
+
 struct CanvasVertex {
     glm::vec2 position;
     glm::vec2 texCoord;
@@ -78,6 +82,7 @@ public:
     void Process(float dt) override;
     void DrawImGui(float dt) override;
 
+    void Reset();
     void Render(float dt);
 
     Camera* GetMainCamera() const {

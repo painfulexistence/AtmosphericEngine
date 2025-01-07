@@ -190,6 +190,10 @@ void Application::Render(const FrameData& props)
             ImGui::Text("GLSL: %s", glGetString(GL_SHADING_LANGUAGE_VERSION));
             ImGui::Text("Vendor: %s", glGetString(GL_VENDOR));
             ImGui::Text("Renderer: %s", glGetString(GL_RENDERER));
+            auto [wx, wy] = _window->GetSize();
+            ImGui::Text("Window size: %dx%d", wx, wy);
+            auto [fx, fy] = _window->GetFramebufferSize();
+            ImGui::Text("Framebuffer size: %dx%d", fx, fy);
 
             GLint depth, stencil;
             glGetFramebufferAttachmentParameteriv(GL_DRAW_FRAMEBUFFER, GL_DEPTH, GL_FRAMEBUFFER_ATTACHMENT_DEPTH_SIZE, &depth);

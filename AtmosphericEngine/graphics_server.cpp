@@ -286,6 +286,37 @@ void GraphicsServer::DrawImGui(float dt)
         }
     }
 }
+
+void GraphicsServer::Reset() {
+    // TODO: this part is unfinished
+    glDeleteTextures(defaultTextures.size(), defaultTextures.data());
+    defaultTextures.clear();
+    glDeleteTextures(textures.size(), textures.data());
+    textures.clear();
+
+    for (auto m : materials) {
+        delete m;
+    }
+    materials.clear();
+    _namedMaterials.clear();
+
+    for (auto m : meshes) {
+        delete m;
+    }
+    meshes.clear();
+    _namedMeshes.clear();
+    _meshInstanceMap.clear();
+
+    defaultCamera = nullptr;
+    defaultLight = nullptr;
+    cameras.clear();
+    directionalLights.clear();
+    pointLights.clear();
+    renderables.clear();
+    _namedMaterials.clear();
+    _namedShaders.clear();
+}
+
 void GraphicsServer::LoadDefaultTextures() {
     LoadTextures({
         "assets/textures/default_diff.jpg",

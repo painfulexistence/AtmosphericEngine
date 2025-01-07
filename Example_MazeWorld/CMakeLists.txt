@@ -19,10 +19,10 @@ add_custom_command(
 )
 
 if(EXISTS ${GAME_ASSETS_DIR})
-    add_custom_target(copy_assets
+    add_custom_target(copy_${GAME_NAME}_assets
         COMMAND ${CMAKE_COMMAND} -E copy_directory
             ${GAME_ASSETS_DIR}
             ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${GAME_NAME}/assets
     )
-    add_dependencies(${GAME_NAME} copy_assets)
+    add_dependencies(${GAME_NAME} copy_${GAME_NAME}_assets)
 endif()

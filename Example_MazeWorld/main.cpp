@@ -122,11 +122,15 @@ private:
 };
 
 class MazeGame : public Application {
+    using Application::Application;
+
     bool isPhysicsDebugUIEnabled = false;
     bool isPostProcessEnabled = false;
     bool isWireframeEnabled = false;
 
     uint16_t seed = time(NULL);
+    int windowWidth = 1024;
+    int windowHeight = 768;
     bool isLightFlashing = false;
     glm::vec3 winCoord = glm::vec3(0, 0, 0);
     GameObject* player = nullptr;
@@ -138,11 +142,15 @@ class MazeGame : public Application {
     std::vector<GameObject*> bullets;
     const int numMaxBullets = 200;
     int currentBulletIndex = 0;
+    std::vector<GameObject*> boxes;
     MusicID bgm = 0;
     SoundID sfxShoot = 0;
 
     void OnLoad() override {
         srand(seed);
+        auto windowSize = Window::Get()->GetFramebufferSize();
+        windowWidth = windowSize.width;
+        windowHeight = windowSize.height;
 
         LoadScene(script.GetScenes()[0]);
 
@@ -180,6 +188,9 @@ class MazeGame : public Application {
         auto bulletMesh = graphics.CreateMesh("Sphere", MeshBuilder::CreateSphereWithPhysics(0.1f, 12));
         bulletMesh->SetMaterial(graphics.materials[5]);
 
+        auto boxMesh = graphics.CreateMesh("Box", MeshBuilder::CreateCubeWithPhysics((float)(rand() % 5 + 1)));
+        boxMesh->SetMaterial(graphics.materials[3]);
+
         script.Print("Models loaded.");
 
         // Create game objects in scene
@@ -197,6 +208,15 @@ class MazeGame : public Application {
         // terrain->AddRenderable("Terrain");
         // terrain->AddImpostor("Terrain");
 
+        for (int i = 0; i < 100; i++) {
+            glm::vec3 pos = glm::vec3(rand() % 100 - 50, rand() % 100 + 20, rand() % 100 - 50);
+            glm::vec3 rot = glm::vec3(rand() % 360, rand() % 360, rand() % 360);
+            auto box = CreateGameObject(pos, rot);
+            box->AddRenderable("Box");
+            box->AddImpostor("Box", 1.0f);
+            boxes.push_back(box);
+        }
+
         for (int i = 0; i < numMaxBullets; ++i) {
             glm::vec3 pos = glm::vec3(rand() % 10 - 5, rand() % 100 + 20, rand() % 10 - 5);
             auto bullet = CreateGameObject(pos);
@@ -210,14 +230,20 @@ class MazeGame : public Application {
             bullets.push_back(bullet);
         }
 
+        auto aim = CreateGameObject(0.5f * glm::vec2(windowWidth, windowHeight), glm::radians(45.0f));
+        aim->SetName("__aim");
+        aim->AddDrawable2D({
+            .color = glm::vec4(1.0, 0.0, 0.0, 1.0)
+        });
+
         const int MAZE_SIZE = 30;
         const float MAZE_BLOCK_SIZE = 3.0;
-        const int BLOCKS_TO_REMOVE = 500;
+        const int BLOCKS_TO_REMOVE = 600;
         const bool MAZE_ROOFED = false;
-        const float CHISM_CHANCE = 10.0;
+        const float CHISM_CHANCE = 5.0;
 
         auto mazeBlockMesh = graphics.CreateMesh("MazeBlock", MeshBuilder::CreateCubeWithPhysics((float)MAZE_BLOCK_SIZE));
-        mazeBlockMesh->SetMaterial(graphics.materials[3]);
+        mazeBlockMesh->SetMaterial(graphics.materials[4]);
 
         bool characterPlaced = false;
         auto maze = Maze(MAZE_SIZE, MAZE_SIZE, MAZE_BLOCK_SIZE, BLOCKS_TO_REMOVE,MAZE_ROOFED, CHISM_CHANCE);
@@ -286,7 +312,7 @@ class MazeGame : public Application {
             audio.PlaySound(sfxShoot);
         }
         if (input.IsKeyDown(Key::W)) {
-            glm::vec3 v = mainCamera->GetMoveVector(Axis::FRONT) * (float)CAMERA_SPEED;
+            glm::vec3 v = mainCamera->GetMoveVector(Axis::FRONT) * playerSpeed;
             player->SetVelocity(glm::vec3(v.x, currVel.y, v.z));
         }
         if (input.IsKeyDown(Key::S)) {

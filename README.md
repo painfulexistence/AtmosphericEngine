@@ -2,6 +2,9 @@
 **Atmospheric Engine** is a cross-platform 3D game engine developed in C++.
 The project is a labor of love, acting as my stepping stone to gain a deeper understanding of graphics programming concepts and practices.
 
+### Demo
+[![Time Rewinding Demo](https://img.youtube.com/vi/6OVBciQAt_A/0.jpg)](https://www.youtube.com/watch?v=6OVBciQAt_A)
+
 ### Features
 - PBR texturing, point/directional shadows, post-processing effects
 - Heightmap terrain with collision and shader-based dynamic tessellation

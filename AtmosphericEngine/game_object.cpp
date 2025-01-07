@@ -74,10 +74,10 @@ GameObject* GameObject::AddRenderable(Mesh* mesh)
     return this;
 }
 
-GameObject* GameObject::AddDrawable2D()
+GameObject* GameObject::AddDrawable2D(const Drawable2DProps& props)
 {
     if (_graphics) {
-        _graphics->CreateDrawable2D(this);
+        _graphics->CreateDrawable2D(this, props);
     }
     return this;
 }

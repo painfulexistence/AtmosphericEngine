@@ -1159,9 +1159,9 @@ Renderable* GraphicsServer::CreateRenderable(GameObject* go, Mesh* mesh)
     return renderable;
 }
 
-Drawable2D* GraphicsServer::CreateDrawable2D(GameObject* go)
+Drawable2D* GraphicsServer::CreateDrawable2D(GameObject* go, const Drawable2DProps& props)
 {
-    auto drawable = new Drawable2D(go);
+    auto drawable = new Drawable2D(go, props);
     canvasDrawables.push_back(drawable);
     return drawable;
 }

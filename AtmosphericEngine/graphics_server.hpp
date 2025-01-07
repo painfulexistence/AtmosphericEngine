@@ -173,7 +173,7 @@ public:
 
     Camera* CreateCamera(GameObject* gameObject, const CameraProps& props);
     Light* CreateLight(GameObject* gameObject, const LightProps& props);
-    Drawable2D* CreateDrawable2D(GameObject* gameObject);
+    Drawable2D* CreateDrawable2D(GameObject* gameObject, const Drawable2DProps& props);
 
     // void ApplyMaterial(const Material& material);
 

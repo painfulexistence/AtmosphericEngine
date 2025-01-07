@@ -2,10 +2,10 @@
 
 // General
 #define INIT_SCREEN_TITLE "Atmospheric"
-#define INIT_SCREEN_WIDTH 1280 //unit
-#define INIT_SCREEN_HEIGHT 960 //unit
-#define INIT_FRAMEBUFFER_WIDTH 1280 //px
-#define INIT_FRAMEBUFFER_HEIGHT 960 //px
+#define INIT_SCREEN_WIDTH 1120 //unit
+#define INIT_SCREEN_HEIGHT 840 //unit
+#define INIT_FRAMEBUFFER_WIDTH 1120 //px
+#define INIT_FRAMEBUFFER_HEIGHT 840 //px
 #define SINGLE_THREAD 1
 #define RUNTIME_LOG_ON 1
 #define SHOW_PROCESS_COST 0

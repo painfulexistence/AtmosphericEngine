@@ -3,9 +3,9 @@
 
 class Component;
 
-class LightProps;
-
-class CameraProps;
+struct LightProps;
+struct CameraProps;
+struct ImpostorProps;
 
 class Mesh;
 
@@ -31,9 +31,10 @@ public:
     GameObject* AddCamera(const CameraProps&);
     GameObject* AddRenderable(const std::string& meshName);
     GameObject* AddRenderable(Mesh* mesh);
-    GameObject* AddDrawable2D();
-    GameObject* AddImpostor(const std::string& meshName, float mass = 0.0f, glm::vec3 linearFactor = glm::vec3(1.0f), glm::vec3 angularFactor = glm::vec3(1.0f));
-    GameObject* AddImpostor(Mesh* mesh, float mass = 0.0f, glm::vec3 linearFactor = glm::vec3(1.0f), glm::vec3 angularFactor = glm::vec3(1.0f));
+    GameObject* AddDrawable2D(const Drawable2DProps& props);
+    GameObject* AddImpostor(const ImpostorProps& props);
+    // GameObject* AddImpostor(const std::string& meshName, float mass = 0.0f, glm::vec3 linearFactor = glm::vec3(1.0f), glm::vec3 angularFactor = glm::vec3(1.0f));
+    // GameObject* AddImpostor(Mesh* mesh, float mass = 0.0f, glm::vec3 linearFactor = glm::vec3(1.0f), glm::vec3 angularFactor = glm::vec3(1.0f));
 
     glm::mat4 GetLocalTransform() const;
     void SetLocalTransform(glm::mat4 xform);

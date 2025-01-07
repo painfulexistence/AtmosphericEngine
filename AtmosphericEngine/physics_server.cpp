@@ -52,6 +52,7 @@ void PhysicsServer::Init(Application* app) {
     _broadphase = new btDbvtBroadphase();
     _solver = new btSequentialImpulseConstraintSolver();
     _world = new btDiscreteDynamicsWorld(_dispatcher, _broadphase, _solver, _config);
+    SetGravity(glm::vec3(0, -GRAVITY, 0));
 
     _debugDrawer = new PhysicsDebugDrawer();
     _world->setDebugDrawer(_debugDrawer);
@@ -98,6 +99,7 @@ void PhysicsServer::Process(float dt) {
 
 void PhysicsServer::DrawImGui(float dt) {
     if (ImGui::CollapsingHeader("Physics", ImGuiTreeNodeFlags_DefaultOpen)) {
+        ImGui::Text("Number of manifolds: %d", _dispatcher->getNumManifolds());
         if (ImGui::Button("Debug UI")) {
             EnableDebugUI(!_debugUIEnabled);
         }

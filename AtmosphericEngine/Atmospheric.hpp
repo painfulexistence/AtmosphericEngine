@@ -9,3 +9,4 @@
 #include "script.hpp"
 #include "game_object.hpp"
 #include "asset_manager.hpp"
+#include "impostor.hpp"

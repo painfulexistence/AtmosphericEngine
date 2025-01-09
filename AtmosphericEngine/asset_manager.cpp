@@ -3,6 +3,8 @@
 
 #include "fmt/core.h"
 
+// TODO: enable SIMD again after fixing build issues on Windows and Linux (ref: https://facebook.github.io/facebook360_dep/source/html/stb__image_8h_source.html)
+#define STBI_NO_SIMD
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 

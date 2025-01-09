@@ -85,7 +85,7 @@ SceneDef Script::GetScene(const sol::table& sceneData)
     const sol::table texturesTable = sceneData["textures"];
     for (const auto& kv : texturesTable) {
         sol::table textureData = kv.second;
-        scene.textures.push_back((std::string)textureData["path"]);
+        scene.textures.push_back(textureData["path"].get<std::string>());
     }
 
     const sol::table shadersTable = sceneData["shaders"];

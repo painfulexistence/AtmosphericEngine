@@ -200,8 +200,8 @@ class MazeGame : public Application {
             auto box = CreateGameObject(pos, rot);
             box->AddRenderable("Box");
             box->AddImpostor({
+                .mass = 1.0f,
                 .shape = graphics.GetMesh("Box")->GetShape(),
-                .mass = 1.0f
             });
             boxes.push_back(box);
         }
@@ -211,8 +211,8 @@ class MazeGame : public Application {
             auto bullet = CreateGameObject(pos);
             bullet->AddRenderable("Sphere");
             bullet->AddImpostor({
+                .mass = 1.0f,
                 .shape = graphics.GetMesh("Sphere")->GetShape(),
-                .mass = 1.0f
             });
             bullet->SetPhysicsActivated(false);
             bullet->SetActive(false);
@@ -247,8 +247,8 @@ class MazeGame : public Application {
                     auto cube = CreateGameObject(MAZE_BLOCK_SIZE * glm::vec3(x - MAZE_SIZE / 2.f, 3, z - MAZE_SIZE / 2.f));
                     cube->AddRenderable("MazeBlock");
                     cube->AddImpostor({
+                        .mass = 0.0f,
                         .shape = graphics.GetMesh("MazeBlock")->GetShape(),
-                        .mass = 0.0f
                     });
                 }
                 if (!maze.IsEmpty(x, z)) {
@@ -256,8 +256,8 @@ class MazeGame : public Application {
                         auto cube = CreateGameObject(MAZE_BLOCK_SIZE * glm::vec3(x - MAZE_SIZE / 2.f, h, z - MAZE_SIZE / 2.f));
                         cube->AddRenderable("MazeBlock");
                         cube->AddImpostor({
+                            .mass = 0.0f,
                             .shape = graphics.GetMesh("MazeBlock")->GetShape(),
-                            .mass = 0.0f
                         });
                     }
                 } else {
@@ -275,8 +275,8 @@ class MazeGame : public Application {
                 auto cube = CreateGameObject(MAZE_BLOCK_SIZE * glm::vec3(x - MAZE_SIZE / 2.f, -1, z - MAZE_SIZE / 2.f));
                 cube->AddRenderable("MazeBlock");
                 cube->AddImpostor({
+                    .mass = 0.0f,
                     .shape = graphics.GetMesh("MazeBlock")->GetShape(),
-                    .mass = 0.0f
                 });
             }
         }

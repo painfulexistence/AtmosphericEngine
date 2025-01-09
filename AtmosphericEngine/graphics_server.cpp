@@ -114,10 +114,10 @@ void GraphicsServer::Init(Application* app)
 
     defaultLight = new Light(app->GetDefaultGameObject(), {
         .type = LightType::Directional,
-        .direction = glm::vec3(0.0f, -1.0f, 0.0f),
         .ambient = glm::vec3(1.0f, 1.0f, 1.0f),
         .diffuse = glm::vec3(1.0f, 1.0f, 1.0f),
         .specular = glm::vec3(1.0f, 1.0f, 1.0f),
+        .direction = glm::vec3(0.0f, -1.0f, 0.0f),
         .intensity = 1.0f,
         .castShadow = false
     });
@@ -1169,10 +1169,12 @@ Mesh* GraphicsServer::CreateSphereMesh(const std::string& name, float radius, in
 
 Mesh* GraphicsServer::CreateCapsuleMesh(const std::string& name, float radius, float height)
 {
+    // TODO: unimplemented
     // auto mesh = MeshBuilder::CreateCapsule(radius, height);
     // meshes.push_back(mesh);
     // _namedMeshes.insert({name, mesh});
     // return mesh;
+    return new Mesh;
 }
 
 Mesh* GraphicsServer::CreateTerrainMesh(const std::string& name, float worldSize, int resolution)

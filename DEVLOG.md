@@ -10,4 +10,5 @@
 - 2024/06/29 - using high frequency image (such as brown_mud_leaves_norm_gl.jpg) as a height map can generate an interesting effect
 - 2024/06/30 - implemented a tessellated terrain
 - 2024/07/03 - implemented phyiscs debug UI and learned that constantly growing std::vector without reserving space can cause freeze
+- 2025/01/09 - unable to resolve "fatal error LNK1104: cannot open file 'm.lib'" on Windows
 - TODO: use std::filesystem to get the correct asset loading path

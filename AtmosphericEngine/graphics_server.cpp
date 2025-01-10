@@ -70,9 +70,8 @@ void GraphicsServer::Init(Application* app)
     stbi_set_flip_vertically_on_load(true);
 
     // Note that OpenGL extensions must NOT be initialzed before the window creation
-    glewExperimental = GL_TRUE;
-    if (glewInit() != GLEW_OK)
-        throw std::runtime_error("Failed to initialize glew!");
+    if (gladLoadGLLoader((GLADloadproc)Window::GetProcAddress()) <= 0)
+        throw std::runtime_error("Failed to initialize OpenGL!");
 
     glPrimitiveRestartIndex(0xFFFF);
 

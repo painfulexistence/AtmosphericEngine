@@ -2,8 +2,9 @@
 #ifdef __APPLE__
 #define GL_SILENCE_DEPRECATION
 #endif
-#define GLEW_BUILD //For Windows
-#include <GL/glew.h>
+// #define GLEW_BUILD // build GLEW as dynamic library
+// #include <GL/glew.h>
+#include <glad/glad.h>
 
 #include <pch.hpp>
 

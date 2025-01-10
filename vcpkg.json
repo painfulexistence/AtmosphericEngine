@@ -3,7 +3,7 @@
     "version": "0.1.0",
     "license": "GPL-3.0",
     "dependencies": [
-      "glew",
+      "glad",
       "glfw3",
       "glm",
       "bullet3",

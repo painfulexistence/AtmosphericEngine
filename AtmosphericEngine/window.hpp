@@ -101,6 +101,7 @@ public:
     {
         return _instance;
     }
+    static void* GetProcAddress();
 
     Window(WindowProps props = {});
     ~Window();

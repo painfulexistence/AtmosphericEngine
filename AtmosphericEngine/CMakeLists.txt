@@ -1,6 +1,5 @@
-
-find_package(GLEW REQUIRED)
 find_package(glfw3 REQUIRED)
+find_package(glad CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
 
 option(BUILD_BULLET2_DEMOS OFF)
@@ -65,5 +64,5 @@ target_include_directories(AtmosphericEngine PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} 
 target_precompile_headers(AtmosphericEngine PRIVATE pch.hpp)
 target_link_libraries(AtmosphericEngine
     PUBLIC
-        GLEW::GLEW glfw glm::glm fmt::fmt spdlog::spdlog EnTT::EnTT BulletSoftBody BulletDynamics BulletCollision LinearMath ${LUA_LIBRARIES} sol2 raudio
+        glad::glad glfw glm::glm fmt::fmt spdlog::spdlog EnTT::EnTT BulletSoftBody BulletDynamics BulletCollision LinearMath ${LUA_LIBRARIES} sol2 raudio
 )

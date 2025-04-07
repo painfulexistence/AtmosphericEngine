@@ -1,5 +1,8 @@
 #include "window.hpp"
 #include <GLFW/glfw3.h>
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
 #include "backends/imgui_impl_glfw.h"
 #include "backends/imgui_impl_opengl3.h"
 #include "console.hpp"
@@ -262,19 +265,51 @@ void Window::DeinitImGui()
 
 void Window::MainLoop(std::function<void(float, float)> callback)
 {
-    float lastTime = GetTime();
-    float deltaTime = 0;
-    while (!glfwWindowShouldClose(static_cast<GLFWwindow*>(_internal))) {
+    struct LoopContext {
+        std::function<void(float, float)> callback;
+        float lastTime;
+        float deltaTime;
+        Window* window;
+    };
+
+    auto loop = [](LoopContext& ctx) {
         glfwPollEvents();
 
-        float currTime = GetTime();
-        deltaTime = currTime - lastTime;
-        lastTime = currTime;
+        float currTime = ctx.window->GetTime();
+        ctx.deltaTime = currTime - ctx.lastTime;
+        ctx.lastTime = currTime;
 
-        callback(currTime, deltaTime);
+        ctx.callback(currTime, ctx.deltaTime);
 
-        glfwSwapBuffers(static_cast<GLFWwindow*>(_internal));
+        glfwSwapBuffers(static_cast<GLFWwindow*>(ctx.window->_internal));
+    };
+
+    LoopContext ctx = {
+        callback,
+        GetTime(),
+        0,
+        this
+    };
+#ifdef __EMSCRIPTEN__
+    static LoopContext* ctxPtr = &ctx;
+    auto em_callback = [](void* arg) {
+        auto ctx = *static_cast<LoopContext*>(arg);
+        glfwPollEvents();
+
+        float currTime = ctx.window->GetTime();
+        ctx.deltaTime = currTime - ctx.lastTime;
+        ctx.lastTime = currTime;
+
+        ctx.callback(currTime, ctx.deltaTime);
+
+        glfwSwapBuffers(static_cast<GLFWwindow*>(ctx.window->_internal));
+    };
+    emscripten_set_main_loop_arg(em_callback, ctxPtr, 0, true);
+#else
+    while (!glfwWindowShouldClose(static_cast<GLFWwindow*>(_internal))) {
+        loop(ctx);
     }
+#endif
 }
 
 void Window::ToggleFullscreen()
@@ -440,12 +475,20 @@ KeyState Window::GetKeyState(Key key)
 
 std::string Window::GetTitle()
 {
+#ifdef __EMSCRIPTEN__
+    return std::string("Atmospheric Engine");
+#else
     return std::string(glfwGetWindowTitle(static_cast<GLFWwindow*>(_internal)));
+#endif
 }
 
 void Window::SetTitle(const std::string& title)
 {
+#ifdef __EMSCRIPTEN__
+    return;
+#else
     glfwSetWindowTitle(static_cast<GLFWwindow*>(_internal), title.c_str());
+#endif
 }
 
 float Window::GetTime()

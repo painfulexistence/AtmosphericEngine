@@ -4,7 +4,6 @@
     "license": "GPL-3.0",
     "dependencies": [
       "glad",
-      "glfw3",
       "glm",
       "bullet3",
       "fmt",

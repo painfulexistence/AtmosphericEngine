@@ -2,9 +2,13 @@
 #ifdef __APPLE__
 #define GL_SILENCE_DEPRECATION
 #endif
+#ifdef __EMSCRIPTEN__
+#include <GLES3/gl3.h>
+#else
 // #define GLEW_BUILD // build GLEW as dynamic library
 // #include <GL/glew.h>
 #include <glad/glad.h>
+#endif
 
 #include <pch.hpp>
 

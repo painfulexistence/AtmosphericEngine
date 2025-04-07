@@ -29,10 +29,12 @@ ShaderProgram::ShaderProgram(const ShaderProgramProps& props) : _program(glCreat
 {
     glAttachShader(_program, Shader(props.vert, ShaderType::VERTEX).shader);
     glAttachShader(_program, Shader(props.frag, ShaderType::FRAGMENT).shader);
+#ifndef __EMSCRIPTEN__
     if (props.tesc.has_value() && props.tese.has_value()) {
         glAttachShader(_program, Shader(props.tesc.value(), ShaderType::TESS_CONTROL).shader);
         glAttachShader(_program, Shader(props.tese.value(), ShaderType::TESS_EVALUATION).shader);
     }
+#endif
     glLinkProgram(_program);
 }
 
@@ -40,10 +42,12 @@ ShaderProgram::ShaderProgram(std::string vert, std::string frag, std::optional<s
 {
     glAttachShader(_program, Shader(vert, ShaderType::VERTEX).shader);
     glAttachShader(_program, Shader(frag, ShaderType::FRAGMENT).shader);
+#ifndef __EMSCRIPTEN__
     if (tesc.has_value() && tese.has_value()) {
         glAttachShader(_program, Shader(tesc.value(), ShaderType::TESS_CONTROL).shader);
         glAttachShader(_program, Shader(tese.value(), ShaderType::TESS_EVALUATION).shader);
     }
+#endif
     glLinkProgram(_program);
 }
 

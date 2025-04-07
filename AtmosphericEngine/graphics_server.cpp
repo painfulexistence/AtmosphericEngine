@@ -19,20 +19,22 @@ void CheckFramebufferStatus(const char* errorPrefix) {
         switch (status) {
         case GL_FRAMEBUFFER_UNDEFINED:
             throw std::runtime_error(fmt::format("{}: GL_FRAMEBUFFER_UNDEFINED", errorPrefix));
+        case GL_FRAMEBUFFER_UNSUPPORTED:
+            throw std::runtime_error(fmt::format("{}: GL_FRAMEBUFFER_UNSUPPORTED", errorPrefix));
         case GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT:
             throw std::runtime_error(fmt::format("{}: GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT", errorPrefix));
         case GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT:
             throw std::runtime_error(fmt::format("{}: GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT", errorPrefix));
+        case GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE:
+            throw std::runtime_error(fmt::format("{}: GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE", errorPrefix));
+    #ifndef __EMSCRIPTEN__
         case GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER:
             throw std::runtime_error(fmt::format("{}: GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER", errorPrefix));
         case GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER:
             throw std::runtime_error(fmt::format("{}: GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER", errorPrefix));
-        case GL_FRAMEBUFFER_UNSUPPORTED:
-            throw std::runtime_error(fmt::format("{}: GL_FRAMEBUFFER_UNSUPPORTED", errorPrefix));
-        case GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE:
-            throw std::runtime_error(fmt::format("{}: GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE", errorPrefix));
         case GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS:
             throw std::runtime_error(fmt::format("{}: GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS", errorPrefix));
+    #endif
         default:
             throw std::runtime_error(fmt::format("{}: Unknown error code {}", errorPrefix, status));
         }
@@ -69,20 +71,28 @@ void GraphicsServer::Init(Application* app)
 
     stbi_set_flip_vertically_on_load(true);
 
+#ifndef __EMSCRIPTEN__
     // Note that OpenGL extensions must NOT be initialzed before the window creation
     if (gladLoadGLLoader((GLADloadproc)Window::GetProcAddress()) <= 0)
         throw std::runtime_error("Failed to initialize OpenGL!");
+#endif
 
+#ifndef __EMSCRIPTEN__
     glPrimitiveRestartIndex(0xFFFF);
+#endif
 
+#ifndef __EMSCRIPTEN__
     glPatchParameteri(GL_PATCH_VERTICES, 4);
+#endif
 
     glLineWidth(2.0f);
 
     glCullFace(GL_BACK);
-    #if MSAA_ON
+#if MSAA_ON
+#ifndef __EMSCRIPTEN__
     glEnable(GL_MULTISAMPLE);
-    #endif
+#endif
+#endif
 
     auto window = Window::Get();
     auto [width, height] = window->GetFramebufferSize();
@@ -455,10 +465,12 @@ void GraphicsServer::CheckErrors()
             error = "INVALID_VALUE"; break;
             case GL_INVALID_OPERATION:
             error = "INVALID_OPERATION"; break;
+#ifndef __EMSCRIPTEN__
             case GL_STACK_OVERFLOW:
             error = "STACK_OVERFLOW"; break;
             case GL_STACK_UNDERFLOW:
             error = "STACK_UNDERFLOW"; break;
+#endif
             case GL_OUT_OF_MEMORY:
             error = "OUT_OF_MEMORY"; break;
             case GL_INVALID_FRAMEBUFFER_OPERATION:
@@ -810,10 +822,12 @@ void GraphicsServer::ColorPass(float dt)
         // glStencilMask(0xFF);
         // glStencilFunc(GL_ALWAYS, 1, 0xFF);
 
+    #ifndef __EMSCRIPTEN__
         if (wireframeEnabled || mesh->GetMaterial()->polygonMode == GL_LINE)
             glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
         else
             glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    #endif
 
         if (mesh->GetMaterial()->cullFaceEnabled)
             glEnable(GL_CULL_FACE);

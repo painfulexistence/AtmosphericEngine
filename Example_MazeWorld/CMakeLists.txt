@@ -11,6 +11,11 @@ set_target_properties(${GAME_NAME} PROPERTIES
 
 target_link_libraries(${GAME_NAME} PRIVATE AtmosphericEngine)
 
+if(USE_EMSCRIPTEN)
+    set(CMAKE_EXECUTABLE_SUFFIX ".html")
+    target_link_options(${GAME_NAME} PRIVATE -sWASM=1 -O3 -sUSE_GLFW=3 -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2 -sFULL_ES3=1)
+endif()
+
 add_custom_command(
     TARGET ${GAME_NAME} POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory

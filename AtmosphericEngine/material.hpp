@@ -14,7 +14,9 @@ struct MaterialProps {
     float shininess = .25;
     bool cullFaceEnabled = true;
     GLenum primitiveType = GL_TRIANGLES;
+#ifndef __EMSCRIPTEN__
     GLenum polygonMode = GL_FILL;
+#endif
 };
 
 class Material {
@@ -31,7 +33,9 @@ public:
     float shininess = .25;
     bool cullFaceEnabled = true;
     GLenum primitiveType = GL_TRIANGLES;
+#ifndef __EMSCRIPTEN__
     GLenum polygonMode = GL_FILL;
+#endif
 
     Material(const MaterialProps& props) {
         baseMap = props.baseMap;
@@ -46,6 +50,8 @@ public:
         shininess = props.shininess;
         cullFaceEnabled = props.cullFaceEnabled;
         primitiveType = props.primitiveType;
+    #ifndef __EMSCRIPTEN__
         polygonMode = props.polygonMode;
+    #endif
     }
 };

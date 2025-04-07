@@ -24,6 +24,8 @@ if(USE_CCACHE)
     set(CXX_COMPILER_LAUNCHER PATH_TO_CCACHE)
 endif()
 
+include(FetchContent)
+
 project(AtmosphericEngine VERSION 0.1)
 
 set(CMAKE_CXX_STANDARD 20)

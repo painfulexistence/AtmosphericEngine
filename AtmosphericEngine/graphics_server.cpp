@@ -519,6 +519,7 @@ void GraphicsServer::CreateRenderTargets(const RenderTargetProps& props)
         omniShadowMaps[i] = map;
     }
 
+#ifndef __EMSCRIPTEN__
     glBindFramebuffer(GL_FRAMEBUFFER, shadowFBO);
     for (int i = 0; i < (int)uniShadowMaps.size(); ++i)
     {
@@ -532,25 +533,41 @@ void GraphicsServer::CreateRenderTargets(const RenderTargetProps& props)
         glDrawBuffer(GL_NONE);
         glReadBuffer(GL_NONE);
     }
+#endif
 
     // 3. Create and set HDR pass attachments
     glGenTextures(1, &sceneColorTexture);
+#ifdef __EMSCRIPTEN__
+    glBindTexture(GL_TEXTURE_2D, sceneColorTexture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, props.width, props.height, 0, GL_RGBA, GL_FLOAT, NULL);
+#else
     glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, sceneColorTexture);
     glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, props.numSamples, GL_RGBA16F, props.width, props.height, GL_TRUE);
+#endif
     if (glIsTexture(sceneColorTexture) != GL_TRUE) {
         throw std::runtime_error("Failed to create HDR color texture");
     }
 
     glGenTextures(1, &sceneDepthTexture);
+#ifdef __EMSCRIPTEN__
+    glBindTexture(GL_TEXTURE_2D, sceneDepthTexture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, props.width, props.height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+#else
     glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, sceneDepthTexture);
     glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, props.numSamples, GL_DEPTH_COMPONENT, props.width, props.height, GL_TRUE);
+#endif
     if (glIsTexture(sceneDepthTexture) != GL_TRUE) {
         throw std::runtime_error("Failed to create HDR depth texture");
     }
 
     glBindFramebuffer(GL_FRAMEBUFFER, sceneFBO);
+#ifdef __EMSCRIPTEN__
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, sceneColorTexture, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, sceneDepthTexture, 0);
+#else
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D_MULTISAMPLE, sceneColorTexture, 0);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D_MULTISAMPLE, sceneDepthTexture, 0);
+#endif
     CheckFramebufferStatus("HDR framebuffer incomplete");
 
     // 4. Create and set MSAA pass attachments
@@ -572,23 +589,38 @@ void GraphicsServer::UpdateRenderTargets(const RenderTargetProps& props)
     // 1. Update and reset HDR pass attachments
     glDeleteTextures(1, &sceneColorTexture);
     glGenTextures(1, &sceneColorTexture);
+#ifdef __EMSCRIPTEN__
+    glBindTexture(GL_TEXTURE_2D, sceneColorTexture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, props.width, props.height, 0, GL_RGBA, GL_FLOAT, NULL);
+#else
     glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, sceneColorTexture);
     glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, props.numSamples, GL_RGBA16F, props.width, props.height, GL_TRUE);
+#endif
     if (glIsTexture(sceneColorTexture) != GL_TRUE) {
         throw std::runtime_error("Failed to create HDR color texture");
     }
 
     glDeleteTextures(1, &sceneDepthTexture);
     glGenTextures(1, &sceneDepthTexture);
+#ifdef __EMSCRIPTEN__
+    glBindTexture(GL_TEXTURE_2D, sceneDepthTexture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, props.width, props.height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+#else
     glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, sceneDepthTexture);
     glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, props.numSamples, GL_DEPTH_COMPONENT, props.width, props.height, GL_TRUE);
+#endif
     if (glIsTexture(sceneDepthTexture) != GL_TRUE) {
         throw std::runtime_error("Failed to create HDR depth texture");
     }
 
     glBindFramebuffer(GL_FRAMEBUFFER, sceneFBO);
+#ifdef __EMSCRIPTEN__
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, sceneColorTexture, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, sceneDepthTexture, 0);
+#else
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D_MULTISAMPLE, sceneColorTexture, 0);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D_MULTISAMPLE, sceneDepthTexture, 0);
+#endif
     CheckFramebufferStatus("HDR framebuffer incomplete");
 
     // 2. Update and reset MSAA pass attachments
@@ -662,7 +694,9 @@ void GraphicsServer::CreateDebugVAO()
 void GraphicsServer::ShadowPass(float dt)
 {
     glViewport(0, 0, SHADOW_W, SHADOW_H);
+#ifndef __EMSCRIPTEN__
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+#endif
     glBindFramebuffer(GL_FRAMEBUFFER, shadowFBO);
 
     auto mainLight = GetMainLight();
@@ -861,7 +895,11 @@ void GraphicsServer::ColorPass(float dt)
             terrainShader.SetUniform(std::string("World"), instances[0].modelMatrix);
 
             glBindVertexArray(mesh->vao);
+#ifndef __EMSCRIPTEN__
             glDrawArrays(GL_PATCHES, 0, mesh->vertCount);
+#else
+            glDrawArrays(GL_TRIANGLES, 0, mesh->vertCount);
+#endif
             glBindVertexArray(0);
             break;
 
@@ -969,7 +1007,9 @@ void GraphicsServer::ColorPass(float dt)
 
 void GraphicsServer::MSAAResolvePass(float dt)
 {
+#ifndef __EMSCRIPTEN__
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+#endif
 
     auto [width, height] = Window::Get()->GetFramebufferSize();
 
@@ -991,7 +1031,9 @@ void GraphicsServer::CanvasPass(float dt)
         glDisable(GL_DEPTH_TEST);
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+#ifndef __EMSCRIPTEN__
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+#endif
 
         // TODO: use canvas textures
         for (int i = 0; i < textures.size(); i++) {
@@ -1024,7 +1066,9 @@ void GraphicsServer::PostProcessPass(float dt)
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     // glDisable(GL_DEPTH_TEST);
     // glDisable(GL_BLEND);
+#ifndef __EMSCRIPTEN__
     // glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+#endif
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, msaaResolveTexture);

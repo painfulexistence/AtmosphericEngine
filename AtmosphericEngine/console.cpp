@@ -1,6 +1,10 @@
 #include "console.hpp"
+#ifdef __EMSCRIPTEN__
+#include "emscripten.h"
+#else
 #include "spdlog/spdlog.h"
 #include "spdlog/sinks/stdout_color_sinks.h"
+#endif
 #include "script.hpp"
 
 Console* Console::_instance = nullptr;
@@ -22,9 +26,11 @@ void Console::Init(Application* app)
 {
     Server::Init(app);
 
+#ifndef __EMSCRIPTEN__
     auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
     auto logger = std::make_shared<spdlog::logger>("console", console_sink);
     spdlog::set_default_logger(logger);
+#endif
 }
 
 void Console::Process(float dt)
@@ -35,6 +41,7 @@ void Console::Process(float dt)
 void Console::DrawImGui(float dt)
 {
     if (ImGui::CollapsingHeader("Console", ImGuiTreeNodeFlags_DefaultOpen)) {
+#ifndef __EMSCRIPTEN__
         ImGui::Text("Log Level:");
         if (ImGui::RadioButton("Info", spdlog::level::info == spdlog::default_logger()->level())) {
             spdlog::default_logger()->set_level(spdlog::level::info);
@@ -49,6 +56,7 @@ void Console::DrawImGui(float dt)
         }
 
         ImGui::Separator();
+#endif
 
         ImGui::BeginChild("Log", ImVec2(0, 300));
         ImGui::Text("Log:");
@@ -68,21 +76,33 @@ void Console::DrawImGui(float dt)
 void Console::Info(const std::string& message)
 {
 #if RUNTIME_LOG_ON
+#ifdef __EMSCRIPTEN__
+    EM_ASM(console.info(message));
+#else
     spdlog::info(message);
+#endif
 #endif
 }
 
 void Console::Warn(const std::string& message)
 {
 #if RUNTIME_LOG_ON
+#ifdef __EMSCRIPTEN__
+    EM_ASM(console.warn(message));
+#else
     spdlog::warn(message);
+#endif
 #endif
 }
 
 void Console::Error(const std::string& message)
 {
 #if RUNTIME_LOG_ON
+#ifdef __EMSCRIPTEN__
+    EM_ASM(console.error(message));
+#else
     spdlog::error(message);
+#endif
 #endif
 }
 

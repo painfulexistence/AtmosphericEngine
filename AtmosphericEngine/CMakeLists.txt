@@ -76,7 +76,7 @@ target_link_libraries(AtmosphericEngine
         glm::glm fmt::fmt EnTT::EnTT BulletSoftBody BulletDynamics BulletCollision LinearMath ${LUA_LIBRARIES} sol2 raudio
 )
 if(USE_EMSCRIPTEN)
-    target_compile_options(AtmosphericEngine PRIVATE -pthread)
+    target_compile_options(AtmosphericEngine PRIVATE)
     target_link_options(AtmosphericEngine PRIVATE -sWASM=1 -O3 -sUSE_GLFW=3 -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2 -sFULL_ES3=1)
 else()
     target_link_libraries(AtmosphericEngine

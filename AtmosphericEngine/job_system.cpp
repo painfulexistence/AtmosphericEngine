@@ -1,6 +1,9 @@
 #include "job_system.hpp"
 
 JobSystem::JobSystem() {
+#ifdef __EMSCRIPTEN__
+    _numThreads = 1;
+#else
 	auto numCores = std::thread::hardware_concurrency();
 
     _numThreads = std::max(1u, numCores);
@@ -40,11 +43,13 @@ JobSystem::JobSystem() {
             }
         });
     }
+#endif
 
     _groups[0] = std::make_shared<JobGroup>();
 }
 
 JobSystem::~JobSystem() {
+#ifndef __EMSCRIPTEN__
     _stopped = true;
     _queueCondition.notify_all();
 
@@ -53,6 +58,7 @@ JobSystem::~JobSystem() {
             thread.join();
         }
     }
+#endif
 }
 
 void JobSystem::Init() {
@@ -68,19 +74,30 @@ void JobSystem::Init() {
 // }
 
 void JobSystem::Execute(const Job& job, JobGroupID groupID) {
+#ifdef __EMSCRIPTEN__
+    job(0);
+#else
     currentLabel += 1;
     {
         std::lock_guard<std::mutex> lock(_queueMutex);
         _jobQueue.push(job);
     }
     _queueCondition.notify_one();
+#endif
 }
 
 bool JobSystem::IsBusy() {
+#ifdef __EMSCRIPTEN__
+    return false;
+#else
     return finishedLabel.load() < currentLabel;
+#endif
 }
 
 void JobSystem::Wait() {
+#ifdef __EMSCRIPTEN__
+    return;
+#else
     std::unique_lock<std::mutex> lock(_waitMutex);
     _waitCondition.wait(lock, [this]() {
         return !IsBusy();
@@ -89,14 +106,22 @@ void JobSystem::Wait() {
     // while (IsBusy()) {
     //     std::this_thread::yield();
     // }
+#endif
 }
 
 JobGroupID JobSystem::CreateGroup() {
+#ifdef __EMSCRIPTEN__
+    return 0;
+#else
     _groups[_nextGroupID] = std::make_shared<JobGroup>();
     return _nextGroupID++;
+#endif
 }
 
 void JobSystem::WaitGroup(JobGroupID id) {
+#ifdef __EMSCRIPTEN__
+    return;
+#else
     std::shared_ptr<JobGroup> group;
     {
         std::lock_guard<std::mutex> lock(_groupsMutex);
@@ -107,4 +132,5 @@ void JobSystem::WaitGroup(JobGroupID id) {
     _waitCondition.wait(lock, [group]() {
         return group->finishedLabel.load() >= group->currentLabel;
     });
+#endif
 }

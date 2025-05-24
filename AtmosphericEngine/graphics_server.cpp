@@ -96,9 +96,11 @@ void GraphicsServer::Init(Application* app)
 
     auto window = Window::Get();
     auto [width, height] = window->GetFramebufferSize();
-    CreateRenderTargets(RenderTargetProps { width, height });
+    CreateFBOs();
+    CreateRTs(RenderTargetProps { width, height });
     window->AddFramebufferResizeCallback([this, window](int newWidth, int newHeight) {
-        UpdateRenderTargets(RenderTargetProps { newWidth, newHeight });
+        DestroyRTs();
+        CreateRTs(RenderTargetProps { newWidth, newHeight });
     });
 
     CreateDebugVAO();
@@ -183,12 +185,21 @@ void GraphicsServer::Render(float dt)
     }
 
     ShadowPass(dt);
-    ColorPass(dt);
-    MSAAResolvePass(dt);
+
+    if (_currRenderPath == RenderPath::Forward) {
+        ForwardPass(dt);
+        MSAAResolvePass(dt);
+    } else {
+        GeometryPass(dt);
+        LightingPass(dt);
+        MSAAResolvePass(dt); // TODO: remove this
+    }
+
     CanvasPass(dt);
     if (postProcessEnabled) {
         PostProcessPass(dt);
     }
+
     CheckErrors();
 }
 
@@ -427,6 +438,18 @@ void GraphicsServer::LoadDefaultShaders() {
                 .vert = "assets/shaders/canvas.vert",
                 .frag = "assets/shaders/canvas.frag"
             }
+        },
+        {
+            "geometry", {
+                .vert = "assets/shaders/geometry.vert",
+                .frag = "assets/shaders/geometry.frag"
+            }
+        },
+        {
+            "lighting", {
+                .vert = "assets/shaders/lighting.vert",
+                .frag = "assets/shaders/lighting.frag"
+            }
         }
     });
 }
@@ -482,14 +505,22 @@ void GraphicsServer::CheckErrors()
     }
 }
 
-void GraphicsServer::CreateRenderTargets(const RenderTargetProps& props)
-{
-    // 1. Create framebuffers
+void GraphicsServer::CreateFBOs() {
     glGenFramebuffers(1, &shadowFBO);
     glGenFramebuffers(1, &sceneFBO);
     glGenFramebuffers(1, &msaaResolveFBO);
+    glGenFramebuffers(1, &gBuffer.id);
+}
 
-    // 2. Create and set shadow pass attachments
+void GraphicsServer::DestroyFBOs() {
+    glDeleteFramebuffers(1, &shadowFBO);
+    glDeleteFramebuffers(1, &sceneFBO);
+    glDeleteFramebuffers(1, &msaaResolveFBO);
+    glDeleteFramebuffers(1, &gBuffer.id);
+}
+
+void GraphicsServer::CreateRTs(const RenderTargetProps& props) {
+    // 1. Create and set shadow pass attachments
     for (int i = 0; i < MAX_UNI_LIGHTS; ++i)
     {
         GLuint map;
@@ -535,14 +566,19 @@ void GraphicsServer::CreateRenderTargets(const RenderTargetProps& props)
     }
 #endif
 
-    // 3. Create and set HDR pass attachments
+    // 2. Create and set HDR pass attachments
     glGenTextures(1, &sceneColorTexture);
 #ifdef __EMSCRIPTEN__
     glBindTexture(GL_TEXTURE_2D, sceneColorTexture);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, props.width, props.height, 0, GL_RGBA, GL_FLOAT, NULL);
 #else
-    glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, sceneColorTexture);
-    glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, props.numSamples, GL_RGBA16F, props.width, props.height, GL_TRUE);
+    if (_currRenderPath == RenderPath::Forward) {
+        glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, sceneColorTexture);
+        glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, props.numSamples, GL_RGBA16F, props.width, props.height, GL_TRUE);
+    } else {
+        glBindTexture(GL_TEXTURE_2D, sceneColorTexture);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, props.width, props.height, 0, GL_RGBA, GL_FLOAT, NULL);
+    }
 #endif
     if (glIsTexture(sceneColorTexture) != GL_TRUE) {
         throw std::runtime_error("Failed to create HDR color texture");
@@ -553,8 +589,13 @@ void GraphicsServer::CreateRenderTargets(const RenderTargetProps& props)
     glBindTexture(GL_TEXTURE_2D, sceneDepthTexture);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, props.width, props.height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
 #else
-    glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, sceneDepthTexture);
-    glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, props.numSamples, GL_DEPTH_COMPONENT, props.width, props.height, GL_TRUE);
+    if (_currRenderPath == RenderPath::Forward) {
+        glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, sceneDepthTexture);
+        glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, props.numSamples, GL_DEPTH_COMPONENT, props.width, props.height, GL_TRUE);
+    } else {
+        glBindTexture(GL_TEXTURE_2D, sceneDepthTexture);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, props.width, props.height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+    }
 #endif
     if (glIsTexture(sceneDepthTexture) != GL_TRUE) {
         throw std::runtime_error("Failed to create HDR depth texture");
@@ -565,12 +606,17 @@ void GraphicsServer::CreateRenderTargets(const RenderTargetProps& props)
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, sceneColorTexture, 0);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, sceneDepthTexture, 0);
 #else
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D_MULTISAMPLE, sceneColorTexture, 0);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D_MULTISAMPLE, sceneDepthTexture, 0);
+    if (_currRenderPath == RenderPath::Forward) {
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D_MULTISAMPLE, sceneColorTexture, 0);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D_MULTISAMPLE, sceneDepthTexture, 0);
+    } else {
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, sceneColorTexture, 0);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, sceneDepthTexture, 0);
+    }
 #endif
     CheckFramebufferStatus("HDR framebuffer incomplete");
 
-    // 4. Create and set MSAA pass attachments
+    // 3. Create and set MSAA resolve pass attachments
     glGenTextures(1, &msaaResolveTexture);
     glBindTexture(GL_TEXTURE_2D, msaaResolveTexture);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -580,62 +626,60 @@ void GraphicsServer::CreateRenderTargets(const RenderTargetProps& props)
     glBindFramebuffer(GL_FRAMEBUFFER, msaaResolveFBO);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, msaaResolveTexture, 0);
     CheckFramebufferStatus("MSAA framebuffer incomplete");
+
+    // 4. Create and set geometry pass attachments
+    glGenTextures(1, &gBuffer.positionRT);
+    glBindTexture(GL_TEXTURE_2D, gBuffer.positionRT);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, props.width, props.height, 0, GL_RGB, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+    glGenTextures(1, &gBuffer.normalRT);
+    glBindTexture(GL_TEXTURE_2D, gBuffer.normalRT);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, props.width, props.height, 0, GL_RGB, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+    glGenTextures(1, &gBuffer.albedoRT);
+    glBindTexture(GL_TEXTURE_2D, gBuffer.albedoRT);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, props.width, props.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+    glGenTextures(1, &gBuffer.materialRT);
+    glBindTexture(GL_TEXTURE_2D, gBuffer.materialRT);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, props.width, props.height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+    glGenTextures(1, &gBuffer.depthRT);
+    glBindTexture(GL_TEXTURE_2D, gBuffer.depthRT);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, props.width, props.height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+
+    glGenFramebuffers(1, &gBuffer.id);
+    glBindFramebuffer(GL_FRAMEBUFFER, gBuffer.id);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, gBuffer.positionRT, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, gBuffer.normalRT, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, gBuffer.albedoRT, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT3, GL_TEXTURE_2D, gBuffer.materialRT, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, gBuffer.depthRT, 0);
+    unsigned int attachments[4] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3 };
+    glDrawBuffers(4, attachments);
+    CheckFramebufferStatus("G-buffer incomplete");
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
-void GraphicsServer::UpdateRenderTargets(const RenderTargetProps& props)
-{
-    // 1. Update and reset HDR pass attachments
+void GraphicsServer::DestroyRTs() {
     glDeleteTextures(1, &sceneColorTexture);
-    glGenTextures(1, &sceneColorTexture);
-#ifdef __EMSCRIPTEN__
-    glBindTexture(GL_TEXTURE_2D, sceneColorTexture);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, props.width, props.height, 0, GL_RGBA, GL_FLOAT, NULL);
-#else
-    glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, sceneColorTexture);
-    glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, props.numSamples, GL_RGBA16F, props.width, props.height, GL_TRUE);
-#endif
-    if (glIsTexture(sceneColorTexture) != GL_TRUE) {
-        throw std::runtime_error("Failed to create HDR color texture");
-    }
-
     glDeleteTextures(1, &sceneDepthTexture);
-    glGenTextures(1, &sceneDepthTexture);
-#ifdef __EMSCRIPTEN__
-    glBindTexture(GL_TEXTURE_2D, sceneDepthTexture);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, props.width, props.height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
-#else
-    glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, sceneDepthTexture);
-    glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, props.numSamples, GL_DEPTH_COMPONENT, props.width, props.height, GL_TRUE);
-#endif
-    if (glIsTexture(sceneDepthTexture) != GL_TRUE) {
-        throw std::runtime_error("Failed to create HDR depth texture");
-    }
-
-    glBindFramebuffer(GL_FRAMEBUFFER, sceneFBO);
-#ifdef __EMSCRIPTEN__
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, sceneColorTexture, 0);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, sceneDepthTexture, 0);
-#else
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D_MULTISAMPLE, sceneColorTexture, 0);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D_MULTISAMPLE, sceneDepthTexture, 0);
-#endif
-    CheckFramebufferStatus("HDR framebuffer incomplete");
-
-    // 2. Update and reset MSAA pass attachments
     glDeleteTextures(1, &msaaResolveTexture);
-    glGenTextures(1, &msaaResolveTexture);
-    glBindTexture(GL_TEXTURE_2D, msaaResolveTexture);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, props.width, props.height, 0, GL_RGBA, GL_FLOAT, NULL);
 
-    glBindFramebuffer(GL_FRAMEBUFFER, msaaResolveFBO);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, msaaResolveTexture, 0);
-    CheckFramebufferStatus("MSAA framebuffer incomplete");
-
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glDeleteTextures(1, &gBuffer.positionRT);
+    glDeleteTextures(1, &gBuffer.normalRT);
+    glDeleteTextures(1, &gBuffer.albedoRT);
+    glDeleteTextures(1, &gBuffer.materialRT);
+    glDeleteTextures(1, &gBuffer.depthRT);
 }
 
 void GraphicsServer::CreateCanvasVAO()
@@ -789,7 +833,7 @@ void GraphicsServer::ShadowPass(float dt)
     }
 }
 
-void GraphicsServer::ColorPass(float dt)
+void GraphicsServer::ForwardPass(float dt)
 {
     auto [width, height] = Window::Get()->GetFramebufferSize();
 
@@ -1242,7 +1286,7 @@ Mesh* GraphicsServer::CreateTerrainMesh(const std::string& name, float worldSize
     return mesh;
 }
 
-Renderable* GraphicsServer::CreateRenderable(GameObject* go, Mesh* mesh)
+Renderable* GraphicsServer::CreateRenderable(GameObject* go, Mesh* mesh, DrawMode mode)
 {
     auto renderable = new Renderable(go, mesh);
     renderables.push_back(renderable);
@@ -1272,4 +1316,147 @@ Light* GraphicsServer::CreateLight(GameObject* go, const LightProps& props)
         directionalLights.push_back(light);
     }
     return light;
+}
+
+void GraphicsServer::GeometryPass(float dt) {
+    auto [width, height] = Window::Get()->GetFramebufferSize();
+    glViewport(0, 0, width, height);
+    glBindFramebuffer(GL_FRAMEBUFFER, gBuffer.id);
+
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    auto geometryShader = GetShaderByName("geometry");
+    geometryShader.Activate();
+
+    for (const auto& [mesh, instances] : _meshInstanceMap) {
+        if (instances.empty())
+            continue;
+
+        if (!mesh->initialized)
+            throw std::runtime_error("Mesh uninitialized!");
+
+        glEnable(GL_DEPTH_TEST);
+        glDepthFunc(GL_LESS);
+
+        if (mesh->GetMaterial()->cullFaceEnabled)
+            glEnable(GL_CULL_FACE);
+        else
+            glDisable(GL_CULL_FACE);
+
+        geometryShader.SetUniform("ProjectionView", GetMainCamera()->GetProjectionMatrix() * GetMainCamera()->GetViewMatrix());
+
+        switch (mesh->type) {
+        case MeshType::PRIM:
+        default:
+            if (mesh->GetMaterial()->baseMap >= 0) {
+                glActiveTexture(GL_TEXTURE0);
+                glBindTexture(GL_TEXTURE_2D, textures[mesh->GetMaterial()->baseMap]);
+                geometryShader.SetUniform("baseMap", 0);
+            } else {
+                glActiveTexture(GL_TEXTURE0);
+                glBindTexture(GL_TEXTURE_2D, textures[0]);
+                geometryShader.SetUniform("baseMap", 0);
+            }
+
+            if (mesh->GetMaterial()->normalMap >= 0) {
+                glActiveTexture(GL_TEXTURE1);
+                glBindTexture(GL_TEXTURE_2D, textures[mesh->GetMaterial()->normalMap]);
+                geometryShader.SetUniform("normalMap", 1);
+            } else {
+                glActiveTexture(GL_TEXTURE1);
+                glBindTexture(GL_TEXTURE_2D, textures[1]);
+                geometryShader.SetUniform("normalMap", 1);
+            }
+
+            if (mesh->GetMaterial()->roughnessMap >= 0) {
+                glActiveTexture(GL_TEXTURE2);
+                glBindTexture(GL_TEXTURE_2D, textures[mesh->GetMaterial()->roughnessMap]);
+                geometryShader.SetUniform("roughnessMap", 2);
+            } else {
+                glActiveTexture(GL_TEXTURE2);
+                glBindTexture(GL_TEXTURE_2D, textures[3]);
+                geometryShader.SetUniform("roughnessMap", 2);
+            }
+
+            if (mesh->GetMaterial()->metallicMap >= 0) {
+                glActiveTexture(GL_TEXTURE3);
+                glBindTexture(GL_TEXTURE_2D, textures[mesh->GetMaterial()->metallicMap]);
+                geometryShader.SetUniform("metallicMap", 3);
+            } else {
+                glActiveTexture(GL_TEXTURE3);
+                glBindTexture(GL_TEXTURE_2D, textures[4]);
+                geometryShader.SetUniform("metallicMap", 3);
+            }
+
+            if (mesh->GetMaterial()->aoMap >= 0) {
+                glActiveTexture(GL_TEXTURE4);
+                glBindTexture(GL_TEXTURE_2D, textures[mesh->GetMaterial()->aoMap]);
+                geometryShader.SetUniform("aoMap", 4);
+            } else {
+                glActiveTexture(GL_TEXTURE4);
+                glBindTexture(GL_TEXTURE_2D, textures[2]);
+                geometryShader.SetUniform("aoMap", 4);
+            }
+
+            glBindVertexArray(mesh->vao);
+            glBindBuffer(GL_ARRAY_BUFFER, mesh->ibo);
+            if (instances.size() > 0) {
+                glBufferData(GL_ARRAY_BUFFER, instances.size() * sizeof(InstanceData), instances.data(), GL_DYNAMIC_DRAW);
+                glDrawElementsInstanced(mesh->GetMaterial()->primitiveType, mesh->triCount * 3, GL_UNSIGNED_SHORT, 0, instances.size());
+            }
+            glBindVertexArray(0);
+        }
+    }
+}
+
+void GraphicsServer::LightingPass(float dt) {
+    auto [width, height] = Window::Get()->GetFramebufferSize();
+    glViewport(0, 0, width, height);
+    glBindFramebuffer(GL_FRAMEBUFFER, sceneFBO);
+
+    glClearColor(clearColor.r, clearColor.g, clearColor.b, clearColor.a);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    auto lightingShader = GetShaderByName("lighting");
+    lightingShader.Activate();
+
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, gBuffer.positionRT);
+    lightingShader.SetUniform("gPosition", 0);
+
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, gBuffer.normalRT);
+    lightingShader.SetUniform("gNormal", 1);
+
+    glActiveTexture(GL_TEXTURE2);
+    glBindTexture(GL_TEXTURE_2D, gBuffer.albedoRT);
+    lightingShader.SetUniform("gAlbedo", 2);
+
+    glActiveTexture(GL_TEXTURE3);
+    glBindTexture(GL_TEXTURE_2D, gBuffer.materialRT);
+    lightingShader.SetUniform("gMaterial", 3);
+
+    auto mainLight = GetMainLight();
+    lightingShader.SetUniform("cam_pos", GetMainCamera()->GetEyePosition());
+    lightingShader.SetUniform("mainLight.direction", mainLight->direction);
+    lightingShader.SetUniform("mainLight.ambient", mainLight->ambient);
+    lightingShader.SetUniform("mainLight.diffuse", mainLight->diffuse);
+    lightingShader.SetUniform("mainLight.specular", mainLight->specular);
+    lightingShader.SetUniform("mainLight.intensity", mainLight->intensity);
+
+    for (int i = 0; i < auxLightCount; ++i) {
+        Light* l = pointLights[i];
+        std::string prefix = "pointLights[" + std::to_string(i) + "]";
+        lightingShader.SetUniform(prefix + ".position", l->GetPosition());
+        lightingShader.SetUniform(prefix + ".ambient", l->ambient);
+        lightingShader.SetUniform(prefix + ".diffuse", l->diffuse);
+        lightingShader.SetUniform(prefix + ".specular", l->specular);
+        lightingShader.SetUniform(prefix + ".attenuation", l->attenuation);
+        lightingShader.SetUniform(prefix + ".intensity", l->intensity);
+    }
+    lightingShader.SetUniform("pointLightCount", auxLightCount);
+
+    glBindVertexArray(screenVAO);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    glBindVertexArray(0);
 }

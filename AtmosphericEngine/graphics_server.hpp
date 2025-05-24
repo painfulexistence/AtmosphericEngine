@@ -14,6 +14,11 @@ using TextureID = uint32_t;
 using ShaderID = uint32_t;
 using MaterialID = uint32_t;
 
+enum class RenderPath {
+    Forward,
+    Deferred
+};
+
 struct CanvasVertex {
     glm::vec2 position;
     glm::vec2 texCoord;
@@ -54,14 +59,12 @@ struct RenderTargetProps {
 
 // class Material;
 
-class GraphicsServer : public Server
-{
+class GraphicsServer : public Server {
 private:
     static GraphicsServer* _instance;
 
 public:
-    static GraphicsServer* Get()
-    {
+    static GraphicsServer* Get() {
         return _instance;
     }
     std::vector<Mesh*> meshes;
@@ -190,7 +193,12 @@ public:
 
     // void Draw(const std::shared_ptr<Mesh> mesh);
 
+    void SetRenderPath(RenderPath path) { _currRenderPath = path; }
+    RenderPath GetRenderPath() const { return _currRenderPath; }
+
 private:
+    RenderPath _currRenderPath = RenderPath::Forward;
+
     GLuint debugVAO, debugVBO;
     GLuint canvasVAO, canvasVBO;
     GLuint screenVAO, screenVBO;
@@ -206,6 +214,14 @@ private:
 
     GLuint shadowFBO, sceneFBO, msaaResolveFBO;
     GLuint finalFBO = 0;
+    struct GBuffer {
+        GLuint id;
+        GLuint positionRT;
+        GLuint normalRT;
+        GLuint albedoRT;
+        GLuint materialRT;
+        GLuint depthRT;
+    } gBuffer;
 
     std::unordered_map<std::string, Mesh*> _namedMeshes;
     std::unordered_map<Mesh*, std::vector<InstanceData>> _meshInstanceMap;
@@ -227,18 +243,23 @@ private:
     int _canvasQuadCount = 0;
     int _debugLineCount = 0;
 
-    void CreateRenderTargets(const RenderTargetProps& props);
-    void UpdateRenderTargets(const RenderTargetProps& props);
+    void CreateFBOs();
+    void DestroyFBOs();
+    void CreateRTs(const RenderTargetProps& props);
+    void DestroyRTs();
 
     void CreateCanvasVAO();
     void CreateScreenVAO();
     void CreateDebugVAO();
 
     void ShadowPass(float dt);
-    void ColorPass(float dt);
+    void ForwardPass(float dt);
     void MSAAResolvePass(float dt);
     void CanvasPass(float dt);
     void PostProcessPass(float dt);
+
+    void GeometryPass(float dt);
+    void LightingPass(float dt);
 
     static constexpr int MAX_CANVAS_TEXTURES = 32;
 };

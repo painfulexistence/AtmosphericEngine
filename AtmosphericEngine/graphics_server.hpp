@@ -128,7 +128,8 @@ public:
 
     void LoadMaterials(const std::vector<MaterialProps>& materialDefs);
 
-    void CheckErrors();
+    void CheckFramebufferStatus(const std::string& prefix);
+    void CheckErrors(const std::string& prefix);
 
     void PushDebugLine(DebugVertex from, DebugVertex to);
 

@@ -12,35 +12,6 @@
 
 #include <cstddef>
 
-void CheckFramebufferStatus(const char* errorPrefix) {
-    auto status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-    if (status != GL_FRAMEBUFFER_COMPLETE)
-    {
-        switch (status) {
-        case GL_FRAMEBUFFER_UNDEFINED:
-            throw std::runtime_error(fmt::format("{}: GL_FRAMEBUFFER_UNDEFINED", errorPrefix));
-        case GL_FRAMEBUFFER_UNSUPPORTED:
-            throw std::runtime_error(fmt::format("{}: GL_FRAMEBUFFER_UNSUPPORTED", errorPrefix));
-        case GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT:
-            throw std::runtime_error(fmt::format("{}: GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT", errorPrefix));
-        case GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT:
-            throw std::runtime_error(fmt::format("{}: GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT", errorPrefix));
-        case GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE:
-            throw std::runtime_error(fmt::format("{}: GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE", errorPrefix));
-    #ifndef __EMSCRIPTEN__
-        case GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER:
-            throw std::runtime_error(fmt::format("{}: GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER", errorPrefix));
-        case GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER:
-            throw std::runtime_error(fmt::format("{}: GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER", errorPrefix));
-        case GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS:
-            throw std::runtime_error(fmt::format("{}: GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS", errorPrefix));
-    #endif
-        default:
-            throw std::runtime_error(fmt::format("{}: Unknown error code {}", errorPrefix, status));
-        }
-    }
-}
-
 GraphicsServer* GraphicsServer::_instance = nullptr;
 
 GraphicsServer::GraphicsServer()
@@ -199,8 +170,6 @@ void GraphicsServer::Render(float dt)
     if (postProcessEnabled) {
         PostProcessPass(dt);
     }
-
-    CheckErrors();
 }
 
 void GraphicsServer::DrawImGui(float dt)
@@ -265,10 +234,43 @@ void GraphicsServer::DrawImGui(float dt)
             }
             for (auto t : omniShadowMaps) {
                 // FIXME: cubemap textures are not supported yet
-                if (ImGui::TreeNode(fmt:: format("Point shadow map #{}", t).c_str())) {
-                    // ImGui::Image((ImTextureID)(intptr_t)t, ImVec2(64, 64));
-                    ImGui::TreePop();
-                }
+                // if (ImGui::TreeNode(fmt:: format("Point shadow map #{}", t).c_str())) {
+                //     ImGui::Image((ImTextureID)(intptr_t)t, ImVec2(64, 64));
+                //     ImGui::TreePop();
+                // }
+            }
+            ImGui::Separator();
+            if (ImGui::TreeNode(fmt::format("Scene Color RT").c_str())) {
+                ImGui::Image((ImTextureID)(intptr_t)sceneColorTexture, ImVec2(64, 64));
+                ImGui::TreePop();
+            }
+            if (ImGui::TreeNode(fmt::format("Scene Depth RT").c_str())) {
+                ImGui::Image((ImTextureID)(intptr_t)sceneDepthTexture, ImVec2(64, 64));
+                ImGui::TreePop();
+            }
+            if (ImGui::TreeNode(fmt::format("MSAA Resolve RT").c_str())) {
+                ImGui::Image((ImTextureID)(intptr_t)msaaResolveTexture, ImVec2(64, 64));
+                ImGui::TreePop();
+            }
+            if (ImGui::TreeNode(fmt::format("GBuffer Position RT").c_str())) {
+                ImGui::Image((ImTextureID)(intptr_t)gBuffer.positionRT, ImVec2(64, 64));
+                ImGui::TreePop();
+            }
+            if (ImGui::TreeNode(fmt::format("GBuffer Normal RT").c_str())) {
+                ImGui::Image((ImTextureID)(intptr_t)gBuffer.normalRT, ImVec2(64, 64));
+                ImGui::TreePop();
+            }
+            if (ImGui::TreeNode(fmt::format("GBuffer Albedo RT").c_str())) {
+                ImGui::Image((ImTextureID)(intptr_t)gBuffer.albedoRT, ImVec2(64, 64));
+                ImGui::TreePop();
+            }
+            if (ImGui::TreeNode(fmt::format("GBuffer Material RT").c_str())) {
+                ImGui::Image((ImTextureID)(intptr_t)gBuffer.materialRT, ImVec2(64, 64));
+                ImGui::TreePop();
+            }
+            if (ImGui::TreeNode(fmt::format("GBuffer Depth RT").c_str())) {
+                ImGui::Image((ImTextureID)(intptr_t)gBuffer.depthRT, ImVec2(64, 64));
+                ImGui::TreePop();
             }
             ImGui::Separator();
             for (auto t : defaultTextures) {
@@ -474,34 +476,60 @@ void GraphicsServer::LoadMaterials(const std::vector<MaterialProps>& materialDef
     }
 }
 
-void GraphicsServer::CheckErrors()
-{
+void GraphicsServer::CheckFramebufferStatus(const std::string& prefix) {
+    auto status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+    if (status != GL_FRAMEBUFFER_COMPLETE) {
+        switch (status) {
+        case GL_FRAMEBUFFER_UNDEFINED:
+            throw std::runtime_error(fmt::format("{}: GL_FRAMEBUFFER_UNDEFINED", prefix));
+        case GL_FRAMEBUFFER_UNSUPPORTED:
+            throw std::runtime_error(fmt::format("{}: GL_FRAMEBUFFER_UNSUPPORTED", prefix));
+        case GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT:
+            throw std::runtime_error(fmt::format("{}: GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT", prefix));
+        case GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT:
+            throw std::runtime_error(fmt::format("{}: GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT", prefix));
+        case GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE:
+            throw std::runtime_error(fmt::format("{}: GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE", prefix));
+    #ifndef __EMSCRIPTEN__
+        case GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER:
+            throw std::runtime_error(fmt::format("{}: GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER", prefix));
+        case GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER:
+            throw std::runtime_error(fmt::format("{}: GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER", prefix));
+        case GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS:
+            throw std::runtime_error(fmt::format("{}: GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS", prefix));
+    #endif
+        default:
+            throw std::runtime_error(fmt::format("{}: Unknown error code {}", prefix, status));
+        }
+    }
+}
+
+void GraphicsServer::CheckErrors(const std::string& prefix) {
     GLenum errorCode;
     while ((errorCode = glGetError()) != GL_NO_ERROR) {
         std::string error;
-        switch (errorCode)
-        {
-            // Reference: https://learnopengl.com/In-Practice/Debugging
-            case GL_INVALID_ENUM:
+        switch (errorCode) {
+        // Reference: https://learnopengl.com/In-Practice/Debugging
+        case GL_INVALID_ENUM:
             error = "INVALID_ENUM"; break;
-            case GL_INVALID_VALUE:
+        case GL_INVALID_VALUE:
             error = "INVALID_VALUE"; break;
-            case GL_INVALID_OPERATION:
+        case GL_INVALID_OPERATION:
             error = "INVALID_OPERATION"; break;
-#ifndef __EMSCRIPTEN__
-            case GL_STACK_OVERFLOW:
+    #ifndef __EMSCRIPTEN__
+        case GL_STACK_OVERFLOW:
             error = "STACK_OVERFLOW"; break;
-            case GL_STACK_UNDERFLOW:
+        case GL_STACK_UNDERFLOW:
             error = "STACK_UNDERFLOW"; break;
-#endif
-            case GL_OUT_OF_MEMORY:
+    #endif
+        case GL_OUT_OF_MEMORY:
             error = "OUT_OF_MEMORY"; break;
-            case GL_INVALID_FRAMEBUFFER_OPERATION:
+        case GL_INVALID_FRAMEBUFFER_OPERATION:
             error = "INVALID_FRAMEBUFFER_OPERATION"; break;
-            default:
+        default:
             error = "UNKNOWN"; break;
         }
-        Console::Get()->Error(fmt::format("GL error: {}\n", error));
+        Console::Get()->Error(fmt::format("{}: {}\n", prefix, error));
     }
 }
 
@@ -521,8 +549,7 @@ void GraphicsServer::DestroyFBOs() {
 
 void GraphicsServer::CreateRTs(const RenderTargetProps& props) {
     // 1. Create and set shadow pass attachments
-    for (int i = 0; i < MAX_UNI_LIGHTS; ++i)
-    {
+    for (int i = 0; i < MAX_UNI_LIGHTS; ++i) {
         GLuint map;
         glGenTextures(1, &map);
         glBindTexture(GL_TEXTURE_2D, map);
@@ -533,8 +560,7 @@ void GraphicsServer::CreateRTs(const RenderTargetProps& props) {
         glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, SHADOW_W, SHADOW_H, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
         uniShadowMaps[i] = map;
     }
-    for (int i = 0; i < MAX_OMNI_LIGHTS; ++i)
-    {
+    for (int i = 0; i < MAX_OMNI_LIGHTS; ++i) {
         GLuint map;
         glGenTextures(1, &map);
         glBindTexture(GL_TEXTURE_CUBE_MAP, map);
@@ -543,8 +569,7 @@ void GraphicsServer::CreateRTs(const RenderTargetProps& props) {
         glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-        for (int f = 0; f < 6; ++f)
-        {
+        for (int f = 0; f < 6; ++f) {
             glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + f, 0, GL_DEPTH_COMPONENT, SHADOW_W, SHADOW_H, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
         }
         omniShadowMaps[i] = map;
@@ -552,19 +577,18 @@ void GraphicsServer::CreateRTs(const RenderTargetProps& props) {
 
 #ifndef __EMSCRIPTEN__
     glBindFramebuffer(GL_FRAMEBUFFER, shadowFBO);
-    for (int i = 0; i < (int)uniShadowMaps.size(); ++i)
-    {
+    for (int i = 0; i < (int)uniShadowMaps.size(); ++i) {
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, uniShadowMaps[i], 0);
         glDrawBuffer(GL_NONE);
         glReadBuffer(GL_NONE);
     }
-    for (int i = 0; i < (int)omniShadowMaps.size(); ++i)
-    {
+    for (int i = 0; i < (int)omniShadowMaps.size(); ++i) {
         glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, omniShadowMaps[i], 0);
         glDrawBuffer(GL_NONE);
         glReadBuffer(GL_NONE);
     }
 #endif
+    CheckErrors("Create shadow RTs");
 
     // 2. Create and set HDR pass attachments
     glGenTextures(1, &sceneColorTexture);
@@ -615,6 +639,7 @@ void GraphicsServer::CreateRTs(const RenderTargetProps& props) {
     }
 #endif
     CheckFramebufferStatus("HDR framebuffer incomplete");
+    CheckErrors("Create HDR RTs");
 
     // 3. Create and set MSAA resolve pass attachments
     glGenTextures(1, &msaaResolveTexture);
@@ -626,6 +651,7 @@ void GraphicsServer::CreateRTs(const RenderTargetProps& props) {
     glBindFramebuffer(GL_FRAMEBUFFER, msaaResolveFBO);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, msaaResolveTexture, 0);
     CheckFramebufferStatus("MSAA framebuffer incomplete");
+    CheckErrors("Create MSAA resolve RTs");
 
     // 4. Create and set geometry pass attachments
     glGenTextures(1, &gBuffer.positionRT);
@@ -654,7 +680,7 @@ void GraphicsServer::CreateRTs(const RenderTargetProps& props) {
 
     glGenTextures(1, &gBuffer.depthRT);
     glBindTexture(GL_TEXTURE_2D, gBuffer.depthRT);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, props.width, props.height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, props.width, props.height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
 
     glGenFramebuffers(1, &gBuffer.id);
     glBindFramebuffer(GL_FRAMEBUFFER, gBuffer.id);
@@ -663,11 +689,12 @@ void GraphicsServer::CreateRTs(const RenderTargetProps& props) {
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, gBuffer.albedoRT, 0);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT3, GL_TEXTURE_2D, gBuffer.materialRT, 0);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, gBuffer.depthRT, 0);
-    unsigned int attachments[4] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3 };
-    glDrawBuffers(4, attachments);
+    std::array<GLuint,4> attachments = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3 };
+    glDrawBuffers(attachments.size(), attachments.data());
     CheckFramebufferStatus("G-buffer incomplete");
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    CheckErrors("Create G-buffer RTs");
 }
 
 void GraphicsServer::DestroyRTs() {
@@ -833,11 +860,10 @@ void GraphicsServer::ShadowPass(float dt)
     }
 }
 
-void GraphicsServer::ForwardPass(float dt)
-{
+void GraphicsServer::ForwardPass(float dt) {
     auto [width, height] = Window::Get()->GetFramebufferSize();
-
     glViewport(0, 0, width, height);
+
     glBindFramebuffer(GL_FRAMEBUFFER, sceneFBO);
 
     for (int i = 0; i < MAX_UNI_LIGHTS; ++i) {
@@ -1047,6 +1073,156 @@ void GraphicsServer::ForwardPass(float dt)
 
         debugLines.clear();
     }
+}
+
+void GraphicsServer::GeometryPass(float dt) {
+    auto [width, height] = Window::Get()->GetFramebufferSize();
+    glViewport(0, 0, width, height);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, gBuffer.id);
+    std::array<GLuint,4> attachments = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3 };
+    glDrawBuffers(attachments.size(), attachments.data());
+    // for (int i = 0; i < MAX_UNI_LIGHTS; ++i) {
+    //     glActiveTexture(GL_TEXTURE0 + i);
+    //     glBindTexture(GL_TEXTURE_2D, uniShadowMaps[i]);
+    // }
+    // for (int i = 0; i < MAX_OMNI_LIGHTS; ++i) {
+    //     glActiveTexture(GL_TEXTURE0 + UNI_SHADOW_MAP_COUNT + i);
+    //     glBindTexture(GL_TEXTURE_CUBE_MAP, omniShadowMaps[i]);
+    // }
+    for (int i = 0; i < defaultTextures.size(); ++i) {
+        glActiveTexture(GL_TEXTURE0 + DEFAULT_TEXTURE_BASE_INDEX + i);
+        glBindTexture(GL_TEXTURE_2D, defaultTextures[i]);
+    }
+    for (int i = 0; i < textures.size(); ++i) {
+        glActiveTexture(GL_TEXTURE0 + SCENE_TEXTURE_BASE_INDEX + i);
+        glBindTexture(GL_TEXTURE_2D, textures[i]);
+    }
+
+    glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);
+    glClearDepth(1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    auto geometryShader = GetShaderByName("geometry");
+    geometryShader.Activate();
+
+    for (const auto& [mesh, instances] : _meshInstanceMap) {
+        if (instances.empty())
+            continue;
+
+        if (!mesh->initialized)
+            throw std::runtime_error("Mesh uninitialized!");
+
+        glEnable(GL_DEPTH_TEST);
+        glDepthFunc(GL_LESS);
+
+        if (mesh->GetMaterial()->cullFaceEnabled)
+            glEnable(GL_CULL_FACE);
+        else
+            glDisable(GL_CULL_FACE);
+
+        geometryShader.SetUniform("ProjectionView", GetMainCamera()->GetProjectionMatrix() * GetMainCamera()->GetViewMatrix());
+
+        switch (mesh->type) {
+        case MeshType::TERRAIN:
+            // TODO: implement terrain rendering
+            break;
+        case MeshType::SKY:
+            // TODO: implement skybox rendering
+            break;
+        case MeshType::PRIM:
+        default:
+            if (mesh->GetMaterial()->baseMap >= 0) {
+                geometryShader.SetUniform("baseMap", SCENE_TEXTURE_BASE_INDEX + mesh->GetMaterial()->baseMap);
+            } else {
+                geometryShader.SetUniform("baseMap", DEFAULT_TEXTURE_BASE_INDEX + 0);
+            }
+            if (mesh->GetMaterial()->normalMap >= 0) {
+                geometryShader.SetUniform("normalMap", SCENE_TEXTURE_BASE_INDEX + mesh->GetMaterial()->normalMap);
+            } else {
+                geometryShader.SetUniform("normalMap", DEFAULT_TEXTURE_BASE_INDEX + 1);
+            }
+            if (mesh->GetMaterial()->aoMap >= 0) {
+                geometryShader.SetUniform("aoMap", SCENE_TEXTURE_BASE_INDEX + mesh->GetMaterial()->aoMap);
+            } else {
+                geometryShader.SetUniform("aoMap", DEFAULT_TEXTURE_BASE_INDEX + 2);
+            }
+            if (mesh->GetMaterial()->roughnessMap >= 0) {
+                geometryShader.SetUniform("roughnessMap", SCENE_TEXTURE_BASE_INDEX + mesh->GetMaterial()->roughnessMap);
+            } else {
+                geometryShader.SetUniform("roughnessMap", DEFAULT_TEXTURE_BASE_INDEX + 3);
+            }
+            if (mesh->GetMaterial()->metallicMap >= 0) {
+                geometryShader.SetUniform("metallicMap", SCENE_TEXTURE_BASE_INDEX + mesh->GetMaterial()->metallicMap);
+            } else {
+                geometryShader.SetUniform("metallicMap", DEFAULT_TEXTURE_BASE_INDEX + 4);
+            }
+
+            glBindVertexArray(mesh->vao);
+            glBindBuffer(GL_ARRAY_BUFFER, mesh->ibo);
+            if (instances.size() > 0) {
+                glBufferData(GL_ARRAY_BUFFER, instances.size() * sizeof(InstanceData), instances.data(), GL_DYNAMIC_DRAW);
+                glDrawElementsInstanced(mesh->GetMaterial()->primitiveType, mesh->triCount * 3, GL_UNSIGNED_SHORT, 0, instances.size());
+            }
+            glBindVertexArray(0);
+        }
+    }
+
+    CheckErrors("Geometry pass");
+}
+
+void GraphicsServer::LightingPass(float dt) {
+    auto [width, height] = Window::Get()->GetFramebufferSize();
+    glViewport(0, 0, width, height);
+    glBindFramebuffer(GL_FRAMEBUFFER, sceneFBO);
+
+    glClearColor(clearColor.r, clearColor.g, clearColor.b, clearColor.a);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    auto lightingShader = GetShaderByName("lighting");
+    lightingShader.Activate();
+
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, gBuffer.positionRT);
+    lightingShader.SetUniform("gPosition", 0);
+
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, gBuffer.normalRT);
+    lightingShader.SetUniform("gNormal", 1);
+
+    glActiveTexture(GL_TEXTURE2);
+    glBindTexture(GL_TEXTURE_2D, gBuffer.albedoRT);
+    lightingShader.SetUniform("gAlbedo", 2);
+
+    glActiveTexture(GL_TEXTURE3);
+    glBindTexture(GL_TEXTURE_2D, gBuffer.materialRT);
+    lightingShader.SetUniform("gMaterial", 3);
+
+    auto mainLight = GetMainLight();
+    lightingShader.SetUniform("cam_pos", GetMainCamera()->GetEyePosition());
+    lightingShader.SetUniform("mainLight.direction", mainLight->direction);
+    lightingShader.SetUniform("mainLight.ambient", mainLight->ambient);
+    lightingShader.SetUniform("mainLight.diffuse", mainLight->diffuse);
+    lightingShader.SetUniform("mainLight.specular", mainLight->specular);
+    lightingShader.SetUniform("mainLight.intensity", mainLight->intensity);
+
+    for (int i = 0; i < auxLightCount; ++i) {
+        Light* l = pointLights[i];
+        std::string prefix = "pointLights[" + std::to_string(i) + "]";
+        lightingShader.SetUniform(prefix + ".position", l->GetPosition());
+        lightingShader.SetUniform(prefix + ".ambient", l->ambient);
+        lightingShader.SetUniform(prefix + ".diffuse", l->diffuse);
+        lightingShader.SetUniform(prefix + ".specular", l->specular);
+        lightingShader.SetUniform(prefix + ".attenuation", l->attenuation);
+        lightingShader.SetUniform(prefix + ".intensity", l->intensity);
+    }
+    lightingShader.SetUniform("pointLightCount", auxLightCount);
+
+    glBindVertexArray(screenVAO);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    glBindVertexArray(0);
+
+    CheckErrors("Lighting pass");
 }
 
 void GraphicsServer::MSAAResolvePass(float dt)
@@ -1316,147 +1492,4 @@ Light* GraphicsServer::CreateLight(GameObject* go, const LightProps& props)
         directionalLights.push_back(light);
     }
     return light;
-}
-
-void GraphicsServer::GeometryPass(float dt) {
-    auto [width, height] = Window::Get()->GetFramebufferSize();
-    glViewport(0, 0, width, height);
-    glBindFramebuffer(GL_FRAMEBUFFER, gBuffer.id);
-
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-    auto geometryShader = GetShaderByName("geometry");
-    geometryShader.Activate();
-
-    for (const auto& [mesh, instances] : _meshInstanceMap) {
-        if (instances.empty())
-            continue;
-
-        if (!mesh->initialized)
-            throw std::runtime_error("Mesh uninitialized!");
-
-        glEnable(GL_DEPTH_TEST);
-        glDepthFunc(GL_LESS);
-
-        if (mesh->GetMaterial()->cullFaceEnabled)
-            glEnable(GL_CULL_FACE);
-        else
-            glDisable(GL_CULL_FACE);
-
-        geometryShader.SetUniform("ProjectionView", GetMainCamera()->GetProjectionMatrix() * GetMainCamera()->GetViewMatrix());
-
-        switch (mesh->type) {
-        case MeshType::PRIM:
-        default:
-            if (mesh->GetMaterial()->baseMap >= 0) {
-                glActiveTexture(GL_TEXTURE0);
-                glBindTexture(GL_TEXTURE_2D, textures[mesh->GetMaterial()->baseMap]);
-                geometryShader.SetUniform("baseMap", 0);
-            } else {
-                glActiveTexture(GL_TEXTURE0);
-                glBindTexture(GL_TEXTURE_2D, textures[0]);
-                geometryShader.SetUniform("baseMap", 0);
-            }
-
-            if (mesh->GetMaterial()->normalMap >= 0) {
-                glActiveTexture(GL_TEXTURE1);
-                glBindTexture(GL_TEXTURE_2D, textures[mesh->GetMaterial()->normalMap]);
-                geometryShader.SetUniform("normalMap", 1);
-            } else {
-                glActiveTexture(GL_TEXTURE1);
-                glBindTexture(GL_TEXTURE_2D, textures[1]);
-                geometryShader.SetUniform("normalMap", 1);
-            }
-
-            if (mesh->GetMaterial()->roughnessMap >= 0) {
-                glActiveTexture(GL_TEXTURE2);
-                glBindTexture(GL_TEXTURE_2D, textures[mesh->GetMaterial()->roughnessMap]);
-                geometryShader.SetUniform("roughnessMap", 2);
-            } else {
-                glActiveTexture(GL_TEXTURE2);
-                glBindTexture(GL_TEXTURE_2D, textures[3]);
-                geometryShader.SetUniform("roughnessMap", 2);
-            }
-
-            if (mesh->GetMaterial()->metallicMap >= 0) {
-                glActiveTexture(GL_TEXTURE3);
-                glBindTexture(GL_TEXTURE_2D, textures[mesh->GetMaterial()->metallicMap]);
-                geometryShader.SetUniform("metallicMap", 3);
-            } else {
-                glActiveTexture(GL_TEXTURE3);
-                glBindTexture(GL_TEXTURE_2D, textures[4]);
-                geometryShader.SetUniform("metallicMap", 3);
-            }
-
-            if (mesh->GetMaterial()->aoMap >= 0) {
-                glActiveTexture(GL_TEXTURE4);
-                glBindTexture(GL_TEXTURE_2D, textures[mesh->GetMaterial()->aoMap]);
-                geometryShader.SetUniform("aoMap", 4);
-            } else {
-                glActiveTexture(GL_TEXTURE4);
-                glBindTexture(GL_TEXTURE_2D, textures[2]);
-                geometryShader.SetUniform("aoMap", 4);
-            }
-
-            glBindVertexArray(mesh->vao);
-            glBindBuffer(GL_ARRAY_BUFFER, mesh->ibo);
-            if (instances.size() > 0) {
-                glBufferData(GL_ARRAY_BUFFER, instances.size() * sizeof(InstanceData), instances.data(), GL_DYNAMIC_DRAW);
-                glDrawElementsInstanced(mesh->GetMaterial()->primitiveType, mesh->triCount * 3, GL_UNSIGNED_SHORT, 0, instances.size());
-            }
-            glBindVertexArray(0);
-        }
-    }
-}
-
-void GraphicsServer::LightingPass(float dt) {
-    auto [width, height] = Window::Get()->GetFramebufferSize();
-    glViewport(0, 0, width, height);
-    glBindFramebuffer(GL_FRAMEBUFFER, sceneFBO);
-
-    glClearColor(clearColor.r, clearColor.g, clearColor.b, clearColor.a);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-    auto lightingShader = GetShaderByName("lighting");
-    lightingShader.Activate();
-
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, gBuffer.positionRT);
-    lightingShader.SetUniform("gPosition", 0);
-
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, gBuffer.normalRT);
-    lightingShader.SetUniform("gNormal", 1);
-
-    glActiveTexture(GL_TEXTURE2);
-    glBindTexture(GL_TEXTURE_2D, gBuffer.albedoRT);
-    lightingShader.SetUniform("gAlbedo", 2);
-
-    glActiveTexture(GL_TEXTURE3);
-    glBindTexture(GL_TEXTURE_2D, gBuffer.materialRT);
-    lightingShader.SetUniform("gMaterial", 3);
-
-    auto mainLight = GetMainLight();
-    lightingShader.SetUniform("cam_pos", GetMainCamera()->GetEyePosition());
-    lightingShader.SetUniform("mainLight.direction", mainLight->direction);
-    lightingShader.SetUniform("mainLight.ambient", mainLight->ambient);
-    lightingShader.SetUniform("mainLight.diffuse", mainLight->diffuse);
-    lightingShader.SetUniform("mainLight.specular", mainLight->specular);
-    lightingShader.SetUniform("mainLight.intensity", mainLight->intensity);
-
-    for (int i = 0; i < auxLightCount; ++i) {
-        Light* l = pointLights[i];
-        std::string prefix = "pointLights[" + std::to_string(i) + "]";
-        lightingShader.SetUniform(prefix + ".position", l->GetPosition());
-        lightingShader.SetUniform(prefix + ".ambient", l->ambient);
-        lightingShader.SetUniform(prefix + ".diffuse", l->diffuse);
-        lightingShader.SetUniform(prefix + ".specular", l->specular);
-        lightingShader.SetUniform(prefix + ".attenuation", l->attenuation);
-        lightingShader.SetUniform(prefix + ".intensity", l->intensity);
-    }
-    lightingShader.SetUniform("pointLightCount", auxLightCount);
-
-    glBindVertexArray(screenVAO);
-    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-    glBindVertexArray(0);
 }

@@ -38,7 +38,7 @@ void Application::Run()
 {
     console.Init(this);
     input.Init(this);
-    audio.Init(this);
+    // audio.Init(this);
     graphics.Init(this);
     physics.Init(this); // Note that physics debug drawer is dependent on graphics server
     script.Init(this);
@@ -110,7 +110,7 @@ void Application::ReloadScene() {
     graphics.directionalLights.clear();
     graphics.pointLights.clear();
 
-    audio.StopAll();
+    // audio.StopAll();
 
     physics.Reset();
 
@@ -141,7 +141,7 @@ void Application::Update(const FrameData& props)
     //ecs.Process(dt); // Note that most of the entity manipulation logic should be put there
     console.Process(dt);
     input.Process(dt);
-    audio.Process(dt);
+    // audio.Process(dt);
     script.Process(dt);
     physics.Process(dt); // TODO: Update only every entity's physics transform
     for (auto& subsystem : _subsystems) {
@@ -341,7 +341,7 @@ void Application::Render(const FrameData& props)
         {
             console.DrawImGui(dt);
             input.DrawImGui(dt);
-            audio.DrawImGui(dt);
+            // audio.DrawImGui(dt);
             graphics.DrawImGui(dt);
             physics.DrawImGui(dt);
             for (auto subsystem : _subsystems) {

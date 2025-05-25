@@ -144,8 +144,8 @@ class MazeGame : public Application {
     const int numMaxBullets = 200;
     int currentBulletIndex = 0;
     std::vector<GameObject*> boxes;
-    MusicID bgm = 0;
-    SoundID sfxShoot = 0;
+    // MusicID bgm = 0;
+    // SoundID sfxShoot = 0;
 
     void OnLoad() override {
         srand(seed);
@@ -159,7 +159,7 @@ class MazeGame : public Application {
         bgm = audio.LoadMusic("assets/sounds/Lost Highway.mp3");
         audio.SetMusicVolume(bgm, 2.0f);
         audio.PlayMusic(bgm);
-        sfxShoot = audio.LoadSound("assets/sounds/fire.wav");
+        // sfxShoot = audio.LoadSound("assets/sounds/fire.wav");
 
         // Load models
         auto characterMesh = graphics.CreateMesh("Character");
@@ -313,7 +313,7 @@ class MazeGame : public Application {
                 bullets[currentBulletIndex]->SetPosition(pos);
                 bullets[currentBulletIndex]->SetVelocity(vel);
 
-                audio.PlaySound(sfxShoot);
+                // audio.PlaySound(sfxShoot);
 
                 bulletCooldownTimer = bulletCooldown;
             } else {

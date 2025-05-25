@@ -3,7 +3,7 @@
 #include "globals.hpp"
 #include "imgui.h"
 #include "console.hpp"
-#include "audio_manager.hpp"
+// #include "audio_manager.hpp"
 #include "graphics_server.hpp"
 #include "physics_server.hpp"
 #include "input.hpp"
@@ -70,7 +70,7 @@ public:
 
 protected:
     // These subsystems will be game accessible
-    AudioManager audio;
+    // AudioManager audio;
     GraphicsServer graphics;
     PhysicsServer physics;
     Console console;

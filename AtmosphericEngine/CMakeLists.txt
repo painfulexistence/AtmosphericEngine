@@ -52,7 +52,9 @@ find_package(lua REQUIRED)
 
 add_subdirectory(external/entt)
 add_subdirectory(external/sol2)
-add_subdirectory(external/raudio/projects/CMake)
+if(USE_AUDIO)
+    add_subdirectory(external/raudio/projects/CMake)
+endif()
 
 #file(GLOB SOURCES *.cpp RECURSIVE EXCLUDE external)
 set(SOURCES
@@ -78,8 +80,10 @@ set(SOURCES
     asset_manager.cpp
     job_system.cpp
     utility/file.cpp
-    audio_manager.cpp
 )
+if(USE_AUDIO)
+    list(APPEND SOURCES audio_manager.cpp)
+endif()
 if(USE_SDL3)
     list(APPEND SOURCES window_sdl3.cpp)
 elseif(USE_SDL2)
@@ -109,8 +113,14 @@ target_include_directories(AtmosphericEngine PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} 
 target_precompile_headers(AtmosphericEngine PRIVATE pch.hpp)
 target_link_libraries(AtmosphericEngine
     PUBLIC
-        glm::glm fmt::fmt EnTT::EnTT BulletSoftBody BulletDynamics BulletCollision LinearMath ${LUA_LIBRARIES} sol2 raudio
+        glm::glm fmt::fmt EnTT::EnTT BulletSoftBody BulletDynamics BulletCollision LinearMath ${LUA_LIBRARIES} sol2
 )
+if (USE_AUDIO)
+    target_link_libraries(AtmosphericEngine
+        PUBLIC
+            raudio
+    )
+endif()
 if(USE_EMSCRIPTEN)
     target_compile_options(AtmosphericEngine PRIVATE)
     if(USE_SDL3)

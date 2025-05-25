@@ -35,10 +35,14 @@ jobs:
         run: |
           echo "build-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
 
+      - name: Install vcpkg
+        uses: actions/checkout@v4
+        with:
+          repository: "microsoft/vcpkg"
+          path: "vcpkg"
+
       - name: Setup vcpkg
         uses: lukka/run-vcpkg@v11
-        with:
-          vcpkgJsonGlob: "vcpkg.json"
 
       - name: Bootstrap vcpkg on Unix
         if: matrix.os == 'macos-latest' || matrix.os == 'ubuntu-latest'

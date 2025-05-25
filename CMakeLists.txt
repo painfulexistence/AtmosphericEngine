@@ -3,6 +3,8 @@ cmake_minimum_required(VERSION 3.19)
 option(USE_GLOBAL_VCPKG "Use the global Vcpkg " OFF)
 option(USE_EMSCRIPTEN "Use Emscripten to build a WebAssembly module" OFF)
 option(USE_CCACHE "Use ccache to speed up recompilation" ON)
+option(USE_SDL3 "Use SDL3" ON)
+option(USE_SDL2 "Use SDL2" OFF)
 
 if (USE_GLOBAL_VCPKG)
     set(CMAKE_TOOLCHAIN_FILE $ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake)

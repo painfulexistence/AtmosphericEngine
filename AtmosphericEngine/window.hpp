@@ -155,6 +155,7 @@ public:
 
 private:
     void* _internal = nullptr;
+    bool _isRunning = true;
     bool _isFullscreen = false;
     int _windowedX;
     int _windowedY;

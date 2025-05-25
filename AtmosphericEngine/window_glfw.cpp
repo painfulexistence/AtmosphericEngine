@@ -7,8 +7,7 @@
 #include "backends/imgui_impl_opengl3.h"
 #include "console.hpp"
 
-static int convertToGlfwKey(Key key)
-{
+static int convertToGlfwKey(Key key) {
     switch (key) {
     case Key::UP: return GLFW_KEY_UP;
     case Key::RIGHT: return GLFW_KEY_RIGHT;
@@ -57,8 +56,7 @@ static int convertToGlfwKey(Key key)
     }
 }
 
-static Key convertFromGlfwKey(int key)
-{
+static Key convertFromGlfwKey(int key) {
     switch (key) {
     case GLFW_KEY_UP: return Key::UP;
     case GLFW_KEY_RIGHT: return Key::RIGHT;
@@ -109,16 +107,17 @@ static Key convertFromGlfwKey(int key)
 
 Window* Window::_instance = nullptr;
 
-Window::Window(WindowProps props)
-{
-    if (_instance != nullptr)
+Window::Window(WindowProps props) {
+    if (_instance != nullptr) {
         throw std::runtime_error("Window is already initialized!");
+    }
 
     glfwSetErrorCallback([](int code, const char* msg) {
         throw std::runtime_error(fmt::format("Error occurred: {}\n", msg));
     });
-    if (!glfwInit())
+    if (!glfwInit()) {
         throw std::runtime_error("Failed to initialize GLFW!");
+    }
 
 #ifdef __EMSCRIPTEN__
     glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_ES_API);
@@ -153,15 +152,12 @@ Window::Window(WindowProps props)
     _instance = this;
 }
 
-Window::~Window()
-{
+Window::~Window() {
     glfwDestroyWindow(static_cast<GLFWwindow*>(_internal));
-
     glfwTerminate();
 }
 
-void Window::Init()
-{
+void Window::Init() {
     GLFWwindow* window = static_cast<GLFWwindow*>(_internal);
     glfwGetWindowSize(window, &_windowedWidth, &_windowedHeight);
     glfwGetWindowPos(window, &_windowedX, &_windowedY);
@@ -227,37 +223,36 @@ void Window::Init()
     });
 }
 
-void* Window::GetProcAddress()
-{
+void* Window::GetProcAddress() {
     return (void*)glfwGetProcAddress;
 }
 
-void Window::InitImGui()
-{
+void Window::InitImGui() {
     IMGUI_CHECKVERSION();
 
     ImGui::CreateContext();
     ImGui_ImplGlfw_InitForOpenGL(static_cast<GLFWwindow*>(_internal), true);
+#ifdef __EMSCRIPTEN__
+    ImGui_ImplOpenGL3_Init("#version 300 es");
+#else
     ImGui_ImplOpenGL3_Init("#version 410");
+#endif
 
     ImGui::StyleColorsDark();
 }
 
-void Window::BeginImGuiFrame()
-{
+void Window::BeginImGuiFrame() {
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
 }
 
-void Window::EndImGuiFrame()
-{
+void Window::EndImGuiFrame() {
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 }
 
-void Window::DeinitImGui()
-{
+void Window::DeinitImGui() {
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
@@ -306,14 +301,13 @@ void Window::MainLoop(std::function<void(float, float)> callback)
     };
     emscripten_set_main_loop_arg(em_callback, ctxPtr, 0, true);
 #else
-    while (!glfwWindowShouldClose(static_cast<GLFWwindow*>(_internal))) {
+    while (_isRunning) {
         loop(ctx);
     }
 #endif
 }
 
-void Window::ToggleFullscreen()
-{
+void Window::ToggleFullscreen() {
     GLFWwindow* window = static_cast<GLFWwindow*>(_internal);
     if (!_isFullscreen) {
         GLFWmonitor* monitor = glfwGetPrimaryMonitor();
@@ -327,97 +321,50 @@ void Window::ToggleFullscreen()
     }
 }
 
-void Window::Close()
-{
-    glfwSetWindowShouldClose(static_cast<GLFWwindow*>(_internal), true);
+void Window::Close() {
+    _isRunning = false;
 }
 
-WindowEventCallbackID Window::AddMouseMoveCallback(MouseMoveCallback callback)
-{
-    _mouseMoveCallbacks[_nextCallbackID] = callback;
-    return _nextCallbackID++;
+std::string Window::GetTitle() {
+#ifdef __EMSCRIPTEN__
+    return std::string("Atmospheric Engine");
+#else
+    return std::string(glfwGetWindowTitle(static_cast<GLFWwindow*>(_internal)));
+#endif
 }
 
-WindowEventCallbackID Window::AddMouseEnterCallback(MouseEnterCallback callback)
-{
-    _mouseEnterCallbacks[_nextCallbackID] = callback;
-    return _nextCallbackID++;
+void Window::SetTitle(const std::string& title) {
+#ifdef __EMSCRIPTEN__
+    return;
+#else
+    glfwSetWindowTitle(static_cast<GLFWwindow*>(_internal), title.c_str());
+#endif
 }
 
-WindowEventCallbackID Window::AddMouseLeaveCallback(MouseLeaveCallback callback)
-{
-    _mouseLeaveCallbacks[_nextCallbackID] = callback;
-    return _nextCallbackID++;
+float Window::GetTime() {
+    return (float)glfwGetTime(); // Note that glfwGetTime() only starts to calculate time after the window is created;
 }
 
-WindowEventCallbackID Window::AddKeyPressCallback(KeyPressCallback callback)
-{
-    _keyPressCallbacks[_nextCallbackID] = callback;
-    return _nextCallbackID++;
+void Window::SetTime(double time) {
+    glfwSetTime(time);
 }
 
-WindowEventCallbackID Window::AddKeyReleaseCallback(KeyReleaseCallback callback)
-{
-    _keyReleaseCallbacks[_nextCallbackID] = callback;
-    return _nextCallbackID++;
+ImageSize Window::GetSize() {
+    int width, height;
+    glfwGetWindowSize(static_cast<GLFWwindow*>(_internal), &width, &height);
+    return ImageSize(width, height);
 }
 
-WindowEventCallbackID Window::AddViewportResizeCallback(ViewportResizeCallback callback)
-{
-    _viewportResizeCallbacks[_nextCallbackID] = callback;
-    return _nextCallbackID++;
+ImageSize Window::GetFramebufferSize() {
+    int width, height;
+    glfwGetFramebufferSize(static_cast<GLFWwindow*>(_internal), &width, &height);
+    return ImageSize(width, height);
 }
 
-WindowEventCallbackID Window::AddFramebufferResizeCallback(FramebufferResizeCallback callback)
-{
-    _framebufferResizeCallbacks[_nextCallbackID] = callback;
-    return _nextCallbackID++;
-}
-
-void Window::RemoveMouseMoveCallback(WindowEventCallbackID id)
-{
-    _mouseMoveCallbacks.erase(id);
-}
-
-void Window::RemoveMouseEnterCallback(WindowEventCallbackID id)
-{
-    _mouseEnterCallbacks.erase(id);
-}
-
-void Window::RemoveMouseLeaveCallback(WindowEventCallbackID id)
-{
-    _mouseLeaveCallbacks.erase(id);
-}
-
-void Window::RemoveKeyPressCallback(WindowEventCallbackID id)
-{
-    _keyPressCallbacks.erase(id);
-}
-
-void Window::RemoveKeyReleaseCallback(WindowEventCallbackID id)
-{
-    _keyReleaseCallbacks.erase(id);
-}
-
-void Window::RemoveViewportResizeCallback(WindowEventCallbackID id)
-{
-    _viewportResizeCallbacks.erase(id);
-}
-
-void Window::RemoveFramebufferResizeCallback(WindowEventCallbackID id)
-{
-    _framebufferResizeCallbacks.erase(id);
-}
-
-void Window::RemoveAllEventCallbacks()
-{
-    _mouseMoveCallbacks.clear();
-    _mouseEnterCallbacks.clear();
-    _mouseLeaveCallbacks.clear();
-    _keyPressCallbacks.clear();
-    _keyReleaseCallbacks.clear();
-    _viewportResizeCallbacks.clear();
-    _framebufferResizeCallbacks.clear();
+glm::vec2 Window::GetDPI() {
+    float scaleX, scaleY;
+    glfwGetWindowContentScale(static_cast<GLFWwindow*>(_internal), &scaleX, &scaleY);
+    return glm::vec2(scaleX, scaleY);
 }
 
 glm::vec2 Window::GetMousePosition()
@@ -428,13 +375,11 @@ glm::vec2 Window::GetMousePosition()
 }
 
 // TODO: implement mouse button state
-bool Window::GetMouseButtonState()
-{
+bool Window::GetMouseButtonState() {
     return glfwGetMouseButton(static_cast<GLFWwindow*>(_internal), GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS;
 }
 
-bool Window::GetKeyDown(Key key)
-{
+bool Window::GetKeyDown(Key key) {
     int glfwKey = convertToGlfwKey(key);
     if (glfwKey == GLFW_KEY_UNKNOWN) {
         return false;
@@ -443,8 +388,7 @@ bool Window::GetKeyDown(Key key)
     return glfwGetKey(static_cast<GLFWwindow*>(_internal), glfwKey) == GLFW_PRESS;
 }
 
-bool Window::GetKeyUp(Key key)
-{
+bool Window::GetKeyUp(Key key) {
     int glfwKey = convertToGlfwKey(key);
     if (glfwKey == GLFW_KEY_UNKNOWN) {
         return false;
@@ -453,8 +397,7 @@ bool Window::GetKeyUp(Key key)
     return glfwGetKey(static_cast<GLFWwindow*>(_internal), glfwKey) == GLFW_RELEASE;
 }
 
-KeyState Window::GetKeyState(Key key)
-{
+KeyState Window::GetKeyState(Key key) {
     int glfwKey = convertToGlfwKey(key);
     if (glfwKey == GLFW_KEY_UNKNOWN) {
         return KeyState::UNKNOWN;
@@ -473,51 +416,75 @@ KeyState Window::GetKeyState(Key key)
     }
 }
 
-std::string Window::GetTitle()
-{
-#ifdef __EMSCRIPTEN__
-    return std::string("Atmospheric Engine");
-#else
-    return std::string(glfwGetWindowTitle(static_cast<GLFWwindow*>(_internal)));
-#endif
+WindowEventCallbackID Window::AddMouseMoveCallback(MouseMoveCallback callback) {
+    _mouseMoveCallbacks[_nextCallbackID] = callback;
+    return _nextCallbackID++;
 }
 
-void Window::SetTitle(const std::string& title)
-{
-#ifdef __EMSCRIPTEN__
-    return;
-#else
-    glfwSetWindowTitle(static_cast<GLFWwindow*>(_internal), title.c_str());
-#endif
+WindowEventCallbackID Window::AddMouseEnterCallback(MouseEnterCallback callback) {
+    _mouseEnterCallbacks[_nextCallbackID] = callback;
+    return _nextCallbackID++;
 }
 
-float Window::GetTime()
-{
-    return (float)glfwGetTime(); // Note that glfwGetTime() only starts to calculate time after the window is created;
+WindowEventCallbackID Window::AddMouseLeaveCallback(MouseLeaveCallback callback) {
+    _mouseLeaveCallbacks[_nextCallbackID] = callback;
+    return _nextCallbackID++;
 }
 
-void Window::SetTime(double time)
-{
-    glfwSetTime(time);
+WindowEventCallbackID Window::AddKeyPressCallback(KeyPressCallback callback) {
+    _keyPressCallbacks[_nextCallbackID] = callback;
+    return _nextCallbackID++;
 }
 
-ImageSize Window::GetSize()
-{
-    int width, height;
-    glfwGetWindowSize(static_cast<GLFWwindow*>(_internal), &width, &height);
-    return ImageSize(width, height);
+WindowEventCallbackID Window::AddKeyReleaseCallback(KeyReleaseCallback callback) {
+    _keyReleaseCallbacks[_nextCallbackID] = callback;
+    return _nextCallbackID++;
 }
 
-ImageSize Window::GetFramebufferSize()
-{
-    int width, height;
-    glfwGetFramebufferSize(static_cast<GLFWwindow*>(_internal), &width, &height);
-    return ImageSize(width, height);
+WindowEventCallbackID Window::AddViewportResizeCallback(ViewportResizeCallback callback) {
+    _viewportResizeCallbacks[_nextCallbackID] = callback;
+    return _nextCallbackID++;
 }
 
-glm::vec2 Window::GetDPI()
-{
-    float scaleX, scaleY;
-    glfwGetWindowContentScale(static_cast<GLFWwindow*>(_internal), &scaleX, &scaleY);
-    return glm::vec2(scaleX, scaleY);
+WindowEventCallbackID Window::AddFramebufferResizeCallback(FramebufferResizeCallback callback) {
+    _framebufferResizeCallbacks[_nextCallbackID] = callback;
+    return _nextCallbackID++;
+}
+
+void Window::RemoveMouseMoveCallback(WindowEventCallbackID id) {
+    _mouseMoveCallbacks.erase(id);
+}
+
+void Window::RemoveMouseEnterCallback(WindowEventCallbackID id) {
+    _mouseEnterCallbacks.erase(id);
+}
+
+void Window::RemoveMouseLeaveCallback(WindowEventCallbackID id) {
+    _mouseLeaveCallbacks.erase(id);
+}
+
+void Window::RemoveKeyPressCallback(WindowEventCallbackID id) {
+    _keyPressCallbacks.erase(id);
+}
+
+void Window::RemoveKeyReleaseCallback(WindowEventCallbackID id) {
+    _keyReleaseCallbacks.erase(id);
+}
+
+void Window::RemoveViewportResizeCallback(WindowEventCallbackID id) {
+    _viewportResizeCallbacks.erase(id);
+}
+
+void Window::RemoveFramebufferResizeCallback(WindowEventCallbackID id) {
+    _framebufferResizeCallbacks.erase(id);
+}
+
+void Window::RemoveAllEventCallbacks() {
+    _mouseMoveCallbacks.clear();
+    _mouseEnterCallbacks.clear();
+    _mouseLeaveCallbacks.clear();
+    _keyPressCallbacks.clear();
+    _keyReleaseCallbacks.clear();
+    _viewportResizeCallbacks.clear();
+    _framebufferResizeCallbacks.clear();
 }

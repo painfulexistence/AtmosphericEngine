@@ -90,11 +90,6 @@ vec3 cookTorranceBRDF(vec3 N, vec3 V, vec3 L, vec3 albedo, float roughness, floa
 
 void main() {
     vec3 normal = texture(gNormal, TexCoords).rgb;
-    if (length(normal) < 0.1) {
-        FragColor = texture(gAlbedo, TexCoords);
-        return;
-    }
-
     vec3 frag_pos = texture(gPosition, TexCoords).rgb;
     vec4 albedo = texture(gAlbedo, TexCoords);
     vec3 material = texture(gMaterial, TexCoords).rgb;

@@ -242,7 +242,7 @@ void main() {
     // result += CalculatePointLight(aux_lights[1], norm, viewDir, surf);
     // result += CalculatePointLight(aux_lights[2], norm, viewDir, surf);
     // result += CalculatePointLight(aux_lights[3], norm, viewDir, surf);
-    result += vec3(0.2) * (1.0 - surf.ao) * surf.color;
+    result += vec3(0.2) * surf.ao * surf.color;
 
     result = pow(result, vec3(1.0 / gamma));
 

@@ -21,7 +21,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          submodules: 'recursive'
+          submodules: true
 
       - uses: rlalik/setup-cpp-compiler@master
         with:
@@ -29,15 +29,16 @@ jobs:
 
       - uses: seanmiddleditch/gha-setup-ninja@master
 
-      # WORKAROUND: Install Vcpkg (submodule seems not working?)
-      - name: Install vcpkg
-        uses: lukka/run-vcpkg@v11
-
       - name: Set strings
         id: strings
         shell: bash
         run: |
           echo "build-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
+
+      - name: Setup vcpkg
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgJsonGlob: "vcpkg.json"
 
       - name: Install CMake and other dependencies on Ubuntu
         if: matrix.os == 'ubuntu-latest'

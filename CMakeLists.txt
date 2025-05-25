@@ -5,6 +5,7 @@ option(USE_EMSCRIPTEN "Use Emscripten to build a WebAssembly module" OFF)
 option(USE_CCACHE "Use ccache to speed up recompilation" ON)
 option(USE_SDL3 "Use SDL3" ON)
 option(USE_SDL2 "Use SDL2" OFF)
+option(USE_AUDIO "Use audio" OFF)
 
 if (USE_GLOBAL_VCPKG)
     set(CMAKE_TOOLCHAIN_FILE $ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake)

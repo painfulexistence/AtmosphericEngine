@@ -156,9 +156,9 @@ class MazeGame : public Application {
         LoadScene(script.GetScenes()[0]);
 
         // Load sounds
-        bgm = audio.LoadMusic("assets/sounds/Lost Highway.mp3");
-        audio.SetMusicVolume(bgm, 2.0f);
-        audio.PlayMusic(bgm);
+        // bgm = audio.LoadMusic("assets/sounds/Lost Highway.mp3");
+        // audio.SetMusicVolume(bgm, 2.0f);
+        // audio.PlayMusic(bgm);
         // sfxShoot = audio.LoadSound("assets/sounds/fire.wav");
 
         // Load models

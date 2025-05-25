@@ -1462,7 +1462,7 @@ Mesh* GraphicsServer::CreateTerrainMesh(const std::string& name, float worldSize
     return mesh;
 }
 
-Renderable* GraphicsServer::CreateRenderable(GameObject* go, Mesh* mesh, DrawMode mode)
+Renderable* GraphicsServer::CreateRenderable(GameObject* go, Mesh* mesh)
 {
     auto renderable = new Renderable(go, mesh);
     renderables.push_back(renderable);

@@ -30,27 +30,14 @@ jobs:
       - uses: seanmiddleditch/gha-setup-ninja@master
 
       # WORKAROUND: Install Vcpkg (submodule seems not working?)
-      - uses: actions/checkout@v4
-        with:
-          repository: 'microsoft/vcpkg'
-          path: 'vcpkg'
+      - name: Install vcpkg
+        uses: lukka/run-vcpkg@v11
 
       - name: Set strings
         id: strings
         shell: bash
         run: |
           echo "build-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
-
-      - name: Bootstrap vcpkg on Unix
-        if: matrix.os == 'macos-latest' || matrix.os == 'ubuntu-latest'
-        run: |
-          ${{ github.workspace }}/vcpkg/bootstrap-vcpkg.sh
-
-      - name: Bootstrap vcpkg on Windows
-        if: matrix.os == 'windows-latest'
-        shell: cmd
-        run: |
-          ${{ github.workspace }}/vcpkg/bootstrap-vcpkg.bat
 
       - name: Install CMake and other dependencies on Ubuntu
         if: matrix.os == 'ubuntu-latest'

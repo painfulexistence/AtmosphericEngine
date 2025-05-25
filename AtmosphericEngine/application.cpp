@@ -151,6 +151,14 @@ void Application::Update(const FrameData& props)
 #if SHOW_PROCESS_COST
     ENGINE_LOG(fmt::format("Update costs {} ms", (GetWindowTime() - time) * 1000));
 #endif
+
+    float time = GetWindowTime();
+
+    for (auto go : _entities) {
+        auto impostor = dynamic_cast<Impostor*>(go->GetComponent("Physics"));
+        if (impostor == nullptr) continue;
+        go->SyncObjectTransform(impostor->GetWorldTransform());
+    }
 }
 
 void Application::Render(const FrameData& props)

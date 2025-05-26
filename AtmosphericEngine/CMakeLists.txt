@@ -1,5 +1,5 @@
-if(NOT USE_EMSCRIPTEN)
-    if(USE_SDL3)
+if(NOT AE_USE_EMSCRIPTEN)
+    if(AE_USE_SDL3)
         FetchContent_Declare(
             SDL3
             GIT_REPOSITORY https://github.com/libsdl-org/SDL.git
@@ -10,7 +10,7 @@ if(NOT USE_EMSCRIPTEN)
         set(SDL_TESTS OFF CACHE BOOL "" FORCE)
         set(SDL_EXAMPLES OFF CACHE BOOL "" FORCE)
         FetchContent_MakeAvailable(SDL3)
-    elseif(USE_SDL2)
+    elseif(AE_USE_SDL2)
         FetchContent_Declare(
             SDL2
             GIT_REPOSITORY https://github.com/libsdl-org/SDL.git
@@ -52,7 +52,7 @@ find_package(lua REQUIRED)
 
 add_subdirectory(external/entt)
 add_subdirectory(external/sol2)
-if(USE_AUDIO)
+if(AE_USE_AUDIO)
     add_subdirectory(external/raudio/projects/CMake)
 endif()
 
@@ -81,12 +81,12 @@ set(SOURCES
     job_system.cpp
     utility/file.cpp
 )
-if(USE_AUDIO)
+if(AE_USE_AUDIO)
     list(APPEND SOURCES audio_manager.cpp)
 endif()
-if(USE_SDL3)
+if(AE_USE_SDL3)
     list(APPEND SOURCES window_sdl3.cpp)
-elseif(USE_SDL2)
+elseif(AE_USE_SDL2)
     list(APPEND SOURCES window_sdl2.cpp)
 else()
     list(APPEND SOURCES window_glfw.cpp)
@@ -99,9 +99,9 @@ set(SOURCES_EXT
     external/imgui/imgui_widgets.cpp
     external/imgui/backends/imgui_impl_opengl3.cpp
 )
-if(USE_SDL3)
+if(AE_USE_SDL3)
     list(APPEND SOURCES_EXT external/imgui/backends/imgui_impl_sdl3.cpp)
-elseif(USE_SDL2)
+elseif(AE_USE_SDL2)
     list(APPEND SOURCES_EXT external/imgui/backends/imgui_impl_sdl2.cpp)
 else()
     list(APPEND SOURCES_EXT external/imgui/backends/imgui_impl_glfw.cpp)
@@ -115,17 +115,17 @@ target_link_libraries(AtmosphericEngine
     PUBLIC
         glm::glm fmt::fmt EnTT::EnTT BulletSoftBody BulletDynamics BulletCollision LinearMath ${LUA_LIBRARIES} sol2
 )
-if (USE_AUDIO)
+if (AE_USE_AUDIO)
     target_link_libraries(AtmosphericEngine
         PUBLIC
             raudio
     )
 endif()
-if(USE_EMSCRIPTEN)
+if(AE_USE_EMSCRIPTEN)
     target_compile_options(AtmosphericEngine PRIVATE)
-    if(USE_SDL3)
+    if(AE_USE_SDL3)
         target_link_options(AtmosphericEngine PRIVATE -sWASM=1 -O3 -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2 -sFULL_ES3=1)
-    elseif(USE_SDL2)
+    elseif(AE_USE_SDL2)
         target_link_options(AtmosphericEngine PRIVATE -sWASM=1 -O3 -sUSE_SDL=1 -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2 -sFULL_ES3=1)
     else()
         target_link_options(AtmosphericEngine PRIVATE -sWASM=1 -O3 -sUSE_GLFW=3 -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2 -sFULL_ES3=1)
@@ -135,12 +135,12 @@ else()
         PUBLIC
             glad::glad spdlog::spdlog
     )
-    if(USE_SDL3)
+    if(AE_USE_SDL3)
         target_link_libraries(AtmosphericEngine
             PUBLIC
                 SDL3::SDL3
         )
-    elseif(USE_SDL2)
+    elseif(AE_USE_SDL2)
         target_link_libraries(AtmosphericEngine
             PUBLIC
                 SDL2::SDL2

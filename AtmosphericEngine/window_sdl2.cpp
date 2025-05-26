@@ -111,7 +111,7 @@ Window::Window(WindowProps props) {
     if (_instance != nullptr) {
         throw std::runtime_error("Window is already initialized!");
     }
-    if (!SDL_Init(SDL_INIT_VIDEO)) {
+    if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         SDL_Log("SDL could not initialize! Error: %s\n", SDL_GetError());
     }
 // #ifdef __EMSCRIPTEN__
@@ -129,7 +129,10 @@ Window::Window(WindowProps props) {
     SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
 
     _internal = SDL_CreateWindow(
-        props.title.c_str(), SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, props.width, props.height, SDL_WINDOW_OPENGL
+        props.title.c_str(),
+        SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
+        props.width, props.height,
+        SDL_WINDOW_OPENGL | SDL_WINDOW_ALWAYS_ON_TOP | SDL_WINDOW_ALLOW_HIGHDPI
     );
     if (!_internal) {
         SDL_Log("SDL could not create window! Error: %s\n", SDL_GetError());
@@ -144,7 +147,7 @@ Window::Window(WindowProps props) {
 }
 
 Window::~Window() {
-    SDL_GL_DestroyContext(SDL_GL_GetCurrentContext());
+    SDL_GL_DeleteContext(SDL_GL_GetCurrentContext());
     SDL_DestroyWindow(static_cast<SDL_Window*>(_internal));
     SDL_Quit();
 }
@@ -203,34 +206,38 @@ void Window::MainLoop(std::function<void(float, float)> callback) {
             case SDL_QUIT:
                 ctx.window->Close();
                 break;
-            case SDL_WINDOW_RESIZED:
-                for (auto [id, callback] : ctx.window->_framebufferResizeCallbacks) {
-                    callback(event.window.data1, event.window.data2);
+            case SDL_WINDOWEVENT:
+                switch (event.window.event) {
+                case SDL_WINDOWEVENT_RESIZED:
+                    for (auto [id, callback] : ctx.window->_framebufferResizeCallbacks) {
+                        callback(event.window.data1, event.window.data2);
+                    }
+                    break;
+                case SDL_WINDOWEVENT_ENTER:
+                    for (auto [id, callback] : ctx.window->_mouseEnterCallbacks) {
+                        callback();
+                    }
+                    break;
+                case SDL_WINDOWEVENT_LEAVE:
+                    for (auto [id, callback] : ctx.window->_mouseLeaveCallbacks) {
+                        callback();
+                    }
+                    break;
                 }
                 break;
-            case SDL_WINDOW_MOUSE_ENTER:
-                for (auto [id, callback] : ctx.window->_mouseEnterCallbacks) {
-                    callback();
-                }
-                break;
-            case SDL_WINDOW_MOUSE_LEAVE:
-                for (auto [id, callback] : ctx.window->_mouseLeaveCallbacks) {
-                    callback();
-                }
-                break;
-            case SDL_MOUSE_MOTION:
+            case SDL_MOUSEMOTION:
                 for (auto [id, callback] : ctx.window->_mouseMoveCallbacks) {
                     callback(event.motion.x, event.motion.y);
                 }
                 break;
-            case SDL_KEY_DOWN:
+            case SDL_KEYDOWN:
                 for (auto [id, callback] : ctx.window->_keyPressCallbacks) {
-                    callback(convertFromSDLKey(e.key.keysym.scancode), event.key.mod);
+                    callback(convertFromSDLKey(event.key.keysym.scancode), event.key.keysym.mod);
                 }
                 break;
-            case SDL_KEY_UP:
+            case SDL_KEYUP:
                 for (auto [id, callback] : ctx.window->_keyReleaseCallbacks) {
-                    callback(convertFromSDLKey(e.key.keysym.scancode), event.key.mod);
+                    callback(convertFromSDLKey(event.key.keysym.scancode), event.key.keysym.mod);
                 }
                 break;
             }
@@ -322,12 +329,14 @@ ImageSize Window::GetFramebufferSize() {
 }
 
 glm::vec2 Window::GetDPI() {
-    float scale = SDL_GetWindowDisplayScale(static_cast<SDL_Window*>(_internal));
-    return glm::vec2(scale, scale);
+    auto window = static_cast<SDL_Window*>(_internal);
+    int fw, fh;
+    SDL_GL_GetDrawableSize(window, &fw, &fh);
+    return glm::vec2(fw / GetSize().width, fh / GetSize().height);
 }
 
 glm::vec2 Window::GetMousePosition() {
-    float x, y;
+    int x, y;
     SDL_GetMouseState(&x, &y);
     return glm::vec2(x, y);
 }

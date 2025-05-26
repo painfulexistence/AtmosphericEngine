@@ -128,7 +128,11 @@ Window::Window(WindowProps props) {
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
     SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
 
-    _internal = SDL_CreateWindow(props.title.c_str(), props.width, props.height, SDL_WINDOW_OPENGL);
+    _internal = SDL_CreateWindow(
+        props.title.c_str(),
+        props.width, props.height,
+        SDL_WINDOW_OPENGL | SDL_WINDOW_ALWAYS_ON_TOP | SDL_WINDOW_HIGH_PIXEL_DENSITY
+    );
     if (!_internal) {
         SDL_Log("SDL could not create window! Error: %s\n", SDL_GetError());
     }

@@ -1,9 +1,9 @@
 #include "window.hpp"
-#include <SDL3/SDL.h>
+#include <SDL2/SDL.h>
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 #endif
-#include "backends/imgui_impl_sdl3.h"
+#include "backends/imgui_impl_sdl2.h"
 #include "backends/imgui_impl_opengl3.h"
 #include "console.hpp"
 
@@ -128,7 +128,9 @@ Window::Window(WindowProps props) {
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
     SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
 
-    _internal = SDL_CreateWindow(props.title.c_str(), props.width, props.height, SDL_WINDOW_OPENGL);
+    _internal = SDL_CreateWindow(
+        props.title.c_str(), SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, props.width, props.height, SDL_WINDOW_OPENGL
+    );
     if (!_internal) {
         SDL_Log("SDL could not create window! Error: %s\n", SDL_GetError());
     }
@@ -158,7 +160,7 @@ void Window::InitImGui() {
     IMGUI_CHECKVERSION();
 
     ImGui::CreateContext();
-    ImGui_ImplSDL3_InitForOpenGL(static_cast<SDL_Window*>(_internal), SDL_GL_GetCurrentContext());
+    ImGui_ImplSDL2_InitForOpenGL(static_cast<SDL_Window*>(_internal), SDL_GL_GetCurrentContext());
 #ifdef __EMSCRIPTEN__
     ImGui_ImplOpenGL3_Init("#version 300 es");
 #else
@@ -170,7 +172,7 @@ void Window::InitImGui() {
 
 void Window::BeginImGuiFrame() {
     ImGui_ImplOpenGL3_NewFrame();
-    ImGui_ImplSDL3_NewFrame();
+    ImGui_ImplSDL2_NewFrame();
     ImGui::NewFrame();
 }
 
@@ -181,7 +183,7 @@ void Window::EndImGuiFrame() {
 
 void Window::DeinitImGui() {
     ImGui_ImplOpenGL3_Shutdown();
-    ImGui_ImplSDL3_Shutdown();
+    ImGui_ImplSDL2_Shutdown();
     ImGui::DestroyContext();
 }
 
@@ -196,39 +198,39 @@ void Window::MainLoop(std::function<void(float, float)> callback) {
     auto loop = [](LoopContext& ctx) {
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
-            ImGui_ImplSDL3_ProcessEvent(&event);
+            ImGui_ImplSDL2_ProcessEvent(&event);
             switch (event.type) {
-            case SDL_EVENT_QUIT:
+            case SDL_QUIT:
                 ctx.window->Close();
                 break;
-            case SDL_EVENT_WINDOW_RESIZED:
+            case SDL_WINDOW_RESIZED:
                 for (auto [id, callback] : ctx.window->_framebufferResizeCallbacks) {
                     callback(event.window.data1, event.window.data2);
                 }
                 break;
-            case SDL_EVENT_WINDOW_MOUSE_ENTER:
+            case SDL_WINDOW_MOUSE_ENTER:
                 for (auto [id, callback] : ctx.window->_mouseEnterCallbacks) {
                     callback();
                 }
                 break;
-            case SDL_EVENT_WINDOW_MOUSE_LEAVE:
+            case SDL_WINDOW_MOUSE_LEAVE:
                 for (auto [id, callback] : ctx.window->_mouseLeaveCallbacks) {
                     callback();
                 }
                 break;
-            case SDL_EVENT_MOUSE_MOTION:
+            case SDL_MOUSE_MOTION:
                 for (auto [id, callback] : ctx.window->_mouseMoveCallbacks) {
                     callback(event.motion.x, event.motion.y);
                 }
                 break;
-            case SDL_EVENT_KEY_DOWN:
+            case SDL_KEY_DOWN:
                 for (auto [id, callback] : ctx.window->_keyPressCallbacks) {
-                    callback(convertFromSDLKey(event.key.scancode), event.key.mod);
+                    callback(convertFromSDLKey(e.key.keysym.scancode), event.key.mod);
                 }
                 break;
-            case SDL_EVENT_KEY_UP:
+            case SDL_KEY_UP:
                 for (auto [id, callback] : ctx.window->_keyReleaseCallbacks) {
-                    callback(convertFromSDLKey(event.key.scancode), event.key.mod);
+                    callback(convertFromSDLKey(e.key.keysym.scancode), event.key.mod);
                 }
                 break;
             }
@@ -256,7 +258,7 @@ void Window::MainLoop(std::function<void(float, float)> callback) {
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
             // TODO: implement event handling
-            ImGui_ImplSDL3_ProcessEvent(&event);
+            ImGui_ImplSDL2_ProcessEvent(&event);
         }
 
         float currTime = ctx.window->GetTime();

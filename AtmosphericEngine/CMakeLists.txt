@@ -1,3 +1,4 @@
+option(BUILD_SHARED_LIBS OFF)
 if(NOT AE_USE_EMSCRIPTEN)
     if(AE_USE_SDL3)
         FetchContent_Declare(
@@ -9,6 +10,7 @@ if(NOT AE_USE_EMSCRIPTEN)
         set(SDL_STATIC ON CACHE BOOL "" FORCE)
         set(SDL_TESTS OFF CACHE BOOL "" FORCE)
         set(SDL_EXAMPLES OFF CACHE BOOL "" FORCE)
+        set(SDL_TESTS_LIBRARY OFF CACHE BOOL "" FORCE)
         FetchContent_MakeAvailable(SDL3)
     elseif(AE_USE_SDL2)
         FetchContent_Declare(
@@ -20,6 +22,7 @@ if(NOT AE_USE_EMSCRIPTEN)
         set(SDL_STATIC ON CACHE BOOL "" FORCE)
         set(SDL_TEST OFF CACHE BOOL "" FORCE)
         set(SDL_EXAMPLES OFF CACHE BOOL "" FORCE)
+        set(SDL_TEST_LIBRARY OFF CACHE BOOL "" FORCE)
         FetchContent_MakeAvailable(SDL2)
     else()
         FetchContent_Declare(glfw
@@ -43,7 +46,6 @@ option(BUILD_BULLET_ROBOTICS_EXTRA OFF)
 option(BUILD_BULLET_ROBOTICS_GUI_EXTRA OFF)
 option(BUILD_UNIT_TESTS OFF)
 option(BUILD_LUA_AS_DLL OFF)
-option(BUILD_SHARED_LIBS OFF)
 find_package(Bullet CONFIG REQUIRED)
 
 find_package(fmt REQUIRED)

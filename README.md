@@ -42,8 +42,8 @@ cd AtmosphericEngine
 ```
 4. Build the project with CMake
 ```
-cmake -S . -B build
-cmake --build build
+cmake --preset=dev
+cmake --build --preset=dev
 ```
 
 ----

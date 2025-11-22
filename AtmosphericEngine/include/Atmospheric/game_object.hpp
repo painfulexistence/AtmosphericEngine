@@ -19,15 +19,23 @@ class GameObject
 {
 public:
     GameObject* parent = nullptr;
-    std::map<std::string, Component*> components;
     bool isActive = true;
 
     GameObject(GraphicsServer* graphics = nullptr, PhysicsServer* physics = nullptr, glm::vec3 position = glm::vec3(0.0f), glm::vec3 rotation = glm::vec3(0.0f), glm::vec3 scale = glm::vec3(1.0f));
     ~GameObject();
 
+    template<typename T>
+    T* GetComponent() const {
+        for (auto* component : _components) {
+            if (T* cast = dynamic_cast<T*>(component)) {
+                return cast;
+            }
+        }
+        return nullptr;
+    }
+    // Component* GetComponent(std::string name) const;
     void AddComponent(Component* component);
     void RemoveComponent(Component* component);
-    Component* GetComponent(std::string name) const;
 
     GameObject* AddLight(const LightProps&);
     GameObject* AddCamera(const CameraProps&);
@@ -83,6 +91,8 @@ public:
 
 private:
     std::string _name = " ";
+    std::vector<Component*> _components;
+    // std::map<std::string, Component*> _namedComponents;
     GraphicsServer* _graphics = nullptr;
     PhysicsServer* _physics = nullptr;
     glm::mat4 _m2w = glm::mat4(1.0f);

@@ -155,7 +155,7 @@ void Application::Update(const FrameData& props)
     float time = GetWindowTime();
 
     for (auto go : _entities) {
-        auto impostor = dynamic_cast<Impostor*>(go->GetComponent("Physics"));
+        auto impostor = go->GetComponent<Impostor>();
         if (impostor == nullptr) continue;
         go->SyncObjectTransform(impostor->GetWorldTransform());
     }
@@ -265,14 +265,14 @@ void Application::Render(const FrameData& props)
                         _selectedEntity->SetScale(scale);
                 }
 
-                auto impostor = static_cast<Impostor*>(_selectedEntity->GetComponent("Physics"));
+                auto impostor = _selectedEntity->GetComponent<Impostor>();
                 if (impostor != nullptr) {
                     if (ImGui::CollapsingHeader("Physics", ImGuiTreeNodeFlags_DefaultOpen)) {
                         glm::vec3 vel = impostor->GetLinearVelocity();
                         ImGui::Text("Velocity: %.3f, %.3f, %.3f", vel.x, vel.y, vel.z);
                     }
                 }
-                auto light = static_cast<Light*>(_selectedEntity->GetComponent("Light"));
+                auto light = _selectedEntity->GetComponent<Light>();
                 if (light != nullptr) {
                     if (light->type == LightType::Directional) {
                         if (ImGui::CollapsingHeader("Light", ImGuiTreeNodeFlags_DefaultOpen)) {
@@ -294,12 +294,12 @@ void Application::Render(const FrameData& props)
                         }
                     }
                 }
-                auto camera = static_cast<Camera*>(_selectedEntity->GetComponent("Camera"));
+                auto camera = _selectedEntity->GetComponent<Camera>();
                 if (camera != nullptr) {
                     if (ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen)) {
                     }
                 }
-                auto renderable = static_cast<Renderable*>(_selectedEntity->GetComponent("Drawable"));
+                auto renderable = _selectedEntity->GetComponent<Renderable>();
                 if (renderable != nullptr) {
                     if (ImGui::CollapsingHeader("Renderable", ImGuiTreeNodeFlags_DefaultOpen)) {
                         auto mat = renderable->GetMaterial();
@@ -316,7 +316,7 @@ void Application::Render(const FrameData& props)
                         ImGui::Checkbox("Cull face enabled", &mat->cullFaceEnabled);
                     }
                 }
-                auto drawable2D = static_cast<Drawable2D*>(_selectedEntity->GetComponent("Drawable2D"));
+                auto drawable2D = _selectedEntity->GetComponent<Drawable2D>();
                 if (drawable2D != nullptr) {
                     if (ImGui::CollapsingHeader("Drawable2D", ImGuiTreeNodeFlags_DefaultOpen)) {
                         glm::vec2 size = drawable2D->GetSize();

@@ -20,23 +20,28 @@ GameObject::~GameObject()
 
 void GameObject::AddComponent(Component* component)
 {
-    components.insert_or_assign(component->GetName(), component);
+    _components.push_back(component);
+    // _namedComponents.insert_or_assign(component->GetName(), component);
     component->gameObject = this;
 }
 
 void GameObject::RemoveComponent(Component* component)
 {
-    components.erase(component->GetName());
+    auto it = std::find(_components.begin(), _components.end(), component);
+    if (it != _components.end()) {
+        _components.erase(it);
+    }
+    // _namedComponents.erase(component->GetName());
 }
 
-Component* GameObject::GetComponent(std::string name) const
-{
-    auto it = components.find(name);
-    if (it == components.end())
-        return nullptr;
-    else
-        return it->second;
-}
+// Component* GameObject::GetComponent(std::string name) const
+// {
+//     auto it = _namedComponents.find(name);
+//     if (it == _namedComponents.end())
+//         return nullptr;
+//     else
+//         return it->second;
+// }
 
 // Shortcut for adding light component
 GameObject* GameObject::AddLight(const LightProps& props)
@@ -137,7 +142,7 @@ void GameObject::SetObjectTransform(glm::mat4 xform)
     _w2w = xform;
     UpdatePositionRotationScale();
 
-    Impostor* rb = dynamic_cast<Impostor*>(this->GetComponent("Physics"));
+    Impostor* rb = GetComponent<Impostor>();
     if (rb)
         rb->SetWorldTransform(_position, _rotation);
 }
@@ -153,7 +158,7 @@ void GameObject::SetPosition(glm::vec3 value)
     _position = value;
     UpdateTransform();
 
-    Impostor* rb = dynamic_cast<Impostor*>(GetComponent("Physics"));
+    Impostor* rb = GetComponent<Impostor>();
     if (rb)
         rb->SetWorldTransform(_position, _rotation);
 }
@@ -163,7 +168,7 @@ void GameObject::SetRotation(glm::vec3 value)
     _rotation = value;
     UpdateTransform();
 
-    Impostor* rb = dynamic_cast<Impostor*>(GetComponent("Physics"));
+    Impostor* rb = GetComponent<Impostor>();
     if (rb)
         rb->SetWorldTransform(_position, _rotation);
 }
@@ -181,7 +186,7 @@ glm::mat4 GameObject::GetTransform() const
 
 glm::vec3 GameObject::GetVelocity()
 {
-    Impostor* rb = dynamic_cast<Impostor*>(GetComponent("Physics"));
+    Impostor* rb = GetComponent<Impostor>();
     if (rb == nullptr)
         throw std::runtime_error("Impostor not found");
 
@@ -190,7 +195,7 @@ glm::vec3 GameObject::GetVelocity()
 
 void GameObject::SetVelocity(glm::vec3 value)
 {
-    Impostor* rb = dynamic_cast<Impostor*>(GetComponent("Physics"));
+    Impostor* rb = GetComponent<Impostor>();
     if (rb == nullptr)
         throw std::runtime_error("Impostor not found");
 
@@ -199,7 +204,7 @@ void GameObject::SetVelocity(glm::vec3 value)
 
 void GameObject::SetPhysicsActivated(bool value)
 {
-    Impostor* rb = dynamic_cast<Impostor*>(GetComponent("Physics"));
+    Impostor* rb = GetComponent<Impostor>();
     if (rb == nullptr)
         return;
 

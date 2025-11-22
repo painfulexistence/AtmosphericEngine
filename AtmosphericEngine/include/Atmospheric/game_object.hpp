@@ -1,5 +1,6 @@
 #pragma once
 #include "globals.hpp"
+#include <map>
 
 class Component;
 

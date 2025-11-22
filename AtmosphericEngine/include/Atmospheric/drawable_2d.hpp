@@ -1,6 +1,8 @@
 #pragma once
 #include "globals.hpp"
 #include "component.hpp"
+#include <glm/vec2.hpp>
+#include <glm/vec4.hpp>
 
 struct Drawable2DProps {
     glm::vec2 size = glm::vec2(100.0f, 100.0f);

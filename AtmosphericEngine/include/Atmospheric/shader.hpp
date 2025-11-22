@@ -1,6 +1,8 @@
 #pragma once
 #include "globals.hpp"
 #include <optional>
+#include <unordered_map>
+#include <glm/mat4x4.hpp>
 
 enum ShaderType
 {

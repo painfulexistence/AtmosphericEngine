@@ -2,6 +2,7 @@
 #include "globals.hpp"
 #include "server.hpp"
 #include "window.hpp"
+#include <deque>
 
 class Input : public Server
 {

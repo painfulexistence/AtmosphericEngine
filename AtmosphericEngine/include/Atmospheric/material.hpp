@@ -1,5 +1,6 @@
 #pragma once
 #include "globals.hpp"
+#include <glm/vec3.hpp>
 
 struct MaterialProps {
     int baseMap = -1;

@@ -9,6 +9,11 @@
 #include "mesh.hpp"
 #include "light.hpp"
 #include "camera.hpp"
+#include <glm/vec2.hpp>
+#include <glm/vec3.hpp>
+#include <glm/vec4.hpp>
+#include <glm/mat4x4.hpp>
+#include <unordered_map>
 
 using TextureID = uint32_t;
 using ShaderID = uint32_t;

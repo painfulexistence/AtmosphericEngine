@@ -10,7 +10,12 @@
 #include <glad/glad.h>
 #endif
 
-#include <pch.hpp>
+// #include <pch.hpp>
+#include <vector>
+#include <string>
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <fmt/core.h>
 
 #define CAMERA_ANGULAR_OFFSET 0.05
 #define CAMERA_SPEED 15

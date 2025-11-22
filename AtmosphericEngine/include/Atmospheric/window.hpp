@@ -1,7 +1,8 @@
 #pragma once
 #include "globals.hpp"
 #include "config.hpp"
-
+#include <functional>
+#include <unordered_map>
 
 struct ImageSize
 {

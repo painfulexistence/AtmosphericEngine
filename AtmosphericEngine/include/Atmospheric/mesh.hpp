@@ -5,6 +5,7 @@
 #include "bullet_collision.hpp"
 #include "vertex.hpp"
 #include <cstdint>
+#include <vector>
 
 enum class MeshType
 {

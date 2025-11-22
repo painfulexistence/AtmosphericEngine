@@ -1,5 +1,5 @@
 #include "shader.hpp"
-#include "utility/file.hpp"
+#include "file.hpp"
 
 Shader::Shader(const std::string& path, ShaderType type)
 {

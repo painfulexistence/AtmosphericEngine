@@ -58,40 +58,40 @@ if(AE_USE_AUDIO)
     add_subdirectory(external/raudio/projects/CMake)
 endif()
 
-#file(GLOB SOURCES *.cpp RECURSIVE EXCLUDE external)
+#file(GLOB SOURCES src/*.cpp RECURSIVE)
 set(SOURCES
-    application.cpp
-    server.cpp
-    console.cpp
-    game_object.cpp
-    impostor.cpp
-    light.cpp
-    camera.cpp
-    mesh.cpp
-    frustum.cpp
-    renderable.cpp
-    drawable_2d.cpp
-    shader.cpp
-    graphics_server.cpp
-    physics_server.cpp
-    physics_debug_drawer.cpp
-    input.cpp
-    entity.cpp
-    script.cpp
-    scene.cpp
-    asset_manager.cpp
-    job_system.cpp
-    utility/file.cpp
+    src/application.cpp
+    src/server.cpp
+    src/console.cpp
+    src/game_object.cpp
+    src/impostor.cpp
+    src/light.cpp
+    src/camera.cpp
+    src/mesh.cpp
+    src/frustum.cpp
+    src/renderable.cpp
+    src/drawable_2d.cpp
+    src/shader.cpp
+    src/graphics_server.cpp
+    src/physics_server.cpp
+    src/physics_debug_drawer.cpp
+    src/input.cpp
+    src/entity.cpp
+    src/script.cpp
+    src/scene.cpp
+    src/asset_manager.cpp
+    src/job_system.cpp
+    src/file.cpp
 )
 if(AE_USE_AUDIO)
-    list(APPEND SOURCES audio_manager.cpp)
+    list(APPEND SOURCES src/audio_manager.cpp)
 endif()
 if(AE_USE_SDL3)
-    list(APPEND SOURCES window_sdl3.cpp)
+    list(APPEND SOURCES src/window_sdl3.cpp)
 elseif(AE_USE_SDL2)
-    list(APPEND SOURCES window_sdl2.cpp)
+    list(APPEND SOURCES src/window_sdl2.cpp)
 else()
-    list(APPEND SOURCES window_glfw.cpp)
+    list(APPEND SOURCES src/window_glfw.cpp)
 endif()
 
 set(SOURCES_EXT
@@ -111,8 +111,18 @@ endif()
 
 add_library(AtmosphericEngine STATIC ${SOURCES} ${SOURCES_EXT})
 
-target_include_directories(AtmosphericEngine PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} ${BULLET_INCLUDE_DIR} ${LUA_INCLUDE_DIR} external/stb external/imgui)
-target_precompile_headers(AtmosphericEngine PRIVATE pch.hpp)
+target_include_directories(AtmosphericEngine
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
+        ${BULLET_INCLUDE_DIR}
+        ${LUA_INCLUDE_DIR}
+        ${CMAKE_CURRENT_SOURCE_DIR}/external/stb
+        ${CMAKE_CURRENT_SOURCE_DIR}/include/Atmospheric
+    PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+target_precompile_headers(AtmosphericEngine PRIVATE src/pch.hpp)
 target_link_libraries(AtmosphericEngine
     PUBLIC
         glm::glm fmt::fmt EnTT::EnTT BulletSoftBody BulletDynamics BulletCollision LinearMath ${LUA_LIBRARIES} sol2

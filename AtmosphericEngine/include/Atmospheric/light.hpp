@@ -1,6 +1,8 @@
 #pragma once
 #include "globals.hpp"
 #include "component.hpp"
+#include <glm/vec3.hpp>
+#include <glm/mat4x4.hpp>
 
 enum class LightType {
     Directional = 0,

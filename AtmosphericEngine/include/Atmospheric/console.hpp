@@ -1,5 +1,8 @@
 #pragma once
 #include "globals.hpp"
+#include <string>
+#include <unordered_map>
+#include <functional>
 #include "config.hpp"
 #include "server.hpp"
 

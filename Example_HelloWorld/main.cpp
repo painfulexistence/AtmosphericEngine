@@ -20,8 +20,8 @@ class HelloWorld : public Application {
 
         mainCamera->gameObject->SetPosition(glm::vec3(-5.0, 0.0, 0.0));
 
-        auto cubeMesh = graphics.CreateCubeMesh("CubeMesh", 1.0f);
-        cubeMesh->SetMaterial(graphics.materials[0]);
+        auto cubeMesh = AssetManager::Get().CreateCubeMesh("CubeMesh", 1.0f);
+        cubeMesh->SetMaterial(AssetManager::Get().GetMaterials()[0]);
 
         cube = CreateGameObject()->AddComponent<MeshComponent>(cubeMesh);
 
@@ -33,7 +33,7 @@ class HelloWorld : public Application {
         cube->SetRotation(glm::vec3(0.0, time * 0.5, time * 1.0));
 
         if (input.IsKeyDown(Key::R)) {
-            graphics.ReloadShaders();
+            AssetManager::Get().ReloadShaders();
         }
         if (input.IsKeyDown(Key::ESCAPE)) {
             Quit();

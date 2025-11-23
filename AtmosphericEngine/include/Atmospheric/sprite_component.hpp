@@ -4,17 +4,17 @@
 #include <glm/vec2.hpp>
 #include <glm/vec4.hpp>
 
-struct Drawable2DProps {
+struct SpriteProps {
     glm::vec2 size = glm::vec2(100.0f, 100.0f);
     glm::vec2 pivot = glm::vec2(0.5f, 0.5f);
     glm::vec4 color = glm::vec4(1.0f);
     uint8_t textureID = 0;
 };
 
-class Drawable2D : public Component {
+class SpriteComponent : public Component {
 public:
-    Drawable2D(GameObject* gameObject, const Drawable2DProps& props);
-    // virtual ~Drawable2D() = default;
+    SpriteComponent(GameObject* gameObject, const SpriteProps& props);
+    // virtual ~SpriteComponent() = default;
 
     std::string GetName() const override;
 

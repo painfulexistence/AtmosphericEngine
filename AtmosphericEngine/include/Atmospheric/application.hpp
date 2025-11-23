@@ -1,12 +1,11 @@
 #pragma once
 #include "config.hpp"
-#include "globals.hpp"
-#include "imgui.h"
 #include "console.hpp"
 // #include "audio_manager.hpp"
 #include "graphics_server.hpp"
-#include "physics_server.hpp"
+#include "imgui.h"
 #include "input.hpp"
+#include "physics_server.hpp"
 #include "script.hpp"
 #include "layer.hpp"
 
@@ -16,10 +15,8 @@ class Scene;
 
 class GameObject;
 
-struct FrameData
-{
-    FrameData(uint64_t number, float time, float deltaTime)
-    {
+struct FrameData {
+    FrameData(uint64_t number, float time, float deltaTime) {
         this->number = number;
         this->time = time;
         this->deltaTime = deltaTime;
@@ -54,10 +51,12 @@ public:
 
     void Run();
 
-    virtual void OnInit() {} // Load resources
-    virtual void OnLoad() = 0; // Setup game objects (side effects)
+    virtual void OnInit() {
+    }// Load resources
+    virtual void OnLoad() = 0;// Setup game objects (side effects)
     virtual void OnUpdate(float dt, float time) = 0;
-    virtual void OnReload() {} // Reset game objects (side effects clean up and recreate)
+    virtual void OnReload() {
+    }// Reset game objects (side effects clean up and recreate)
 
     uint64_t GetClock();
 
@@ -106,15 +105,16 @@ protected:
     std::string GetWindowTitle();
     void SetWindowTitle(const std::string& title);
 
-    template<typename T>
-    std::shared_ptr<T> AddSubsystem() {
+    template<typename T> std::shared_ptr<T> AddSubsystem() {
         static_assert(std::is_base_of<Server, T>::value, "Type T must be a subclass of Server");
         auto subsystem = std::make_shared<T>();
         _subsystems.push_back(subsystem);
         return subsystem;
     }
 
-    GameObject* CreateGameObject(glm::vec3 position = glm::vec3(0.0f), glm::vec3 rotation = glm::vec3(0.0f), glm::vec3 scale = glm::vec3(1.0f));
+    GameObject* CreateGameObject(
+      glm::vec3 position = glm::vec3(0.0f), glm::vec3 rotation = glm::vec3(0.0f), glm::vec3 scale = glm::vec3(1.0f)
+    );
 
     GameObject* CreateGameObject(glm::vec2 position, float rotation = 0.0f);
 
@@ -136,6 +136,7 @@ private:
     GameObject* _selectedEntity = nullptr;
 
     void Update(const FrameData& frame);
-    void Render(const FrameData& frame); // TODO: Properly separate rendering and drawing logic if the backend supports command buffering
+    void Render(const FrameData& frame
+    );// TODO: Properly separate rendering and drawing logic if the backend supports command buffering
     void SyncTransformWithPhysics();
 };

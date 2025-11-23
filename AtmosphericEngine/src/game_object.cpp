@@ -2,31 +2,30 @@
 #include "component.hpp"
 #include "graphics_server.hpp"
 #include "physics_server.hpp"
-#include "impostor.hpp"
-#include "drawable_2d.hpp"
+#include "rigidbody_component.hpp"
+#include "sprite_component.hpp"
+#include "transform_component.hpp"
 
-GameObject::GameObject(GraphicsServer* graphics, PhysicsServer* physics, glm::vec3 position, glm::vec3 rotation, glm::vec3 scale) : _graphics(graphics), _physics(physics)
-{
-    _position = position;
-    _rotation = rotation;
-    _scale = scale;
-    UpdateTransform();
+GameObject::GameObject(
+  GraphicsServer* graphics, PhysicsServer* physics, glm::vec3 position, glm::vec3 rotation, glm::vec3 scale
+)
+  : _graphics(graphics), _physics(physics) {
+    _transform = new TransformComponent(this, position, rotation, scale);
+    AddComponent(_transform);
 }
 
-GameObject::~GameObject()
-{
-
+GameObject::~GameObject() {
+    // Components are deleted by the component system
+    // _transform will be deleted when _components are cleaned up
 }
 
-void GameObject::AddComponent(Component* component)
-{
+void GameObject::AddComponent(Component* component) {
     _components.push_back(component);
     // _namedComponents.insert_or_assign(component->GetName(), component);
     component->gameObject = this;
 }
 
-void GameObject::RemoveComponent(Component* component)
-{
+void GameObject::RemoveComponent(Component* component) {
     auto it = std::find(_components.begin(), _components.end(), component);
     if (it != _components.end()) {
         _components.erase(it);
@@ -44,8 +43,7 @@ void GameObject::RemoveComponent(Component* component)
 // }
 
 // Shortcut for adding light component
-GameObject* GameObject::AddLight(const LightProps& props)
-{
+GameObject* GameObject::AddLight(const LightProps& props) {
     if (_graphics) {
         auto light = _graphics->CreateLight(this, props);
     }
@@ -53,8 +51,7 @@ GameObject* GameObject::AddLight(const LightProps& props)
 }
 
 // Shortcut for adding camera component
-GameObject* GameObject::AddCamera(const CameraProps& props)
-{
+GameObject* GameObject::AddCamera(const CameraProps& props) {
     if (_graphics) {
         auto camera = _graphics->CreateCamera(this, props);
     }
@@ -62,151 +59,137 @@ GameObject* GameObject::AddCamera(const CameraProps& props)
 }
 
 // Shortcut 1 for adding renderable component
-GameObject* GameObject::AddRenderable(const std::string& meshName)
-{
+GameObject* GameObject::AddMesh(const std::string& meshName) {
     if (_graphics) {
         auto mesh = _graphics->GetMesh(meshName);
-        _graphics->CreateRenderable(this, mesh);
+        _graphics->CreateMeshComponent(this, mesh);
     }
     return this;
 }
 
 // Shortcut 2 for adding renderable component
-GameObject* GameObject::AddRenderable(Mesh* mesh)
-{
+GameObject* GameObject::AddMesh(Mesh* mesh) {
     if (_graphics) {
-        _graphics->CreateRenderable(this, mesh);
+        _graphics->CreateMeshComponent(this, mesh);
     }
     return this;
 }
 
-GameObject* GameObject::AddDrawable2D(const Drawable2DProps& props)
-{
+GameObject* GameObject::AddSprite(const SpriteProps& props) {
     if (_graphics) {
-        _graphics->CreateDrawable2D(this, props);
+        _graphics->CreateSpriteComponent(this, props);
     }
     return this;
 }
 
 // // Shortcut 1 for adding impostor component
-// GameObject* GameObject::AddImpostor(const std::string& meshName, float mass, glm::vec3 linearFactor, glm::vec3 angularFactor)
+// GameObject* GameObject::AddRigidbody(const std::string& meshName, float mass, glm::vec3 linearFactor, glm::vec3
+// angularFactor)
 // {
 //     if (_graphics && _physics) {
 //         auto mesh = _graphics->GetMesh(meshName);
-//         auto impostor =  new Impostor(this, mesh->GetShape(), mass);
+//         auto impostor =  new RigidbodyComponent(this, mesh->GetShape(), mass);
 //         impostor->SetLinearFactor(linearFactor);
 //         impostor->SetAngularFactor(angularFactor);
-//         _physics->AddImpostor(impostor);
+//         _physics->AddRigidbody(impostor);
 //     }
 //     return this;
 // }
 
 // // Shortcut 2 for adding impostor component
-// GameObject* GameObject::AddImpostor(Mesh* mesh, float mass, glm::vec3 linearFactor, glm::vec3 angularFactor)
+// GameObject* GameObject::AddRigidbody(Mesh* mesh, float mass, glm::vec3 linearFactor, glm::vec3 angularFactor)
 // {
 //     if (_physics) {
-//         auto impostor =  new Impostor(this, mesh->GetShape(), mass);
+//         auto impostor =  new RigidbodyComponent(this, mesh->GetShape(), mass);
 //         impostor->SetLinearFactor(linearFactor);
 //         impostor->SetAngularFactor(angularFactor);
-//         _physics->AddImpostor(impostor);
+//         _physics->AddRigidbody(impostor);
 //     }
 //     return this;
 // }
 
-GameObject* GameObject::AddImpostor(const ImpostorProps& props)
-{
+GameObject* GameObject::AddRigidbody(const RigidbodyProps& props) {
     if (_physics) {
-        auto impostor =  new Impostor(this, props);
-        _physics->AddImpostor(impostor);
+        auto impostor = new RigidbodyComponent(this, props);
+        _physics->AddRigidbody(impostor);
     }
     return this;
 }
 
-glm::mat4 GameObject::GetLocalTransform() const
-{
-    return _m2w;
+glm::mat4 GameObject::GetLocalTransform() const {
+    return _transform->GetLocalTransform();
 }
 
-void GameObject::SetLocalTransform(glm::mat4 xform)
-{
-    _m2w = xform;
+void GameObject::SetLocalTransform(glm::mat4 xform) {
+    _transform->SetLocalTransform(xform);
 }
 
-glm::mat4 GameObject::GetObjectTransform() const
-{
-    return _w2w;
+glm::mat4 GameObject::GetObjectTransform() const {
+    return _transform->GetWorldTransform();
 }
 
-void GameObject::SetObjectTransform(glm::mat4 xform)
-{
-    _w2w = xform;
-    UpdatePositionRotationScale();
+void GameObject::SetObjectTransform(glm::mat4 xform) {
+    _transform->SetWorldTransform(xform);
 
-    Impostor* rb = GetComponent<Impostor>();
-    if (rb)
-        rb->SetWorldTransform(_position, _rotation);
+    RigidbodyComponent* rb = GetComponent<RigidbodyComponent>();
+    if (rb) rb->SetWorldTransform(_transform->GetPosition(), _transform->GetRotation());
 }
 
-void GameObject::SyncObjectTransform(glm::mat4 xform)
-{
-    _w2w = xform;
-    UpdatePositionRotationScale();
+void GameObject::SyncObjectTransform(glm::mat4 xform) {
+    _transform->SyncWorldTransform(xform);
 }
 
-void GameObject::SetPosition(glm::vec3 value)
-{
-    _position = value;
-    UpdateTransform();
-
-    Impostor* rb = GetComponent<Impostor>();
-    if (rb)
-        rb->SetWorldTransform(_position, _rotation);
+glm::vec3 GameObject::GetPosition() const {
+    return _transform->GetPosition();
 }
 
-void GameObject::SetRotation(glm::vec3 value)
-{
-    _rotation = value;
-    UpdateTransform();
+void GameObject::SetPosition(glm::vec3 value) {
+    _transform->SetPosition(value);
 
-    Impostor* rb = GetComponent<Impostor>();
-    if (rb)
-        rb->SetWorldTransform(_position, _rotation);
+    RigidbodyComponent* rb = GetComponent<RigidbodyComponent>();
+    if (rb) rb->SetWorldTransform(_transform->GetPosition(), _transform->GetRotation());
 }
 
-void GameObject::SetScale(glm::vec3 value)
-{
-    _scale = value;
-    UpdateTransform();
+glm::vec3 GameObject::GetRotation() const {
+    return _transform->GetRotation();
 }
 
-glm::mat4 GameObject::GetTransform() const
-{
-    return _w2w * _m2w;
+void GameObject::SetRotation(glm::vec3 value) {
+    _transform->SetRotation(value);
+
+    RigidbodyComponent* rb = GetComponent<RigidbodyComponent>();
+    if (rb) rb->SetWorldTransform(_transform->GetPosition(), _transform->GetRotation());
 }
 
-glm::vec3 GameObject::GetVelocity()
-{
-    Impostor* rb = GetComponent<Impostor>();
-    if (rb == nullptr)
-        throw std::runtime_error("Impostor not found");
+glm::vec3 GameObject::GetScale() const {
+    return _transform->GetScale();
+}
+
+void GameObject::SetScale(glm::vec3 value) {
+    _transform->SetScale(value);
+}
+
+glm::mat4 GameObject::GetTransform() const {
+    return _transform->GetWorldTransform();
+}
+
+glm::vec3 GameObject::GetVelocity() {
+    RigidbodyComponent* rb = GetComponent<RigidbodyComponent>();
+    if (rb == nullptr) throw std::runtime_error("RigidbodyComponent not found");
 
     return rb->GetLinearVelocity();
 }
 
-void GameObject::SetVelocity(glm::vec3 value)
-{
-    Impostor* rb = GetComponent<Impostor>();
-    if (rb == nullptr)
-        throw std::runtime_error("Impostor not found");
+void GameObject::SetVelocity(glm::vec3 value) {
+    RigidbodyComponent* rb = GetComponent<RigidbodyComponent>();
+    if (rb == nullptr) throw std::runtime_error("RigidbodyComponent not found");
 
     rb->SetLinearVelocity(value);
 }
 
-void GameObject::SetPhysicsActivated(bool value)
-{
-    Impostor* rb = GetComponent<Impostor>();
-    if (rb == nullptr)
-        return;
+void GameObject::SetPhysicsActivated(bool value) {
+    RigidbodyComponent* rb = GetComponent<RigidbodyComponent>();
+    if (rb == nullptr) return;
 
     if (value) {
         rb->WakeUp();
@@ -219,19 +202,4 @@ void GameObject::OnCollision(GameObject* other) {
     if (_collisionCallback) {
         _collisionCallback(other);
     }
-}
-
-void GameObject::UpdateTransform() {
-    // if (_isTransformDirty) {
-        _w2w = glm::translate(glm::mat4(1.0f), _position) *
-            glm::mat4_cast(glm::quat(_rotation)) *
-            glm::scale(glm::mat4(1.0f), _scale);
-    //     _isTransformDirty = false;
-    // }
-}
-
-void GameObject::UpdatePositionRotationScale() {
-    _position = glm::vec3(_w2w[3]);
-    _rotation = glm::eulerAngles(glm::quat_cast(glm::mat3(_w2w)));
-    _scale = glm::vec3(glm::length(_w2w[0]), glm::length(_w2w[1]), glm::length(_w2w[2]));
 }

@@ -25,7 +25,7 @@ class btDiscreteDynamicsWorld;
 class btCollisionShape;
 class RaycastCallback;
 class PhysicsDebugDrawer;
-class Impostor;
+class RigidbodyComponent;
 
 using ColliderID = uint32_t;
 
@@ -48,8 +48,8 @@ public:
     void DrawImGui(float dt) override;
     void Reset();
 
-    void AddImpostor(Impostor*);
-    void RemoveImpostor(Impostor*);
+    void AddRigidbody(RigidbodyComponent*);
+    void RemoveRigidbody(RigidbodyComponent*);
 
     ColliderID CreateCollider(const Shape& shape);
     void DestroyCollider(ColliderID col);
@@ -68,7 +68,7 @@ private:
     btDiscreteDynamicsWorld* _world;
     PhysicsDebugDrawer* _debugDrawer;
     std::unordered_map<ColliderID, btCollisionShape*> _colliders;
-    std::vector<Impostor*> _impostors;
+    std::vector<RigidbodyComponent*> _impostors;
     float _timeAccum;
 
     bool _debugUIEnabled = false;

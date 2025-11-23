@@ -65,13 +65,15 @@ set(SOURCES
     src/server.cpp
     src/console.cpp
     src/game_object.cpp
-    src/impostor.cpp
-    src/light.cpp
-    src/camera.cpp
+    src/transform_component.cpp
+    src/rigidbody_component.cpp
+    src/light_component.cpp
+    src/camera_component.cpp
     src/mesh.cpp
     src/frustum.cpp
-    src/renderable.cpp
-    src/drawable_2d.cpp
+    src/mesh_component.cpp
+    src/sprite_component.cpp
+    src/terrain_component.cpp
     src/shader.cpp
     src/graphics_server.cpp
     src/physics_server.cpp

@@ -1,12 +1,12 @@
 #include "editor_layer.hpp"
 #include "application.hpp"
-#include "camera.hpp"
-#include "drawable_2d.hpp"
+#include "camera_component.hpp"
+#include "sprite_component.hpp"
 #include "game_object.hpp"
 #include "imgui.h"
-#include "impostor.hpp"
-#include "light.hpp"
-#include "renderable.hpp"
+#include "light_component.hpp"
+#include "mesh_component.hpp"
+#include "rigidbody_component.hpp"
 #include "window.hpp"
 
 EditorLayer::EditorLayer(Application* app) : Layer("EditorLayer"), _app(app) {
@@ -137,7 +137,7 @@ void EditorLayer::DrawEntityInspector(GameObject* entity) {
         if (ImGui::DragFloat3("Scale", &scale.x, 0.1f)) entity->SetScale(scale);
     }
 
-    auto impostor = entity->GetComponent<Impostor>();
+    auto impostor = entity->GetComponent<RigidbodyComponent>();
     if (impostor != nullptr) {
         if (ImGui::CollapsingHeader("Physics", ImGuiTreeNodeFlags_DefaultOpen)) {
             glm::vec3 vel = impostor->GetLinearVelocity();
@@ -174,9 +174,9 @@ void EditorLayer::DrawEntityInspector(GameObject* entity) {
         }
     }
 
-    auto renderable = entity->GetComponent<Renderable>();
+    auto renderable = entity->GetComponent<MeshComponent>();
     if (renderable != nullptr) {
-        if (ImGui::CollapsingHeader("Renderable", ImGuiTreeNodeFlags_DefaultOpen)) {
+        if (ImGui::CollapsingHeader("MeshComponent", ImGuiTreeNodeFlags_DefaultOpen)) {
             auto mat = renderable->GetMaterial();
             auto graphics = _app->GetGraphicsServer();
             ImGui::SliderInt("Base map ID", &mat->baseMap, -1, graphics->textures.size() - 1);
@@ -193,9 +193,9 @@ void EditorLayer::DrawEntityInspector(GameObject* entity) {
         }
     }
 
-    auto drawable2D = entity->GetComponent<Drawable2D>();
+    auto drawable2D = entity->GetComponent<SpriteComponent>();
     if (drawable2D != nullptr) {
-        if (ImGui::CollapsingHeader("Drawable2D", ImGuiTreeNodeFlags_DefaultOpen)) {
+        if (ImGui::CollapsingHeader("SpriteComponent", ImGuiTreeNodeFlags_DefaultOpen)) {
             glm::vec2 size = drawable2D->GetSize();
             glm::vec2 pivot = drawable2D->GetPivot();
             glm::vec4 color = drawable2D->GetColor();

@@ -1,4 +1,4 @@
-#include "light.hpp"
+#include "light_component.hpp"
 #include "game_object.hpp"
 
 static glm::vec3 Direction(GLenum face)

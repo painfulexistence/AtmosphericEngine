@@ -1,7 +1,7 @@
 #include "physics_server.hpp"
 #include "game_object.hpp"
-#include "impostor.hpp"
 #include "physics_debug_drawer.hpp"
+#include "rigidbody_component.hpp"
 
 class RaycastCallback : public btCollisionWorld::ClosestRayResultCallback {
 private:
@@ -12,10 +12,8 @@ public:
     // float m_hitDistance;
 
     RaycastCallback(const btVector3& rayFromWorld, const btVector3& rayToWorld)
-        : btCollisionWorld::ClosestRayResultCallback(rayFromWorld, rayToWorld)
-        , m_rayFromWorld(rayFromWorld)
-        , m_rayToWorld(rayToWorld)
-    {
+      : btCollisionWorld::ClosestRayResultCallback(rayFromWorld, rayToWorld), m_rayFromWorld(rayFromWorld),
+        m_rayToWorld(rayToWorld) {
     }
 
     btScalar addSingleResult(btCollisionWorld::LocalRayResult& rayResult, bool normalInWorldSpace) override {
@@ -28,8 +26,7 @@ public:
 PhysicsServer* PhysicsServer::_instance = nullptr;
 
 PhysicsServer::PhysicsServer() {
-    if (_instance != nullptr)
-        throw std::runtime_error("Physics server is already initialized!");
+    if (_instance != nullptr) throw std::runtime_error("Physics server is already initialized!");
 
     _instance = this;
 }
@@ -66,8 +63,7 @@ void PhysicsServer::Init(Application* app) {
 
 void PhysicsServer::Process(float dt) {
     _timeAccum += dt;
-    while (_timeAccum >= FIXED_TIME_STEP)
-    {
+    while (_timeAccum >= FIXED_TIME_STEP) {
         _world->stepSimulation(FIXED_TIME_STEP, 0);
         _timeAccum -= FIXED_TIME_STEP;
     }
@@ -76,10 +72,8 @@ void PhysicsServer::Process(float dt) {
     for (int i = 0; i < numManifolds; i++) {
         btPersistentManifold* contactManifold = _dispatcher->getManifoldByIndexInternal(i);
 
-        btCollisionObject* objA =
-            const_cast<btCollisionObject*>(contactManifold->getBody0());
-        btCollisionObject* objB =
-            const_cast<btCollisionObject*>(contactManifold->getBody1());
+        btCollisionObject* objA = const_cast<btCollisionObject*>(contactManifold->getBody0());
+        btCollisionObject* objB = const_cast<btCollisionObject*>(contactManifold->getBody1());
 
         GameObject* gameObjA = static_cast<GameObject*>(objA->getUserPointer());
         GameObject* gameObjB = static_cast<GameObject*>(objB->getUserPointer());
@@ -93,7 +87,7 @@ void PhysicsServer::Process(float dt) {
     }
 
     if (_debugUIEnabled) {
-        _world->debugDrawWorld(); // TODO: check if this cost performance when debug mode is NoDebug
+        _world->debugDrawWorld();// TODO: check if this cost performance when debug mode is NoDebug
     }
 }
 
@@ -106,9 +100,9 @@ void PhysicsServer::DrawImGui(float dt) {
 
         ImGui::Separator();
 
-        if (ImGui::TreeNode("Impostors")) {
+        if (ImGui::TreeNode("Rigidbodies")) {
             for (auto i : _impostors) {
-                ImGui::Text("%s (impostor)", i->gameObject->GetName().c_str());
+                ImGui::Text("%s (rigidbody)", i->gameObject->GetName().c_str());
             }
             ImGui::TreePop();
         }
@@ -123,12 +117,12 @@ void PhysicsServer::Reset() {
     _impostors.clear();
 }
 
-void PhysicsServer::AddImpostor(Impostor* impostor) {
+void PhysicsServer::AddRigidbody(RigidbodyComponent* impostor) {
     _world->addRigidBody(impostor->_rigidbody);
     _impostors.push_back(impostor);
 }
 
-void PhysicsServer::RemoveImpostor(Impostor* impostor) {
+void PhysicsServer::RemoveRigidbody(RigidbodyComponent* impostor) {
     _world->removeRigidBody(impostor->_rigidbody);
 }
 
@@ -136,7 +130,9 @@ ColliderID PhysicsServer::CreateCollider(const Shape& shape) {
     btCollisionShape* col = nullptr;
     switch (shape.type) {
     case ShapeType::Cube:
-        col = new btBoxShape(btVector3(0.5f * shape.data.cubeData.size.x, 0.5f * shape.data.cubeData.size.y, 0.5f * shape.data.cubeData.size.z));
+        col = new btBoxShape(btVector3(
+          0.5f * shape.data.cubeData.size.x, 0.5f * shape.data.cubeData.size.y, 0.5f * shape.data.cubeData.size.z
+        ));
         break;
     case ShapeType::Sphere:
         col = new btSphereShape(shape.data.sphereData.radius);
@@ -145,7 +141,9 @@ ColliderID PhysicsServer::CreateCollider(const Shape& shape) {
         col = new btCapsuleShape(shape.data.capsuleData.radius, shape.data.capsuleData.height);
         break;
     case ShapeType::Cylinder:
-        col = new btCylinderShape(btVector3(shape.data.cylinderData.radius, shape.data.cylinderData.height, shape.data.cylinderData.radius));
+        col = new btCylinderShape(
+          btVector3(shape.data.cylinderData.radius, shape.data.cylinderData.height, shape.data.cylinderData.radius)
+        );
         break;
     case ShapeType::Cone:
         col = new btConeShape(shape.data.coneData.radius, shape.data.coneData.height);

@@ -2,12 +2,14 @@
 #include "globals.hpp"
 #include <map>
 
+class TransformComponent;
+
 class Component;
 
 struct LightProps;
 struct CameraProps;
-struct ImpostorProps;
-struct Drawable2DProps;
+struct RigidbodyProps;
+struct SpriteProps;
 
 class Mesh;
 
@@ -15,17 +17,21 @@ class GraphicsServer;
 
 class PhysicsServer;
 
-class GameObject
-{
+class GameObject {
 public:
     GameObject* parent = nullptr;
     bool isActive = true;
 
-    GameObject(GraphicsServer* graphics = nullptr, PhysicsServer* physics = nullptr, glm::vec3 position = glm::vec3(0.0f), glm::vec3 rotation = glm::vec3(0.0f), glm::vec3 scale = glm::vec3(1.0f));
+    GameObject(
+      GraphicsServer* graphics = nullptr,
+      PhysicsServer* physics = nullptr,
+      glm::vec3 position = glm::vec3(0.0f),
+      glm::vec3 rotation = glm::vec3(0.0f),
+      glm::vec3 scale = glm::vec3(1.0f)
+    );
     ~GameObject();
 
-    template<typename T>
-    T* GetComponent() const {
+    template<typename T> T* GetComponent() const {
         for (auto* component : _components) {
             if (T* cast = dynamic_cast<T*>(component)) {
                 return cast;
@@ -34,17 +40,24 @@ public:
         return nullptr;
     }
     // Component* GetComponent(std::string name) const;
+    template<typename T, typename... Args> void AddComponent(Args&&... args) {
+        T* component = new T(this, std::forward<Args>(args)...);
+        _components.push_back(component);
+        component->gameObject = this;
+        component->OnAttach();
+    }
     void AddComponent(Component* component);
     void RemoveComponent(Component* component);
 
     GameObject* AddLight(const LightProps&);
     GameObject* AddCamera(const CameraProps&);
-    GameObject* AddRenderable(const std::string& meshName);
-    GameObject* AddRenderable(Mesh* mesh);
-    GameObject* AddDrawable2D(const Drawable2DProps& props);
-    GameObject* AddImpostor(const ImpostorProps& props);
-    // GameObject* AddImpostor(const std::string& meshName, float mass = 0.0f, glm::vec3 linearFactor = glm::vec3(1.0f), glm::vec3 angularFactor = glm::vec3(1.0f));
-    // GameObject* AddImpostor(Mesh* mesh, float mass = 0.0f, glm::vec3 linearFactor = glm::vec3(1.0f), glm::vec3 angularFactor = glm::vec3(1.0f));
+    GameObject* AddMesh(const std::string& meshName);
+    GameObject* AddMesh(Mesh* mesh);
+    GameObject* AddSprite(const SpriteProps& props);
+    GameObject* AddRigidbody(const RigidbodyProps& props);
+    // GameObject* AddRigidbody(const std::string& meshName, float mass = 0.0f, glm::vec3 linearFactor =
+    // glm::vec3(1.0f), glm::vec3 angularFactor = glm::vec3(1.0f)); GameObject* AddRigidbody(Mesh* mesh, float mass =
+    // 0.0f, glm::vec3 linearFactor = glm::vec3(1.0f), glm::vec3 angularFactor = glm::vec3(1.0f));
 
     glm::mat4 GetLocalTransform() const;
     void SetLocalTransform(glm::mat4 xform);
@@ -54,25 +67,21 @@ public:
 
     void SyncObjectTransform(glm::mat4 xform);
 
-    inline glm::vec3 GetPosition() const {
-        return _position;
-    };
-    inline glm::vec3 GetRotation() const {
-        return _rotation;
-    };
-    inline glm::vec3 GetScale() const {
-        return _scale;
-    };
+    glm::vec3 GetPosition() const;
+    glm::vec3 GetRotation() const;
+    glm::vec3 GetScale() const;
     void SetPosition(glm::vec3 value);
     void SetRotation(glm::vec3 value);
     void SetScale(glm::vec3 value);
 
-    glm::mat4 GetTransform() const; // World space
+    glm::mat4 GetTransform() const;// World space
 
     glm::vec3 GetVelocity();
     void SetVelocity(glm::vec3 value);
 
-    inline void SetActive(bool value) { isActive = value; }
+    inline void SetActive(bool value) {
+        isActive = value;
+    }
 
     void SetPhysicsActivated(bool value);
 
@@ -95,17 +104,9 @@ private:
     // std::map<std::string, Component*> _namedComponents;
     GraphicsServer* _graphics = nullptr;
     PhysicsServer* _physics = nullptr;
-    glm::mat4 _m2w = glm::mat4(1.0f);
-    glm::mat4 _w2w = glm::mat4(1.0f);
-    glm::vec3 _position = glm::vec3(0, 0, 0);
-    glm::vec3 _rotation = glm::vec3(0, 0, 0);
-    glm::vec3 _scale = glm::vec3(1, 1, 1);
+    TransformComponent* _transform = nullptr;
     glm::vec3 _velocity = glm::vec3(0, 0, 0);
     glm::vec3 _angularVelocity = glm::vec3(0, 0, 0);
     bool _isTransformDirty = false;
     std::function<void(GameObject*)> _collisionCallback;
-
-    void UpdateTransform();
-
-    void UpdatePositionRotationScale();
 };

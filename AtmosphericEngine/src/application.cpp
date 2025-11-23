@@ -1,32 +1,33 @@
 #include "application.hpp"
-#include "job_system.hpp"
-#include "window.hpp"
+#include "editor_layer.hpp"
 #include "game_object.hpp"
+#include "job_system.hpp"
+#include "rigidbody_component.hpp"
 #include "scene.hpp"
-#include "impostor.hpp"
-#include "drawable_2d.hpp"
+#include "sprite_component.hpp"
+#include "window.hpp"
 
-Application::Application(AppConfig config) : _config(config)
-{
+Application::Application(AppConfig config) : _config(config) {
     // setbuf(stdout, NULL); // Cancel output stream buffering so that output can be seen immediately
 
-    _window = std::make_shared<Window>(WindowProps {
-        .title = config.windowTitle,
-        .width = config.windowWidth,
-        .height = config.windowHeight,
-        .resizable = config.windowResizable,
-        .floating = config.windowFloating,
-        .fullscreen = config.fullscreen,
-        .vsync = config.vsync,
-    }); // Multi-window not supported now
+    _window = std::make_shared<Window>(WindowProps{
+      .title = config.windowTitle,
+      .width = config.windowWidth,
+      .height = config.windowHeight,
+      .resizable = config.windowResizable,
+      .floating = config.windowFloating,
+      .fullscreen = config.fullscreen,
+      .vsync = config.vsync,
+    });// Multi-window not supported now
     _window->Init();
     _window->InitImGui();
 
     JobSystem::Get()->Init();
+
+    PushLayer(new EditorLayer(this));
 }
 
-Application::~Application()
-{
+Application::~Application() {
     ENGINE_LOG("Exiting...");
     _window->DeinitImGui();
 
@@ -39,13 +40,12 @@ Application::~Application()
     }
 }
 
-void Application::Run()
-{
+void Application::Run() {
     console.Init(this);
     input.Init(this);
     // audio.Init(this);
     graphics.Init(this);
-    physics.Init(this); // Note that physics debug drawer is dependent on graphics server
+    physics.Init(this);// Note that physics debug drawer is dependent on graphics server
     script.Init(this);
     for (auto& subsystem : _subsystems) {
         subsystem->Init(this);
@@ -136,24 +136,22 @@ void Application::ReloadScene() {
     }
 }
 
-void Application::Quit()
-{
+void Application::Quit() {
     ENGINE_LOG("Requested to quit.");
     _window->Close();
 }
 
-void Application::Update(const FrameData& props)
-{
+void Application::Update(const FrameData& props) {
     float dt = props.deltaTime;
 
     OnUpdate(dt, GetWindowTime());
 
-    //ecs.Process(dt); // Note that most of the entity manipulation logic should be put there
+    // ecs.Process(dt); // Note that most of the entity manipulation logic should be put there
     console.Process(dt);
     input.Process(dt);
     // audio.Process(dt);
     script.Process(dt);
-    physics.Process(dt); // TODO: Update only every entity's physics transform
+    physics.Process(dt);// TODO: Update only every entity's physics transform
     for (auto& subsystem : _subsystems) {
         subsystem->Process(dt);
     }
@@ -165,20 +163,19 @@ void Application::Update(const FrameData& props)
     float time = GetWindowTime();
 
     for (auto go : _entities) {
-        auto impostor = go->GetComponent<Impostor>();
+        auto impostor = go->GetComponent<RigidbodyComponent>();
         if (impostor == nullptr) continue;
         go->SyncObjectTransform(impostor->GetWorldTransform());
     }
 }
 
-void Application::Render(const FrameData& props)
-{
+void Application::Render(const FrameData& props) {
     float dt = props.deltaTime;
     float time = GetWindowTime();
 
     // Note that draw calls are asynchronous, which means they return immediately.
     // So the drawing time can only be calculated along with the image presenting.
-    graphics.Process(dt); // TODO: Generate command buffers according to entity transforms
+    graphics.Process(dt);// TODO: Generate command buffers according to entity transforms
     // graphics.Render(dt);
     // Nevertheless, glFinish() can force the GPU process all the commands synchronously.
     // glFinish();
@@ -196,47 +193,41 @@ void Application::SyncTransformWithPhysics()
 {
 }
 
-uint64_t Application::GetClock()
-{
+uint64_t Application::GetClock() {
     return this->_clock;
 }
 
-std::shared_ptr<Window> Application::GetWindow()
-{
+std::shared_ptr<Window> Application::GetWindow() {
     return this->_window;
 }
 
-float Application::GetWindowTime()
-{
+float Application::GetWindowTime() {
     return this->_window->GetTime();
 }
 
-void Application::SetWindowTime(float time)
-{
+void Application::SetWindowTime(float time) {
     this->_window->SetTime(time);
 }
 
-std::string Application::GetWindowTitle()
-{
+std::string Application::GetWindowTitle() {
     return this->_window->GetTitle();
 }
 
-void Application::SetWindowTitle(const std::string& title)
-{
+void Application::SetWindowTitle(const std::string& title) {
     this->_window->SetTitle(title);
 }
 
-GameObject* Application::CreateGameObject(glm::vec3 position, glm::vec3 rotation, glm::vec3 scale)
-{
+GameObject* Application::CreateGameObject(glm::vec3 position, glm::vec3 rotation, glm::vec3 scale) {
     auto e = new GameObject(&graphics, &physics, position, rotation, scale);
     e->SetName(fmt::format("entity #{}", _nextEntityID++));
     _entities.push_back(e);
     return e;
 }
 
-GameObject* Application::CreateGameObject(glm::vec2 position, float angle)
-{
-    auto e = new GameObject(&graphics, &physics, glm::vec3(position.x, position.y, 0.0f), glm::vec3(0.0f, 0.0f, angle), glm::vec3(1.0f));
+GameObject* Application::CreateGameObject(glm::vec2 position, float angle) {
+    auto e = new GameObject(
+      &graphics, &physics, glm::vec3(position.x, position.y, 0.0f), glm::vec3(0.0f, 0.0f, angle), glm::vec3(1.0f)
+    );
     e->SetName(fmt::format("entity #{}", _nextEntityID++));
     _entities.push_back(e);
     return e;

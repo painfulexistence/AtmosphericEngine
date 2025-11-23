@@ -15,21 +15,12 @@ class TerrainDemo : public Application {
     void OnLoad() override {
         srand(time(NULL));
 
-        LoadScene({
-            .textures = {
-                "./assets/textures/heightmap.jpg",
-                "./assets/textures/heightmap_debug.jpg"
-            },
-            .materials = {
-                {
-                    .heightMap = 5,
-                    .diffuse = {1., 1., 1.},
-                    .specular = {.7, .6, .6},
-                    .ambient = {.0, .0, .0},
-                    .shininess = 0.25
-                }
-            }
-        });
+        LoadScene({ .textures = { "./assets/textures/heightmap.jpg", "./assets/textures/heightmap_debug.jpg" },
+                    .materials = { { .heightMap = 5,
+                                     .diffuse = { 1., 1., 1. },
+                                     .specular = { .7, .6, .6 },
+                                     .ambient = { .0, .0, .0 },
+                                     .shininess = 0.25 } } });
 
         auto windowSize = Window::Get()->GetFramebufferSize();
         windowWidth = windowSize.width;
@@ -43,7 +34,7 @@ class TerrainDemo : public Application {
         // TODO: add togglable physics
         // auto flyCamMesh = graphics.CreateMesh("flyCam");
         // flyCamMesh->AddCapsuleShape(0.5f, 3.0f);
-        // flyCamGO->AddImpostor({
+        // flyCamGO->AddRigidbody({
         //     .mass = 0.01f,
         //     .useGravity = false,
         //     .shape = graphics.GetMesh("flyCam")->GetShape()
@@ -51,26 +42,22 @@ class TerrainDemo : public Application {
 
         const float worldSize = 1024.f;
         const int worldResolution = 128;
-        auto terrainMesh = graphics.CreateTerrainMesh("Terrain", worldSize, worldResolution);
-        terrainMesh->SetMaterial(graphics.materials[0]);
-        auto img = AssetManager::loadImage("assets/textures/heightmap.jpg");
-        if (img) {
-            const int terrainDataSize = img->width * img->height;
-            terrainData.resize(terrainDataSize);
-            for (int i = 0; i < terrainDataSize; ++i) {
-                terrainData[i] = (static_cast<float>(img->byteArray[i]) / 255.0f) * 32.0f;
-            }
-            terrainMesh->SetShape(new btHeightfieldTerrainShape(img->width, img->height, terrainData.data(), 1.0f, -64.0f, 64.0f, 1, PHY_FLOAT, true));
-            // terrainMesh->SetShapeLocalScaling(glm::vec3(10.0f, 1.0f, 10.0f));
-        } else {
-            throw std::runtime_error("Could not load heightmap");
-        }
         auto terrain = CreateGameObject(glm::vec3(0.0f, -10.0f, 0.0f));
-        terrain->AddRenderable("Terrain");
-        terrain->AddImpostor({
-            .mass = 0.0f,
-            .shape = graphics.GetMesh("Terrain")->GetShape(),
-        });
+        terrain->AddComponent<TerrainComponent>(
+          &graphics,
+          &physics,
+          TerrainProps{ .heightmapPath = "assets/textures/heightmap.jpg",
+                        .worldSize = worldSize,
+                        .resolution = worldResolution,
+                        .heightScale = 32.0f,
+                        .minHeight = -64.0f,
+                        .maxHeight = 64.0f,
+                        .material = graphics.materials[0] }
+        );
+        auto terrainMesh = terrain->GetComponent<TerrainComponent>()->GetMesh();
+        terrain->AddRigidbody(
+          { .mass = 0.0f, .friction = 1.0f, .restitution = 0.0f, .shape = terrainMesh->GetShape(), .useGravity = false }
+        );
     }
 
     void OnUpdate(float dt, float time) override {
@@ -111,10 +98,7 @@ class TerrainDemo : public Application {
 };
 
 int main(int argc, char* argv[]) {
-    TerrainDemo game({
-        .windowFloating = true,
-        .useDefaultTextures = true
-    });
+    TerrainDemo game({ .windowFloating = true, .useDefaultTextures = true });
     game.Run();
     return 0;
 }

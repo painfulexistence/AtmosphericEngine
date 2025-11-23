@@ -1,7 +1,7 @@
 #include "script.hpp"
 #include "material.hpp"
-#include "light.hpp"
-#include "camera.hpp"
+#include "light_component.hpp"
+#include "camera_component.hpp"
 #include "scene.hpp"
 #include <string>
 

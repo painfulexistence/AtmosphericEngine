@@ -3,19 +3,25 @@
 
 class GameObject;
 
-class Component
-{
+class Component {
 public:
-    GameObject* gameObject = nullptr;
-
-    virtual ~Component() {};
+    virtual ~Component(){};
 
     virtual std::string GetName() const = 0;
+
+    GameObject* GetOwner() const {
+        return gameObject;
+    }
+
+    virtual void OnAttach(){};
+    virtual void OnDetach(){};
+
+    GameObject* gameObject = nullptr;
 };
 
 struct Transform;
 
-struct Impostor;
+struct RigidbodyComponent;
 
 struct Geometry;
 
@@ -28,10 +34,9 @@ struct TransformData
     const Transform* current;
 };
 
-struct ImpostorData
-{
+struct RigidbodyComponentData {
     bool isActive;
-    const Impostor* current;
+    const RigidbodyComponent* current;
 };
 
 struct GeometryData

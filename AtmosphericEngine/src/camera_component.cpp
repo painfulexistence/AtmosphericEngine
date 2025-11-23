@@ -1,4 +1,4 @@
-#include "camera.hpp"
+#include "camera_component.hpp"
 #include "game_object.hpp"
 
 static const float maxVAngle = PI / 2.0f - 0.01f;

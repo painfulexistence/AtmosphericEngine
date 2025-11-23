@@ -1,29 +1,26 @@
 #include "graphics_server.hpp"
-#include "stb_image.h"
+#include "application.hpp"
 #include "asset_manager.hpp"
-#include "camera.hpp"
+#include "camera_component.hpp"
+#include "game_object.hpp"
+#include "job_system.hpp"
 #include "material.hpp"
 #include "mesh.hpp"
-#include "renderable.hpp"
-#include "game_object.hpp"
-#include "application.hpp"
+#include "mesh_component.hpp"
+#include "stb_image.h"
 #include "window.hpp"
-#include "job_system.hpp"
 
 #include <cstddef>
 
 GraphicsServer* GraphicsServer::_instance = nullptr;
 
-GraphicsServer::GraphicsServer()
-{
-    if (_instance != nullptr)
-        throw std::runtime_error("GraphicsServer is already initialized!");
+GraphicsServer::GraphicsServer() {
+    if (_instance != nullptr) throw std::runtime_error("GraphicsServer is already initialized!");
 
     _instance = this;
 }
 
-GraphicsServer::~GraphicsServer()
-{
+GraphicsServer::~GraphicsServer() {
     for (const auto& [name, mesh] : _namedMeshes)
         delete mesh;
     for (auto& mat : materials)
@@ -36,8 +33,7 @@ GraphicsServer::~GraphicsServer()
     glDeleteBuffers(1, &screenVBO);
 }
 
-void GraphicsServer::Init(Application* app)
-{
+void GraphicsServer::Init(Application* app) {
     Server::Init(app);
 
     stbi_set_flip_vertically_on_load(true);
@@ -68,10 +64,10 @@ void GraphicsServer::Init(Application* app)
     auto window = Window::Get();
     auto [width, height] = window->GetFramebufferSize();
     CreateFBOs();
-    CreateRTs(RenderTargetProps { width, height });
+    CreateRTs(RenderTargetProps{ width, height });
     window->AddFramebufferResizeCallback([this, window](int newWidth, int newHeight) {
         DestroyRTs();
-        CreateRTs(RenderTargetProps { newWidth, newHeight });
+        CreateRTs(RenderTargetProps{ newWidth, newHeight });
     });
 
     CreateDebugVAO();
@@ -81,60 +77,51 @@ void GraphicsServer::Init(Application* app)
     canvasDrawList.reserve(1 << 16);
     debugLines.reserve(1 << 16);
 
-    defaultCamera = new Camera(app->GetDefaultGameObject(), {
-        .isOrthographic = false,
-        .perspective = {
-            .fieldOfView = 45.0f,
-            .aspectRatio = 4.0f / 3.0f,
-            .nearClip = 0.1f,
-            .farClip = 1000.0f
-        },
+    defaultCamera = new Camera(
+      app->GetDefaultGameObject(),
+      { .isOrthographic = false,
+        .perspective = { .fieldOfView = 45.0f, .aspectRatio = 4.0f / 3.0f, .nearClip = 0.1f, .farClip = 1000.0f },
         .verticalAngle = 0.0f,
         .horizontalAngle = 0.0f,
-        .eyeOffset = glm::vec3(0.0f)
-    });
+        .eyeOffset = glm::vec3(0.0f) }
+    );
 
-    defaultLight = new Light(app->GetDefaultGameObject(), {
-        .type = LightType::Directional,
+    defaultLight = new Light(
+      app->GetDefaultGameObject(),
+      { .type = LightType::Directional,
         .ambient = glm::vec3(1.0f, 1.0f, 1.0f),
         .diffuse = glm::vec3(1.0f, 1.0f, 1.0f),
         .specular = glm::vec3(1.0f, 1.0f, 1.0f),
         .direction = glm::vec3(0.0f, -1.0f, 0.0f),
         .intensity = 1.0f,
-        .castShadow = false
-    });
+        .castShadow = false }
+    );
 }
 
-void GraphicsServer::Process(float dt)
-{
+void GraphicsServer::Process(float dt) {
     // Note that draw calls are asynchronous, which means they return immediately.
     // So the drawing time can only be calculated along with the image presenting.
     Render(dt);
 }
 
-void GraphicsServer::Render(float dt)
-{
+void GraphicsServer::Render(float dt) {
     auxLightCount = std::min(MAX_OMNI_LIGHTS, (int)pointLights.size());
 
     // TODO: Put the logic of generating command buffers here
     // Setup
     _meshInstanceMap.clear();
     for (auto r : renderables) {
-        if (!r->gameObject->isActive)
-            continue;
+        if (!r->gameObject->isActive) continue;
 
         Mesh* mesh = r->GetMesh();
         Material* material = r->GetMaterial();
 
-        InstanceData instanceData = {
-            .modelMatrix = r->gameObject->GetTransform()
-        };
+        InstanceData instanceData = { .modelMatrix = r->gameObject->GetTransform() };
         _meshInstanceMap[mesh].push_back(instanceData);
     }
 
     for (auto d : canvasDrawables) {
-        if (!d->gameObject->isActive)
-            continue;
+        if (!d->gameObject->isActive) continue;
 
         glm::vec2 pos = glm::vec2(d->gameObject->GetPosition());
         float angle = d->gameObject->GetRotation().z;
@@ -143,15 +130,7 @@ void GraphicsServer::Render(float dt)
         glm::vec2 pivot = d->GetPivot();
 
         PushCanvasQuad(
-            pos.x,
-            pos.y,
-            size.x,
-            size.y,
-            angle,
-            pivot.x,
-            pivot.y,
-            d->GetColor(),
-            static_cast<int>(d->GetTextureID())
+          pos.x, pos.y, size.x, size.y, angle, pivot.x, pivot.y, d->GetColor(), static_cast<int>(d->GetTextureID())
         );
     }
 
@@ -163,7 +142,7 @@ void GraphicsServer::Render(float dt)
     } else {
         GeometryPass(dt);
         LightingPass(dt);
-        MSAAResolvePass(dt); // TODO: remove this
+        MSAAResolvePass(dt);// TODO: remove this
     }
 
     CanvasPass(dt);
@@ -172,11 +151,12 @@ void GraphicsServer::Render(float dt)
     }
 }
 
-void GraphicsServer::DrawImGui(float dt)
-{
+void GraphicsServer::DrawImGui(float dt) {
     if (ImGui::CollapsingHeader("Graphics", ImGuiTreeNodeFlags_DefaultOpen)) {
         ImGui::Text("Frame rate: %.3f ms/frame (%.1f FPS)", 1000.0f * dt, 1.0f / dt);
-        ImGui::Text("Average frame rate: %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+        ImGui::Text(
+          "Average frame rate: %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate
+        );
         ImGui::ColorEdit3("Clear color", (float*)&clearColor);
         if (ImGui::Button("Post-processing")) {
             postProcessEnabled = !postProcessEnabled;
@@ -227,7 +207,7 @@ void GraphicsServer::DrawImGui(float dt)
         }
         if (ImGui::TreeNode("Textures")) {
             for (auto t : uniShadowMaps) {
-                if (ImGui::TreeNode(fmt:: format("Directional shadow map #{}", t).c_str())) {
+                if (ImGui::TreeNode(fmt::format("Directional shadow map #{}", t).c_str())) {
                     ImGui::Image((ImTextureID)(intptr_t)t, ImVec2(64, 64));
                     ImGui::TreePop();
                 }
@@ -274,14 +254,14 @@ void GraphicsServer::DrawImGui(float dt)
             }
             ImGui::Separator();
             for (auto t : defaultTextures) {
-                if (ImGui::TreeNode(fmt:: format("Default Tex #{}", t).c_str())) {
+                if (ImGui::TreeNode(fmt::format("Default Tex #{}", t).c_str())) {
                     ImGui::Image((ImTextureID)(intptr_t)t, ImVec2(64, 64));
                     ImGui::TreePop();
                 }
             }
             ImGui::Separator();
             for (auto t : textures) {
-                if (ImGui::TreeNode(fmt:: format("Tex #{}", t).c_str())) {
+                if (ImGui::TreeNode(fmt::format("Tex #{}", t).c_str())) {
                     ImGui::Image((ImTextureID)(intptr_t)t, ImVec2(64, 64));
                     ImGui::TreePop();
                 }
@@ -340,17 +320,14 @@ void GraphicsServer::Reset() {
 }
 
 void GraphicsServer::LoadDefaultTextures() {
-    LoadTextures({
-        "assets/textures/default_diff.jpg",
-        "assets/textures/default_norm.jpg",
-        "assets/textures/default_ao.jpg",
-        "assets/textures/default_rough.jpg",
-        "assets/textures/default_metallic.jpg"
-    });
+    LoadTextures({ "assets/textures/default_diff.jpg",
+                   "assets/textures/default_norm.jpg",
+                   "assets/textures/default_ao.jpg",
+                   "assets/textures/default_rough.jpg",
+                   "assets/textures/default_metallic.jpg" });
 }
 
-void GraphicsServer::LoadTextures(const std::vector<std::string>& paths)
-{
+void GraphicsServer::LoadTextures(const std::vector<std::string>& paths) {
     int oldCount = textures.size(), newCount = paths.size();
     textures.resize(oldCount + newCount);
 
@@ -358,9 +335,7 @@ void GraphicsServer::LoadTextures(const std::vector<std::string>& paths)
     for (int i = 0; i < newCount; i++) {
         auto path = paths[i];
         auto image = &images[i];
-        JobSystem::Get()->Execute([path, image](int threadID) {
-            *image = AssetManager::loadImage(path);
-        });
+        JobSystem::Get()->Execute([path, image](int threadID) { *image = AssetManager::loadImage(path); });
     }
     JobSystem::Get()->Wait();
 
@@ -380,13 +355,19 @@ void GraphicsServer::LoadTextures(const std::vector<std::string>& paths)
         // glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, border); // for clamp to border wrapping
         switch (img->channelCount) {
         case 1:
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, img->width, img->height, 0, GL_RED, GL_UNSIGNED_BYTE, img->byteArray.data());
+            glTexImage2D(
+              GL_TEXTURE_2D, 0, GL_R8, img->width, img->height, 0, GL_RED, GL_UNSIGNED_BYTE, img->byteArray.data()
+            );
             break;
         case 3:
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, img->width, img->height, 0, GL_RGB, GL_UNSIGNED_BYTE, img->byteArray.data());
+            glTexImage2D(
+              GL_TEXTURE_2D, 0, GL_RGB, img->width, img->height, 0, GL_RGB, GL_UNSIGNED_BYTE, img->byteArray.data()
+            );
             break;
         case 4:
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, img->width, img->height, 0, GL_RGBA, GL_UNSIGNED_BYTE, img->byteArray.data());
+            glTexImage2D(
+              GL_TEXTURE_2D, 0, GL_RGBA, img->width, img->height, 0, GL_RGBA, GL_UNSIGNED_BYTE, img->byteArray.data()
+            );
             break;
         default:
             throw std::runtime_error(fmt::format("Unknown texture format at {}\n", paths[i]));
@@ -396,64 +377,37 @@ void GraphicsServer::LoadTextures(const std::vector<std::string>& paths)
 }
 
 void GraphicsServer::LoadDefaultShaders() {
-    LoadShaders({
-        {
-            "color", {
-                .vert = "assets/shaders/tbn.vert",
-                .frag = "assets/shaders/pbr.frag"
-            },
-        },
-        {
-            "debug_line", {
-                .vert = "assets/shaders/debug.vert",
-                .frag = "assets/shaders/flat.frag",
-            }
-        },
-        {
-            "depth", {
-                .vert = "assets/shaders/depth_simple.vert",
-                .frag = "assets/shaders/depth_simple.frag"
-            },
-        },
-        {
-            "depth_cubemap", {
-                .vert = "assets/shaders/depth_cubemap.vert",
-                .frag = "assets/shaders/depth_cubemap.frag"
-            },
-        },
-        {
-            "hdr", {
-                .vert = "assets/shaders/hdr.vert",
-                .frag = "assets/shaders/hdr_ca.frag"
-            },
-        },
-        {
-            "terrain", {
-                .vert = "assets/shaders/terrain.vert",
-                .frag = "assets/shaders/terrain.frag",
-                .tesc = "assets/shaders/terrain.tesc",
-                .tese = "assets/shaders/terrain.tese"
-            },
-        },
-        {
-            "canvas", {
-                .vert = "assets/shaders/canvas.vert",
-                .frag = "assets/shaders/canvas.frag"
-            }
-        },
-        {
-            "geometry", {
-                .vert = "assets/shaders/geometry.vert",
-                .frag = "assets/shaders/geometry.frag"
-            }
-        },
-        {
-            "lighting", {
-                .vert = "assets/shaders/lighting.vert",
-                .frag = "assets/shaders/lighting.frag"
-            }
-        }
-    });
+    LoadShaders({ {
+                    "color",
+                    { .vert = "assets/shaders/tbn.vert", .frag = "assets/shaders/pbr.frag" },
+                  },
+                  { "debug_line",
+                    {
+                      .vert = "assets/shaders/debug.vert",
+                      .frag = "assets/shaders/flat.frag",
+                    } },
+                  {
+                    "depth",
+                    { .vert = "assets/shaders/depth_simple.vert", .frag = "assets/shaders/depth_simple.frag" },
+                  },
+                  {
+                    "depth_cubemap",
+                    { .vert = "assets/shaders/depth_cubemap.vert", .frag = "assets/shaders/depth_cubemap.frag" },
+                  },
+                  {
+                    "hdr",
+                    { .vert = "assets/shaders/hdr.vert", .frag = "assets/shaders/hdr_ca.frag" },
+                  },
+                  {
+                    "terrain",
+                    { .vert = "assets/shaders/terrain.vert",
+                      .frag = "assets/shaders/terrain.frag",
+                      .tesc = "assets/shaders/terrain.tesc",
+                      .tese = "assets/shaders/terrain.tese" },
+                  },
+                  { "canvas", { .vert = "assets/shaders/canvas.vert", .frag = "assets/shaders/canvas.frag" } },
+                  { "geometry", { .vert = "assets/shaders/geometry.vert", .frag = "assets/shaders/geometry.frag" } },
+                  { "lighting", { .vert = "assets/shaders/lighting.vert", .frag = "assets/shaders/lighting.frag" } } });
 }
 
 void GraphicsServer::LoadShaders(const std::unordered_map<std::string, ShaderProgramProps>& shaderDefs) {
@@ -465,8 +419,7 @@ void GraphicsServer::LoadShaders(const std::unordered_map<std::string, ShaderPro
     }
 }
 
-void GraphicsServer::ReloadShaders()
-{
+void GraphicsServer::ReloadShaders() {
     // TODO: reload shaders
 }
 
@@ -490,14 +443,14 @@ void GraphicsServer::CheckFramebufferStatus(const std::string& prefix) {
             throw std::runtime_error(fmt::format("{}: GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT", prefix));
         case GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE:
             throw std::runtime_error(fmt::format("{}: GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE", prefix));
-    #ifndef __EMSCRIPTEN__
+#ifndef __EMSCRIPTEN__
         case GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER:
             throw std::runtime_error(fmt::format("{}: GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER", prefix));
         case GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER:
             throw std::runtime_error(fmt::format("{}: GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER", prefix));
         case GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS:
             throw std::runtime_error(fmt::format("{}: GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS", prefix));
-    #endif
+#endif
         default:
             throw std::runtime_error(fmt::format("{}: Unknown error code {}", prefix, status));
         }
@@ -511,23 +464,31 @@ void GraphicsServer::CheckErrors(const std::string& prefix) {
         switch (errorCode) {
         // Reference: https://learnopengl.com/In-Practice/Debugging
         case GL_INVALID_ENUM:
-            error = "INVALID_ENUM"; break;
+            error = "INVALID_ENUM";
+            break;
         case GL_INVALID_VALUE:
-            error = "INVALID_VALUE"; break;
+            error = "INVALID_VALUE";
+            break;
         case GL_INVALID_OPERATION:
-            error = "INVALID_OPERATION"; break;
-    #ifndef __EMSCRIPTEN__
+            error = "INVALID_OPERATION";
+            break;
+#ifndef __EMSCRIPTEN__
         case GL_STACK_OVERFLOW:
-            error = "STACK_OVERFLOW"; break;
+            error = "STACK_OVERFLOW";
+            break;
         case GL_STACK_UNDERFLOW:
-            error = "STACK_UNDERFLOW"; break;
-    #endif
+            error = "STACK_UNDERFLOW";
+            break;
+#endif
         case GL_OUT_OF_MEMORY:
-            error = "OUT_OF_MEMORY"; break;
+            error = "OUT_OF_MEMORY";
+            break;
         case GL_INVALID_FRAMEBUFFER_OPERATION:
-            error = "INVALID_FRAMEBUFFER_OPERATION"; break;
+            error = "INVALID_FRAMEBUFFER_OPERATION";
+            break;
         default:
-            error = "UNKNOWN"; break;
+            error = "UNKNOWN";
+            break;
         }
         Console::Get()->Error(fmt::format("{}: {}\n", prefix, error));
     }
@@ -570,7 +531,17 @@ void GraphicsServer::CreateRTs(const RenderTargetProps& props) {
         glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
         for (int f = 0; f < 6; ++f) {
-            glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + f, 0, GL_DEPTH_COMPONENT, SHADOW_W, SHADOW_H, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+            glTexImage2D(
+              GL_TEXTURE_CUBE_MAP_POSITIVE_X + f,
+              0,
+              GL_DEPTH_COMPONENT,
+              SHADOW_W,
+              SHADOW_H,
+              0,
+              GL_DEPTH_COMPONENT,
+              GL_FLOAT,
+              NULL
+            );
         }
         omniShadowMaps[i] = map;
     }
@@ -598,7 +569,9 @@ void GraphicsServer::CreateRTs(const RenderTargetProps& props) {
 #else
     if (_currRenderPath == RenderPath::Forward) {
         glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, sceneColorTexture);
-        glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, props.numSamples, GL_RGBA16F, props.width, props.height, GL_TRUE);
+        glTexImage2DMultisample(
+          GL_TEXTURE_2D_MULTISAMPLE, props.numSamples, GL_RGBA16F, props.width, props.height, GL_TRUE
+        );
     } else {
         glBindTexture(GL_TEXTURE_2D, sceneColorTexture);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, props.width, props.height, 0, GL_RGBA, GL_FLOAT, NULL);
@@ -611,14 +584,20 @@ void GraphicsServer::CreateRTs(const RenderTargetProps& props) {
     glGenTextures(1, &sceneDepthTexture);
 #ifdef __EMSCRIPTEN__
     glBindTexture(GL_TEXTURE_2D, sceneDepthTexture);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, props.width, props.height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+    glTexImage2D(
+      GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, props.width, props.height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL
+    );
 #else
     if (_currRenderPath == RenderPath::Forward) {
         glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, sceneDepthTexture);
-        glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, props.numSamples, GL_DEPTH_COMPONENT, props.width, props.height, GL_TRUE);
+        glTexImage2DMultisample(
+          GL_TEXTURE_2D_MULTISAMPLE, props.numSamples, GL_DEPTH_COMPONENT, props.width, props.height, GL_TRUE
+        );
     } else {
         glBindTexture(GL_TEXTURE_2D, sceneDepthTexture);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, props.width, props.height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+        glTexImage2D(
+          GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, props.width, props.height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL
+        );
     }
 #endif
     if (glIsTexture(sceneDepthTexture) != GL_TRUE) {
@@ -680,7 +659,9 @@ void GraphicsServer::CreateRTs(const RenderTargetProps& props) {
 
     glGenTextures(1, &gBuffer.depthRT);
     glBindTexture(GL_TEXTURE_2D, gBuffer.depthRT);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, props.width, props.height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+    glTexImage2D(
+      GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, props.width, props.height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL
+    );
 
     glGenFramebuffers(1, &gBuffer.id);
     glBindFramebuffer(GL_FRAMEBUFFER, gBuffer.id);
@@ -689,7 +670,9 @@ void GraphicsServer::CreateRTs(const RenderTargetProps& props) {
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, gBuffer.albedoRT, 0);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT3, GL_TEXTURE_2D, gBuffer.materialRT, 0);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, gBuffer.depthRT, 0);
-    std::array<GLuint,4> attachments = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3 };
+    std::array<GLuint, 4> attachments = {
+        GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3
+    };
     glDrawBuffers(attachments.size(), attachments.data());
     CheckFramebufferStatus("G-buffer incomplete");
 
@@ -709,8 +692,7 @@ void GraphicsServer::DestroyRTs() {
     glDeleteTextures(1, &gBuffer.depthRT);
 }
 
-void GraphicsServer::CreateCanvasVAO()
-{
+void GraphicsServer::CreateCanvasVAO() {
     glGenVertexArrays(1, &canvasVAO);
     glGenBuffers(1, &canvasVBO);
 
@@ -727,14 +709,13 @@ void GraphicsServer::CreateCanvasVAO()
     glBindVertexArray(0);
 }
 
-void GraphicsServer::CreateScreenVAO()
-{
-    std::array<ScreenVertex, 4> verts = {{
-        { { -1.0f,  1.0f }, { 0.0f, 1.0f } },
-        { { -1.0f, -1.0f }, { 0.0f, 0.0f } },
-        { { 1.0f,  1.0f }, { 1.0f, 1.0f } },
-        { { 1.0f, -1.0f }, { 1.0f, 0.0f } },
-    }};
+void GraphicsServer::CreateScreenVAO() {
+    std::array<ScreenVertex, 4> verts = { {
+      { { -1.0f, 1.0f }, { 0.0f, 1.0f } },
+      { { -1.0f, -1.0f }, { 0.0f, 0.0f } },
+      { { 1.0f, 1.0f }, { 1.0f, 1.0f } },
+      { { 1.0f, -1.0f }, { 1.0f, 0.0f } },
+    } };
     glGenVertexArrays(1, &screenVAO);
     glGenBuffers(1, &screenVBO);
 
@@ -748,8 +729,7 @@ void GraphicsServer::CreateScreenVAO()
     glBindVertexArray(0);
 }
 
-void GraphicsServer::CreateDebugVAO()
-{
+void GraphicsServer::CreateDebugVAO() {
     glGenVertexArrays(1, &debugVAO);
     glGenBuffers(1, &debugVBO);
 
@@ -762,8 +742,7 @@ void GraphicsServer::CreateDebugVAO()
     glBindVertexArray(0);
 }
 
-void GraphicsServer::ShadowPass(float dt)
-{
+void GraphicsServer::ShadowPass(float dt) {
     glViewport(0, 0, SHADOW_W, SHADOW_H);
 #ifndef __EMSCRIPTEN__
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
@@ -777,15 +756,14 @@ void GraphicsServer::ShadowPass(float dt)
     glClear(GL_DEPTH_BUFFER_BIT);
     auto depthShader = GetShaderByName("depth");
     depthShader.Activate();
-    depthShader.SetUniform(std::string("ProjectionView"), mainLight->GetProjectionMatrix(0) * mainLight->GetViewMatrix());
+    depthShader.SetUniform(
+      std::string("ProjectionView"), mainLight->GetProjectionMatrix(0) * mainLight->GetViewMatrix()
+    );
 
-    for (const auto& [mesh, instances] : _meshInstanceMap)
-    {
-        if (instances.empty())
-            continue;
+    for (const auto& [mesh, instances] : _meshInstanceMap) {
+        if (instances.empty()) continue;
 
-        if (!mesh->initialized)
-            throw std::runtime_error(fmt::format("Mesh uninitialized!"));
+        if (!mesh->initialized) throw std::runtime_error(fmt::format("Mesh uninitialized!"));
 
         glEnable(GL_DEPTH_TEST);
         glDepthFunc(GL_LESS);
@@ -797,10 +775,14 @@ void GraphicsServer::ShadowPass(float dt)
 
         if (mesh->type == MeshType::PRIM) {
             glBindVertexArray(mesh->vao);
-            if (instances.size() > 0) { // TODO: use non-instanced rendering for one-off meshes
+            if (instances.size() > 0) {// TODO: use non-instanced rendering for one-off meshes
                 glBindBuffer(GL_ARRAY_BUFFER, mesh->ibo);
-                glBufferData(GL_ARRAY_BUFFER, instances.size() * sizeof(InstanceData), instances.data(), GL_DYNAMIC_DRAW);
-                glDrawElementsInstanced(mesh->GetMaterial()->primitiveType, mesh->triCount * 3, GL_UNSIGNED_SHORT, 0, instances.size());
+                glBufferData(
+                  GL_ARRAY_BUFFER, instances.size() * sizeof(InstanceData), instances.data(), GL_DYNAMIC_DRAW
+                );
+                glDrawElementsInstanced(
+                  mesh->GetMaterial()->primitiveType, mesh->triCount * 3, GL_UNSIGNED_SHORT, 0, instances.size()
+                );
             } else {
                 glDrawElements(mesh->GetMaterial()->primitiveType, mesh->triCount * 3, GL_UNSIGNED_SHORT, 0);
             }
@@ -812,29 +794,24 @@ void GraphicsServer::ShadowPass(float dt)
     auto depthCubemapShader = GetShaderByName("depth_cubemap");
     depthCubemapShader.Activate();
     int auxShadows = 0;
-    for (int i = 0; i < auxLightCount; ++i)
-    {
+    for (int i = 0; i < auxLightCount; ++i) {
         Light* l = pointLights[i];
-        if (!l->castShadow)
-            continue;
-        if (auxShadows++ >= MAX_OMNI_LIGHTS)
-            break;
+        if (!l->castShadow) continue;
+        if (auxShadows++ >= MAX_OMNI_LIGHTS) break;
 
-        for (int f = 0; f < 6; ++f)
-        {
+        for (int f = 0; f < 6; ++f) {
             GLenum face = GL_TEXTURE_CUBE_MAP_POSITIVE_X + f;
             glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, face, omniShadowMaps[i], 0);
             glClear(GL_DEPTH_BUFFER_BIT);
             depthCubemapShader.SetUniform(std::string("LightPosition"), l->GetPosition());
-            depthCubemapShader.SetUniform(std::string("ProjectionView"), l->GetProjectionMatrix(0) * l->GetViewMatrix(face));
+            depthCubemapShader.SetUniform(
+              std::string("ProjectionView"), l->GetProjectionMatrix(0) * l->GetViewMatrix(face)
+            );
 
-            for (const auto& [mesh, instances] : _meshInstanceMap)
-            {
-                if (instances.empty())
-                    continue;
+            for (const auto& [mesh, instances] : _meshInstanceMap) {
+                if (instances.empty()) continue;
 
-                if (!mesh->initialized)
-                    throw std::runtime_error(fmt::format("Mesh uninitialized!"));
+                if (!mesh->initialized) throw std::runtime_error(fmt::format("Mesh uninitialized!"));
 
                 glEnable(GL_DEPTH_TEST);
                 glDepthFunc(GL_LESS);
@@ -846,10 +823,14 @@ void GraphicsServer::ShadowPass(float dt)
 
                 if (mesh->type == MeshType::PRIM) {
                     glBindVertexArray(mesh->vao);
-                    if (instances.size() > 0) { // TODO: use non-instanced rendering for one-off meshes
+                    if (instances.size() > 0) {// TODO: use non-instanced rendering for one-off meshes
                         glBindBuffer(GL_ARRAY_BUFFER, mesh->ibo);
-                        glBufferData(GL_ARRAY_BUFFER, instances.size() * sizeof(InstanceData), instances.data(), GL_DYNAMIC_DRAW);
-                        glDrawElementsInstanced(mesh->GetMaterial()->primitiveType, mesh->triCount * 3, GL_UNSIGNED_SHORT, 0, instances.size());
+                        glBufferData(
+                          GL_ARRAY_BUFFER, instances.size() * sizeof(InstanceData), instances.data(), GL_DYNAMIC_DRAW
+                        );
+                        glDrawElementsInstanced(
+                          mesh->GetMaterial()->primitiveType, mesh->triCount * 3, GL_UNSIGNED_SHORT, 0, instances.size()
+                        );
                     } else {
                         glDrawElements(mesh->GetMaterial()->primitiveType, mesh->triCount * 3, GL_UNSIGNED_SHORT, 0);
                     }
@@ -892,13 +873,10 @@ void GraphicsServer::ForwardPass(float dt) {
 
     auto terrainShader = GetShaderByName("terrain");
     auto colorShader = GetShaderByName("color");
-    for (const auto& [mesh, instances] : _meshInstanceMap)
-    {
-        if (instances.empty())
-            continue;
+    for (const auto& [mesh, instances] : _meshInstanceMap) {
+        if (instances.empty()) continue;
 
-        if (!mesh->initialized)
-            throw std::runtime_error(fmt::format("Mesh uninitialized!"));
+        if (!mesh->initialized) throw std::runtime_error(fmt::format("Mesh uninitialized!"));
 
         glEnable(GL_DEPTH_TEST);
         glDepthFunc(GL_LESS);
@@ -926,12 +904,12 @@ void GraphicsServer::ForwardPass(float dt) {
         // glStencilMask(0xFF);
         // glStencilFunc(GL_ALWAYS, 1, 0xFF);
 
-    #ifndef __EMSCRIPTEN__
+#ifndef __EMSCRIPTEN__
         if (wireframeEnabled || mesh->GetMaterial()->polygonMode == GL_LINE)
             glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
         else
             glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-    #endif
+#endif
 
         if (mesh->GetMaterial()->cullFaceEnabled)
             glEnable(GL_CULL_FACE);
@@ -960,7 +938,9 @@ void GraphicsServer::ForwardPass(float dt) {
 
             terrainShader.SetUniform(std::string("tessellation_factor"), (float)16.0);
             terrainShader.SetUniform(std::string("height_scale"), (float)32.0);
-            terrainShader.SetUniform(std::string("height_map_unit"), SCENE_TEXTURE_BASE_INDEX + mesh->GetMaterial()->heightMap);
+            terrainShader.SetUniform(
+              std::string("height_map_unit"), SCENE_TEXTURE_BASE_INDEX + mesh->GetMaterial()->heightMap
+            );
             terrainShader.SetUniform(std::string("ProjectionView"), projectionView);
             terrainShader.SetUniform(std::string("World"), instances[0].modelMatrix);
 
@@ -989,20 +969,36 @@ void GraphicsServer::ForwardPass(float dt) {
             colorShader.SetUniform(std::string("main_light.intensity"), mainLight->intensity);
             colorShader.SetUniform(std::string("main_light.cast_shadow"), mainLight->castShadow ? 1 : 0);
             colorShader.SetUniform(std::string("main_light.ProjectionView"), mainLight->GetProjectionViewMatrix(0));
-            for (int i = 0; i < auxLightCount; ++i)
-            {
+            for (int i = 0; i < auxLightCount; ++i) {
                 Light* l = pointLights[i];
-                colorShader.SetUniform(std::string("aux_lights[") + std::to_string(i) + std::string("].position"), l->GetPosition());
-                colorShader.SetUniform(std::string("aux_lights[") + std::to_string(i) + std::string("].ambient"), l->ambient);
-                colorShader.SetUniform(std::string("aux_lights[") + std::to_string(i) + std::string("].diffuse"), l->diffuse);
-                colorShader.SetUniform(std::string("aux_lights[") + std::to_string(i) + std::string("].specular"), l->specular);
-                colorShader.SetUniform(std::string("aux_lights[") + std::to_string(i) + std::string("].attenuation"), l->attenuation);
-                colorShader.SetUniform(std::string("aux_lights[") + std::to_string(i) + std::string("].intensity"), l->intensity);
-                colorShader.SetUniform(std::string("aux_lights[") + std::to_string(i) + std::string("].cast_shadow"), l->castShadow ? 1 : 0);
-                for (int f = 0; f < 6; ++f)
-                {
+                colorShader.SetUniform(
+                  std::string("aux_lights[") + std::to_string(i) + std::string("].position"), l->GetPosition()
+                );
+                colorShader.SetUniform(
+                  std::string("aux_lights[") + std::to_string(i) + std::string("].ambient"), l->ambient
+                );
+                colorShader.SetUniform(
+                  std::string("aux_lights[") + std::to_string(i) + std::string("].diffuse"), l->diffuse
+                );
+                colorShader.SetUniform(
+                  std::string("aux_lights[") + std::to_string(i) + std::string("].specular"), l->specular
+                );
+                colorShader.SetUniform(
+                  std::string("aux_lights[") + std::to_string(i) + std::string("].attenuation"), l->attenuation
+                );
+                colorShader.SetUniform(
+                  std::string("aux_lights[") + std::to_string(i) + std::string("].intensity"), l->intensity
+                );
+                colorShader.SetUniform(
+                  std::string("aux_lights[") + std::to_string(i) + std::string("].cast_shadow"), l->castShadow ? 1 : 0
+                );
+                for (int f = 0; f < 6; ++f) {
                     GLenum face = GL_TEXTURE_CUBE_MAP_POSITIVE_X + f;
-                    colorShader.SetUniform(std::string("aux_lights[") + std::to_string(i) + std::string("].ProjectionViews[") + std::to_string(f) + std::string("]"), l->GetProjectionViewMatrix(0, face));
+                    colorShader.SetUniform(
+                      std::string("aux_lights[") + std::to_string(i) + std::string("].ProjectionViews[")
+                        + std::to_string(f) + std::string("]"),
+                      l->GetProjectionViewMatrix(0, face)
+                    );
                 }
             }
             colorShader.SetUniform(std::string("aux_light_count"), auxLightCount);
@@ -1017,36 +1013,50 @@ void GraphicsServer::ForwardPass(float dt) {
 
             // Material textures
             if (mesh->GetMaterial()->baseMap >= 0) {
-                colorShader.SetUniform(std::string("base_map_unit"), SCENE_TEXTURE_BASE_INDEX + mesh->GetMaterial()->baseMap);
+                colorShader.SetUniform(
+                  std::string("base_map_unit"), SCENE_TEXTURE_BASE_INDEX + mesh->GetMaterial()->baseMap
+                );
             } else {
                 colorShader.SetUniform(std::string("base_map_unit"), DEFAULT_TEXTURE_BASE_INDEX + 0);
             }
             if (mesh->GetMaterial()->normalMap >= 0) {
-                colorShader.SetUniform(std::string("normal_map_unit"), SCENE_TEXTURE_BASE_INDEX + mesh->GetMaterial()->normalMap);
+                colorShader.SetUniform(
+                  std::string("normal_map_unit"), SCENE_TEXTURE_BASE_INDEX + mesh->GetMaterial()->normalMap
+                );
             } else {
                 colorShader.SetUniform(std::string("normal_map_unit"), DEFAULT_TEXTURE_BASE_INDEX + 1);
             }
             if (mesh->GetMaterial()->aoMap >= 0) {
-                colorShader.SetUniform(std::string("ao_map_unit"), SCENE_TEXTURE_BASE_INDEX + mesh->GetMaterial()->aoMap);
+                colorShader.SetUniform(
+                  std::string("ao_map_unit"), SCENE_TEXTURE_BASE_INDEX + mesh->GetMaterial()->aoMap
+                );
             } else {
                 colorShader.SetUniform(std::string("ao_map_unit"), DEFAULT_TEXTURE_BASE_INDEX + 2);
             }
             if (mesh->GetMaterial()->roughnessMap >= 0) {
-                colorShader.SetUniform(std::string("roughness_map_unit"), SCENE_TEXTURE_BASE_INDEX + mesh->GetMaterial()->roughnessMap);
+                colorShader.SetUniform(
+                  std::string("roughness_map_unit"), SCENE_TEXTURE_BASE_INDEX + mesh->GetMaterial()->roughnessMap
+                );
             } else {
                 colorShader.SetUniform(std::string("roughness_map_unit"), DEFAULT_TEXTURE_BASE_INDEX + 3);
             }
             if (mesh->GetMaterial()->metallicMap >= 0) {
-                colorShader.SetUniform(std::string("metallic_map_unit"), SCENE_TEXTURE_BASE_INDEX + mesh->GetMaterial()->metallicMap);
+                colorShader.SetUniform(
+                  std::string("metallic_map_unit"), SCENE_TEXTURE_BASE_INDEX + mesh->GetMaterial()->metallicMap
+                );
             } else {
                 colorShader.SetUniform(std::string("metallic_map_unit"), DEFAULT_TEXTURE_BASE_INDEX + 4);
             }
 
             glBindVertexArray(mesh->vao);
             glBindBuffer(GL_ARRAY_BUFFER, mesh->ibo);
-            if (instances.size() > 0) { // TODO: use non-instanced rendering for one-off meshes
-                glBufferData(GL_ARRAY_BUFFER, instances.size() * sizeof(InstanceData), instances.data(), GL_DYNAMIC_DRAW);
-                glDrawElementsInstanced(mesh->GetMaterial()->primitiveType, mesh->triCount * 3, GL_UNSIGNED_SHORT, 0, instances.size());
+            if (instances.size() > 0) {// TODO: use non-instanced rendering for one-off meshes
+                glBufferData(
+                  GL_ARRAY_BUFFER, instances.size() * sizeof(InstanceData), instances.data(), GL_DYNAMIC_DRAW
+                );
+                glDrawElementsInstanced(
+                  mesh->GetMaterial()->primitiveType, mesh->triCount * 3, GL_UNSIGNED_SHORT, 0, instances.size()
+                );
             } else {
                 glDrawElements(mesh->GetMaterial()->primitiveType, mesh->triCount * 3, GL_UNSIGNED_SHORT, 0);
             }
@@ -1058,7 +1068,7 @@ void GraphicsServer::ForwardPass(float dt) {
 
     _debugLineCount = debugLines.size() / 2;
     if (debugLines.size() > 0) {
-        //glDisable(GL_DEPTH_TEST);
+        // glDisable(GL_DEPTH_TEST);
         auto debugShader = GetShaderByName("debug_line");
         debugShader.Activate();
         debugShader.SetUniform(std::string("ProjectionView"), projectionView);
@@ -1069,7 +1079,7 @@ void GraphicsServer::ForwardPass(float dt) {
         glDrawArrays(GL_LINES, 0, debugLines.size());
         glBindVertexArray(0);
 
-        //glEnable(GL_DEPTH_TEST);
+        // glEnable(GL_DEPTH_TEST);
 
         debugLines.clear();
     }
@@ -1080,7 +1090,9 @@ void GraphicsServer::GeometryPass(float dt) {
     glViewport(0, 0, width, height);
 
     glBindFramebuffer(GL_FRAMEBUFFER, gBuffer.id);
-    std::array<GLuint,4> attachments = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3 };
+    std::array<GLuint, 4> attachments = {
+        GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3
+    };
     glDrawBuffers(attachments.size(), attachments.data());
     // for (int i = 0; i < MAX_UNI_LIGHTS; ++i) {
     //     glActiveTexture(GL_TEXTURE0 + i);
@@ -1100,18 +1112,16 @@ void GraphicsServer::GeometryPass(float dt) {
     }
 
     glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);
-    glClearDepth(1.0f);
+    glClearDepthf(1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     auto geometryShader = GetShaderByName("geometry");
     geometryShader.Activate();
 
     for (const auto& [mesh, instances] : _meshInstanceMap) {
-        if (instances.empty())
-            continue;
+        if (instances.empty()) continue;
 
-        if (!mesh->initialized)
-            throw std::runtime_error("Mesh uninitialized!");
+        if (!mesh->initialized) throw std::runtime_error("Mesh uninitialized!");
 
         glEnable(GL_DEPTH_TEST);
         glDepthFunc(GL_LESS);
@@ -1121,7 +1131,9 @@ void GraphicsServer::GeometryPass(float dt) {
         else
             glDisable(GL_CULL_FACE);
 
-        geometryShader.SetUniform("ProjectionView", GetMainCamera()->GetProjectionMatrix() * GetMainCamera()->GetViewMatrix());
+        geometryShader.SetUniform(
+          "ProjectionView", GetMainCamera()->GetProjectionMatrix() * GetMainCamera()->GetViewMatrix()
+        );
 
         switch (mesh->type) {
         case MeshType::TERRAIN:
@@ -1161,8 +1173,12 @@ void GraphicsServer::GeometryPass(float dt) {
             glBindVertexArray(mesh->vao);
             glBindBuffer(GL_ARRAY_BUFFER, mesh->ibo);
             if (instances.size() > 0) {
-                glBufferData(GL_ARRAY_BUFFER, instances.size() * sizeof(InstanceData), instances.data(), GL_DYNAMIC_DRAW);
-                glDrawElementsInstanced(mesh->GetMaterial()->primitiveType, mesh->triCount * 3, GL_UNSIGNED_SHORT, 0, instances.size());
+                glBufferData(
+                  GL_ARRAY_BUFFER, instances.size() * sizeof(InstanceData), instances.data(), GL_DYNAMIC_DRAW
+                );
+                glDrawElementsInstanced(
+                  mesh->GetMaterial()->primitiveType, mesh->triCount * 3, GL_UNSIGNED_SHORT, 0, instances.size()
+                );
             }
             glBindVertexArray(0);
         }
@@ -1225,8 +1241,7 @@ void GraphicsServer::LightingPass(float dt) {
     CheckErrors("Lighting pass");
 }
 
-void GraphicsServer::MSAAResolvePass(float dt)
-{
+void GraphicsServer::MSAAResolvePass(float dt) {
 #ifndef __EMSCRIPTEN__
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 #endif
@@ -1239,8 +1254,7 @@ void GraphicsServer::MSAAResolvePass(float dt)
 }
 
 
-void GraphicsServer::CanvasPass(float dt)
-{
+void GraphicsServer::CanvasPass(float dt) {
     _canvasQuadCount = canvasDrawList.size() / 6;
     if (canvasDrawList.size() > 0) {
 
@@ -1271,15 +1285,16 @@ void GraphicsServer::CanvasPass(float dt)
 
         glBindVertexArray(canvasVAO);
         glBindBuffer(GL_ARRAY_BUFFER, canvasVBO);
-        glBufferData(GL_ARRAY_BUFFER, canvasDrawList.size() * sizeof(CanvasVertex), canvasDrawList.data(), GL_DYNAMIC_DRAW);
+        glBufferData(
+          GL_ARRAY_BUFFER, canvasDrawList.size() * sizeof(CanvasVertex), canvasDrawList.data(), GL_DYNAMIC_DRAW
+        );
         glDrawArrays(GL_TRIANGLES, 0, canvasDrawList.size());
         glBindVertexArray(0);
         canvasDrawList.clear();
     }
 }
 
-void GraphicsServer::PostProcessPass(float dt)
-{
+void GraphicsServer::PostProcessPass(float dt) {
     auto size = Window::Get()->GetFramebufferSize();
 
     glViewport(0, 0, size.width, size.height);
@@ -1302,16 +1317,24 @@ void GraphicsServer::PostProcessPass(float dt)
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 }
 
-void GraphicsServer::PushDebugLine(DebugVertex from, DebugVertex to)
-{
+void GraphicsServer::PushDebugLine(DebugVertex from, DebugVertex to) {
     debugLines.push_back(from);
     debugLines.push_back(to);
 }
 
 void GraphicsServer::PushCanvasQuad(
-    float x, float y, float w, float h, float angle, float pivotX, float pivotY,
-    const glm::vec4& color, int texIndex, const glm::vec2& uvMin, const glm::vec2& uvMax)
-{
+  float x,
+  float y,
+  float w,
+  float h,
+  float angle,
+  float pivotX,
+  float pivotY,
+  const glm::vec4& color,
+  int texIndex,
+  const glm::vec2& uvMin,
+  const glm::vec2& uvMax
+) {
     glm::vec2 pivotOffset = glm::vec2(w * pivotX, h * pivotY);
     // glm::mat4 transform = glm::translate(glm::mat4(1.0f), glm::vec3(position, 0.0f));
     // transform = glm::rotate(transform, rotation, glm::vec3(0.0f, 0.0f, 1.0f));
@@ -1328,55 +1351,33 @@ void GraphicsServer::PushCanvasQuad(
     glm::vec4 tr = transform * glm::vec4(1.0f, 1.0f, 0.0f, 1.0f);
     glm::vec4 tl = transform * glm::vec4(0.0f, 1.0f, 0.0f, 1.0f);
 
-    canvasDrawList.push_back({
-        glm::vec2(bl),
-        glm::vec2(uvMin.x, uvMin.y),
-        color,
-        texIndex
-    });
-    canvasDrawList.push_back({
-        glm::vec2(br),
-        glm::vec2(uvMax.x, uvMin.y),
-        color,
-        texIndex
-    });
-    canvasDrawList.push_back({
-        glm::vec2(tr),
-        glm::vec2(uvMax.x, uvMax.y),
-        color,
-        texIndex
-    });
-    canvasDrawList.push_back({
-        glm::vec2(bl),
-        glm::vec2(uvMin.x, uvMin.y),
-        color,
-        texIndex
-    });
-    canvasDrawList.push_back({
-        glm::vec2(tr),
-        glm::vec2(uvMax.x, uvMax.y),
-        color,
-        texIndex
-    });
-    canvasDrawList.push_back({
-        glm::vec2(tl),
-        glm::vec2(uvMin.x, uvMax.y),
-        color,
-        texIndex
-    });
+    canvasDrawList.push_back({ glm::vec2(bl), glm::vec2(uvMin.x, uvMin.y), color, texIndex });
+    canvasDrawList.push_back({ glm::vec2(br), glm::vec2(uvMax.x, uvMin.y), color, texIndex });
+    canvasDrawList.push_back({ glm::vec2(tr), glm::vec2(uvMax.x, uvMax.y), color, texIndex });
+    canvasDrawList.push_back({ glm::vec2(bl), glm::vec2(uvMin.x, uvMin.y), color, texIndex });
+    canvasDrawList.push_back({ glm::vec2(tr), glm::vec2(uvMax.x, uvMax.y), color, texIndex });
+    canvasDrawList.push_back({ glm::vec2(tl), glm::vec2(uvMin.x, uvMax.y), color, texIndex });
 }
 
 void GraphicsServer::PushCanvasQuadTiled(
-    float x, float y, float w, float h, float angle, float pivotX, float pivotY,
-    const glm::vec4& color, int texIndex, const glm::vec2& tilesetSize, const glm::vec2& tileIndex)
-{
+  float x,
+  float y,
+  float w,
+  float h,
+  float angle,
+  float pivotX,
+  float pivotY,
+  const glm::vec4& color,
+  int texIndex,
+  const glm::vec2& tilesetSize,
+  const glm::vec2& tileIndex
+) {
     glm::vec2 uvMin = tileIndex / tilesetSize;
     glm::vec2 uvMax = (tileIndex + glm::vec2(1.0f)) / tilesetSize;
     PushCanvasQuad(x, y, w, h, angle, pivotX, pivotY, color, texIndex, uvMin, uvMax);
 }
 
-Material* GraphicsServer::CreateMaterial(Material* material)
-{
+Material* GraphicsServer::CreateMaterial(Material* material) {
     if (material) {
         materials.push_back(material);
         return material;
@@ -1387,23 +1388,21 @@ Material* GraphicsServer::CreateMaterial(Material* material)
     }
 }
 
-Material* GraphicsServer::CreateMaterial(const std::string& name, Material* material)
-{
+Material* GraphicsServer::CreateMaterial(const std::string& name, Material* material) {
     if (material) {
         materials.push_back(material);
-        _namedMaterials.insert({name, material});
+        _namedMaterials.insert({ name, material });
         return material;
     } else {
         auto emptyMaterial = new Material({});
         materials.push_back(emptyMaterial);
-        _namedMaterials.insert({name, emptyMaterial});
+        _namedMaterials.insert({ name, emptyMaterial });
         return emptyMaterial;
     }
 }
 
 
-Mesh* GraphicsServer::CreateMesh(Mesh* mesh)
-{
+Mesh* GraphicsServer::CreateMesh(Mesh* mesh) {
     if (mesh) {
         meshes.push_back(mesh);
         return mesh;
@@ -1414,38 +1413,34 @@ Mesh* GraphicsServer::CreateMesh(Mesh* mesh)
     }
 }
 
-Mesh* GraphicsServer::CreateMesh(const std::string& name, Mesh* mesh)
-{
+Mesh* GraphicsServer::CreateMesh(const std::string& name, Mesh* mesh) {
     if (mesh) {
         meshes.push_back(mesh);
-        _namedMeshes.insert({name, mesh});
+        _namedMeshes.insert({ name, mesh });
         return mesh;
     } else {
         auto emptyMesh = new Mesh();
         meshes.push_back(emptyMesh);
-        _namedMeshes.insert({name, emptyMesh});
+        _namedMeshes.insert({ name, emptyMesh });
         return emptyMesh;
     }
 }
 
-Mesh* GraphicsServer::CreateCubeMesh(const std::string& name, float size)
-{
+Mesh* GraphicsServer::CreateCubeMesh(const std::string& name, float size) {
     auto mesh = MeshBuilder::CreateCube(size);
     meshes.push_back(mesh);
-    _namedMeshes.insert({name, mesh});
+    _namedMeshes.insert({ name, mesh });
     return mesh;
 }
 
-Mesh* GraphicsServer::CreateSphereMesh(const std::string& name, float radius, int division)
-{
+Mesh* GraphicsServer::CreateSphereMesh(const std::string& name, float radius, int division) {
     auto mesh = MeshBuilder::CreateSphere(radius, division);
     meshes.push_back(mesh);
-    _namedMeshes.insert({name, mesh});
+    _namedMeshes.insert({ name, mesh });
     return mesh;
 }
 
-Mesh* GraphicsServer::CreateCapsuleMesh(const std::string& name, float radius, float height)
-{
+Mesh* GraphicsServer::CreateCapsuleMesh(const std::string& name, float radius, float height) {
     // TODO: unimplemented
     // auto mesh = MeshBuilder::CreateCapsule(radius, height);
     // meshes.push_back(mesh);
@@ -1454,37 +1449,32 @@ Mesh* GraphicsServer::CreateCapsuleMesh(const std::string& name, float radius, f
     return new Mesh;
 }
 
-Mesh* GraphicsServer::CreateTerrainMesh(const std::string& name, float worldSize, int resolution)
-{
+Mesh* GraphicsServer::CreateTerrainMesh(const std::string& name, float worldSize, int resolution) {
     auto mesh = MeshBuilder::CreateTerrain(worldSize, resolution);
     meshes.push_back(mesh);
-    _namedMeshes.insert({name, mesh});
+    _namedMeshes.insert({ name, mesh });
     return mesh;
 }
 
-Renderable* GraphicsServer::CreateRenderable(GameObject* go, Mesh* mesh)
-{
-    auto renderable = new Renderable(go, mesh);
+MeshComponent* GraphicsServer::CreateMeshComponent(GameObject* go, Mesh* mesh) {
+    auto renderable = new MeshComponent(go, mesh);
     renderables.push_back(renderable);
     return renderable;
 }
 
-Drawable2D* GraphicsServer::CreateDrawable2D(GameObject* go, const Drawable2DProps& props)
-{
-    auto drawable = new Drawable2D(go, props);
+SpriteComponent* GraphicsServer::CreateSpriteComponent(GameObject* go, const SpriteProps& props) {
+    auto drawable = new SpriteComponent(go, props);
     canvasDrawables.push_back(drawable);
     return drawable;
 }
 
-Camera* GraphicsServer::CreateCamera(GameObject* go, const CameraProps& props)
-{
+Camera* GraphicsServer::CreateCamera(GameObject* go, const CameraProps& props) {
     auto camera = new Camera(go, props);
     cameras.push_back(camera);
     return camera;
 }
 
-Light* GraphicsServer::CreateLight(GameObject* go, const LightProps& props)
-{
+Light* GraphicsServer::CreateLight(GameObject* go, const LightProps& props) {
     auto light = new Light(go, props);
     if (props.type == LightType::Point) {
         pointLights.push_back(light);

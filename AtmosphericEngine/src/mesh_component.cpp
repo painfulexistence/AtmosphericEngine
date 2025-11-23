@@ -1,32 +1,32 @@
-#include "renderable.hpp"
+#include "mesh_component.hpp"
 #include "game_object.hpp"
 #include "mesh.hpp"
 #include "material.hpp"
 
-Renderable::Renderable(GameObject* gameObject, Mesh* mesh) {
+MeshComponent::MeshComponent(GameObject* gameObject, Mesh* mesh) {
     this->_mesh = mesh;
 
     this->gameObject = gameObject;
     this->gameObject->AddComponent(this);
 }
 
-Renderable::~Renderable() {
+MeshComponent::~MeshComponent() {
 
 }
 
-std::string Renderable::GetName() const {
+std::string MeshComponent::GetName() const {
     return std::string("Drawable");
 }
 
-Mesh* Renderable::GetMesh() const {
+Mesh* MeshComponent::GetMesh() const {
     return _mesh;
 }
 
-void Renderable::SetMesh(Mesh* mesh) {
+void MeshComponent::SetMesh(Mesh* mesh) {
     _mesh = mesh;
 }
 
-Material* Renderable::GetMaterial() const {
+Material* MeshComponent::GetMaterial() const {
     if (_material) {
         return _material;
     } else {
@@ -34,6 +34,6 @@ Material* Renderable::GetMaterial() const {
     }
 }
 
-void Renderable::SetMaterial(Material* material) {
+void MeshComponent::SetMaterial(Material* material) {
     _material = material;
 }

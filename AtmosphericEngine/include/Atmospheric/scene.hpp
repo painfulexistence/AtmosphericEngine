@@ -2,8 +2,8 @@
 #include "game_object.hpp"
 #include "material.hpp"
 #include "shader.hpp"
-#include "light.hpp"
-#include "camera.hpp"
+#include "light_component.hpp"
+#include "camera_component.hpp"
 
 struct GameObjectProps {
     std::string name;

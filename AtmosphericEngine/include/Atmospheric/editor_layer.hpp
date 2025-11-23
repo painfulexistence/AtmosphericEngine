@@ -5,11 +5,11 @@
 // Forward declarations
 class Application;
 class GameObject;
-class Impostor;
+class RigidbodyComponent;
 class Light;
 class Camera;
-class Renderable;
-class Drawable2D;
+class MeshComponent;
+class SpriteComponent;
 
 class EditorLayer : public Layer {
 public:

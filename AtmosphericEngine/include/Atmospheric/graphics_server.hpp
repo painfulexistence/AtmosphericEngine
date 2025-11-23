@@ -4,11 +4,11 @@
 #include "server.hpp"
 #include "material.hpp"
 #include "shader.hpp"
-#include "renderable.hpp"
-#include "drawable_2d.hpp"
+#include "mesh_component.hpp"
+#include "sprite_component.hpp"
 #include "mesh.hpp"
-#include "light.hpp"
-#include "camera.hpp"
+#include "light_component.hpp"
+#include "camera_component.hpp"
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
@@ -77,8 +77,8 @@ public:
     std::vector<GLuint> textures;
     std::vector<GLuint> canvasTextures;
     std::vector<Material*> materials;
-    std::vector<Renderable*> renderables;
-    std::vector<Drawable2D*> canvasDrawables;
+    std::vector<MeshComponent*> renderables;
+    std::vector<SpriteComponent*> canvasDrawables;
     std::vector<Light*> directionalLights;
     std::vector<Light*> pointLights;
     std::vector<Camera*> cameras;
@@ -183,11 +183,10 @@ public:
 
     Mesh* CreateTerrainMesh(const std::string& name, float worldSize = 1024.f, int resolution = 10);
 
-    Renderable* CreateRenderable(GameObject* gameObject, Mesh* mesh);
-
+    MeshComponent* CreateMeshComponent(GameObject* gameObject, Mesh* mesh);
     Camera* CreateCamera(GameObject* gameObject, const CameraProps& props);
     Light* CreateLight(GameObject* gameObject, const LightProps& props);
-    Drawable2D* CreateDrawable2D(GameObject* gameObject, const Drawable2DProps& props);
+    SpriteComponent* CreateSpriteComponent(GameObject* gameObject, const SpriteProps& props);
 
     // void ApplyMaterial(const Material& material);
 

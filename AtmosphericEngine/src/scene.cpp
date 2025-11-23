@@ -1,6 +1,6 @@
 #include "scene.hpp"
-#include "light.hpp"
-#include "camera.hpp"
+#include "light_component.hpp"
+#include "camera_component.hpp"
 
 Scene::Scene(const SceneDef& data) {
 

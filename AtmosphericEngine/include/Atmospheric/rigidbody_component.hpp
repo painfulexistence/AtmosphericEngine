@@ -1,11 +1,11 @@
 #pragma once
-#include "globals.hpp"
-#include "bullet_linear_math.hpp"
 #include "bullet_collision.hpp"
 #include "bullet_dynamics.hpp"
+#include "bullet_linear_math.hpp"
 #include "component.hpp"
+#include "globals.hpp"
 
-struct ImpostorProps {
+struct RigidbodyProps {
     float mass = 1.0f;
     float friction = 1.0f;
     float restitution = 0.0f;
@@ -20,12 +20,17 @@ struct ImpostorProps {
 class GameObject;
 class PhysicsServer;
 
-class Impostor : public Component
-{
+class RigidbodyComponent : public Component {
 public:
-    Impostor(GameObject* gameObject, btCollisionShape* shape, float mass = 0.0f, glm::vec3 linearFactor = glm::vec3(1.0f), glm::vec3 angularFactor = glm::vec3(1.0f));
-    Impostor(GameObject* gameObject, const ImpostorProps& props);
-    ~Impostor();
+    RigidbodyComponent(
+      GameObject* gameObject,
+      btCollisionShape* shape,
+      float mass = 0.0f,
+      glm::vec3 linearFactor = glm::vec3(1.0f),
+      glm::vec3 angularFactor = glm::vec3(1.0f)
+    );
+    RigidbodyComponent(GameObject* gameObject, const RigidbodyProps& props);
+    ~RigidbodyComponent();
 
     std::string GetName() const override;
 

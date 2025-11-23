@@ -1,8 +1,8 @@
-#include "drawable_2d.hpp"
+#include "sprite_component.hpp"
 #include "component.hpp"
 #include "game_object.hpp"
 
-Drawable2D::Drawable2D(GameObject* gameObject, const Drawable2DProps& props) {
+SpriteComponent::SpriteComponent(GameObject* gameObject, const SpriteProps& props) {
     _size = props.size;
     _color = props.color;
     _pivot = props.pivot;
@@ -12,6 +12,6 @@ Drawable2D::Drawable2D(GameObject* gameObject, const Drawable2DProps& props) {
     this->gameObject->AddComponent(this);
 }
 
-std::string Drawable2D::GetName() const {
-    return std::string("Drawable2D");
+std::string SpriteComponent::GetName() const {
+    return std::string("SpriteComponent");
 }

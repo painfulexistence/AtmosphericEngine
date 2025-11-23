@@ -1,5 +1,6 @@
 #include "editor_layer.hpp"
 #include "application.hpp"
+#include "asset_manager.hpp"
 #include "camera_component.hpp"
 #include "game_object.hpp"
 #include "imgui.h"
@@ -179,12 +180,14 @@ void EditorLayer::DrawEntityInspector(GameObject* entity) {
         if (ImGui::CollapsingHeader("MeshComponent", ImGuiTreeNodeFlags_DefaultOpen)) {
             auto mat = renderable->GetMaterial();
             auto graphics = _app->GetGraphicsServer();
-            ImGui::SliderInt("Base map ID", &mat->baseMap, -1, graphics->textures.size() - 1);
-            ImGui::SliderInt("Normal map ID", &mat->normalMap, -1, graphics->textures.size() - 1);
-            ImGui::SliderInt("AO map ID", &mat->aoMap, -1, graphics->textures.size() - 1);
-            ImGui::SliderInt("Roughness map ID", &mat->roughnessMap, -1, graphics->textures.size() - 1);
-            ImGui::SliderInt("Metallic map ID", &mat->metallicMap, -1, graphics->textures.size() - 1);
-            ImGui::SliderInt("Height map ID", &mat->heightMap, -1, graphics->textures.size() - 1);
+            auto& assetManager = AssetManager::Get();
+            int textureCount = assetManager.GetTextures().size();
+            ImGui::SliderInt("Base map ID", &mat->baseMap, -1, textureCount - 1);
+            ImGui::SliderInt("Normal map ID", &mat->normalMap, -1, textureCount - 1);
+            ImGui::SliderInt("AO map ID", &mat->aoMap, -1, textureCount - 1);
+            ImGui::SliderInt("Roughness map ID", &mat->roughnessMap, -1, textureCount - 1);
+            ImGui::SliderInt("Metallic map ID", &mat->metallicMap, -1, textureCount - 1);
+            ImGui::SliderInt("Height map ID", &mat->heightMap, -1, textureCount - 1);
             ImGui::ColorEdit3("Diffuse", &mat->diffuse.r);
             ImGui::ColorEdit3("Specular", &mat->specular.r);
             ImGui::ColorEdit3("Ambient", &mat->ambient.r);

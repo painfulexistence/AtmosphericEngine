@@ -14,7 +14,7 @@ TerrainComponent::TerrainComponent(
     gameObject = owner;
 
     // Create terrain mesh
-    _mesh = _graphics->CreateTerrainMesh("Terrain", props.worldSize, props.resolution);
+    _mesh = AssetManager::Get().CreateTerrainMesh("Terrain", props.worldSize, props.resolution);
 
     // Set material if provided
     if (props.material) {
@@ -47,7 +47,7 @@ void TerrainComponent::SetMaterial(Material* material) {
 }
 
 void TerrainComponent::LoadHeightmap(const std::string& path, const TerrainProps& props) {
-    auto img = AssetManager::loadImage(path);
+    auto img = AssetManager::Get().LoadImage(path);
     if (!img) {
         throw std::runtime_error("Could not load heightmap: " + path);
     }

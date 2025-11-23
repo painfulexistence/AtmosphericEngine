@@ -3,7 +3,6 @@
 #include "asset_manager.hpp"
 #include "camera_component.hpp"
 #include "game_object.hpp"
-#include "job_system.hpp"
 #include "material.hpp"
 #include "mesh.hpp"
 #include "mesh_component.hpp"
@@ -21,12 +20,6 @@ GraphicsServer::GraphicsServer() {
 }
 
 GraphicsServer::~GraphicsServer() {
-    for (const auto& [name, mesh] : _namedMeshes)
-        delete mesh;
-    for (auto& mat : materials)
-        delete mat;
-    glDeleteTextures(textures.size(), textures.data());
-
     glDeleteVertexArrays(1, &debugVAO);
     glDeleteBuffers(1, &debugVBO);
     glDeleteBuffers(1, &screenVAO);
@@ -251,14 +244,15 @@ void GraphicsServer::DrawImGui(float dt) {
                 ImGui::TreePop();
             }
             ImGui::Separator();
-            for (auto t : defaultTextures) {
+            auto& assetManager = AssetManager::Get();
+            for (auto t : assetManager.GetDefaultTextures()) {
                 if (ImGui::TreeNode(fmt::format("Default Tex #{}", t).c_str())) {
                     ImGui::Image((ImTextureID)(intptr_t)t, ImVec2(64, 64));
                     ImGui::TreePop();
                 }
             }
             ImGui::Separator();
-            for (auto t : textures) {
+            for (auto t : assetManager.GetTextures()) {
                 if (ImGui::TreeNode(fmt::format("Tex #{}", t).c_str())) {
                     ImGui::Image((ImTextureID)(intptr_t)t, ImVec2(64, 64));
                     ImGui::TreePop();
@@ -267,7 +261,8 @@ void GraphicsServer::DrawImGui(float dt) {
             ImGui::TreePop();
         }
         if (ImGui::TreeNode("Materials")) {
-            for (auto m : materials) {
+            auto& assetManager = AssetManager::Get();
+            for (auto m : assetManager.GetMaterials()) {
                 if (ImGui::TreeNode("Mat")) {
                     ImGui::Text("Base Map ID: %d", m->baseMap);
                     ImGui::Text("Normal Map ID: %d", m->normalMap);
@@ -288,23 +283,6 @@ void GraphicsServer::DrawImGui(float dt) {
 }
 
 void GraphicsServer::Reset() {
-    // TODO: this part is unfinished
-    glDeleteTextures(defaultTextures.size(), defaultTextures.data());
-    defaultTextures.clear();
-    glDeleteTextures(textures.size(), textures.data());
-    textures.clear();
-
-    for (auto m : materials) {
-        delete m;
-    }
-    materials.clear();
-    _namedMaterials.clear();
-
-    for (auto m : meshes) {
-        delete m;
-    }
-    meshes.clear();
-    _namedMeshes.clear();
     _meshInstanceMap.clear();
 
     defaultCamera = nullptr;
@@ -313,118 +291,18 @@ void GraphicsServer::Reset() {
     directionalLights.clear();
     pointLights.clear();
     renderables.clear();
-    _namedMaterials.clear();
-    _namedShaders.clear();
 }
 
-void GraphicsServer::LoadDefaultTextures() {
-    LoadTextures({ "assets/textures/default_diff.jpg",
-                   "assets/textures/default_norm.jpg",
-                   "assets/textures/default_ao.jpg",
-                   "assets/textures/default_rough.jpg",
-                   "assets/textures/default_metallic.jpg" });
+ShaderProgram* GraphicsServer::GetShader(const std::string& name) const {
+    return AssetManager::Get().GetShader(name);
 }
 
-void GraphicsServer::LoadTextures(const std::vector<std::string>& paths) {
-    int oldCount = textures.size(), newCount = paths.size();
-    textures.resize(oldCount + newCount);
-
-    std::vector<std::shared_ptr<Image>> images(newCount);
-    for (int i = 0; i < newCount; i++) {
-        auto path = paths[i];
-        auto image = &images[i];
-        JobSystem::Get()->Execute([path, image](int threadID) { *image = AssetManager::loadImage(path); });
-    }
-    JobSystem::Get()->Wait();
-
-    glGenTextures(newCount, &textures[oldCount]);
-    for (int i = 0; i < newCount; i++) {
-        auto img = images[i];
-        if (!img) {
-            throw std::runtime_error(fmt::format("Failed to load texture at {}\n", paths[i]));
-        }
-
-        glBindTexture(GL_TEXTURE_2D, textures[oldCount + i]);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        // float border[] = {1.f, 1.f, 1.f, 1.f};
-        // glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, border); // for clamp to border wrapping
-        switch (img->channelCount) {
-        case 1:
-            glTexImage2D(
-              GL_TEXTURE_2D, 0, GL_R8, img->width, img->height, 0, GL_RED, GL_UNSIGNED_BYTE, img->byteArray.data()
-            );
-            break;
-        case 3:
-            glTexImage2D(
-              GL_TEXTURE_2D, 0, GL_RGB, img->width, img->height, 0, GL_RGB, GL_UNSIGNED_BYTE, img->byteArray.data()
-            );
-            break;
-        case 4:
-            glTexImage2D(
-              GL_TEXTURE_2D, 0, GL_RGBA, img->width, img->height, 0, GL_RGBA, GL_UNSIGNED_BYTE, img->byteArray.data()
-            );
-            break;
-        default:
-            throw std::runtime_error(fmt::format("Unknown texture format at {}\n", paths[i]));
-        }
-        glGenerateMipmap(GL_TEXTURE_2D);
-    }
+ShaderProgram* GraphicsServer::GetShaderByID(uint32_t id) const {
+    return AssetManager::Get().GetShaderByID(id);
 }
 
-void GraphicsServer::LoadDefaultShaders() {
-    LoadShaders({ {
-                    "color",
-                    { .vert = "assets/shaders/tbn.vert", .frag = "assets/shaders/pbr.frag" },
-                  },
-                  { "debug_line",
-                    {
-                      .vert = "assets/shaders/debug.vert",
-                      .frag = "assets/shaders/flat.frag",
-                    } },
-                  {
-                    "depth",
-                    { .vert = "assets/shaders/depth_simple.vert", .frag = "assets/shaders/depth_simple.frag" },
-                  },
-                  {
-                    "depth_cubemap",
-                    { .vert = "assets/shaders/depth_cubemap.vert", .frag = "assets/shaders/depth_cubemap.frag" },
-                  },
-                  {
-                    "hdr",
-                    { .vert = "assets/shaders/hdr.vert", .frag = "assets/shaders/hdr_ca.frag" },
-                  },
-                  {
-                    "terrain",
-                    { .vert = "assets/shaders/terrain.vert",
-                      .frag = "assets/shaders/terrain.frag",
-                      .tesc = "assets/shaders/terrain.tesc",
-                      .tese = "assets/shaders/terrain.tese" },
-                  },
-                  { "canvas", { .vert = "assets/shaders/canvas.vert", .frag = "assets/shaders/canvas.frag" } },
-                  { "geometry", { .vert = "assets/shaders/geometry.vert", .frag = "assets/shaders/geometry.frag" } },
-                  { "lighting", { .vert = "assets/shaders/lighting.vert", .frag = "assets/shaders/lighting.frag" } } });
-}
-
-void GraphicsServer::LoadShaders(const std::unordered_map<std::string, ShaderProgramProps>& shaderDefs) {
-    for (const auto& [uName, props] : shaderDefs) {
-        shaders.push_back(std::move(ShaderProgram(props)));
-        // TODO: check if entry already exists
-        ENGINE_LOG("Shader {} loaded", uName);
-        _shaderIDMap[uName] = _nextShaderID++;
-    }
-}
-
-void GraphicsServer::ReloadShaders() {
-    // TODO: reload shaders
-}
-
-void GraphicsServer::LoadMaterials(const std::vector<MaterialProps>& materialDefs) {
-    for (const auto& mat : materialDefs) {
-        materials.push_back(new Material(mat));
-    }
+Mesh* GraphicsServer::GetMesh(const std::string& name) const {
+    return AssetManager::Get().GetMesh(name);
 }
 
 void GraphicsServer::CheckFramebufferStatus(const std::string& prefix) {
@@ -752,9 +630,9 @@ void GraphicsServer::ShadowPass(float dt) {
     // 1. Render shadow map for directional light
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, uniShadowMaps[0], 0);
     glClear(GL_DEPTH_BUFFER_BIT);
-    auto depthShader = GetShaderByName("depth");
-    depthShader.Activate();
-    depthShader.SetUniform(
+    auto depthShader = GetShader("depth");
+    depthShader->Activate();
+    depthShader->SetUniform(
       std::string("ProjectionView"), mainLight->GetProjectionMatrix(0) * mainLight->GetViewMatrix()
     );
 
@@ -773,24 +651,29 @@ void GraphicsServer::ShadowPass(float dt) {
 
         if (mesh->type == MeshType::PRIM) {
             glBindVertexArray(mesh->vao);
-            if (instances.size() > 0) {// TODO: use non-instanced rendering for one-off meshes
+            if (instances.size() > 0) {
                 glBindBuffer(GL_ARRAY_BUFFER, mesh->ibo);
                 glBufferData(
                   GL_ARRAY_BUFFER, instances.size() * sizeof(InstanceData), instances.data(), GL_DYNAMIC_DRAW
                 );
-                glDrawElementsInstanced(
-                  mesh->GetMaterial()->primitiveType, mesh->triCount * 3, GL_UNSIGNED_SHORT, 0, instances.size()
-                );
-            } else {
-                glDrawElements(mesh->GetMaterial()->primitiveType, mesh->triCount * 3, GL_UNSIGNED_SHORT, 0);
+                for (const auto& instance : instances) {
+                    depthShader->SetUniform(std::string("Model"), instance.modelMatrix);
+                    glDrawElements(mesh->GetMaterial()->primitiveType, mesh->triCount * 3, GL_UNSIGNED_SHORT, 0);
+                }
             }
-            glBindVertexArray(0);
         }
+        glBindVertexArray(0);
+    }
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    if (auxLightCount == 0) {
+        return;
     }
 
     // 2. Render shadow cubemaps for omni-directional lights
-    auto depthCubemapShader = GetShaderByName("depth_cubemap");
-    depthCubemapShader.Activate();
+    auto depthCubemapShader = GetShader("depth_cubemap");
+    depthCubemapShader->Activate();
     int auxShadows = 0;
     for (int i = 0; i < auxLightCount; ++i) {
         LightComponent* l = pointLights[i];
@@ -801,8 +684,8 @@ void GraphicsServer::ShadowPass(float dt) {
             GLenum face = GL_TEXTURE_CUBE_MAP_POSITIVE_X + f;
             glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, face, omniShadowMaps[i], 0);
             glClear(GL_DEPTH_BUFFER_BIT);
-            depthCubemapShader.SetUniform(std::string("LightPosition"), l->GetPosition());
-            depthCubemapShader.SetUniform(
+            depthCubemapShader->SetUniform(std::string("LightPosition"), l->GetPosition());
+            depthCubemapShader->SetUniform(
               std::string("ProjectionView"), l->GetProjectionMatrix(0) * l->GetViewMatrix(face)
             );
 
@@ -821,22 +704,25 @@ void GraphicsServer::ShadowPass(float dt) {
 
                 if (mesh->type == MeshType::PRIM) {
                     glBindVertexArray(mesh->vao);
-                    if (instances.size() > 0) {// TODO: use non-instanced rendering for one-off meshes
+                    if (instances.size() > 0) {
                         glBindBuffer(GL_ARRAY_BUFFER, mesh->ibo);
                         glBufferData(
                           GL_ARRAY_BUFFER, instances.size() * sizeof(InstanceData), instances.data(), GL_DYNAMIC_DRAW
                         );
-                        glDrawElementsInstanced(
-                          mesh->GetMaterial()->primitiveType, mesh->triCount * 3, GL_UNSIGNED_SHORT, 0, instances.size()
-                        );
-                    } else {
-                        glDrawElements(mesh->GetMaterial()->primitiveType, mesh->triCount * 3, GL_UNSIGNED_SHORT, 0);
+                        for (const auto& instance : instances) {
+                            depthCubemapShader->SetUniform(std::string("Model"), instance.modelMatrix);
+                            glDrawElements(
+                              mesh->GetMaterial()->primitiveType, mesh->triCount * 3, GL_UNSIGNED_SHORT, 0
+                            );
+                        }
                     }
-                    glBindVertexArray(0);
                 }
+                glBindVertexArray(0);
             }
         }
     }
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
 void GraphicsServer::ForwardPass(float dt) {
@@ -844,7 +730,8 @@ void GraphicsServer::ForwardPass(float dt) {
     glViewport(0, 0, width, height);
 
     glBindFramebuffer(GL_FRAMEBUFFER, sceneFBO);
-
+    // Bind textures
+    auto& assetManager = AssetManager::Get();
     for (int i = 0; i < MAX_UNI_LIGHTS; ++i) {
         glActiveTexture(GL_TEXTURE0 + i);
         glBindTexture(GL_TEXTURE_2D, uniShadowMaps[i]);
@@ -853,13 +740,13 @@ void GraphicsServer::ForwardPass(float dt) {
         glActiveTexture(GL_TEXTURE0 + UNI_SHADOW_MAP_COUNT + i);
         glBindTexture(GL_TEXTURE_CUBE_MAP, omniShadowMaps[i]);
     }
-    for (int i = 0; i < defaultTextures.size(); ++i) {
+    for (int i = 0; i < assetManager.GetDefaultTextures().size(); ++i) {
         glActiveTexture(GL_TEXTURE0 + DEFAULT_TEXTURE_BASE_INDEX + i);
-        glBindTexture(GL_TEXTURE_2D, defaultTextures[i]);
+        glBindTexture(GL_TEXTURE_2D, assetManager.GetDefaultTextures()[i]);
     }
-    for (int i = 0; i < textures.size(); ++i) {
+    for (int i = 0; i < assetManager.GetTextures().size(); ++i) {
         glActiveTexture(GL_TEXTURE0 + SCENE_TEXTURE_BASE_INDEX + i);
-        glBindTexture(GL_TEXTURE_2D, textures[i]);
+        glBindTexture(GL_TEXTURE_2D, assetManager.GetTextures()[i]);
     }
 
     auto mainLight = GetMainLight();
@@ -869,8 +756,8 @@ void GraphicsServer::ForwardPass(float dt) {
     glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    auto terrainShader = GetShaderByName("terrain");
-    auto colorShader = GetShaderByName("color");
+    auto terrainShader = GetShader("terrain");
+    auto colorShader = GetShader("color");
     for (const auto& [mesh, instances] : _meshInstanceMap) {
         if (instances.empty()) continue;
 
@@ -919,28 +806,28 @@ void GraphicsServer::ForwardPass(float dt) {
         switch (mesh->type) {
 
         case MeshType::TERRAIN:
-            terrainShader.Activate();
-            terrainShader.SetUniform(std::string("cam_pos"), eyePos);
-            terrainShader.SetUniform(std::string("main_light.direction"), mainLight->direction);
-            terrainShader.SetUniform(std::string("main_light.ambient"), mainLight->ambient);
-            terrainShader.SetUniform(std::string("main_light.diffuse"), mainLight->diffuse);
-            terrainShader.SetUniform(std::string("main_light.specular"), mainLight->specular);
-            terrainShader.SetUniform(std::string("main_light.intensity"), mainLight->intensity);
-            terrainShader.SetUniform(std::string("main_light.cast_shadow"), mainLight->castShadow ? 1 : 0);
-            terrainShader.SetUniform(std::string("main_light.ProjectionView"), mainLight->GetProjectionViewMatrix(0));
+            terrainShader->Activate();
+            terrainShader->SetUniform(std::string("cam_pos"), eyePos);
+            terrainShader->SetUniform(std::string("main_light.direction"), mainLight->direction);
+            terrainShader->SetUniform(std::string("main_light.ambient"), mainLight->ambient);
+            terrainShader->SetUniform(std::string("main_light.diffuse"), mainLight->diffuse);
+            terrainShader->SetUniform(std::string("main_light.specular"), mainLight->specular);
+            terrainShader->SetUniform(std::string("main_light.intensity"), mainLight->intensity);
+            terrainShader->SetUniform(std::string("main_light.cast_shadow"), mainLight->castShadow ? 1 : 0);
+            terrainShader->SetUniform(std::string("main_light.ProjectionView"), mainLight->GetProjectionViewMatrix(0));
 
-            terrainShader.SetUniform(std::string("surf_params.diffuse"), mesh->GetMaterial()->diffuse);
-            terrainShader.SetUniform(std::string("surf_params.specular"), mesh->GetMaterial()->specular);
-            terrainShader.SetUniform(std::string("surf_params.ambient"), mesh->GetMaterial()->ambient);
-            terrainShader.SetUniform(std::string("surf_params.shininess"), mesh->GetMaterial()->shininess);
+            terrainShader->SetUniform(std::string("surf_params.diffuse"), mesh->GetMaterial()->diffuse);
+            terrainShader->SetUniform(std::string("surf_params.specular"), mesh->GetMaterial()->specular);
+            terrainShader->SetUniform(std::string("surf_params.ambient"), mesh->GetMaterial()->ambient);
+            terrainShader->SetUniform(std::string("surf_params.shininess"), mesh->GetMaterial()->shininess);
 
-            terrainShader.SetUniform(std::string("tessellation_factor"), (float)16.0);
-            terrainShader.SetUniform(std::string("height_scale"), (float)32.0);
-            terrainShader.SetUniform(
+            terrainShader->SetUniform(std::string("tessellation_factor"), (float)16.0);
+            terrainShader->SetUniform(std::string("height_scale"), (float)32.0);
+            terrainShader->SetUniform(
               std::string("height_map_unit"), SCENE_TEXTURE_BASE_INDEX + mesh->GetMaterial()->heightMap
             );
-            terrainShader.SetUniform(std::string("ProjectionView"), projectionView);
-            terrainShader.SetUniform(std::string("World"), instances[0].modelMatrix);
+            terrainShader->SetUniform(std::string("ProjectionView"), projectionView);
+            terrainShader->SetUniform(std::string("World"), instances[0].modelMatrix);
 
             glBindVertexArray(mesh->vao);
 #ifndef __EMSCRIPTEN__
@@ -957,93 +844,93 @@ void GraphicsServer::ForwardPass(float dt) {
 
         case MeshType::PRIM:
         default:
-            colorShader.Activate();
-            colorShader.SetUniform(std::string("cam_pos"), eyePos);
-            colorShader.SetUniform(std::string("time"), 0);
-            colorShader.SetUniform(std::string("main_light.direction"), mainLight->direction);
-            colorShader.SetUniform(std::string("main_light.ambient"), mainLight->ambient);
-            colorShader.SetUniform(std::string("main_light.diffuse"), mainLight->diffuse);
-            colorShader.SetUniform(std::string("main_light.specular"), mainLight->specular);
-            colorShader.SetUniform(std::string("main_light.intensity"), mainLight->intensity);
-            colorShader.SetUniform(std::string("main_light.cast_shadow"), mainLight->castShadow ? 1 : 0);
-            colorShader.SetUniform(std::string("main_light.ProjectionView"), mainLight->GetProjectionViewMatrix(0));
+            colorShader->Activate();
+            colorShader->SetUniform(std::string("cam_pos"), eyePos);
+            colorShader->SetUniform(std::string("time"), 0);
+            colorShader->SetUniform(std::string("main_light.direction"), mainLight->direction);
+            colorShader->SetUniform(std::string("main_light.ambient"), mainLight->ambient);
+            colorShader->SetUniform(std::string("main_light.diffuse"), mainLight->diffuse);
+            colorShader->SetUniform(std::string("main_light.specular"), mainLight->specular);
+            colorShader->SetUniform(std::string("main_light.intensity"), mainLight->intensity);
+            colorShader->SetUniform(std::string("main_light.cast_shadow"), mainLight->castShadow ? 1 : 0);
+            colorShader->SetUniform(std::string("main_light.ProjectionView"), mainLight->GetProjectionViewMatrix(0));
             for (int i = 0; i < auxLightCount; ++i) {
                 LightComponent* l = pointLights[i];
-                colorShader.SetUniform(
+                colorShader->SetUniform(
                   std::string("aux_lights[") + std::to_string(i) + std::string("].position"), l->GetPosition()
                 );
-                colorShader.SetUniform(
+                colorShader->SetUniform(
                   std::string("aux_lights[") + std::to_string(i) + std::string("].ambient"), l->ambient
                 );
-                colorShader.SetUniform(
+                colorShader->SetUniform(
                   std::string("aux_lights[") + std::to_string(i) + std::string("].diffuse"), l->diffuse
                 );
-                colorShader.SetUniform(
+                colorShader->SetUniform(
                   std::string("aux_lights[") + std::to_string(i) + std::string("].specular"), l->specular
                 );
-                colorShader.SetUniform(
+                colorShader->SetUniform(
                   std::string("aux_lights[") + std::to_string(i) + std::string("].attenuation"), l->attenuation
                 );
-                colorShader.SetUniform(
+                colorShader->SetUniform(
                   std::string("aux_lights[") + std::to_string(i) + std::string("].intensity"), l->intensity
                 );
-                colorShader.SetUniform(
+                colorShader->SetUniform(
                   std::string("aux_lights[") + std::to_string(i) + std::string("].cast_shadow"), l->castShadow ? 1 : 0
                 );
                 for (int f = 0; f < 6; ++f) {
                     GLenum face = GL_TEXTURE_CUBE_MAP_POSITIVE_X + f;
-                    colorShader.SetUniform(
+                    colorShader->SetUniform(
                       std::string("aux_lights[") + std::to_string(i) + std::string("].ProjectionViews[")
                         + std::to_string(f) + std::string("]"),
                       l->GetProjectionViewMatrix(0, face)
                     );
                 }
             }
-            colorShader.SetUniform(std::string("aux_light_count"), auxLightCount);
-            colorShader.SetUniform(std::string("shadow_map_unit"), (int)0);
-            colorShader.SetUniform(std::string("omni_shadow_map_unit"), (int)UNI_SHADOW_MAP_COUNT);
-            colorShader.SetUniform(std::string("ProjectionView"), projectionView);
+            colorShader->SetUniform(std::string("aux_light_count"), auxLightCount);
+            colorShader->SetUniform(std::string("shadow_map_unit"), (int)0);
+            colorShader->SetUniform(std::string("omni_shadow_map_unit"), (int)UNI_SHADOW_MAP_COUNT);
+            colorShader->SetUniform(std::string("ProjectionView"), projectionView);
             // Surface parameters
-            colorShader.SetUniform(std::string("surf_params.diffuse"), mesh->GetMaterial()->diffuse);
-            colorShader.SetUniform(std::string("surf_params.specular"), mesh->GetMaterial()->specular);
-            colorShader.SetUniform(std::string("surf_params.ambient"), mesh->GetMaterial()->ambient);
-            colorShader.SetUniform(std::string("surf_params.shininess"), mesh->GetMaterial()->shininess);
+            colorShader->SetUniform(std::string("surf_params.diffuse"), mesh->GetMaterial()->diffuse);
+            colorShader->SetUniform(std::string("surf_params.specular"), mesh->GetMaterial()->specular);
+            colorShader->SetUniform(std::string("surf_params.ambient"), mesh->GetMaterial()->ambient);
+            colorShader->SetUniform(std::string("surf_params.shininess"), mesh->GetMaterial()->shininess);
 
             // Material textures
             if (mesh->GetMaterial()->baseMap >= 0) {
-                colorShader.SetUniform(
+                colorShader->SetUniform(
                   std::string("base_map_unit"), SCENE_TEXTURE_BASE_INDEX + mesh->GetMaterial()->baseMap
                 );
             } else {
-                colorShader.SetUniform(std::string("base_map_unit"), DEFAULT_TEXTURE_BASE_INDEX + 0);
+                colorShader->SetUniform(std::string("base_map_unit"), DEFAULT_TEXTURE_BASE_INDEX + 0);
             }
             if (mesh->GetMaterial()->normalMap >= 0) {
-                colorShader.SetUniform(
+                colorShader->SetUniform(
                   std::string("normal_map_unit"), SCENE_TEXTURE_BASE_INDEX + mesh->GetMaterial()->normalMap
                 );
             } else {
-                colorShader.SetUniform(std::string("normal_map_unit"), DEFAULT_TEXTURE_BASE_INDEX + 1);
+                colorShader->SetUniform(std::string("normal_map_unit"), DEFAULT_TEXTURE_BASE_INDEX + 1);
             }
             if (mesh->GetMaterial()->aoMap >= 0) {
-                colorShader.SetUniform(
+                colorShader->SetUniform(
                   std::string("ao_map_unit"), SCENE_TEXTURE_BASE_INDEX + mesh->GetMaterial()->aoMap
                 );
             } else {
-                colorShader.SetUniform(std::string("ao_map_unit"), DEFAULT_TEXTURE_BASE_INDEX + 2);
+                colorShader->SetUniform(std::string("ao_map_unit"), DEFAULT_TEXTURE_BASE_INDEX + 2);
             }
             if (mesh->GetMaterial()->roughnessMap >= 0) {
-                colorShader.SetUniform(
+                colorShader->SetUniform(
                   std::string("roughness_map_unit"), SCENE_TEXTURE_BASE_INDEX + mesh->GetMaterial()->roughnessMap
                 );
             } else {
-                colorShader.SetUniform(std::string("roughness_map_unit"), DEFAULT_TEXTURE_BASE_INDEX + 3);
+                colorShader->SetUniform(std::string("roughness_map_unit"), DEFAULT_TEXTURE_BASE_INDEX + 3);
             }
             if (mesh->GetMaterial()->metallicMap >= 0) {
-                colorShader.SetUniform(
+                colorShader->SetUniform(
                   std::string("metallic_map_unit"), SCENE_TEXTURE_BASE_INDEX + mesh->GetMaterial()->metallicMap
                 );
             } else {
-                colorShader.SetUniform(std::string("metallic_map_unit"), DEFAULT_TEXTURE_BASE_INDEX + 4);
+                colorShader->SetUniform(std::string("metallic_map_unit"), DEFAULT_TEXTURE_BASE_INDEX + 4);
             }
 
             glBindVertexArray(mesh->vao);
@@ -1067,9 +954,9 @@ void GraphicsServer::ForwardPass(float dt) {
     _debugLineCount = debugLines.size() / 2;
     if (debugLines.size() > 0) {
         // glDisable(GL_DEPTH_TEST);
-        auto debugShader = GetShaderByName("debug_line");
-        debugShader.Activate();
-        debugShader.SetUniform(std::string("ProjectionView"), projectionView);
+        auto debugShader = GetShader("debug_line");
+        debugShader->Activate();
+        debugShader->SetUniform(std::string("ProjectionView"), projectionView);
 
         glBindVertexArray(debugVAO);
         glBindBuffer(GL_ARRAY_BUFFER, debugVBO);
@@ -1100,21 +987,22 @@ void GraphicsServer::GeometryPass(float dt) {
     //     glActiveTexture(GL_TEXTURE0 + UNI_SHADOW_MAP_COUNT + i);
     //     glBindTexture(GL_TEXTURE_CUBE_MAP, omniShadowMaps[i]);
     // }
-    for (int i = 0; i < defaultTextures.size(); ++i) {
+    auto& assetManager = AssetManager::Get();
+    for (int i = 0; i < assetManager.GetDefaultTextures().size(); ++i) {
         glActiveTexture(GL_TEXTURE0 + DEFAULT_TEXTURE_BASE_INDEX + i);
-        glBindTexture(GL_TEXTURE_2D, defaultTextures[i]);
+        glBindTexture(GL_TEXTURE_2D, assetManager.GetDefaultTextures()[i]);
     }
-    for (int i = 0; i < textures.size(); ++i) {
+    for (int i = 0; i < assetManager.GetTextures().size(); ++i) {
         glActiveTexture(GL_TEXTURE0 + SCENE_TEXTURE_BASE_INDEX + i);
-        glBindTexture(GL_TEXTURE_2D, textures[i]);
+        glBindTexture(GL_TEXTURE_2D, assetManager.GetTextures()[i]);
     }
 
     glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);
     glClearDepthf(1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    auto geometryShader = GetShaderByName("geometry");
-    geometryShader.Activate();
+    auto geometryShader = GetShader("geometry");
+    geometryShader->Activate();
 
     for (const auto& [mesh, instances] : _meshInstanceMap) {
         if (instances.empty()) continue;
@@ -1129,7 +1017,7 @@ void GraphicsServer::GeometryPass(float dt) {
         else
             glDisable(GL_CULL_FACE);
 
-        geometryShader.SetUniform(
+        geometryShader->SetUniform(
           "ProjectionView", GetMainCamera()->GetProjectionMatrix() * GetMainCamera()->GetViewMatrix()
         );
 
@@ -1143,29 +1031,31 @@ void GraphicsServer::GeometryPass(float dt) {
         case MeshType::PRIM:
         default:
             if (mesh->GetMaterial()->baseMap >= 0) {
-                geometryShader.SetUniform("baseMap", SCENE_TEXTURE_BASE_INDEX + mesh->GetMaterial()->baseMap);
+                geometryShader->SetUniform("baseMap", SCENE_TEXTURE_BASE_INDEX + mesh->GetMaterial()->baseMap);
             } else {
-                geometryShader.SetUniform("baseMap", DEFAULT_TEXTURE_BASE_INDEX + 0);
+                geometryShader->SetUniform("baseMap", DEFAULT_TEXTURE_BASE_INDEX + 0);
             }
             if (mesh->GetMaterial()->normalMap >= 0) {
-                geometryShader.SetUniform("normalMap", SCENE_TEXTURE_BASE_INDEX + mesh->GetMaterial()->normalMap);
+                geometryShader->SetUniform("normalMap", SCENE_TEXTURE_BASE_INDEX + mesh->GetMaterial()->normalMap);
             } else {
-                geometryShader.SetUniform("normalMap", DEFAULT_TEXTURE_BASE_INDEX + 1);
+                geometryShader->SetUniform("normalMap", DEFAULT_TEXTURE_BASE_INDEX + 1);
             }
             if (mesh->GetMaterial()->aoMap >= 0) {
-                geometryShader.SetUniform("aoMap", SCENE_TEXTURE_BASE_INDEX + mesh->GetMaterial()->aoMap);
+                geometryShader->SetUniform("aoMap", SCENE_TEXTURE_BASE_INDEX + mesh->GetMaterial()->aoMap);
             } else {
-                geometryShader.SetUniform("aoMap", DEFAULT_TEXTURE_BASE_INDEX + 2);
+                geometryShader->SetUniform("aoMap", DEFAULT_TEXTURE_BASE_INDEX + 2);
             }
             if (mesh->GetMaterial()->roughnessMap >= 0) {
-                geometryShader.SetUniform("roughnessMap", SCENE_TEXTURE_BASE_INDEX + mesh->GetMaterial()->roughnessMap);
+                geometryShader->SetUniform(
+                  "roughnessMap", SCENE_TEXTURE_BASE_INDEX + mesh->GetMaterial()->roughnessMap
+                );
             } else {
-                geometryShader.SetUniform("roughnessMap", DEFAULT_TEXTURE_BASE_INDEX + 3);
+                geometryShader->SetUniform("roughnessMap", DEFAULT_TEXTURE_BASE_INDEX + 3);
             }
             if (mesh->GetMaterial()->metallicMap >= 0) {
-                geometryShader.SetUniform("metallicMap", SCENE_TEXTURE_BASE_INDEX + mesh->GetMaterial()->metallicMap);
+                geometryShader->SetUniform("metallicMap", SCENE_TEXTURE_BASE_INDEX + mesh->GetMaterial()->metallicMap);
             } else {
-                geometryShader.SetUniform("metallicMap", DEFAULT_TEXTURE_BASE_INDEX + 4);
+                geometryShader->SetUniform("metallicMap", DEFAULT_TEXTURE_BASE_INDEX + 4);
             }
 
             glBindVertexArray(mesh->vao);
@@ -1193,44 +1083,44 @@ void GraphicsServer::LightingPass(float dt) {
     glClearColor(clearColor.r, clearColor.g, clearColor.b, clearColor.a);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    auto lightingShader = GetShaderByName("lighting");
-    lightingShader.Activate();
+    auto lightingShader = GetShader("lighting");
+    lightingShader->Activate();
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, gBuffer.positionRT);
-    lightingShader.SetUniform("gPosition", 0);
+    lightingShader->SetUniform("gPosition", 0);
 
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, gBuffer.normalRT);
-    lightingShader.SetUniform("gNormal", 1);
+    lightingShader->SetUniform("gNormal", 1);
 
     glActiveTexture(GL_TEXTURE2);
     glBindTexture(GL_TEXTURE_2D, gBuffer.albedoRT);
-    lightingShader.SetUniform("gAlbedo", 2);
+    lightingShader->SetUniform("gAlbedo", 2);
 
     glActiveTexture(GL_TEXTURE3);
     glBindTexture(GL_TEXTURE_2D, gBuffer.materialRT);
-    lightingShader.SetUniform("gMaterial", 3);
+    lightingShader->SetUniform("gMaterial", 3);
 
     auto mainLight = GetMainLight();
-    lightingShader.SetUniform("cam_pos", GetMainCamera()->GetEyePosition());
-    lightingShader.SetUniform("mainLight.direction", mainLight->direction);
-    lightingShader.SetUniform("mainLight.ambient", mainLight->ambient);
-    lightingShader.SetUniform("mainLight.diffuse", mainLight->diffuse);
-    lightingShader.SetUniform("mainLight.specular", mainLight->specular);
-    lightingShader.SetUniform("mainLight.intensity", mainLight->intensity);
+    lightingShader->SetUniform("cam_pos", GetMainCamera()->GetEyePosition());
+    lightingShader->SetUniform("mainLight.direction", mainLight->direction);
+    lightingShader->SetUniform("mainLight.ambient", mainLight->ambient);
+    lightingShader->SetUniform("mainLight.diffuse", mainLight->diffuse);
+    lightingShader->SetUniform("mainLight.specular", mainLight->specular);
+    lightingShader->SetUniform("mainLight.intensity", mainLight->intensity);
 
     for (int i = 0; i < auxLightCount; ++i) {
         LightComponent* l = pointLights[i];
         std::string prefix = "pointLights[" + std::to_string(i) + "]";
-        lightingShader.SetUniform(prefix + ".position", l->GetPosition());
-        lightingShader.SetUniform(prefix + ".ambient", l->ambient);
-        lightingShader.SetUniform(prefix + ".diffuse", l->diffuse);
-        lightingShader.SetUniform(prefix + ".specular", l->specular);
-        lightingShader.SetUniform(prefix + ".attenuation", l->attenuation);
-        lightingShader.SetUniform(prefix + ".intensity", l->intensity);
+        lightingShader->SetUniform(prefix + ".position", l->GetPosition());
+        lightingShader->SetUniform(prefix + ".ambient", l->ambient);
+        lightingShader->SetUniform(prefix + ".diffuse", l->diffuse);
+        lightingShader->SetUniform(prefix + ".specular", l->specular);
+        lightingShader->SetUniform(prefix + ".attenuation", l->attenuation);
+        lightingShader->SetUniform(prefix + ".intensity", l->intensity);
     }
-    lightingShader.SetUniform("pointLightCount", auxLightCount);
+    lightingShader->SetUniform("pointLightCount", auxLightCount);
 
     glBindVertexArray(screenVAO);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
@@ -1268,17 +1158,17 @@ void GraphicsServer::CanvasPass(float dt) {
 #endif
 
         // TODO: use canvas textures
-        for (int i = 0; i < textures.size(); i++) {
+        for (int i = 0; i < AssetManager::Get().GetTextures().size(); ++i) {
             glActiveTexture(GL_TEXTURE0 + i);
-            glBindTexture(GL_TEXTURE_2D, textures[i]);
+            glBindTexture(GL_TEXTURE_2D, AssetManager::Get().GetTextures()[i]);
         }
 
-        auto canvasShader = GetShaderByName("canvas");
-        canvasShader.Activate();
+        auto canvasShader = GetShader("canvas");
+        canvasShader->Activate();
         glm::mat4 projection = glm::ortho(0.0f, (float)width, (float)height, 0.0f, -1.0f, 1.0f);
-        canvasShader.SetUniform(std::string("Projection"), projection);
+        canvasShader->SetUniform(std::string("Projection"), projection);
         for (int i = 0; i < MAX_CANVAS_TEXTURES; i++) {
-            canvasShader.SetUniform(fmt::format("Textures[{}]", i), i);
+            canvasShader->SetUniform(fmt::format("Textures[{}]", i), i);
         }
 
         glBindVertexArray(canvasVAO);
@@ -1308,9 +1198,9 @@ void GraphicsServer::PostProcessPass(float dt) {
 
     glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    auto postProcessShader = GetShaderByName("hdr");
-    postProcessShader.Activate();
-    postProcessShader.SetUniform(std::string("color_map_unit"), (int)0);
+    auto postProcessShader = GetShader("hdr");
+    postProcessShader->Activate();
+    postProcessShader->SetUniform(std::string("color_map_unit"), (int)0);
     glBindVertexArray(screenVAO);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 }
@@ -1375,84 +1265,6 @@ void GraphicsServer::PushCanvasQuadTiled(
     PushCanvasQuad(x, y, w, h, angle, pivotX, pivotY, color, texIndex, uvMin, uvMax);
 }
 
-Material* GraphicsServer::CreateMaterial(Material* material) {
-    if (material) {
-        materials.push_back(material);
-        return material;
-    } else {
-        auto emptyMaterial = new Material({});
-        materials.push_back(emptyMaterial);
-        return emptyMaterial;
-    }
-}
-
-Material* GraphicsServer::CreateMaterial(const std::string& name, Material* material) {
-    if (material) {
-        materials.push_back(material);
-        _namedMaterials.insert({ name, material });
-        return material;
-    } else {
-        auto emptyMaterial = new Material({});
-        materials.push_back(emptyMaterial);
-        _namedMaterials.insert({ name, emptyMaterial });
-        return emptyMaterial;
-    }
-}
-
-
-Mesh* GraphicsServer::CreateMesh(Mesh* mesh) {
-    if (mesh) {
-        meshes.push_back(mesh);
-        return mesh;
-    } else {
-        auto emptyMesh = new Mesh();
-        meshes.push_back(emptyMesh);
-        return emptyMesh;
-    }
-}
-
-Mesh* GraphicsServer::CreateMesh(const std::string& name, Mesh* mesh) {
-    if (mesh) {
-        meshes.push_back(mesh);
-        _namedMeshes.insert({ name, mesh });
-        return mesh;
-    } else {
-        auto emptyMesh = new Mesh();
-        meshes.push_back(emptyMesh);
-        _namedMeshes.insert({ name, emptyMesh });
-        return emptyMesh;
-    }
-}
-
-Mesh* GraphicsServer::CreateCubeMesh(const std::string& name, float size) {
-    auto mesh = MeshBuilder::CreateCube(size);
-    meshes.push_back(mesh);
-    _namedMeshes.insert({ name, mesh });
-    return mesh;
-}
-
-Mesh* GraphicsServer::CreateSphereMesh(const std::string& name, float radius, int division) {
-    auto mesh = MeshBuilder::CreateSphere(radius, division);
-    meshes.push_back(mesh);
-    _namedMeshes.insert({ name, mesh });
-    return mesh;
-}
-
-Mesh* GraphicsServer::CreateCapsuleMesh(const std::string& name, float radius, float height) {
-    // TODO: unimplemented
-    // auto mesh = MeshBuilder::CreateCapsule(radius, height);
-    // meshes.push_back(mesh);
-    // _namedMeshes.insert({name, mesh});
-    // return mesh;
-    return new Mesh;
-}
-
-Mesh* GraphicsServer::CreateTerrainMesh(const std::string& name, float worldSize, int resolution) {
-    auto mesh = MeshBuilder::CreateTerrain(worldSize, resolution);
-    meshes.push_back(mesh);
-    _namedMeshes.insert({ name, mesh });
-    return mesh;
-}
 
 MeshComponent* GraphicsServer::RegisterMesh(MeshComponent* mesh) {
     renderables.push_back(mesh);

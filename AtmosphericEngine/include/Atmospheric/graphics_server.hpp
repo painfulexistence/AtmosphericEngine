@@ -1,9 +1,7 @@
 #pragma once
 #include "camera_component.hpp"
 #include "config.hpp"
-#include "globals.hpp"
 #include "light_component.hpp"
-#include "material.hpp"
 #include "mesh.hpp"
 #include "mesh_component.hpp"
 #include "server.hpp"
@@ -15,9 +13,6 @@
 #include <glm/vec4.hpp>
 #include <unordered_map>
 
-using TextureID = uint32_t;
-using ShaderID = uint32_t;
-using MaterialID = uint32_t;
 
 enum class RenderPath {
     Forward,
@@ -72,11 +67,7 @@ public:
     static GraphicsServer* Get() {
         return _instance;
     }
-    std::vector<Mesh*> meshes;
-    std::vector<GLuint> defaultTextures;
-    std::vector<GLuint> textures;
-    std::vector<GLuint> canvasTextures;
-    std::vector<Material*> materials;
+    std::vector<GLuint> canvasTextures;// TODO: Replace with AssetManager
     std::vector<MeshComponent*> renderables;
     std::vector<SpriteComponent*> canvasDrawables;
     std::vector<LightComponent*> directionalLights;
@@ -109,28 +100,9 @@ public:
         }
     };
 
-    const ShaderProgram& GetShader(ShaderID id) const {
-        return shaders[id];
-    };
-
-    const ShaderProgram& GetShaderByName(const std::string& name) const {
-        return shaders[_shaderIDMap.at(name)];
-    };
-
-    Mesh* GetMesh(const std::string name) const {
-        if (_namedMeshes.count(name) == 0) throw std::runtime_error("Could not find the specified mesh!");
-
-        return _namedMeshes.find(name)->second;
-    };
-
-    void LoadDefaultTextures();
-    void LoadTextures(const std::vector<std::string>& paths);
-
-    void LoadDefaultShaders();
-    void LoadShaders(const std::unordered_map<std::string, ShaderProgramProps>& shaderDefs);
-    void ReloadShaders();
-
-    void LoadMaterials(const std::vector<MaterialProps>& materialDefs);
+    ShaderProgram* GetShader(const std::string& name) const;
+    ShaderProgram* GetShaderByID(uint32_t id) const;
+    Mesh* GetMesh(const std::string& name) const;
 
     void CheckFramebufferStatus(const std::string& prefix);
     void CheckErrors(const std::string& prefix);
@@ -180,21 +152,6 @@ public:
         }
     }
 
-    Material* CreateMaterial(Material* material = nullptr);
-
-    Material* CreateMaterial(const std::string& name, Material* material = nullptr);
-
-    Mesh* CreateMesh(Mesh* mesh = nullptr);
-
-    Mesh* CreateMesh(const std::string& name, Mesh* mesh = nullptr);
-
-    Mesh* CreateCubeMesh(const std::string& name, float size = 1.0f);
-
-    Mesh* CreateSphereMesh(const std::string& name, float radius = 0.5f, int division = 18);
-
-    Mesh* CreateCapsuleMesh(const std::string& name, float radius = 0.5f, float height = 3.0f);
-
-    Mesh* CreateTerrainMesh(const std::string& name, float worldSize = 1024.f, int resolution = 10);
 
     MeshComponent* RegisterMesh(MeshComponent* mesh);
     CameraComponent* RegisterCamera(CameraComponent* camera);
@@ -230,9 +187,6 @@ private:
     GLuint sceneColorTexture, sceneDepthTexture, sceneStencilTexture;
     GLuint msaaResolveTexture;
 
-    ShaderID _nextShaderID = 0;
-    std::unordered_map<std::string, ShaderID> _shaderIDMap;
-    std::vector<ShaderProgram> shaders = {};
 
     GLuint shadowFBO, sceneFBO, msaaResolveFBO;
     GLuint finalFBO = 0;
@@ -245,10 +199,7 @@ private:
         GLuint depthRT;
     } gBuffer;
 
-    std::unordered_map<std::string, Mesh*> _namedMeshes;
     std::unordered_map<Mesh*, std::vector<InstanceData>> _meshInstanceMap;
-    std::unordered_map<std::string, Material*> _namedMaterials;
-    std::unordered_map<std::string, ShaderProgram*> _namedShaders;
     // std::unordered_map<std::pair<Mesh*, Material*>, std::vector<InstanceData>> groupedObjects;
 
     std::vector<DebugVertex> debugLines;

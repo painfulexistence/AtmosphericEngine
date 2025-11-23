@@ -1,16 +1,29 @@
 #include "mesh.hpp"
-#include "config.hpp"
 #include "asset_manager.hpp"
+#include "config.hpp"
 
-void PrintVertex(const Vertex& v)
-{
-    fmt::print("P: ({},{},{}), UV: ({},{})\n, N: ({},{},{}), T: ({},{},{}), B: ({},{},{})\n", v.position.x, v.position.y, v.position.z, v.uv.x, v.uv.y, v.normal.x, v.normal.y, v.normal.z, v.tangent.x, v.tangent.y, v.tangent.z, v.bitangent.x, v.bitangent.y, v.bitangent.z);
+void PrintVertex(const Vertex& v) {
+    fmt::print(
+      "P: ({},{},{}), UV: ({},{})\n, N: ({},{},{}), T: ({},{},{}), B: ({},{},{})\n",
+      v.position.x,
+      v.position.y,
+      v.position.z,
+      v.uv.x,
+      v.uv.y,
+      v.normal.x,
+      v.normal.y,
+      v.normal.z,
+      v.tangent.x,
+      v.tangent.y,
+      v.tangent.z,
+      v.bitangent.x,
+      v.bitangent.y,
+      v.bitangent.z
+    );
 }
 
-void CalculateNormalsAndTangents(std::vector<Vertex>& verts, std::vector<uint16_t>& tris)
-{
-    for (int i = 0; i < tris.size(); i += 3)
-    {
+void CalculateNormalsAndTangents(std::vector<Vertex>& verts, std::vector<uint16_t>& tris) {
+    for (int i = 0; i < tris.size(); i += 3) {
         glm::vec3 edge1 = verts[tris[i]].position - verts[tris[i + 1]].position;
         glm::vec3 edge2 = verts[tris[i + 2]].position - verts[tris[i + 1]].position;
         glm::vec2 dUV1 = verts[tris[i]].uv - verts[tris[i + 1]].uv;
@@ -45,26 +58,23 @@ void CalculateNormalsAndTangents(std::vector<Vertex>& verts, std::vector<uint16_
     // B = ((u0 - u1) * (p2 - p1) - (u2 - u1) * (p0 - p1)) / det
 }
 
-Mesh::Mesh(MeshType type) : type(type)
-{
+Mesh::Mesh(MeshType type) : type(type) {
     glGenVertexArrays(1, &vao);
     glGenBuffers(1, &vbo);
     glGenBuffers(1, &ebo);
     glGenBuffers(1, &ibo);
 }
 
-Mesh::~Mesh()
-{
+Mesh::~Mesh() {
     glDeleteBuffers(1, &vbo);
     glDeleteBuffers(1, &ebo);
     glDeleteBuffers(1, &ibo);
     glDeleteVertexArrays(1, &vao);
-    //delete collisionShape; // FIXME: Should delete collisionShape somewhere else before the pointer is out of scope
+    // delete collisionShape; // FIXME: Should delete collisionShape somewhere else before the pointer is out of scope
 }
 
 // Terrain mesh initialization
-void Mesh::Initialize(const std::vector<Vertex>& verts)
-{
+void Mesh::Initialize(const std::vector<Vertex>& verts) {
     vertCount = verts.size();
     triCount = 0;
 
@@ -88,11 +98,11 @@ void Mesh::Initialize(const std::vector<Vertex>& verts)
     this->initialized = true;
 }
 
-void Mesh::Initialize(const std::vector<Vertex>& verts, const std::vector<uint16_t>& tris)
-{
+void Mesh::Initialize(const std::vector<Vertex>& verts, const std::vector<uint16_t>& tris) {
     vertCount = verts.size();
     triCount = tris.size() / 3;
-    // Buffer binding reference: https://stackoverflow.com/questions/17332657/does-a-vao-remember-both-a-ebo-ibo-elements-or-indices-and-a-vbo
+    // Buffer binding reference:
+    // https://stackoverflow.com/questions/17332657/does-a-vao-remember-both-a-ebo-ibo-elements-or-indices-and-a-vbo
     glBindVertexArray(vao);
 
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
@@ -138,54 +148,40 @@ void Mesh::AddCapsuleShape(float radius, float height) {
 }
 
 
-Mesh* MeshBuilder::CreateCube(const float& size)
-{
-    Vertex vertices[] = {
-        // front
-        { { .5f * size, .5f * size, .5f * size }, { 1.f, 1.f }, { 0.0f, 0.0f, 1.0f } },
-        { { -.5f * size, .5f * size, .5f * size }, { 0.f, 1.f }, { 0.0f, 0.0f, 1.0f } },
-        { { .5f * size, -.5f * size, .5f * size }, { 1.f, 0.f }, { 0.0f, 0.0f, 1.0f } },
-        { { -.5f * size, -.5f * size, .5f * size }, { 0.f, 0.f }, { 0.0f, 0.0f, 1.0f } },
-        // back
-        { { -.5f * size, .5f * size, -.5f * size }, { 1.f, 1.f }, { 0.0f, 0.0f, -1.0f } },
-        { { .5f * size, .5f * size, -.5f * size }, { 0.f, 1.f }, { 0.0f, 0.0f, -1.0f } },
-        { { -.5f * size, -.5f * size, -.5f * size }, { 1.f, 0.f }, { 0.0f, 0.0f, -1.0f } },
-        { { .5f * size, -.5f * size, -.5f * size }, { 0.f, 0.f }, { 0.0f, 0.0f, -1.0f } },
-        // right
-        { { .5f * size, .5f * size, -.5f * size }, { 1.f, 1.f }, { 1.0f, 0.0f, 0.0f } },
-        { { .5f * size, .5f * size, .5f * size }, { 0.f, 1.f }, { 1.0f, 0.0f, 0.0f } },
-        { { .5f * size, -.5f * size, -.5f * size }, { 1.f, 0.f }, { 1.0f, 0.0f, 0.0f } },
-        { { .5f * size, -.5f * size, .5f * size }, { 0.f, 0.f }, { 1.0f, 0.0f, 0.0f } },
-        // left
-        { { -.5f * size, .5f * size, .5f * size }, { 1.f, 1.f }, { -1.0f, 0.0f, 0.0f } },
-        { { -.5f * size, .5f * size, -.5f * size }, { 0.f, 1.f }, { -1.0f, 0.0f, 0.0f } },
-        { { -.5f * size, -.5f * size, .5f * size }, { 1.f, 0.f }, { -1.0f, 0.0f, 0.0f } },
-        { { -.5f * size, -.5f * size, -.5f * size }, { 0.f, 0.f }, { -1.0f, 0.0f, 0.0f } },
-        // top
-        { { .5f * size, .5f * size, -.5f * size }, { 1.f, 1.f }, { 0.0f, 1.0f, 0.0f } },
-        { { -.5f * size, .5f * size, -.5f * size }, { 0.f, 1.f }, { 0.0f, 1.0f, 0.0f } },
-        { { .5f * size, .5f * size, .5f * size }, { 1.f, 0.f }, { 0.0f, 1.0f, 0.0f } },
-        { { -.5f * size, .5f * size, .5f * size }, { 0.f, 0.f }, { 0.0f, 1.0f, 0.0f } },
-        // bottom
-        { { .5f * size, -.5f * size, .5f * size }, { 1.0f, 1.0f }, { 0.0f, -1.0f, 0.0f } },
-        { { -.5f * size, -.5f * size, .5f * size }, { 0.0f, 1.0f }, { 0.0f, -1.0f, 0.0f } },
-        { { .5f * size, -.5f * size, -.5f * size }, { 1.0f, 0.0f }, { 0.0f, -1.0f, 0.0f } },
-        { { -.5f * size, -.5f * size, -.5f * size }, { 0.0f, 0.0f }, { 0.0f, -1.0f, 0.0f } }
+Mesh* MeshBuilder::CreateCube(const float& size) {
+    Vertex vertices[] = { // front
+                          { { .5f * size, .5f * size, .5f * size }, { 1.f, 1.f }, { 0.0f, 0.0f, 1.0f } },
+                          { { -.5f * size, .5f * size, .5f * size }, { 0.f, 1.f }, { 0.0f, 0.0f, 1.0f } },
+                          { { .5f * size, -.5f * size, .5f * size }, { 1.f, 0.f }, { 0.0f, 0.0f, 1.0f } },
+                          { { -.5f * size, -.5f * size, .5f * size }, { 0.f, 0.f }, { 0.0f, 0.0f, 1.0f } },
+                          // back
+                          { { -.5f * size, .5f * size, -.5f * size }, { 1.f, 1.f }, { 0.0f, 0.0f, -1.0f } },
+                          { { .5f * size, .5f * size, -.5f * size }, { 0.f, 1.f }, { 0.0f, 0.0f, -1.0f } },
+                          { { -.5f * size, -.5f * size, -.5f * size }, { 1.f, 0.f }, { 0.0f, 0.0f, -1.0f } },
+                          { { .5f * size, -.5f * size, -.5f * size }, { 0.f, 0.f }, { 0.0f, 0.0f, -1.0f } },
+                          // right
+                          { { .5f * size, .5f * size, -.5f * size }, { 1.f, 1.f }, { 1.0f, 0.0f, 0.0f } },
+                          { { .5f * size, .5f * size, .5f * size }, { 0.f, 1.f }, { 1.0f, 0.0f, 0.0f } },
+                          { { .5f * size, -.5f * size, -.5f * size }, { 1.f, 0.f }, { 1.0f, 0.0f, 0.0f } },
+                          { { .5f * size, -.5f * size, .5f * size }, { 0.f, 0.f }, { 1.0f, 0.0f, 0.0f } },
+                          // left
+                          { { -.5f * size, .5f * size, .5f * size }, { 1.f, 1.f }, { -1.0f, 0.0f, 0.0f } },
+                          { { -.5f * size, .5f * size, -.5f * size }, { 0.f, 1.f }, { -1.0f, 0.0f, 0.0f } },
+                          { { -.5f * size, -.5f * size, .5f * size }, { 1.f, 0.f }, { -1.0f, 0.0f, 0.0f } },
+                          { { -.5f * size, -.5f * size, -.5f * size }, { 0.f, 0.f }, { -1.0f, 0.0f, 0.0f } },
+                          // top
+                          { { .5f * size, .5f * size, -.5f * size }, { 1.f, 1.f }, { 0.0f, 1.0f, 0.0f } },
+                          { { -.5f * size, .5f * size, -.5f * size }, { 0.f, 1.f }, { 0.0f, 1.0f, 0.0f } },
+                          { { .5f * size, .5f * size, .5f * size }, { 1.f, 0.f }, { 0.0f, 1.0f, 0.0f } },
+                          { { -.5f * size, .5f * size, .5f * size }, { 0.f, 0.f }, { 0.0f, 1.0f, 0.0f } },
+                          // bottom
+                          { { .5f * size, -.5f * size, .5f * size }, { 1.0f, 1.0f }, { 0.0f, -1.0f, 0.0f } },
+                          { { -.5f * size, -.5f * size, .5f * size }, { 0.0f, 1.0f }, { 0.0f, -1.0f, 0.0f } },
+                          { { .5f * size, -.5f * size, -.5f * size }, { 1.0f, 0.0f }, { 0.0f, -1.0f, 0.0f } },
+                          { { -.5f * size, -.5f * size, -.5f * size }, { 0.0f, 0.0f }, { 0.0f, -1.0f, 0.0f } }
     };
-    GLushort triangles[] = {
-        0, 1, 2,
-        2, 1, 3,
-        4, 5, 6,
-        6, 5, 7,
-        8, 9, 10,
-        10, 9, 11,
-        12, 13, 14,
-        14, 13, 15,
-        16, 17, 18,
-        18, 17, 19,
-        20, 21, 22,
-        22, 21, 23
-    };
+    GLushort triangles[] = { 0,  1,  2,  2,  1,  3,  4,  5,  6,  6,  5,  7,  8,  9,  10, 10, 9,  11,
+                             12, 13, 14, 14, 13, 15, 16, 17, 18, 18, 17, 19, 20, 21, 22, 22, 21, 23 };
 
     std::vector<Vertex> verts(vertices, vertices + 24);
     std::vector<uint16_t> tris(triangles, triangles + 36);
@@ -193,72 +189,61 @@ Mesh* MeshBuilder::CreateCube(const float& size)
 
     auto cube = new Mesh(MeshType::PRIM);
     cube->Initialize(verts, tris);
-    cube->SetBoundingBox({{
-        glm::vec3(.5f * size, .5f * size, .5f * size),
-        glm::vec3(-.5f * size, .5f * size, .5f * size),
-        glm::vec3(-.5f * size, -.5f * size, .5f * size),
-        glm::vec3(.5f * size, -.5f * size, .5f * size),
-        glm::vec3(.5f * size, .5f * size, .5f * size),
-        glm::vec3(-.5f * size, .5f * size, .5f * size),
-        glm::vec3(-.5f * size, -.5f * size, .5f * size),
-        glm::vec3(.5f * size, -.5f * size, .5f * size)
-    }});
+    cube->SetBoundingBox({ { glm::vec3(.5f * size, .5f * size, .5f * size),
+                             glm::vec3(-.5f * size, .5f * size, .5f * size),
+                             glm::vec3(-.5f * size, -.5f * size, .5f * size),
+                             glm::vec3(.5f * size, -.5f * size, .5f * size),
+                             glm::vec3(.5f * size, .5f * size, .5f * size),
+                             glm::vec3(-.5f * size, .5f * size, .5f * size),
+                             glm::vec3(-.5f * size, -.5f * size, .5f * size),
+                             glm::vec3(.5f * size, -.5f * size, .5f * size) } });
     return cube;
 }
 
 // TODO: make sure the uvs are correct
-Mesh* MeshBuilder::CreateSphere(const float& radius, const int& division)
-{
+Mesh* MeshBuilder::CreateSphere(const float& radius, const int& division) {
     float delta = (float)PI / (float)division;
 
     std::vector<Vertex> verts;
     std::vector<uint16_t> tris;
     verts.resize((division + 1) * (2 * division + 1));
-    for (int v = 0; v <= division; ++v)
-    {
+    for (int v = 0; v <= division; ++v) {
         float vAngle = v * delta;
-        for (int h = 0; h <= 2 * division; ++h)
-        {
+        for (int h = 0; h <= 2 * division; ++h) {
             float hAngle = h * delta;
 
             glm::vec3 pos, norm;
-            if (v == 0)
-            {
+            if (v == 0) {
                 pos = glm::vec3(0.f, radius, 0.f);
                 norm = glm::vec3(0.f, 1.f, 0.f);
-            }
-            else if (v == division)
-            {
+            } else if (v == division) {
                 pos = glm::vec3(0.f, -radius, 0.f);
                 norm = glm::vec3(0.f, -1.f, 0.f);
-            }
-            else
-            {
+            } else {
                 pos = glm::vec3(
-                    radius * glm::sin(vAngle) * glm::cos(hAngle),
-                    radius * glm::cos(vAngle),
-                    radius * glm::sin(vAngle) * glm::sin(hAngle)
+                  radius * glm::sin(vAngle) * glm::cos(hAngle),
+                  radius * glm::cos(vAngle),
+                  radius * glm::sin(vAngle) * glm::sin(hAngle)
                 );
                 norm = glm::normalize(pos);
             }
             verts[(v * (2 * division + 1) + h)].position = pos;
             verts[(v * (2 * division + 1) + h)].normal = norm;
-            verts[(v * (2 * division + 1) + h)].uv = glm::vec2((float)h / (float)(2 * division), 1.0f - (float)v / (float)division);
+            verts[(v * (2 * division + 1) + h)].uv =
+              glm::vec2((float)h / (float)(2 * division), 1.0f - (float)v / (float)division);
         }
     }
     tris.resize((6 * division - 6) * (2 * division));
-    for (int v = 0, i = 0; v <= division - 1; ++v)
-    {
-        for (int h = 0; h <= 2 * division - 1; ++h)
-        {
-            if (v != 0) //top-left triangles except for north pole
+    for (int v = 0, i = 0; v <= division - 1; ++v) {
+        for (int h = 0; h <= 2 * division - 1; ++h) {
+            if (v != 0)// top-left triangles except for north pole
             {
                 tris[i] = (2 * division + 1) * v + h;
                 tris[i + 1] = (2 * division + 1) * v + h + 1;
                 tris[i + 2] = (2 * division + 1) * (v + 1) + h;
                 i += 3;
             }
-            if (v != division - 1) //bottom-right triangles except for south pole
+            if (v != division - 1)// bottom-right triangles except for south pole
             {
                 tris[i] = (2 * division + 1) * (v + 1) + h;
                 tris[i + 1] = (2 * division + 1) * v + h + 1;
@@ -271,23 +256,20 @@ Mesh* MeshBuilder::CreateSphere(const float& radius, const int& division)
 
     auto sphere = new Mesh(MeshType::PRIM);
     sphere->Initialize(verts, tris);
-    sphere->SetBoundingBox({{
-        glm::vec3(radius, radius, radius),
-        glm::vec3(-radius, radius, radius),
-        glm::vec3(-radius, -radius, radius),
-        glm::vec3(radius, -radius, radius),
-        glm::vec3(radius, radius, radius),
-        glm::vec3(-radius, radius, radius),
-        glm::vec3(-radius, -radius, radius),
-        glm::vec3(radius, -radius, radius)
-    }});
+    sphere->SetBoundingBox({ { glm::vec3(radius, radius, radius),
+                               glm::vec3(-radius, radius, radius),
+                               glm::vec3(-radius, -radius, radius),
+                               glm::vec3(radius, -radius, radius),
+                               glm::vec3(radius, radius, radius),
+                               glm::vec3(-radius, radius, radius),
+                               glm::vec3(-radius, -radius, radius),
+                               glm::vec3(radius, -radius, radius) } });
     return sphere;
 }
 
 // TODO: make sure the uvs are correct
 // resolution: number of quads along each side of the terrain
-Mesh* MeshBuilder::CreateTerrain(const float& worldSize, const int& resolution)
-{
+Mesh* MeshBuilder::CreateTerrain(const float& worldSize, const int& resolution) {
     std::vector<Vertex> verts;
     verts.resize(resolution * resolution * 4);
 
@@ -311,32 +293,34 @@ Mesh* MeshBuilder::CreateTerrain(const float& worldSize, const int& resolution)
         for (int col = 0; col < resolution; col++) {
             int patchIndex = row * resolution + col;
 
-            verts[patchIndex * 4 + 0].position = glm::vec3(-halfWorldSize + (col + 0) * patchSize, 0.f, -halfWorldSize + (row + 0) * patchSize);
-            verts[patchIndex * 4 + 0].uv = glm::vec2((row + 0)/ (float)resolution, (col + 0) / (float)resolution);
+            verts[patchIndex * 4 + 0].position =
+              glm::vec3(-halfWorldSize + (col + 0) * patchSize, 0.f, -halfWorldSize + (row + 0) * patchSize);
+            verts[patchIndex * 4 + 0].uv = glm::vec2((row + 0) / (float)resolution, (col + 0) / (float)resolution);
 
-            verts[patchIndex * 4 + 1].position = glm::vec3(-halfWorldSize + (col + 0) * patchSize, 0.f, -halfWorldSize + (row + 1) * patchSize);
+            verts[patchIndex * 4 + 1].position =
+              glm::vec3(-halfWorldSize + (col + 0) * patchSize, 0.f, -halfWorldSize + (row + 1) * patchSize);
             verts[patchIndex * 4 + 1].uv = glm::vec2((row + 1) / (float)resolution, (col + 0) / (float)resolution);
 
-            verts[patchIndex * 4 + 2].position = glm::vec3(-halfWorldSize + (col + 1) * patchSize, 0.f, -halfWorldSize + (row + 1) * patchSize);
+            verts[patchIndex * 4 + 2].position =
+              glm::vec3(-halfWorldSize + (col + 1) * patchSize, 0.f, -halfWorldSize + (row + 1) * patchSize);
             verts[patchIndex * 4 + 2].uv = glm::vec2((row + 1) / (float)resolution, (col + 1) / (float)resolution);
 
-            verts[patchIndex * 4 + 3].position = glm::vec3(-halfWorldSize + (col + 1) * patchSize, 0.f, -halfWorldSize + (row + 0) * patchSize);
+            verts[patchIndex * 4 + 3].position =
+              glm::vec3(-halfWorldSize + (col + 1) * patchSize, 0.f, -halfWorldSize + (row + 0) * patchSize);
             verts[patchIndex * 4 + 3].uv = glm::vec2((row + 0) / (float)resolution, (col + 1) / (float)resolution);
         }
     }
 
     auto terrain = new Mesh(MeshType::TERRAIN);
     terrain->Initialize(verts);
-    terrain->SetBoundingBox({{
-        glm::vec3(.5f * worldSize, .5f, .5f * worldSize),
-        glm::vec3(-.5f * worldSize, .5f, .5f * worldSize),
-        glm::vec3(-.5f * worldSize, -.5f, .5f * worldSize),
-        glm::vec3(.5f * worldSize, -.5f, .5f * worldSize),
-        glm::vec3(.5f * worldSize, .5f, .5f * worldSize),
-        glm::vec3(-.5f * worldSize, .5f, .5f * worldSize),
-        glm::vec3(-.5f * worldSize, -.5f, .5f * worldSize),
-        glm::vec3(.5f * worldSize, -.5f, .5f * worldSize)
-    }});
+    terrain->SetBoundingBox({ { glm::vec3(.5f * worldSize, .5f, .5f * worldSize),
+                                glm::vec3(-.5f * worldSize, .5f, .5f * worldSize),
+                                glm::vec3(-.5f * worldSize, -.5f, .5f * worldSize),
+                                glm::vec3(.5f * worldSize, -.5f, .5f * worldSize),
+                                glm::vec3(.5f * worldSize, .5f, .5f * worldSize),
+                                glm::vec3(-.5f * worldSize, .5f, .5f * worldSize),
+                                glm::vec3(-.5f * worldSize, -.5f, .5f * worldSize),
+                                glm::vec3(.5f * worldSize, -.5f, .5f * worldSize) } });
     return terrain;
 }
 
@@ -356,16 +340,19 @@ Mesh* MeshBuilder::CreateTerrainWithPhysics(const float& size, const int& resolu
     auto terrain = CreateTerrain(size, resolution);
     // terrain->SetShape(new btBoxShape(btVector3(size * 0.5f, 0.2f, size * 0.5f)));
 
-    auto img = AssetManager::loadImage(heightmap);
+    auto img = AssetManager::Get().LoadImage(heightmap);
     if (img != nullptr) {
-        std::vector<float> terrainData; //FIXME: this needs to be stored somewhere, or the collision shape data will be deleted
+        std::vector<float>
+          terrainData;// FIXME: this needs to be stored somewhere, or the collision shape data will be deleted
 
         const int terrainDataSize = img->width * img->height;
         terrainData.resize(terrainDataSize);
         for (int i = 0; i < terrainDataSize; ++i) {
             terrainData[i] = (static_cast<float>(img->byteArray[i]) / 255.0f) * 32.0f;
         }
-        terrain->SetShape(new btHeightfieldTerrainShape(img->width, img->height, terrainData.data(), 1.0f, -64.0f, 64.0f, 1, PHY_FLOAT, true));
+        terrain->SetShape(new btHeightfieldTerrainShape(
+          img->width, img->height, terrainData.data(), 1.0f, -64.0f, 64.0f, 1, PHY_FLOAT, true
+        ));
         terrain->SetShapeLocalScaling(glm::vec3(10.0f, 1.0f, 10.0f));
     }
 

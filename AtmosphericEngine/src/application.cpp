@@ -1,4 +1,5 @@
 #include "application.hpp"
+#include "asset_manager.hpp"
 #include "editor_layer.hpp"
 #include "game_layer.hpp"
 #include "game_object.hpp"
@@ -81,18 +82,18 @@ void Application::LoadScene(const SceneDef& scene) {
     ENGINE_LOG("Loading scene...");
 
     if (_config.useDefaultTextures) {
-        graphics.LoadDefaultTextures();
+        AssetManager::Get().LoadDefaultTextures();
     }
-    graphics.LoadTextures(scene.textures);
+    AssetManager::Get().LoadTextures(scene.textures);
     ENGINE_LOG("Textures created.");
 
     if (_config.useDefaultShaders) {
-        graphics.LoadDefaultShaders();
+        AssetManager::Get().LoadDefaultShaders();
     }
-    graphics.LoadShaders(scene.shaders);
+    AssetManager::Get().LoadShaders(scene.shaders);
     ENGINE_LOG("Shaders created.");
 
-    graphics.LoadMaterials(scene.materials);
+    AssetManager::Get().LoadMaterials(scene.materials);
     ENGINE_LOG("Materials created.");
 
     for (const auto& go : scene.gameObjects) {
@@ -114,10 +115,8 @@ void Application::LoadScene(const SceneDef& scene) {
 }
 
 void Application::ReloadScene() {
-    // TODO: clean up resources to avoid memory leaks
-    graphics.textures.clear();
-    graphics.materials.clear();
-    graphics.meshes.clear();
+    // TODO: making sure all resources are cleaned up before loading
+    AssetManager::Get().Clear();
     graphics.cameras.clear();
     graphics.directionalLights.clear();
     graphics.pointLights.clear();

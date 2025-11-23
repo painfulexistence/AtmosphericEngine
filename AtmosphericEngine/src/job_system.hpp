@@ -1,6 +1,6 @@
 #pragma once
-#include "globals.hpp"
 #include "asset_manager.hpp"
+#include "globals.hpp"
 
 using JobGroupID = uint32_t;
 
@@ -8,7 +8,7 @@ struct JobGroup {
     std::mutex mutex;
     std::condition_variable condition;
     uint64_t currentLabel = 0;
-    std::atomic<uint64_t> finishedLabel { 0 };
+    std::atomic<uint64_t> finishedLabel{ 0 };
 };
 
 using Job = std::function<void(int)>;
@@ -24,7 +24,8 @@ private:
     int _jobId;
 
 public:
-    explicit SampleJob(int jobId) : _jobId(jobId) {}
+    explicit SampleJob(int jobId) : _jobId(jobId) {
+    }
 
     void Execute(int threadIndex) override {
         fmt::print("start Job {} on thread {}\n", _jobId, threadIndex);
@@ -46,10 +47,11 @@ private:
 
 public:
     TextureLoadJob(const std::string& path, std::shared_ptr<Image>* result, std::atomic<bool>* completed)
-        : _path(path), _result(result), _completed(completed) {}
+      : _path(path), _result(result), _completed(completed) {
+    }
 
     void Execute(int threadIndex) override {
-        *_result = AssetManager::loadImage(_path);
+        *_result = AssetManager::Get().LoadImage(_path);
         *_completed = true;
     }
 };
@@ -82,9 +84,9 @@ private:
     std::condition_variable _queueCondition;
     std::mutex _waitMutex;
     std::condition_variable _waitCondition;
-    std::atomic<bool> _stopped { false };
+    std::atomic<bool> _stopped{ false };
     uint64_t currentLabel = 0;
-    std::atomic<uint64_t> finishedLabel { 0 };
+    std::atomic<uint64_t> finishedLabel{ 0 };
 
     std::mutex _groupsMutex;
     std::unordered_map<JobGroupID, std::shared_ptr<JobGroup>> _groups;

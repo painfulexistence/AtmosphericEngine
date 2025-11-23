@@ -8,6 +8,7 @@
 #include "physics_server.hpp"
 #include "input.hpp"
 #include "script.hpp"
+#include "layer.hpp"
 
 class Window;
 
@@ -68,6 +69,18 @@ public:
         return _defaultGameObject;
     }
 
+    void PushLayer(Layer* layer);
+
+    inline const std::vector<GameObject*>& GetEntities() const { return _entities; }
+    inline GraphicsServer* GetGraphicsServer() { return &graphics; }
+    inline PhysicsServer* GetPhysicsServer() { return &physics; }
+    inline Console* GetConsole() { return &console; }
+    inline Input* GetInput() { return &input; }
+
+    std::shared_ptr<Window> GetWindow();
+    void LoadScene(const SceneDef& scene);
+    void ReloadScene();
+
 protected:
     // These subsystems will be game accessible
     // AudioManager audio;
@@ -81,12 +94,11 @@ protected:
     Camera* mainCamera = nullptr;
     Light* mainLight = nullptr;
 
-    void LoadScene(const SceneDef& scene);
-    void ReloadScene();
+    void UnloadScene();
 
     void Quit();
 
-    std::shared_ptr<Window> GetWindow();
+
 
     float GetWindowTime();
     void SetWindowTime(float time);
@@ -120,9 +132,7 @@ private:
     EntityID _nextEntityID = 0;
     GameObject* _defaultGameObject = nullptr;
 
-    bool _showSystemInfo = false;
-    bool _showAppView = true;
-    bool _showEngineView = true;
+    std::vector<Layer*> _layers;
     GameObject* _selectedEntity = nullptr;
 
     void Update(const FrameData& frame);

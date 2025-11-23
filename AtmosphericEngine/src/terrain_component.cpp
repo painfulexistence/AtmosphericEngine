@@ -24,7 +24,7 @@ TerrainComponent::TerrainComponent(
     // Load and process heightmap
     LoadHeightmap(props.heightmapPath, props);
 
-    owner->AddMesh("Terrain");
+    owner->AddComponent<MeshComponent>(_mesh);
 }
 
 TerrainComponent::~TerrainComponent() {

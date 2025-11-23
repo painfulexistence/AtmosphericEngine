@@ -6,8 +6,8 @@
 class Application;
 class GameObject;
 class RigidbodyComponent;
-class Light;
-class Camera;
+class LightComponent;
+class CameraComponent;
 class MeshComponent;
 class SpriteComponent;
 
@@ -22,7 +22,7 @@ public:
     }
     void OnUpdate(float dt) override {
     }
-    void OnRender() override;
+    void OnRender(float dt) override;
 
 private:
     Application* _app;

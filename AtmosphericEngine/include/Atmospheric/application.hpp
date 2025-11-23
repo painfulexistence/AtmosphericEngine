@@ -2,12 +2,15 @@
 #include "config.hpp"
 #include "console.hpp"
 // #include "audio_manager.hpp"
+#include "game_object.hpp"
 #include "graphics_server.hpp"
 #include "imgui.h"
 #include "input.hpp"
+#include "layer.hpp"
 #include "physics_server.hpp"
 #include "script.hpp"
-#include "layer.hpp"
+
+struct SceneDef;
 
 class Window;
 
@@ -70,11 +73,21 @@ public:
 
     void PushLayer(Layer* layer);
 
-    inline const std::vector<GameObject*>& GetEntities() const { return _entities; }
-    inline GraphicsServer* GetGraphicsServer() { return &graphics; }
-    inline PhysicsServer* GetPhysicsServer() { return &physics; }
-    inline Console* GetConsole() { return &console; }
-    inline Input* GetInput() { return &input; }
+    inline const std::vector<GameObject*>& GetEntities() const {
+        return _entities;
+    }
+    inline GraphicsServer* GetGraphicsServer() {
+        return &graphics;
+    }
+    inline PhysicsServer* GetPhysicsServer() {
+        return &physics;
+    }
+    inline Console* GetConsole() {
+        return &console;
+    }
+    inline Input* GetInput() {
+        return &input;
+    }
 
     std::shared_ptr<Window> GetWindow();
     void LoadScene(const SceneDef& scene);
@@ -90,13 +103,12 @@ protected:
     Script script;
 
     std::vector<Scene> scenes;
-    Camera* mainCamera = nullptr;
-    Light* mainLight = nullptr;
+    CameraComponent* mainCamera = nullptr;
+    LightComponent* mainLight = nullptr;
 
     void UnloadScene();
 
     void Quit();
-
 
 
     float GetWindowTime();

@@ -6,7 +6,7 @@ class TerrainDemo : public Application {
     int windowWidth, windowHeight;
     std::vector<float> terrainData;
     GameObject* flyCamGO;
-    Camera* flyCam;
+    CameraComponent* flyCam;
     float cameraSpeed = 5.0f;
     float slowCameraSpeed = 1.0f;
     bool isSlowCamera = false;
@@ -55,9 +55,8 @@ class TerrainDemo : public Application {
                         .material = graphics.materials[0] }
         );
         auto terrainMesh = terrain->GetComponent<TerrainComponent>()->GetMesh();
-        terrain->AddRigidbody(
-          { .mass = 0.0f, .friction = 1.0f, .restitution = 0.0f, .shape = terrainMesh->GetShape(), .useGravity = false }
-        );
+        terrain->AddComponent<RigidbodyComponent>(RigidbodyProps{
+          .mass = 0.0f, .friction = 1.0f, .restitution = 0.0f, .shape = terrainMesh->GetShape(), .useGravity = false });
     }
 
     void OnUpdate(float dt, float time) override {

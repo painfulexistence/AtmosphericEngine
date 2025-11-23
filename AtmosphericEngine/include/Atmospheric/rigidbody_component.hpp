@@ -34,6 +34,9 @@ public:
 
     std::string GetName() const override;
 
+    void OnAttach() override;
+    void OnDetach() override;
+
     float GetMass() const;
     void SetMass(float mass);
 

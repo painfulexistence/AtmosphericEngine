@@ -1,4 +1,5 @@
 #include "sprite_component.hpp"
+#include "application.hpp"
 #include "component.hpp"
 #include "game_object.hpp"
 
@@ -14,4 +15,11 @@ SpriteComponent::SpriteComponent(GameObject* gameObject, const SpriteProps& prop
 
 std::string SpriteComponent::GetName() const {
     return std::string("SpriteComponent");
+}
+
+void SpriteComponent::OnAttach() {
+    gameObject->GetApp()->GetGraphicsServer()->RegisterSprite(this);
+}
+
+void SpriteComponent::OnDetach() {
 }

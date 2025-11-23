@@ -1,4 +1,5 @@
 #include "rigidbody_component.hpp"
+#include "application.hpp"
 #include "bullet_linear_math.hpp"
 #include "game_object.hpp"
 
@@ -88,6 +89,18 @@ RigidbodyComponent::~RigidbodyComponent(){
 
 std::string RigidbodyComponent::GetName() const {
     return std::string("Physics");
+}
+
+void RigidbodyComponent::OnAttach() {
+    if (gameObject->GetApp()->GetPhysicsServer()) {
+        gameObject->GetApp()->GetPhysicsServer()->AddRigidbody(this);
+    }
+}
+
+void RigidbodyComponent::OnDetach() {
+    if (gameObject->GetApp()->GetPhysicsServer()) {
+        gameObject->GetApp()->GetPhysicsServer()->RemoveRigidbody(this);
+    }
 }
 
 float RigidbodyComponent::GetMass() const {

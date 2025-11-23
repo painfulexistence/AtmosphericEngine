@@ -77,7 +77,7 @@ void GraphicsServer::Init(Application* app) {
     canvasDrawList.reserve(1 << 16);
     debugLines.reserve(1 << 16);
 
-    defaultCamera = new Camera(
+    defaultCamera = new CameraComponent(
       app->GetDefaultGameObject(),
       { .isOrthographic = false,
         .perspective = { .fieldOfView = 45.0f, .aspectRatio = 4.0f / 3.0f, .nearClip = 0.1f, .farClip = 1000.0f },
@@ -86,7 +86,7 @@ void GraphicsServer::Init(Application* app) {
         .eyeOffset = glm::vec3(0.0f) }
     );
 
-    defaultLight = new Light(
+    defaultLight = new LightComponent(
       app->GetDefaultGameObject(),
       { .type = LightType::Directional,
         .ambient = glm::vec3(1.0f, 1.0f, 1.0f),
@@ -99,9 +99,7 @@ void GraphicsServer::Init(Application* app) {
 }
 
 void GraphicsServer::Process(float dt) {
-    // Note that draw calls are asynchronous, which means they return immediately.
-    // So the drawing time can only be calculated along with the image presenting.
-    Render(dt);
+    // TODO: Generate command buffers according to entity transforms
 }
 
 void GraphicsServer::Render(float dt) {
@@ -795,7 +793,7 @@ void GraphicsServer::ShadowPass(float dt) {
     depthCubemapShader.Activate();
     int auxShadows = 0;
     for (int i = 0; i < auxLightCount; ++i) {
-        Light* l = pointLights[i];
+        LightComponent* l = pointLights[i];
         if (!l->castShadow) continue;
         if (auxShadows++ >= MAX_OMNI_LIGHTS) break;
 
@@ -970,7 +968,7 @@ void GraphicsServer::ForwardPass(float dt) {
             colorShader.SetUniform(std::string("main_light.cast_shadow"), mainLight->castShadow ? 1 : 0);
             colorShader.SetUniform(std::string("main_light.ProjectionView"), mainLight->GetProjectionViewMatrix(0));
             for (int i = 0; i < auxLightCount; ++i) {
-                Light* l = pointLights[i];
+                LightComponent* l = pointLights[i];
                 colorShader.SetUniform(
                   std::string("aux_lights[") + std::to_string(i) + std::string("].position"), l->GetPosition()
                 );
@@ -1223,7 +1221,7 @@ void GraphicsServer::LightingPass(float dt) {
     lightingShader.SetUniform("mainLight.intensity", mainLight->intensity);
 
     for (int i = 0; i < auxLightCount; ++i) {
-        Light* l = pointLights[i];
+        LightComponent* l = pointLights[i];
         std::string prefix = "pointLights[" + std::to_string(i) + "]";
         lightingShader.SetUniform(prefix + ".position", l->GetPosition());
         lightingShader.SetUniform(prefix + ".ambient", l->ambient);
@@ -1456,29 +1454,25 @@ Mesh* GraphicsServer::CreateTerrainMesh(const std::string& name, float worldSize
     return mesh;
 }
 
-MeshComponent* GraphicsServer::CreateMeshComponent(GameObject* go, Mesh* mesh) {
-    auto renderable = new MeshComponent(go, mesh);
-    renderables.push_back(renderable);
-    return renderable;
+MeshComponent* GraphicsServer::RegisterMesh(MeshComponent* mesh) {
+    renderables.push_back(mesh);
+    return mesh;
 }
 
-SpriteComponent* GraphicsServer::CreateSpriteComponent(GameObject* go, const SpriteProps& props) {
-    auto drawable = new SpriteComponent(go, props);
-    canvasDrawables.push_back(drawable);
-    return drawable;
+SpriteComponent* GraphicsServer::RegisterSprite(SpriteComponent* sprite) {
+    canvasDrawables.push_back(sprite);
+    return sprite;
 }
 
-Camera* GraphicsServer::CreateCamera(GameObject* go, const CameraProps& props) {
-    auto camera = new Camera(go, props);
+CameraComponent* GraphicsServer::RegisterCamera(CameraComponent* camera) {
     cameras.push_back(camera);
     return camera;
 }
 
-Light* GraphicsServer::CreateLight(GameObject* go, const LightProps& props) {
-    auto light = new Light(go, props);
-    if (props.type == LightType::Point) {
+LightComponent* GraphicsServer::RegisterLight(LightComponent* light) {
+    if (light->type == LightType::Point) {
         pointLights.push_back(light);
-    } else if (props.type == LightType::Directional) {
+    } else if (light->type == LightType::Directional) {
         directionalLights.push_back(light);
     }
     return light;

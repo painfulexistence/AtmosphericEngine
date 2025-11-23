@@ -13,7 +13,7 @@ public:
     }
     virtual void OnUpdate(float dt) {
     }
-    virtual void OnRender() {
+    virtual void OnRender(float dt) {
     }
 
     inline const std::string& GetName() const {

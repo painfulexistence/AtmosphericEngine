@@ -2,6 +2,7 @@
 #include "globals.hpp"
 #include <map>
 
+class Application;
 class TransformComponent;
 
 class Component;
@@ -23,8 +24,7 @@ public:
     bool isActive = true;
 
     GameObject(
-      GraphicsServer* graphics = nullptr,
-      PhysicsServer* physics = nullptr,
+      Application* app,
       glm::vec3 position = glm::vec3(0.0f),
       glm::vec3 rotation = glm::vec3(0.0f),
       glm::vec3 scale = glm::vec3(1.0f)
@@ -40,14 +40,22 @@ public:
         return nullptr;
     }
     // Component* GetComponent(std::string name) const;
-    template<typename T, typename... Args> void AddComponent(Args&&... args) {
+    template<typename T, typename... Args> GameObject* AddComponent(Args&&... args) {
         T* component = new T(this, std::forward<Args>(args)...);
         _components.push_back(component);
         component->gameObject = this;
         component->OnAttach();
+        return this;
     }
     void AddComponent(Component* component);
     void RemoveComponent(Component* component);
+
+    void Tick(float dt);
+    void PhysicsTick(float dt);
+
+    Application* GetApp() const {
+        return _app;
+    }
 
     GameObject* AddLight(const LightProps&);
     GameObject* AddCamera(const CameraProps&);
@@ -102,8 +110,7 @@ private:
     std::string _name = " ";
     std::vector<Component*> _components;
     // std::map<std::string, Component*> _namedComponents;
-    GraphicsServer* _graphics = nullptr;
-    PhysicsServer* _physics = nullptr;
+    Application* _app = nullptr;
     TransformComponent* _transform = nullptr;
     glm::vec3 _velocity = glm::vec3(0, 0, 0);
     glm::vec3 _angularVelocity = glm::vec3(0, 0, 0);

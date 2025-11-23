@@ -61,6 +61,7 @@ endif()
 #file(GLOB SOURCES src/*.cpp RECURSIVE)
 set(SOURCES
     src/application.cpp
+    src/game_layer.cpp
     src/editor_layer.cpp
     src/server.cpp
     src/console.cpp

@@ -4,14 +4,25 @@
 static const float maxVAngle = PI / 2.0f - 0.01f;
 static const float minVAngle = -PI / 2.0f + 0.01f;
 
-Camera::Camera(GameObject* gameObject, const CameraProps& props)
-{
+CameraComponent::CameraComponent(GameObject* gameObject, const CameraProps& props) {
     if (props.isOrthographic) {
         _isOrthographic = true;
-        _projectionMatrix = glm::ortho(-props.orthographic.width * .5f, props.orthographic.width * .5f, -props.orthographic.height * .5f, props.orthographic.height * .5f, props.orthographic.nearClip, props.orthographic.farClip);
+        _projectionMatrix = glm::ortho(
+          -props.orthographic.width * .5f,
+          props.orthographic.width * .5f,
+          -props.orthographic.height * .5f,
+          props.orthographic.height * .5f,
+          props.orthographic.nearClip,
+          props.orthographic.farClip
+        );
     } else {
         _isOrthographic = false;
-        _projectionMatrix = glm::perspective(props.perspective.fieldOfView, props.perspective.aspectRatio, props.perspective.nearClip, props.perspective.farClip);
+        _projectionMatrix = glm::perspective(
+          props.perspective.fieldOfView,
+          props.perspective.aspectRatio,
+          props.perspective.nearClip,
+          props.perspective.farClip
+        );
     }
     _eyeOffset = props.eyeOffset;
     _vhAngle = glm::vec2(props.verticalAngle, props.horizontalAngle);
@@ -20,46 +31,40 @@ Camera::Camera(GameObject* gameObject, const CameraProps& props)
     this->gameObject->AddComponent(this);
 }
 
-std::string Camera::GetName() const
-{
+std::string CameraComponent::GetName() const {
     return std::string("Camera");
 }
 
-void Camera::SetPerspective(float fov, float aspectRatio, float nearClip, float farClip) {
+void CameraComponent::SetPerspective(float fov, float aspectRatio, float nearClip, float farClip) {
     _isOrthographic = false;
     _projectionMatrix = glm::perspective(fov, aspectRatio, nearClip, farClip);
 }
 
-void Camera::SetOrthographic(float width, float height, float nearClip, float farClip) {
+void CameraComponent::SetOrthographic(float width, float height, float nearClip, float farClip) {
     _isOrthographic = true;
     _projectionMatrix = glm::ortho(-width * .5f, width * .5f, -height * .5f, height * .5f, nearClip, farClip);
 }
 
-glm::vec3 Camera::GetEyePosition()
-{
+glm::vec3 CameraComponent::GetEyePosition() {
     glm::mat4 xform = gameObject->GetObjectTransform();
     return glm::vec3(xform * glm::vec4(_eyeOffset, 1.0));
 }
 
-glm::vec3 Camera::GetEyeDirection()
-{
+glm::vec3 CameraComponent::GetEyeDirection() {
     float vAngle = _vhAngle.x, hAngle = _vhAngle.y;
     return glm::vec3(glm::cos(vAngle) * glm::cos(hAngle), glm::sin(vAngle), glm::sin(hAngle) * glm::cos(vAngle));
 }
 
-glm::mat4 Camera::GetViewMatrix()
-{
+glm::mat4 CameraComponent::GetViewMatrix() {
     glm::vec3 eyePos = GetEyePosition();
     return glm::lookAt(eyePos, eyePos + GetEyeDirection(), glm::vec3(0, 1, 0));
 }
 
-glm::mat4 Camera::GetProjectionMatrix()
-{
+glm::mat4 CameraComponent::GetProjectionMatrix() {
     return _projectionMatrix;
 }
 
-glm::vec3 Camera::GetMoveVector(Axis axis)
-{
+glm::vec3 CameraComponent::GetMoveVector(Axis axis) {
     glm::vec3 dir = GetEyeDirection();
     switch (axis) {
     case BACK:
@@ -76,13 +81,10 @@ glm::vec3 Camera::GetMoveVector(Axis axis)
     }
 }
 
-void Camera::Yaw(float angleOffset)
-{
+void CameraComponent::Yaw(float angleOffset) {
     _vhAngle.y += angleOffset;
 }
 
-void Camera::Pitch(float angleOffset)
-{
+void CameraComponent::Pitch(float angleOffset) {
     _vhAngle.x = std::max(minVAngle, std::min(maxVAngle, _vhAngle.x + angleOffset));
 }
-

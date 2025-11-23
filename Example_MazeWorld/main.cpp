@@ -179,41 +179,33 @@ class MazeGame : public Application {
 
         // Create game objects in scene
         player = graphics.GetMainCamera()->gameObject;
-        player->AddImpostor({
-            .mass = 10.0f,
-            .friction = 2.0f,
-            .linearFactor = glm::vec3(1, 1, 1),
-            .angularFactor = glm::vec3(0, 0, 0),
-            .shape = graphics.GetMesh("Character")->GetShape()
-        });
+        player->AddComponent<RigidbodyComponent>(RigidbodyProps{ .mass = 10.0f,
+                                                                 .friction = 2.0f,
+                                                                 .linearFactor = glm::vec3(1, 1, 1),
+                                                                 .angularFactor = glm::vec3(0, 0, 0),
+                                                                 .shape = graphics.GetMesh("Character")->GetShape() });
         player->SetPosition(glm::vec3(0, 64, 0));
         // player->SetCollisionCallback([](GameObject* other) {
         //     fmt::print("Player collided with game object {}!\n", other->GetName());
         // });
 
         auto skybox = CreateGameObject();
-        skybox->AddRenderable("Skybox");
+        skybox->AddComponent<MeshComponent>(skyboxMesh);
 
         for (int i = 0; i < 100; i++) {
             glm::vec3 pos = glm::vec3(rand() % 100 - 50, rand() % 100 + 20, rand() % 100 - 50);
             glm::vec3 rot = glm::vec3(rand() % 360, rand() % 360, rand() % 360);
             auto box = CreateGameObject(pos, rot);
-            box->AddRenderable("Box");
-            box->AddImpostor({
-                .mass = 1.0f,
-                .shape = graphics.GetMesh("Box")->GetShape(),
-            });
+            box->AddComponent<MeshComponent>(boxMesh);
+            box->AddComponent<RigidbodyComponent>(boxMesh->GetShape(), 1.0f);
             boxes.push_back(box);
         }
 
         for (int i = 0; i < numMaxBullets; ++i) {
             glm::vec3 pos = glm::vec3(rand() % 100 - 50, -50, rand() % 100 - 50);
             auto bullet = CreateGameObject(pos);
-            bullet->AddRenderable("Sphere");
-            bullet->AddImpostor({
-                .mass = 1.0f,
-                .shape = graphics.GetMesh("Sphere")->GetShape(),
-            });
+            bullet->AddComponent<MeshComponent>(bulletMesh);
+            bullet->AddComponent<RigidbodyComponent>(bulletMesh->GetShape(), 1.0f);
             bullet->SetPhysicsActivated(false);
             bullet->SetActive(false);
             bullet->SetCollisionCallback([this](GameObject* other) {
@@ -226,9 +218,7 @@ class MazeGame : public Application {
 
         auto aim = CreateGameObject(0.5f * glm::vec2(windowWidth, windowHeight), glm::radians(45.0f));
         aim->SetName("__aim");
-        aim->AddDrawable2D({
-            .color = glm::vec4(1.0, 0.0, 0.0, 1.0)
-        });
+        aim->AddComponent<SpriteComponent>(SpriteProps{ .color = glm::vec4(1.0, 0.0, 0.0, 1.0) });
 
         const int MAZE_SIZE = 30;
         const float MAZE_BLOCK_SIZE = 3.0;
@@ -236,33 +226,28 @@ class MazeGame : public Application {
         const bool MAZE_ROOFED = false;
         const float CHISM_CHANCE = 5.0;
 
-        auto mazeBlockMesh = graphics.CreateMesh("MazeBlock", MeshBuilder::CreateCubeWithPhysics((float)MAZE_BLOCK_SIZE));
+        auto mazeBlockMesh =
+          graphics.CreateMesh("MazeBlock", MeshBuilder::CreateCubeWithPhysics((float)MAZE_BLOCK_SIZE));
         mazeBlockMesh->SetMaterial(graphics.materials[4]);
 
         bool characterPlaced = false;
-        auto maze = Maze(MAZE_SIZE, MAZE_SIZE, MAZE_BLOCK_SIZE, BLOCKS_TO_REMOVE,MAZE_ROOFED, CHISM_CHANCE);
+        auto maze = Maze(MAZE_SIZE, MAZE_SIZE, MAZE_BLOCK_SIZE, BLOCKS_TO_REMOVE, MAZE_ROOFED, CHISM_CHANCE);
         for (int x = 0; x < MAZE_SIZE; x++) {
             for (int z = 0; z < MAZE_SIZE; z++) {
                 if (MAZE_ROOFED) {
-                    auto cube = CreateGameObject(MAZE_BLOCK_SIZE * glm::vec3(x - MAZE_SIZE / 2.f, 3, z - MAZE_SIZE / 2.f));
-                    cube->AddRenderable("MazeBlock");
-                    cube->AddImpostor({
-                        .mass = 0.0f,
-                        .shape = graphics.GetMesh("MazeBlock")->GetShape(),
-                    });
+                    CreateGameObject(MAZE_BLOCK_SIZE * glm::vec3(x - MAZE_SIZE / 2.f, 3, z - MAZE_SIZE / 2.f))
+                      ->AddComponent<MeshComponent>(mazeBlockMesh)
+                      ->AddComponent<RigidbodyComponent>(mazeBlockMesh->GetShape());
                 }
                 if (!maze.IsEmpty(x, z)) {
                     for (int h = 0; h < 3; h++) {
-                        auto cube = CreateGameObject(MAZE_BLOCK_SIZE * glm::vec3(x - MAZE_SIZE / 2.f, h, z - MAZE_SIZE / 2.f));
-                        cube->AddRenderable("MazeBlock");
-                        cube->AddImpostor({
-                            .mass = 0.0f,
-                            .shape = graphics.GetMesh("MazeBlock")->GetShape(),
-                        });
+                        CreateGameObject(MAZE_BLOCK_SIZE * glm::vec3(x - MAZE_SIZE / 2.f, h, z - MAZE_SIZE / 2.f))
+                          ->AddComponent<MeshComponent>(mazeBlockMesh)
+                          ->AddComponent<RigidbodyComponent>(mazeBlockMesh->GetShape());
                     }
                 } else {
                     if (rand() % 100 < CHISM_CHANCE) {
-                        continue; //Create chism
+                        continue;// Create chism
                     }
                     if (!characterPlaced) {
                         player->SetPosition(MAZE_BLOCK_SIZE * glm::vec3(x - MAZE_SIZE / 2.f, 1, z - MAZE_SIZE / 2.f));
@@ -272,12 +257,9 @@ class MazeGame : public Application {
                     winCoord.y = 0.f;
                     winCoord.z = MAZE_BLOCK_SIZE * (z - MAZE_SIZE / 2.f);
                 }
-                auto cube = CreateGameObject(MAZE_BLOCK_SIZE * glm::vec3(x - MAZE_SIZE / 2.f, -1, z - MAZE_SIZE / 2.f));
-                cube->AddRenderable("MazeBlock");
-                cube->AddImpostor({
-                    .mass = 0.0f,
-                    .shape = graphics.GetMesh("MazeBlock")->GetShape(),
-                });
+                CreateGameObject(MAZE_BLOCK_SIZE * glm::vec3(x - MAZE_SIZE / 2.f, -1, z - MAZE_SIZE / 2.f))
+                  ->AddComponent<MeshComponent>(mazeBlockMesh)
+                  ->AddComponent<RigidbodyComponent>(mazeBlockMesh->GetShape());
             }
         }
 
@@ -339,7 +321,7 @@ class MazeGame : public Application {
             player->SetVelocity(glm::vec3(-v.x, currVel.y, -v.z));
         }
         if (input.IsKeyPressed(Key::SPACE) && !isPlayerJumping && isPlayerGrounded) {
-            currVel = player->GetVelocity(); // update velcoity to reflect current horizontal speed
+            currVel = player->GetVelocity();// update velcoity to reflect current horizontal speed
             glm::vec3 v = mainCamera->GetMoveVector(Axis::UP) * playerJumpSpeed;
             player->SetVelocity(glm::vec3(currVel.x, v.y, currVel.z));
             isPlayerJumping = true;
@@ -390,4 +372,3 @@ int main(int argc, char* argv[]) {
 
     return 0;
 }
-

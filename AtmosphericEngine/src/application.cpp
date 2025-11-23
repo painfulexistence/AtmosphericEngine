@@ -1,5 +1,6 @@
 #include "application.hpp"
 #include "editor_layer.hpp"
+#include "game_layer.hpp"
 #include "game_object.hpp"
 #include "job_system.hpp"
 #include "rigidbody_component.hpp"
@@ -24,6 +25,7 @@ Application::Application(AppConfig config) : _config(config) {
 
     JobSystem::Get()->Init();
 
+    PushLayer(new GameLayer(this));
     PushLayer(new EditorLayer(this));
 }
 
@@ -97,10 +99,10 @@ void Application::LoadScene(const SceneDef& scene) {
         auto entity = CreateGameObject(go.position, go.rotation, go.scale);
         entity->SetName(go.name);
         if (go.camera.has_value()) {
-            entity->AddCamera(go.camera.value());
+            entity->AddComponent<CameraComponent>(go.camera.value());
         }
         if (go.light.has_value()) {
-            entity->AddLight(go.light.value());
+            entity->AddComponent<LightComponent>(go.light.value());
         }
     }
     ENGINE_LOG("Game objects created.");
@@ -152,6 +154,12 @@ void Application::Update(const FrameData& props) {
     // audio.Process(dt);
     script.Process(dt);
     physics.Process(dt);// TODO: Update only every entity's physics transform
+    for (auto go : _entities) {
+        auto impostor = go->GetComponent<RigidbodyComponent>();
+        if (impostor == nullptr) continue;
+        go->SyncObjectTransform(impostor->GetWorldTransform());
+    }
+    graphics.Process(dt);
     for (auto& subsystem : _subsystems) {
         subsystem->Process(dt);
     }
@@ -159,6 +167,10 @@ void Application::Update(const FrameData& props) {
 #if SHOW_PROCESS_COST
     ENGINE_LOG(fmt::format("Update costs {} ms", (GetWindowTime() - time) * 1000));
 #endif
+
+    for (auto layer : _layers) {
+        layer->OnUpdate(dt);
+    }
 
     float time = GetWindowTime();
 
@@ -173,15 +185,8 @@ void Application::Render(const FrameData& props) {
     float dt = props.deltaTime;
     float time = GetWindowTime();
 
-    // Note that draw calls are asynchronous, which means they return immediately.
-    // So the drawing time can only be calculated along with the image presenting.
-    graphics.Process(dt);// TODO: Generate command buffers according to entity transforms
-    // graphics.Render(dt);
-    // Nevertheless, glFinish() can force the GPU process all the commands synchronously.
-    // glFinish();
-
     for (auto* layer : _layers) {
-        layer->OnRender();
+        layer->OnRender(dt);
     }
 
 #if SHOW_RENDER_AND_DRAW_COST
@@ -218,16 +223,15 @@ void Application::SetWindowTitle(const std::string& title) {
 }
 
 GameObject* Application::CreateGameObject(glm::vec3 position, glm::vec3 rotation, glm::vec3 scale) {
-    auto e = new GameObject(&graphics, &physics, position, rotation, scale);
+    auto e = new GameObject(this, position, rotation, scale);
     e->SetName(fmt::format("entity #{}", _nextEntityID++));
     _entities.push_back(e);
     return e;
 }
 
 GameObject* Application::CreateGameObject(glm::vec2 position, float angle) {
-    auto e = new GameObject(
-      &graphics, &physics, glm::vec3(position.x, position.y, 0.0f), glm::vec3(0.0f, 0.0f, angle), glm::vec3(1.0f)
-    );
+    auto e =
+      new GameObject(this, glm::vec3(position.x, position.y, 0.0f), glm::vec3(0.0f, 0.0f, angle), glm::vec3(1.0f));
     e->SetName(fmt::format("entity #{}", _nextEntityID++));
     _entities.push_back(e);
     return e;

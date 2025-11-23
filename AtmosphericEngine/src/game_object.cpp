@@ -1,4 +1,5 @@
 #include "game_object.hpp"
+#include "application.hpp"
 #include "component.hpp"
 #include "graphics_server.hpp"
 #include "physics_server.hpp"
@@ -6,10 +7,7 @@
 #include "sprite_component.hpp"
 #include "transform_component.hpp"
 
-GameObject::GameObject(
-  GraphicsServer* graphics, PhysicsServer* physics, glm::vec3 position, glm::vec3 rotation, glm::vec3 scale
-)
-  : _graphics(graphics), _physics(physics) {
+GameObject::GameObject(Application* app, glm::vec3 position, glm::vec3 rotation, glm::vec3 scale) : _app(app) {
     _transform = new TransformComponent(this, position, rotation, scale);
     AddComponent(_transform);
 }
@@ -42,43 +40,56 @@ void GameObject::RemoveComponent(Component* component) {
 //         return it->second;
 // }
 
+void GameObject::Tick(float dt) {
+    if (!isActive) return;
+    for (auto* component : _components) {
+        if (component->CanTick()) {
+            component->OnTick(dt);
+        }
+    }
+}
+
+void GameObject::PhysicsTick(float dt) {
+    if (!isActive) return;
+    for (auto* component : _components) {
+        if (component->CanPhysicsTick()) {
+            component->OnPhysicsTick(dt);
+        }
+    }
+}
+
 // Shortcut for adding light component
 GameObject* GameObject::AddLight(const LightProps& props) {
-    if (_graphics) {
-        auto light = _graphics->CreateLight(this, props);
-    }
+    AddComponent<LightComponent>(props);
     return this;
 }
 
 // Shortcut for adding camera component
 GameObject* GameObject::AddCamera(const CameraProps& props) {
-    if (_graphics) {
-        auto camera = _graphics->CreateCamera(this, props);
-    }
+    AddComponent<CameraComponent>(props);
     return this;
 }
 
 // Shortcut 1 for adding renderable component
 GameObject* GameObject::AddMesh(const std::string& meshName) {
-    if (_graphics) {
-        auto mesh = _graphics->GetMesh(meshName);
-        _graphics->CreateMeshComponent(this, mesh);
+    if (_app) {
+        auto graphics = _app->GetGraphicsServer();
+        if (graphics) {
+            auto mesh = graphics->GetMesh(meshName);
+            AddMesh(mesh);
+        }
     }
     return this;
 }
 
 // Shortcut 2 for adding renderable component
 GameObject* GameObject::AddMesh(Mesh* mesh) {
-    if (_graphics) {
-        _graphics->CreateMeshComponent(this, mesh);
-    }
+    AddComponent<MeshComponent>(mesh);
     return this;
 }
 
 GameObject* GameObject::AddSprite(const SpriteProps& props) {
-    if (_graphics) {
-        _graphics->CreateSpriteComponent(this, props);
-    }
+    AddComponent<SpriteComponent>(props);
     return this;
 }
 
@@ -109,10 +120,7 @@ GameObject* GameObject::AddSprite(const SpriteProps& props) {
 // }
 
 GameObject* GameObject::AddRigidbody(const RigidbodyProps& props) {
-    if (_physics) {
-        auto impostor = new RigidbodyComponent(this, props);
-        _physics->AddRigidbody(impostor);
-    }
+    AddComponent<RigidbodyComponent>(props);
     return this;
 }
 

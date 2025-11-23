@@ -1,18 +1,18 @@
 #include "editor_layer.hpp"
 #include "application.hpp"
 #include "camera_component.hpp"
-#include "sprite_component.hpp"
 #include "game_object.hpp"
 #include "imgui.h"
 #include "light_component.hpp"
 #include "mesh_component.hpp"
 #include "rigidbody_component.hpp"
+#include "sprite_component.hpp"
 #include "window.hpp"
 
 EditorLayer::EditorLayer(Application* app) : Layer("EditorLayer"), _app(app) {
 }
 
-void EditorLayer::OnRender() {
+void EditorLayer::OnRender(float dt) {
     _app->GetWindow()->BeginImGuiFrame();
 
     if (ImGui::BeginMainMenuBar()) {
@@ -145,7 +145,7 @@ void EditorLayer::DrawEntityInspector(GameObject* entity) {
         }
     }
 
-    auto light = entity->GetComponent<Light>();
+    auto light = entity->GetComponent<LightComponent>();
     if (light != nullptr) {
         if (light->type == LightType::Directional) {
             if (ImGui::CollapsingHeader("Light", ImGuiTreeNodeFlags_DefaultOpen)) {
@@ -168,7 +168,7 @@ void EditorLayer::DrawEntityInspector(GameObject* entity) {
         }
     }
 
-    auto camera = entity->GetComponent<Camera>();
+    auto camera = entity->GetComponent<CameraComponent>();
     if (camera != nullptr) {
         if (ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen)) {
         }

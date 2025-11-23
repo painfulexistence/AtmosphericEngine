@@ -7,18 +7,14 @@ class HelloWorld : public Application {
 
     void OnLoad() override {
         SceneDef scene = {
-            .materials = {
-                {
-                    .baseMap = 0,
-                    .normalMap = 1,
-                    .aoMap = 2,
-                    .roughnessMap = 3,
-                    .diffuse = {1., 1., 1.},
-                    .specular = {.296648, .296648, .296648},
-                    .ambient = {.25, .20725, .20725},
-                    .shininess = 0.088
-                }
-            },
+            .materials = { { .baseMap = 0,
+                             .normalMap = 1,
+                             .aoMap = 2,
+                             .roughnessMap = 3,
+                             .diffuse = { 1., 1., 1. },
+                             .specular = { .296648, .296648, .296648 },
+                             .ambient = { .25, .20725, .20725 },
+                             .shininess = 0.088 } },
         };
         LoadScene(scene);
 
@@ -27,8 +23,7 @@ class HelloWorld : public Application {
         auto cubeMesh = graphics.CreateCubeMesh("CubeMesh", 1.0f);
         cubeMesh->SetMaterial(graphics.materials[0]);
 
-        cube = CreateGameObject();
-        cube->AddRenderable(cubeMesh);
+        cube = CreateGameObject()->AddComponent<MeshComponent>(cubeMesh);
 
         script.Print(fmt::format("Game fully loaded in {:.1f} seconds", GetWindowTime()));
     }
@@ -48,8 +43,8 @@ class HelloWorld : public Application {
 
 int main(int argc, char* argv[]) {
     HelloWorld game({
-        .useDefaultTextures = true,
-        .useDefaultShaders = true,
+      .useDefaultTextures = true,
+      .useDefaultShaders = true,
     });
     game.Run();
     return 0;

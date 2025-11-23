@@ -8,5 +8,6 @@
 #include "Atmospheric/physics_server.hpp"
 #include "Atmospheric/rigidbody_component.hpp"
 #include "Atmospheric/script.hpp"
+#include "Atmospheric/terrain_component.hpp"
 #include "Atmospheric/window.hpp"
 #include "imgui.h"

@@ -1,9 +1,10 @@
 #pragma once
-#include "game_object.hpp"
+#include "camera_component.hpp"
+#include "light_component.hpp"
 #include "material.hpp"
 #include "shader.hpp"
-#include "light_component.hpp"
-#include "camera_component.hpp"
+
+class GameObject;
 
 struct GameObjectProps {
     std::string name;
@@ -36,7 +37,9 @@ class Scene {
 public:
     Scene(const SceneDef& data);
 
-    SceneNode* GetRoot() { return root; }
+    SceneNode* GetRoot() {
+        return root;
+    }
 
 private:
     SceneNode* root;

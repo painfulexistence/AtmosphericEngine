@@ -1,7 +1,8 @@
 #include "mesh_component.hpp"
+#include "application.hpp"
 #include "game_object.hpp"
-#include "mesh.hpp"
 #include "material.hpp"
+#include "mesh.hpp"
 
 MeshComponent::MeshComponent(GameObject* gameObject, Mesh* mesh) {
     this->_mesh = mesh;
@@ -11,11 +12,19 @@ MeshComponent::MeshComponent(GameObject* gameObject, Mesh* mesh) {
 }
 
 MeshComponent::~MeshComponent() {
-
 }
 
 std::string MeshComponent::GetName() const {
     return std::string("Drawable");
+}
+
+void MeshComponent::OnAttach() {
+    if (gameObject->GetApp()->GetGraphicsServer()) {
+        gameObject->GetApp()->GetGraphicsServer()->RegisterMesh(this);
+    }
+}
+
+void MeshComponent::OnDetach() {
 }
 
 Mesh* MeshComponent::GetMesh() const {

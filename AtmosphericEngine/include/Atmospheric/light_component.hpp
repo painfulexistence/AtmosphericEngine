@@ -1,20 +1,14 @@
 #pragma once
-#include "globals.hpp"
 #include "component.hpp"
-#include <glm/vec3.hpp>
+#include "globals.hpp"
 #include <glm/mat4x4.hpp>
+#include <glm/vec3.hpp>
 
-enum class LightType {
-    Directional = 0,
-    Point = 1,
-    Spot = 2,
-    Area = 3
-};
+enum class LightType { Directional = 0, Point = 1, Spot = 2, Area = 3 };
 
-struct LightProps
-{
-    //Color reference: http://planetpixelemporium.com/tutorialpages/light.html
-    //Attenuation reference: http://wiki.ogre3d.org/tiki-index.php?page=-Point+Light+Attenuation
+struct LightProps {
+    // Color reference: http://planetpixelemporium.com/tutorialpages/light.html
+    // Attenuation reference: http://wiki.ogre3d.org/tiki-index.php?page=-Point+Light+Attenuation
     LightType type;
     glm::vec3 ambient;
     glm::vec3 diffuse;
@@ -25,8 +19,7 @@ struct LightProps
     bool castShadow;
 };
 
-class Light : public Component
-{
+class LightComponent : public Component {
 public:
     LightType type;
     glm::vec3 direction;
@@ -37,7 +30,7 @@ public:
     float intensity;
     bool castShadow;
 
-    Light(GameObject* gameObject, LightProps props);
+    LightComponent(GameObject* gameObject, LightProps props);
 
     std::string GetName() const override;
 

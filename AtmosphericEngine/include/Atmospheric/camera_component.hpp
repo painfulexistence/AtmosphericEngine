@@ -1,9 +1,8 @@
 #pragma once
-#include "globals.hpp"
 #include "component.hpp"
+#include "globals.hpp"
 
-struct CameraProps
-{
+struct CameraProps {
     bool isOrthographic = false;
     union {
         struct {
@@ -24,11 +23,9 @@ struct CameraProps
     glm::vec3 eyeOffset = glm::vec3(0.0f);
 };
 
-class Camera : public Component
-{
+class CameraComponent : public Component {
 public:
-
-    Camera(GameObject* gameObject, const CameraProps& props);
+    CameraComponent(GameObject* gameObject, const CameraProps& props);
 
     std::string GetName() const override;
 

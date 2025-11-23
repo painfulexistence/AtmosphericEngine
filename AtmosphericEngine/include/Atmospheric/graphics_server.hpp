@@ -1,18 +1,18 @@
 #pragma once
-#include "globals.hpp"
-#include "config.hpp"
-#include "server.hpp"
-#include "material.hpp"
-#include "shader.hpp"
-#include "mesh_component.hpp"
-#include "sprite_component.hpp"
-#include "mesh.hpp"
-#include "light_component.hpp"
 #include "camera_component.hpp"
+#include "config.hpp"
+#include "globals.hpp"
+#include "light_component.hpp"
+#include "material.hpp"
+#include "mesh.hpp"
+#include "mesh_component.hpp"
+#include "server.hpp"
+#include "shader.hpp"
+#include "sprite_component.hpp"
+#include <glm/mat4x4.hpp>
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
-#include <glm/mat4x4.hpp>
 #include <unordered_map>
 
 using TextureID = uint32_t;
@@ -79,9 +79,9 @@ public:
     std::vector<Material*> materials;
     std::vector<MeshComponent*> renderables;
     std::vector<SpriteComponent*> canvasDrawables;
-    std::vector<Light*> directionalLights;
-    std::vector<Light*> pointLights;
-    std::vector<Camera*> cameras;
+    std::vector<LightComponent*> directionalLights;
+    std::vector<LightComponent*> pointLights;
+    std::vector<CameraComponent*> cameras;
 
     GraphicsServer();
     ~GraphicsServer();
@@ -93,7 +93,7 @@ public:
     void Reset();
     void Render(float dt);
 
-    Camera* GetMainCamera() const {
+    CameraComponent* GetMainCamera() const {
         if (cameras.size() > 0) {
             return cameras[0];
         } else {
@@ -101,7 +101,7 @@ public:
         }
     };
 
-    Light* GetMainLight() const {
+    LightComponent* GetMainLight() const {
         if (directionalLights.size() > 0) {
             return directionalLights[0];
         } else {
@@ -118,8 +118,7 @@ public:
     };
 
     Mesh* GetMesh(const std::string name) const {
-        if (_namedMeshes.count(name) == 0)
-            throw std::runtime_error("Could not find the specified mesh!");
+        if (_namedMeshes.count(name) == 0) throw std::runtime_error("Could not find the specified mesh!");
 
         return _namedMeshes.find(name)->second;
     };
@@ -138,28 +137,42 @@ public:
 
     void PushDebugLine(DebugVertex from, DebugVertex to);
 
-    void PushCanvasQuad(float x, float y, float w, float h, float angle,
-        float pivotX, float pivotY,
-        const glm::vec4& color, int texIndex,
-        const glm::vec2& uvMin = glm::vec2(0.0f),
-        const glm::vec2& uvMax = glm::vec2(1.0f));
-    void PushCanvasQuadTiled(float x, float y, float w, float h, float angle,
-        float pivotX, float pivotY,
-        const glm::vec4& color, int texIndex,
-        const glm::vec2& tilesetSize, const glm::vec2& tileIndex);
+    void PushCanvasQuad(
+      float x,
+      float y,
+      float w,
+      float h,
+      float angle,
+      float pivotX,
+      float pivotY,
+      const glm::vec4& color,
+      int texIndex,
+      const glm::vec2& uvMin = glm::vec2(0.0f),
+      const glm::vec2& uvMax = glm::vec2(1.0f)
+    );
+    void PushCanvasQuadTiled(
+      float x,
+      float y,
+      float w,
+      float h,
+      float angle,
+      float pivotX,
+      float pivotY,
+      const glm::vec4& color,
+      int texIndex,
+      const glm::vec2& tilesetSize,
+      const glm::vec2& tileIndex
+    );
 
-    void EnableWireframe(bool enable = true)
-    {
+    void EnableWireframe(bool enable = true) {
         wireframeEnabled = enable;
     }
 
-    void EnablePostProcess(bool enable = true)
-    {
+    void EnablePostProcess(bool enable = true) {
         postProcessEnabled = enable;
     }
 
-    void SetCapability(const GLenum& cap, bool enable = true)
-    {
+    void SetCapability(const GLenum& cap, bool enable = true) {
         if (enable) {
             glEnable(GL_CULL_FACE);
         } else {
@@ -183,10 +196,10 @@ public:
 
     Mesh* CreateTerrainMesh(const std::string& name, float worldSize = 1024.f, int resolution = 10);
 
-    MeshComponent* CreateMeshComponent(GameObject* gameObject, Mesh* mesh);
-    Camera* CreateCamera(GameObject* gameObject, const CameraProps& props);
-    Light* CreateLight(GameObject* gameObject, const LightProps& props);
-    SpriteComponent* CreateSpriteComponent(GameObject* gameObject, const SpriteProps& props);
+    MeshComponent* RegisterMesh(MeshComponent* mesh);
+    CameraComponent* RegisterCamera(CameraComponent* camera);
+    LightComponent* RegisterLight(LightComponent* light);
+    SpriteComponent* RegisterSprite(SpriteComponent* sprite);
 
     // void ApplyMaterial(const Material& material);
 
@@ -198,8 +211,12 @@ public:
 
     // void Draw(const std::shared_ptr<Mesh> mesh);
 
-    void SetRenderPath(RenderPath path) { _currRenderPath = path; }
-    RenderPath GetRenderPath() const { return _currRenderPath; }
+    void SetRenderPath(RenderPath path) {
+        _currRenderPath = path;
+    }
+    RenderPath GetRenderPath() const {
+        return _currRenderPath;
+    }
 
 private:
     RenderPath _currRenderPath = RenderPath::Forward;
@@ -241,8 +258,8 @@ private:
     bool postProcessEnabled = false;
     bool wireframeEnabled = false;
 
-    Camera* defaultCamera = nullptr;
-    Light* defaultLight = nullptr;
+    CameraComponent* defaultCamera = nullptr;
+    LightComponent* defaultLight = nullptr;
 
     int auxLightCount = 0;
     int _canvasQuadCount = 0;

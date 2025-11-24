@@ -19,38 +19,55 @@ struct RenderCommand {
 class RenderPass {
 public:
     virtual ~RenderPass() = default;
-    virtual void Init() = 0;
-    virtual void Execute(GraphicsServer* ctx, const std::vector<RenderCommand>& queue) = 0;
+    virtual void Execute(GraphicsServer* ctx, Renderer& renderer) = 0;
 };
 
-class OpaquePass : public RenderPass {
+class ShadowPass : public RenderPass {
 public:
-    void Init() override {
-    }
-    void Execute(GraphicsServer* ctx, const std::vector<RenderCommand>& queue) override {
-    }
-};// 負責畫 Mesh, Sprite, Voxel
+    void Execute(GraphicsServer* ctx, Renderer& renderer) override;
+};
+
+class ForwardOpaquePass : public RenderPass {
+public:
+    void Execute(GraphicsServer* ctx, Renderer& renderer) override;
+};
+
+class DeferredGeometryPass : public RenderPass {
+public:
+    void Execute(GraphicsServer* ctx, Renderer& renderer) override;
+};
+
+class DeferredLightingPass : public RenderPass {
+public:
+    void Execute(GraphicsServer* ctx, Renderer& renderer) override;
+};
+
+// For particles, world UI
 class TransparentPass : public RenderPass {
 public:
-    void Init() override {
-    }
-    void Execute(GraphicsServer* ctx, const std::vector<RenderCommand>& queue) override {
-    }
-};// 負責畫粒子, World UI
+    void Execute(GraphicsServer* ctx, Renderer& renderer) override;
+};
+
+class MSAAResolvePass : public RenderPass {
+public:
+    void Execute(GraphicsServer* ctx, Renderer& renderer) override;
+};
+
+class CanvasPass : public RenderPass {
+public:
+    void Execute(GraphicsServer* ctx, Renderer& renderer) override;
+};
+
 class PostProcessPass : public RenderPass {
 public:
-    void Init() override {
-    }
-    void Execute(GraphicsServer* ctx, const std::vector<RenderCommand>& queue) override {
-    }
-};// 負責畫全螢幕 Quad
+    void Execute(GraphicsServer* ctx, Renderer& renderer) override;
+};
+
+// TODO: rename this
 class UIPass : public RenderPass {
 public:
-    void Init() override {
-    }
-    void Execute(GraphicsServer* ctx, const std::vector<RenderCommand>& queue) override {
-    }
-};// 負責 RmlUi, ImGui
+    void Execute(GraphicsServer* ctx, Renderer& renderer) override;
+};
 
 class RenderPipeline {
     // Also owns render targets
@@ -128,19 +145,12 @@ public:
     bool postProcessEnabled = false;
     bool wireframeEnabled = false;
 
-private:
-    GLuint debugVAO, debugVBO;
-    GLuint canvasVAO, canvasVBO;
-    GLuint screenVAO, screenVBO;
-
     std::array<GLuint, MAX_UNI_LIGHTS> uniShadowMaps;
     std::array<GLuint, MAX_OMNI_LIGHTS> omniShadowMaps;
     GLuint envMap, irradianceMap;
     GLuint sceneColorTexture, sceneDepthTexture, sceneStencilTexture;
     GLuint msaaResolveTexture;
 
-    GLuint shadowFBO, sceneFBO, msaaResolveFBO;
-    GLuint finalFBO = 0;
     struct GBuffer {
         GLuint id;
         GLuint positionRT;
@@ -150,6 +160,14 @@ private:
         GLuint depthRT;
     } gBuffer;
 
+    GLuint shadowFBO, sceneFBO, msaaResolveFBO;
+    GLuint finalFBO = 0;
+
+    GLuint debugVAO, debugVBO;
+    GLuint canvasVAO, canvasVBO;
+    GLuint screenVAO, screenVBO;
+
+private:
     std::vector<RenderCommand> _opaqueQueue;
     std::vector<RenderCommand> _voxelQueue;
     std::vector<RenderCommand> _transparentQueue;
@@ -167,13 +185,4 @@ private:
     void CreateCanvasVAO();
     void CreateScreenVAO();
     void CreateDebugVAO();
-
-    void ShadowPass(GraphicsServer* ctx, float dt);
-    void ForwardPass(GraphicsServer* ctx, float dt);
-    void MSAAResolvePass(GraphicsServer* ctx, float dt);
-    void CanvasPass(GraphicsServer* ctx, float dt);
-    void PostProcessPass(GraphicsServer* ctx, float dt);
-
-    void GeometryPass(GraphicsServer* ctx, float dt);
-    void LightingPass(GraphicsServer* ctx, float dt);
 };

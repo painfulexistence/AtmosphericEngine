@@ -13,7 +13,7 @@ void RenderPipeline::AddPass(std::unique_ptr<RenderPass> pass) {
 void RenderPipeline::Render(GraphicsServer* ctx, Renderer& renderer) {
     // Execute all passes in order (sorting, batching, drawing)
     for (auto& pass : _passes) {
-        pass->Execute(ctx, renderer.GetOpaqueQueue());
+        pass->Execute(ctx, renderer);
     }
 }
 
@@ -24,13 +24,12 @@ void Renderer::Init(int width, int height) {
     CreateCanvasVAO();
     CreateScreenVAO();
 
-    // TODO: Implement render pipeline
     _pipeline = std::make_unique<RenderPipeline>();
-    // _pipeline->AddPass(std::make_unique<ShadowPass>());
-    // _pipeline->AddPass(std::make_unique<ForwardPass>());
-    // _pipeline->AddPass(std::make_unique<MSAAResolvePass>());
-    // _pipeline->AddPass(std::make_unique<CanvasPass>());
-    // _pipeline->AddPass(std::make_unique<PostProcessPass>());
+    _pipeline->AddPass(std::make_unique<ShadowPass>());
+    _pipeline->AddPass(std::make_unique<ForwardOpaquePass>());
+    _pipeline->AddPass(std::make_unique<MSAAResolvePass>());
+    _pipeline->AddPass(std::make_unique<CanvasPass>());
+    _pipeline->AddPass(std::make_unique<PostProcessPass>());
 }
 
 void Renderer::Cleanup() {
@@ -71,14 +70,7 @@ void Renderer::SubmitHud(const RenderCommand& cmd) {
 }
 
 void Renderer::RenderFrame(GraphicsServer* ctx, float dt) {
-    // _pipeline->Render(ctx, *this);
-    ShadowPass(ctx, dt);
-    // GeometryPass(ctx, 0.0f);
-    // LightingPass(ctx, 0.0f);
-    ForwardPass(ctx, dt);
-    MSAAResolvePass(ctx, dt);
-    CanvasPass(ctx, dt);
-    PostProcessPass(ctx, dt);
+    _pipeline->Render(ctx, *this);
 
     // Clear queues for next frame
     _opaqueQueue.clear();
@@ -399,17 +391,17 @@ void Renderer::CreateDebugVAO() {
     glBindVertexArray(0);
 }
 
-void Renderer::ShadowPass(GraphicsServer* ctx, float dt) {
+void ShadowPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
     glViewport(0, 0, SHADOW_W, SHADOW_H);
 #ifndef __EMSCRIPTEN__
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 #endif
-    glBindFramebuffer(GL_FRAMEBUFFER, shadowFBO);
+    glBindFramebuffer(GL_FRAMEBUFFER, renderer.shadowFBO);
 
     auto mainLight = ctx->GetMainLight();
 
     // 1. Render shadow map for directional light
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, uniShadowMaps[0], 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, renderer.uniShadowMaps[0], 0);
     glClear(GL_DEPTH_BUFFER_BIT);
     auto depthShader = ctx->GetShader("depth");
     depthShader->Activate();
@@ -463,7 +455,7 @@ void Renderer::ShadowPass(GraphicsServer* ctx, float dt) {
 
         for (int f = 0; f < 6; ++f) {
             GLenum face = GL_TEXTURE_CUBE_MAP_POSITIVE_X + f;
-            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, face, omniShadowMaps[i], 0);
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, face, renderer.omniShadowMaps[i], 0);
             glClear(GL_DEPTH_BUFFER_BIT);
             depthCubemapShader->SetUniform(std::string("LightPosition"), l->GetPosition());
             depthCubemapShader->SetUniform(
@@ -506,20 +498,20 @@ void Renderer::ShadowPass(GraphicsServer* ctx, float dt) {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
-void Renderer::ForwardPass(GraphicsServer* ctx, float dt) {
+void ForwardOpaquePass::Execute(GraphicsServer* ctx, Renderer& renderer) {
     auto [width, height] = Window::Get()->GetFramebufferSize();
     glViewport(0, 0, width, height);
 
-    glBindFramebuffer(GL_FRAMEBUFFER, sceneFBO);
+    glBindFramebuffer(GL_FRAMEBUFFER, renderer.sceneFBO);
     // Bind textures
     auto& assetManager = AssetManager::Get();
     for (int i = 0; i < MAX_UNI_LIGHTS; ++i) {
         glActiveTexture(GL_TEXTURE0 + i);
-        glBindTexture(GL_TEXTURE_2D, uniShadowMaps[i]);
+        glBindTexture(GL_TEXTURE_2D, renderer.uniShadowMaps[i]);
     }
     for (int i = 0; i < MAX_OMNI_LIGHTS; ++i) {
         glActiveTexture(GL_TEXTURE0 + UNI_SHADOW_MAP_COUNT + i);
-        glBindTexture(GL_TEXTURE_CUBE_MAP, omniShadowMaps[i]);
+        glBindTexture(GL_TEXTURE_CUBE_MAP, renderer.omniShadowMaps[i]);
     }
     for (int i = 0; i < assetManager.GetDefaultTextures().size(); ++i) {
         glActiveTexture(GL_TEXTURE0 + DEFAULT_TEXTURE_BASE_INDEX + i);
@@ -534,7 +526,7 @@ void Renderer::ForwardPass(GraphicsServer* ctx, float dt) {
     glm::vec3 eyePos = ctx->GetMainCamera()->GetEyePosition();
     glm::mat4 projectionView = ctx->GetMainCamera()->GetProjectionMatrix() * ctx->GetMainCamera()->GetViewMatrix();
 
-    glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);
+    glClearColor(renderer.clearColor.x, renderer.clearColor.y, renderer.clearColor.z, renderer.clearColor.w);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     auto terrainShader = ctx->GetShader("terrain");
@@ -571,7 +563,7 @@ void Renderer::ForwardPass(GraphicsServer* ctx, float dt) {
         // glStencilFunc(GL_ALWAYS, 1, 0xFF);
 
 #ifndef __EMSCRIPTEN__
-        if (wireframeEnabled || mesh->GetMaterial()->polygonMode == GL_LINE)
+        if (renderer.wireframeEnabled || mesh->GetMaterial()->polygonMode == GL_LINE)
             glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
         else
             glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
@@ -739,8 +731,8 @@ void Renderer::ForwardPass(GraphicsServer* ctx, float dt) {
         debugShader->Activate();
         debugShader->SetUniform(std::string("ProjectionView"), projectionView);
 
-        glBindVertexArray(debugVAO);
-        glBindBuffer(GL_ARRAY_BUFFER, debugVBO);
+        glBindVertexArray(renderer.debugVAO);
+        glBindBuffer(GL_ARRAY_BUFFER, renderer.debugVBO);
         glBufferData(
           GL_ARRAY_BUFFER, ctx->debugLines.size() * sizeof(DebugVertex), ctx->debugLines.data(), GL_DYNAMIC_DRAW
         );
@@ -750,14 +742,17 @@ void Renderer::ForwardPass(GraphicsServer* ctx, float dt) {
         // glEnable(GL_DEPTH_TEST);
 
         ctx->debugLines.clear();
+        ctx->_debugLineCount = 0;
     }
+
+    renderer.CheckErrors("Opaque pass");
 }
 
-void Renderer::GeometryPass(GraphicsServer* ctx, float dt) {
+void DeferredGeometryPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
     auto [width, height] = Window::Get()->GetFramebufferSize();
     glViewport(0, 0, width, height);
 
-    glBindFramebuffer(GL_FRAMEBUFFER, gBuffer.id);
+    glBindFramebuffer(GL_FRAMEBUFFER, renderer.gBuffer.id);
     std::array<GLuint, 4> attachments = {
         GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3
     };
@@ -780,7 +775,7 @@ void Renderer::GeometryPass(GraphicsServer* ctx, float dt) {
         glBindTexture(GL_TEXTURE_2D, assetManager.GetTextures()[i]);
     }
 
-    glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);
+    glClearColor(renderer.clearColor.r, renderer.clearColor.g, renderer.clearColor.b, renderer.clearColor.a);
     glClearDepthf(1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -855,34 +850,34 @@ void Renderer::GeometryPass(GraphicsServer* ctx, float dt) {
         }
     }
 
-    CheckErrors("Geometry pass");
+    renderer.CheckErrors("Geometry pass");
 }
 
-void Renderer::LightingPass(GraphicsServer* ctx, float dt) {
+void DeferredLightingPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
     auto [width, height] = Window::Get()->GetFramebufferSize();
     glViewport(0, 0, width, height);
-    glBindFramebuffer(GL_FRAMEBUFFER, sceneFBO);
+    glBindFramebuffer(GL_FRAMEBUFFER, renderer.sceneFBO);
 
-    glClearColor(clearColor.r, clearColor.g, clearColor.b, clearColor.a);
+    glClearColor(renderer.clearColor.r, renderer.clearColor.g, renderer.clearColor.b, renderer.clearColor.a);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     auto lightingShader = ctx->GetShader("lighting");
     lightingShader->Activate();
 
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, gBuffer.positionRT);
+    glBindTexture(GL_TEXTURE_2D, renderer.gBuffer.positionRT);
     lightingShader->SetUniform("gPosition", 0);
 
     glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, gBuffer.normalRT);
+    glBindTexture(GL_TEXTURE_2D, renderer.gBuffer.normalRT);
     lightingShader->SetUniform("gNormal", 1);
 
     glActiveTexture(GL_TEXTURE2);
-    glBindTexture(GL_TEXTURE_2D, gBuffer.albedoRT);
+    glBindTexture(GL_TEXTURE_2D, renderer.gBuffer.albedoRT);
     lightingShader->SetUniform("gAlbedo", 2);
 
     glActiveTexture(GL_TEXTURE3);
-    glBindTexture(GL_TEXTURE_2D, gBuffer.materialRT);
+    glBindTexture(GL_TEXTURE_2D, renderer.gBuffer.materialRT);
     lightingShader->SetUniform("gMaterial", 3);
 
     auto mainLight = ctx->GetMainLight();
@@ -905,33 +900,38 @@ void Renderer::LightingPass(GraphicsServer* ctx, float dt) {
     }
     lightingShader->SetUniform("pointLightCount", (int)ctx->pointLights.size());
 
-    glBindVertexArray(screenVAO);
+    glBindVertexArray(renderer.screenVAO);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     glBindVertexArray(0);
 
-    CheckErrors("Lighting pass");
+    renderer.CheckErrors("Lighting pass");
 }
 
-void Renderer::MSAAResolvePass(GraphicsServer* ctx, float dt) {
-#ifndef __EMSCRIPTEN__
-    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-#endif
+void TransparentPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
+    // TODO: transparent pass
+}
 
+void MSAAResolvePass::Execute(GraphicsServer* ctx, Renderer& renderer) {
     auto [width, height] = Window::Get()->GetFramebufferSize();
+    glViewport(0, 0, width, height);
 
-    glBindFramebuffer(GL_READ_FRAMEBUFFER, sceneFBO);
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, postProcessEnabled ? msaaResolveFBO : finalFBO);
+    // Resolve MSAA
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, renderer.sceneFBO);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, renderer.postProcessEnabled ? renderer.msaaResolveFBO : renderer.finalFBO);
     glBlitFramebuffer(0, 0, width, height, 0, 0, width, height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    renderer.CheckErrors("MSAA resolve pass");
 }
 
-
-void Renderer::CanvasPass(GraphicsServer* ctx, float dt) {
+void CanvasPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
     ctx->_canvasQuadCount = ctx->canvasDrawList.size() / 6;
     if (ctx->canvasDrawList.size() > 0) {
         auto [width, height] = Window::Get()->GetFramebufferSize();
 
         glViewport(0, 0, width, height);
-        glBindFramebuffer(GL_FRAMEBUFFER, postProcessEnabled ? msaaResolveFBO : finalFBO);
+        glBindFramebuffer(GL_FRAMEBUFFER, renderer.postProcessEnabled ? renderer.msaaResolveFBO : renderer.finalFBO);
         glDisable(GL_DEPTH_TEST);
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -961,8 +961,8 @@ void Renderer::CanvasPass(GraphicsServer* ctx, float dt) {
             canvasShader->SetUniform(fmt::format("Textures[{}]", i), i);
         }
 
-        glBindVertexArray(canvasVAO);
-        glBindBuffer(GL_ARRAY_BUFFER, canvasVBO);
+        glBindVertexArray(renderer.canvasVAO);
+        glBindBuffer(GL_ARRAY_BUFFER, renderer.canvasVBO);
         glBufferData(
           GL_ARRAY_BUFFER,
           ctx->canvasDrawList.size() * sizeof(CanvasVertex),
@@ -978,8 +978,8 @@ void Renderer::CanvasPass(GraphicsServer* ctx, float dt) {
     }
 }
 
-void Renderer::PostProcessPass(GraphicsServer* ctx, float dt) {
-    if (!postProcessEnabled) {
+void PostProcessPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
+    if (!renderer.postProcessEnabled) {
         return;
     }
 
@@ -994,13 +994,15 @@ void Renderer::PostProcessPass(GraphicsServer* ctx, float dt) {
 #endif
 
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, msaaResolveTexture);
+    glBindTexture(GL_TEXTURE_2D, renderer.msaaResolveTexture);
 
-    glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);
+    glClearColor(renderer.clearColor.x, renderer.clearColor.y, renderer.clearColor.z, renderer.clearColor.w);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     auto postProcessShader = ctx->GetShader("hdr");
     postProcessShader->Activate();
     postProcessShader->SetUniform(std::string("color_map_unit"), (int)0);
-    glBindVertexArray(screenVAO);
+    glBindVertexArray(renderer.screenVAO);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
+    renderer.CheckErrors("Post process pass");
 }

@@ -11,7 +11,6 @@ if (AE_USE_EMSCRIPTEN)
     message(STATUS "Built with Emscripten")
 endif()
 
-include(FetchContent)
 
 project(AtmosphericEngine VERSION 0.1)
 
@@ -26,8 +25,7 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
+include(FetchContent)
+
 add_subdirectory(AtmosphericEngine)
-add_subdirectory(Example_MazeWorld)
 add_subdirectory(Example_HelloWorld)
-add_subdirectory(Example_Breakout2D)
-add_subdirectory(Example_Terrain)

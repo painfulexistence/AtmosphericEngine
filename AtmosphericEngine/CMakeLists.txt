@@ -77,6 +77,7 @@ set(SOURCES
     src/terrain_component.cpp
     src/shader.cpp
     src/graphics_server.cpp
+    src/renderer.cpp
     src/physics_server.cpp
     src/physics_debug_drawer.cpp
     src/input.cpp

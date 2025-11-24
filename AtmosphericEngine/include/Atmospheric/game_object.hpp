@@ -40,12 +40,12 @@ public:
         return nullptr;
     }
     // Component* GetComponent(std::string name) const;
-    template<typename T, typename... Args> GameObject* AddComponent(Args&&... args) {
+    template<typename T, typename... Args> Component* AddComponent(Args&&... args) {
         T* component = new T(this, std::forward<Args>(args)...);
         _components.push_back(component);
         component->gameObject = this;
         component->OnAttach();
-        return this;
+        return component;
     }
     void AddComponent(Component* component);
     void RemoveComponent(Component* component);

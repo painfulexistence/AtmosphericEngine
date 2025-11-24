@@ -23,7 +23,8 @@ class HelloWorld : public Application {
         auto cubeMesh = AssetManager::Get().CreateCubeMesh("CubeMesh", 1.0f);
         cubeMesh->SetMaterial(AssetManager::Get().GetMaterials()[0]);
 
-        cube = CreateGameObject()->AddComponent<MeshComponent>(cubeMesh);
+        cube = CreateGameObject();
+        cube->AddComponent<MeshComponent>(cubeMesh);
 
         script.Print(fmt::format("Game fully loaded in {:.1f} seconds", GetWindowTime()));
     }

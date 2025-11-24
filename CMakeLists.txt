@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.19)
 option(AE_USE_EMSCRIPTEN "Use Emscripten to build a WebAssembly module" OFF)
 option(AE_USE_SDL3 "Use SDL3" ON)
 option(AE_USE_SDL2 "Use SDL2" OFF)
-option(AE_USE_AUDIO "Use audio" OFF)
+option(AE_USE_AUDIO "Use audio" ON)
 
 if (AE_USE_EMSCRIPTEN)
     set(VCPKG_CHAINLOAD_TOOLCHAIN_FILE $ENV{EMSDK}/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake CACHE STRING "Emscripten toolchain file")
@@ -11,7 +11,6 @@ if (AE_USE_EMSCRIPTEN)
     message(STATUS "Built with Emscripten")
 endif()
 
-include(FetchContent)
 
 project(AtmosphericEngine VERSION 0.1)
 
@@ -26,8 +25,7 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
+include(FetchContent)
+
 add_subdirectory(AtmosphericEngine)
-add_subdirectory(Example_MazeWorld)
 add_subdirectory(Example_HelloWorld)
-add_subdirectory(Example_Breakout2D)
-add_subdirectory(Example_Terrain)

@@ -1,23 +1,30 @@
 #pragma once
-#include "globals.hpp"
-#include "shader.hpp"
-#include "material.hpp"
 #include "bullet_collision.hpp"
+#include "globals.hpp"
+#include "material.hpp"
+#include "shader.hpp"
 #include "vertex.hpp"
 #include <cstdint>
 #include <vector>
 
-enum class MeshType
-{
+enum class MeshType {
     PRIM = 0,
     TERRAIN = 1,
-    SKY = 2
+    SKY = 2,
+    DEBUG = 3,// Debug lines, wireframes
+    CANVAS = 4// UI/Canvas elements
 };
 
-class Mesh
-{
+enum class UpdateFrequency {
+    Static,// One-time upload, never changes (normal 3D models)
+    Dynamic,// May change per frame (debug lines, canvas, particles)
+    Stream// Always changes per frame
+};
+
+class Mesh {
 public:
     MeshType type;
+    UpdateFrequency updateFreq = UpdateFrequency::Static;
     size_t vertCount;
     size_t triCount;
     bool initialized = false;
@@ -32,17 +39,37 @@ public:
 
     void Initialize(const std::vector<Vertex>& verts, const std::vector<uint16_t>& tris);
 
-    std::array<glm::vec3, 8> GetBoundingBox() const { return _bounds; }
+    // Dynamic update methods for per-frame geometry
+    template<typename VertexType>
+    void UpdateDynamic(const std::vector<VertexType>& verts, GLenum primType = GL_TRIANGLES);
 
-    void SetBoundingBox(const std::array<glm::vec3, 8> bounds) { _bounds = bounds; }
+    GLenum GetPrimitiveType() const {
+        return _primitiveType;
+    }
 
-    Material* GetMaterial() const { return _material; }
+    std::array<glm::vec3, 8> GetBoundingBox() const {
+        return _bounds;
+    }
 
-    void SetMaterial(Material* material) { _material = material; };
+    void SetBoundingBox(const std::array<glm::vec3, 8> bounds) {
+        _bounds = bounds;
+    }
 
-    btCollisionShape* GetShape() { return _shape; }
+    Material* GetMaterial() const {
+        return _material;
+    }
 
-    void SetShape(btCollisionShape* shape) { _shape = shape; }
+    void SetMaterial(Material* material) {
+        _material = material;
+    };
+
+    btCollisionShape* GetShape() {
+        return _shape;
+    }
+
+    void SetShape(btCollisionShape* shape) {
+        _shape = shape;
+    }
 
     void SetShapeLocalScaling(glm::vec3 localScaling);
 
@@ -50,10 +77,13 @@ public:
 
 private:
     GLuint vbo, ebo;
+    GLenum _primitiveType = GL_TRIANGLES;
     std::array<glm::vec3, 8> _bounds;
 
     Material* _material;
     btCollisionShape* _shape;
+
+    template<typename VertexType> void InitializeDynamic(GLenum primType);
 };
 
 class MeshBuilder {
@@ -64,17 +94,29 @@ public:
 
     static Mesh* CreateTerrain(const float& size = 1024.f, const int& resolution = 10);
 
-    // static Mesh* CreateTerrain(const std::vector<float>& heightmap, const float& size = 1024.f, const int& resolution = 10);
+    // static Mesh* CreateTerrain(const std::vector<float>& heightmap, const float& size = 1024.f, const int& resolution
+    // = 10);
 
     static Mesh* CreateCubeWithPhysics(const float& size = 1.0f);
 
     static Mesh* CreateSphereWithPhysics(const float& radius = 0.5f, const int& division = 18);
 
-    static Mesh* CreateTerrainWithPhysics(const float& size = 1024.f, const int& resolution = 10, const std::string& heightmap = "assets/textures/heightmap_debug.jpg");
+    static Mesh* CreateTerrainWithPhysics(
+      const float& size = 1024.f,
+      const int& resolution = 10,
+      const std::string& heightmap = "assets/textures/heightmap_debug.jpg"
+    );
 
-    void PushQuad();
+    void PushQuad(
+      glm::vec3 position,
+      glm::vec2 size,
+      glm::vec3 normal,
+      glm::quat rotation = glm::quat(1.0f, 0.0f, 0.0f, 0.0f),
+      glm::vec2 uvMin = glm::vec2(0.0f),
+      glm::vec2 uvMax = glm::vec2(1.0f)
+    );
 
-    void PushCube();
+    void PushCube(glm::vec3 position, glm::vec3 size, glm::quat rotation = glm::quat(1.0f, 0.0f, 0.0f, 0.0f));
 
     std::shared_ptr<Mesh> Build();
 

@@ -77,6 +77,7 @@ set(SOURCES
     src/terrain_component.cpp
     src/shader.cpp
     src/graphics_server.cpp
+    src/renderer.cpp
     src/physics_server.cpp
     src/physics_debug_drawer.cpp
     src/input.cpp
@@ -129,7 +130,7 @@ target_include_directories(AtmosphericEngine
 target_precompile_headers(AtmosphericEngine PRIVATE src/pch.hpp)
 target_link_libraries(AtmosphericEngine
     PUBLIC
-        glm::glm fmt::fmt EnTT::EnTT BulletSoftBody BulletDynamics BulletCollision LinearMath ${LUA_LIBRARIES} sol2
+        glm::glm fmt::fmt EnTT::EnTT BulletSoftBody BulletDynamics BulletCollision LinearMath ${LUA_LIBRARIES} sol2 raudio
 )
 if (AE_USE_AUDIO)
     target_link_libraries(AtmosphericEngine

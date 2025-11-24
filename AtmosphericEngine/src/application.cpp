@@ -46,7 +46,7 @@ Application::~Application() {
 void Application::Run() {
     console.Init(this);
     input.Init(this);
-    // audio.Init(this);
+    audio.Init(this);
     graphics.Init(this);
     physics.Init(this);// Note that physics debug drawer is dependent on graphics server
     script.Init(this);
@@ -121,7 +121,7 @@ void Application::ReloadScene() {
     graphics.directionalLights.clear();
     graphics.pointLights.clear();
 
-    // audio.StopAll();
+    audio.StopAll();
 
     physics.Reset();
 
@@ -150,14 +150,9 @@ void Application::Update(const FrameData& props) {
     // ecs.Process(dt); // Note that most of the entity manipulation logic should be put there
     console.Process(dt);
     input.Process(dt);
-    // audio.Process(dt);
+    audio.Process(dt);
     script.Process(dt);
     physics.Process(dt);// TODO: Update only every entity's physics transform
-    for (auto go : _entities) {
-        auto impostor = go->GetComponent<RigidbodyComponent>();
-        if (impostor == nullptr) continue;
-        go->SyncObjectTransform(impostor->GetWorldTransform());
-    }
     graphics.Process(dt);
     for (auto& subsystem : _subsystems) {
         subsystem->Process(dt);

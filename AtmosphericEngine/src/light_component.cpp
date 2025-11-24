@@ -50,9 +50,6 @@ LightComponent::LightComponent(GameObject* gameObject, LightProps props) {
     intensity = props.intensity;
     attenuation = props.attenuation;
     castShadow = props.castShadow;
-
-    this->gameObject = gameObject;
-    this->gameObject->AddComponent(this);
 }
 
 std::string LightComponent::GetName() const {

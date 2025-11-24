@@ -97,9 +97,9 @@ void EditorLayer::DrawAppView() {
     {
         ImGui::BeginChild("Scene", ImVec2(200, 400), true);
         ImGui::Text("Scene (%d entities)", (uint32_t)_app->GetEntities().size());
-        if (ImGui::Button("Rewind All")) {
-            _app->RewindAll();
-        }
+        // if (ImGui::Button("Rewind All")) {
+        //     _app->RewindAll();
+        // }
         if (ImGui::Button("Reload Scene")) {
             _app->ReloadScene();
         }
@@ -229,6 +229,7 @@ void EditorLayer::DrawEngineView() {
         _app->GetInput()->DrawImGui(dt);
         _app->GetGraphicsServer()->DrawImGui(dt);
         _app->GetPhysicsServer()->DrawImGui(dt);
+        _app->GetAudioManager()->DrawImGui(dt);
     }
     ImGui::End();
 }

@@ -387,44 +387,40 @@ GLuint AssetManager::GetTextureByID(uint32_t id) const {
 // GPU Mesh Management
 // ============================================================================
 
-Mesh* AssetManager::CreateMesh(const std::string& name) {
-    // Check if already exists
-    auto it = _meshCache.find(name);
-    if (it != _meshCache.end()) {
-        return it->second;
-    }
+Mesh* AssetManager::CreateMesh(Mesh* mesh) {
+    return CreateMesh("unnamed_" + std::to_string(_nextMeshID++), mesh);
+}
 
-    auto* mesh = new Mesh(MeshType::PRIM);
+Mesh* AssetManager::CreateMesh(const std::string& name, Mesh* mesh) {
+    if (!mesh) {
+        mesh = new Mesh();
+    }
     meshes.push_back(mesh);
     _meshCache[name] = mesh;
     return mesh;
 }
 
 Mesh* AssetManager::CreateCubeMesh(const std::string& name, float size) {
-    auto* mesh = CreateMesh(name);
-    // TODO: Implement cube mesh generation
-    ENGINE_LOG("Cube mesh '{}' created (generation not yet implemented)", name);
+    auto mesh = MeshBuilder::CreateCube(size);
+    _meshCache[name] = mesh;
     return mesh;
 }
 
 Mesh* AssetManager::CreateSphereMesh(const std::string& name, float radius, int division) {
-    auto* mesh = CreateMesh(name);
-    // TODO: Implement sphere mesh generation
-    ENGINE_LOG("Sphere mesh '{}' created (generation not yet implemented)", name);
+    auto mesh = MeshBuilder::CreateSphere(radius, division);
+    _meshCache[name] = mesh;
     return mesh;
 }
 
 Mesh* AssetManager::CreateCapsuleMesh(const std::string& name, float radius, float height) {
-    auto* mesh = CreateMesh(name);
     // TODO: Implement capsule mesh generation
     ENGINE_LOG("Capsule mesh '{}' created (generation not yet implemented)", name);
-    return mesh;
+    return new Mesh();
 }
 
 Mesh* AssetManager::CreateTerrainMesh(const std::string& name, float worldSize, int resolution) {
-    auto* mesh = CreateMesh(name);
-    // TODO: Implement terrain mesh generation
-    ENGINE_LOG("Terrain mesh '{}' created (generation not yet implemented)", name);
+    auto mesh = MeshBuilder::CreateTerrain(worldSize, resolution);
+    _meshCache[name] = mesh;
     return mesh;
 }
 

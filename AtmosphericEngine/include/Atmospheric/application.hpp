@@ -1,7 +1,7 @@
 #pragma once
+#include "audio_manager.hpp"
 #include "config.hpp"
 #include "console.hpp"
-// #include "audio_manager.hpp"
 #include "game_object.hpp"
 #include "graphics_server.hpp"
 #include "imgui.h"
@@ -88,6 +88,9 @@ public:
     inline Input* GetInput() {
         return &input;
     }
+    inline AudioManager* GetAudioManager() {
+        return &audio;
+    }
 
     std::shared_ptr<Window> GetWindow();
     void LoadScene(const SceneDef& scene);
@@ -95,7 +98,7 @@ public:
 
 protected:
     // These subsystems will be game accessible
-    // AudioManager audio;
+    AudioManager audio;
     PhysicsServer physics;
     Console console;
     Input input;

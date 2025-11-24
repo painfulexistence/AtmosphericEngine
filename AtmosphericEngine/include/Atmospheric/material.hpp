@@ -2,6 +2,14 @@
 #include "globals.hpp"
 #include <glm/vec3.hpp>
 
+enum class RenderQueue {
+    Background = 1000,// Skybox, far background
+    Opaque = 2000,// Normal opaque objects
+    AlphaTest = 2450,// Objects with alpha testing (vegetation, etc.)
+    Transparent = 3000,// Transparent objects (glass, particles, etc.)
+    Overlay = 4000// UI, HUD, debug overlays
+};
+
 struct MaterialProps {
     int baseMap = -1;
     int normalMap = -1;
@@ -38,6 +46,13 @@ public:
     GLenum polygonMode = GL_FILL;
 #endif
 
+    RenderQueue renderQueue = RenderQueue::Opaque;
+    int renderQueueOffset = 0;// Fine-tune rendering order within queue
+
+    int GetFinalRenderQueue() const {
+        return static_cast<int>(renderQueue) + renderQueueOffset;
+    }
+
     Material(const MaterialProps& props) {
         baseMap = props.baseMap;
         normalMap = props.normalMap;
@@ -51,8 +66,8 @@ public:
         shininess = props.shininess;
         cullFaceEnabled = props.cullFaceEnabled;
         primitiveType = props.primitiveType;
-    #ifndef __EMSCRIPTEN__
+#ifndef __EMSCRIPTEN__
         polygonMode = props.polygonMode;
-    #endif
+#endif
     }
 };

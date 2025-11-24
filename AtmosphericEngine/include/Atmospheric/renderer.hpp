@@ -11,9 +11,8 @@ class ShaderProgram;
 
 struct RenderCommand {
     Mesh* mesh;
-    ShaderProgram* shader;// Using shader directly for now
+    // Material* material; // TODO: currently material is coupled with mesh
     glm::mat4 transform;
-    uint32_t sortKey;
 };
 
 class RenderPass {
@@ -126,12 +125,7 @@ public:
         }
     }
 
-    void SubmitOpaque(const RenderCommand& cmd);
-    void SubmitVoxel(const RenderCommand& cmd);
-    void SubmitTransparent(const RenderCommand& cmd);
-    void SubmitGizmo(const RenderCommand& cmd);
-    void SubmitHud(const RenderCommand& cmd);
-
+    void SubmitCommand(const RenderCommand& cmd);
     void RenderFrame(GraphicsServer* ctx, float dt);
 
     auto& GetOpaqueQueue() {
@@ -167,12 +161,20 @@ public:
     GLuint canvasVAO, canvasVBO;
     GLuint screenVAO, screenVBO;
 
+    struct SortableCommand {
+        RenderCommand cmd;
+        uint64_t sortKey;
+    };
+
 private:
-    std::vector<RenderCommand> _opaqueQueue;
-    std::vector<RenderCommand> _voxelQueue;
-    std::vector<RenderCommand> _transparentQueue;
-    std::vector<RenderCommand> _gizmoQueue;
-    std::vector<RenderCommand> _hudQueue;
+    std::vector<RenderCommand> _commandList;
+
+    // Bucketed and sorted queues
+    std::vector<SortableCommand> _opaqueQueue;// For scene, voxel chunks, skybox
+    std::vector<SortableCommand> _afterOpaqueQueue;// For raymarching voxel chunks, GPU particles
+    std::vector<SortableCommand> _transparentQueue;// For particles, world UI
+    std::vector<SortableCommand> _gizmoQueue;// For world debug UI
+    std::vector<SortableCommand> _hudQueue;// For HUD
 
     std::unique_ptr<RenderPipeline> _pipeline;// TODO: support forward and deferred
     RenderPath _currRenderPath = RenderPath::Forward;
@@ -185,4 +187,10 @@ private:
     void CreateCanvasVAO();
     void CreateScreenVAO();
     void CreateDebugVAO();
+
+    void SortAndBucket(const glm::vec3& cameraPos);
+    uint64_t CalculateSortKey(const RenderCommand& cmd, const glm::vec3& cameraPos);
+    void BucketCommands(const glm::vec3& cameraPos);
+    void SortOpaque();
+    void SortTransparent();
 };

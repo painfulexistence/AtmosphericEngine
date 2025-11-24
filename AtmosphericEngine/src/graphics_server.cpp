@@ -113,22 +113,20 @@ void GraphicsServer::Process(float dt) {
     // No updates here since no gameplay logic is required
 }
 
-// NOTES: this should only generate command buffers, rendering should be done by the renderer
+// NOTES: this only fills in command buffers, rendering should be done by the renderer
 void GraphicsServer::Render(float dt) {
-    // Setup
-    // TODO: Put the logic of generating command buffers here
-    // TODO: Generate command buffers according to entity transforms
-    _meshInstanceMap.clear();
+    // Submit render commands
     for (auto r : renderables) {
         if (!r->gameObject->isActive) continue;
 
         Mesh* mesh = r->GetMesh();
         Material* material = r->GetMaterial();
 
-        InstanceData instanceData = { .modelMatrix = r->gameObject->GetTransform() };
-        _meshInstanceMap[mesh].push_back(instanceData);
+        RenderCommand cmd{ .mesh = mesh, .transform = r->gameObject->GetTransform() };
+        renderer->SubmitCommand(cmd);
     }
 
+    // TODO: migrate canvas drawables to use commands
     for (auto d : canvasDrawables) {
         if (!d->gameObject->isActive) continue;
 
@@ -287,8 +285,6 @@ void GraphicsServer::DrawImGui(float dt) {
 }
 
 void GraphicsServer::Reset() {
-    _meshInstanceMap.clear();
-
     defaultCamera = nullptr;
     defaultLight = nullptr;
     cameras.clear();

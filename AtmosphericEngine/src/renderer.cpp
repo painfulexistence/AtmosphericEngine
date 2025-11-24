@@ -3,6 +3,39 @@
 #include "console.hpp"
 #include "graphics_server.hpp"
 #include "window.hpp"
+#include <algorithm>
+
+struct RenderBatch {
+    Mesh* mesh = nullptr;
+    std::vector<InstanceData> instances;
+};
+
+static std::vector<RenderBatch> BuildBatches(const std::vector<Renderer::SortableCommand>& queue) {
+    std::vector<RenderBatch> batches;
+    RenderBatch currentBatch;
+    currentBatch.mesh = queue[0].cmd.mesh;// TODO: maybe check if queue is empty
+
+    for (const auto& sortable : queue) {
+        const auto& cmd = sortable.cmd;
+
+        if (currentBatch.mesh != cmd.mesh) {
+            if (currentBatch.mesh != nullptr) {
+                batches.push_back(std::move(currentBatch));
+            }
+            currentBatch.instances.clear();
+            currentBatch.mesh = cmd.mesh;
+        }
+        InstanceData instance;
+        instance.modelMatrix = cmd.transform;
+        currentBatch.instances.push_back(instance);
+    }
+
+    if (!currentBatch.instances.empty()) {
+        batches.push_back(std::move(currentBatch));
+    }
+
+    return batches;
+}
 
 static constexpr int MAX_CANVAS_TEXTURES = 32;
 
@@ -50,32 +83,96 @@ void Renderer::Resize(int width, int height) {
 }
 
 
-void Renderer::SubmitOpaque(const RenderCommand& cmd) {
-    // Scene, voxel chunks, skybox
-    _opaqueQueue.push_back(cmd);
-}
-void Renderer::SubmitVoxel(const RenderCommand& cmd) {
-    // For raymarching voxel chunks, GPU particles
-    _voxelQueue.push_back(cmd);
-}
-void Renderer::SubmitTransparent(const RenderCommand& cmd) {
-    _transparentQueue.push_back(cmd);
-}
-void Renderer::SubmitGizmo(const RenderCommand& cmd) {
-    // debug lines go here
-    _gizmoQueue.push_back(cmd);
-}
-void Renderer::SubmitHud(const RenderCommand& cmd) {
-    _hudQueue.push_back(cmd);
+void Renderer::SubmitCommand(const RenderCommand& cmd) {
+    _commandList.push_back(cmd);
 }
 
-void Renderer::RenderFrame(GraphicsServer* ctx, float dt) {
-    _pipeline->Render(ctx, *this);
-
-    // Clear queues for next frame
+void Renderer::SortAndBucket(const glm::vec3& cameraPos) {
+    // Clear previous frame's sorted queues
     _opaqueQueue.clear();
     _transparentQueue.clear();
     _hudQueue.clear();
+    _gizmoQueue.clear();
+    _afterOpaqueQueue.clear();
+
+    // Bucket commands based on material properties
+    BucketCommands(cameraPos);
+
+    // Sort each queue appropriately
+    SortOpaque();
+    SortTransparent();
+
+    // Clear command buffer
+    _commandList.clear();
+}
+
+uint64_t Renderer::CalculateSortKey(const RenderCommand& cmd, const glm::vec3& cameraPos) {
+    Material* mat = cmd.mesh->GetMaterial();
+    if (!mat) return 0;
+
+    // Calculate depth (distance from camera)
+    glm::vec3 objPos = glm::vec3(cmd.transform[3]);
+    float depth = glm::length(objPos - cameraPos);
+
+    // Get render queue
+    int renderQueue = mat->GetFinalRenderQueue();
+
+    // Get material and mesh IDs for batching
+    // TODO: Add proper ID system to Material and Mesh
+    uint32_t materialID = reinterpret_cast<uintptr_t>(mat) & 0xFFFF;
+    uint32_t meshID = reinterpret_cast<uintptr_t>(cmd.mesh) & 0xFFFF;
+
+    // Generate 64-bit sort key
+    // [16 bits: render queue] [16 bits: depth] [16 bits: material] [16 bits: mesh]
+    uint64_t key = 0;
+    key |= (uint64_t)(renderQueue & 0xFFFF) << 48;
+    key |= (uint64_t)((uint16_t)(depth * 100.0f) & 0xFFFF) << 32;
+    key |= (uint64_t)(materialID & 0xFFFF) << 16;
+    key |= (uint64_t)(meshID & 0xFFFF);
+
+    return key;
+}
+
+void Renderer::BucketCommands(const glm::vec3& cameraPos) {
+    for (const auto& cmd : _commandList) {
+        Material* mat = cmd.mesh->GetMaterial();
+        if (!mat) continue;
+
+        int queue = mat->GetFinalRenderQueue();
+        uint64_t sortKey = CalculateSortKey(cmd, cameraPos);
+        SortableCommand sortable{ cmd, sortKey };
+
+        // Bucket based on render queue
+        if (queue < static_cast<int>(RenderQueue::Transparent)) {
+            _opaqueQueue.push_back(sortable);
+        } else if (queue < static_cast<int>(RenderQueue::Overlay)) {
+            _transparentQueue.push_back(sortable);
+        } else {
+            _hudQueue.push_back(sortable);
+        }
+    }
+}
+
+void Renderer::SortOpaque() {
+    // Front-to-back sorting: render near objects first to reduce overdraw
+    std::sort(_opaqueQueue.begin(), _opaqueQueue.end(), [](const SortableCommand& a, const SortableCommand& b) {
+        return a.sortKey < b.sortKey;
+    });
+}
+
+void Renderer::SortTransparent() {
+    // Back-to-front sorting: render far objects first for correct blending
+    std::sort(
+      _transparentQueue.begin(),
+      _transparentQueue.end(),
+      [](const SortableCommand& a, const SortableCommand& b) { return a.sortKey > b.sortKey; }
+    );
+}
+
+
+void Renderer::RenderFrame(GraphicsServer* ctx, float dt) {
+    SortAndBucket(ctx->GetMainCamera()->GetEyePosition());
+    _pipeline->Render(ctx, *this);
 }
 
 void Renderer::CheckFramebufferStatus(const std::string& prefix) {
@@ -396,11 +493,26 @@ void ShadowPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
 #ifndef __EMSCRIPTEN__
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 #endif
+
+    // Combine queues for shadow casting
+    // TODO: Filter out objects that don't cast shadows
+    std::vector<Renderer::SortableCommand> shadowCasters;
+    for (auto& cmd : renderer.GetOpaqueQueue())
+        shadowCasters.push_back(cmd);
+    for (auto& cmd : renderer.GetTransparentQueue())
+        shadowCasters.push_back(cmd);
+
+    // Batching for shadow casters
+    std::vector<RenderBatch> batches;
+    if (!shadowCasters.empty()) {
+        batches = BuildBatches(shadowCasters);
+    }
+
+    // 1. Render shadow map for directional light
     glBindFramebuffer(GL_FRAMEBUFFER, renderer.shadowFBO);
 
     auto mainLight = ctx->GetMainLight();
 
-    // 1. Render shadow map for directional light
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, renderer.uniShadowMaps[0], 0);
     glClear(GL_DEPTH_BUFFER_BIT);
     auto depthShader = ctx->GetShader("depth");
@@ -409,8 +521,10 @@ void ShadowPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
       std::string("ProjectionView"), mainLight->GetProjectionMatrix(0) * mainLight->GetViewMatrix()
     );
 
-    for (const auto& [mesh, instances] : ctx->_meshInstanceMap) {
-        if (instances.empty()) continue;
+    for (const auto& batch : batches) {
+        Mesh* mesh = batch.mesh;
+        const auto& instances = batch.instances;// NOTES: no need to check for empty instances here, as we only add
+                                                // batches with instances (and OpenGL will handle 0 instances whatever)
 
         if (!mesh->initialized) throw std::runtime_error(fmt::format("Mesh uninitialized!"));
 
@@ -424,16 +538,15 @@ void ShadowPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
 
         if (mesh->type == MeshType::PRIM) {
             glBindVertexArray(mesh->vao);
-            if (instances.size() > 0) {
-                glBindBuffer(GL_ARRAY_BUFFER, mesh->ibo);
-                glBufferData(
-                  GL_ARRAY_BUFFER, instances.size() * sizeof(InstanceData), instances.data(), GL_DYNAMIC_DRAW
-                );
-                for (const auto& instance : instances) {
-                    depthShader->SetUniform(std::string("Model"), instance.modelMatrix);
-                    glDrawElements(mesh->GetMaterial()->primitiveType, mesh->triCount * 3, GL_UNSIGNED_SHORT, 0);
-                }
-            }
+
+            // Upload ALL instances for this batch once
+            glBindBuffer(GL_ARRAY_BUFFER, mesh->ibo);
+            glBufferData(GL_ARRAY_BUFFER, instances.size() * sizeof(InstanceData), instances.data(), GL_DYNAMIC_DRAW);
+
+            // Instanced Draw
+            glDrawElementsInstanced(
+              mesh->GetMaterial()->primitiveType, mesh->triCount * 3, GL_UNSIGNED_SHORT, 0, instances.size()
+            );
         }
         glBindVertexArray(0);
     }
@@ -462,8 +575,9 @@ void ShadowPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
               std::string("ProjectionView"), l->GetProjectionMatrix(0) * l->GetViewMatrix(face)
             );
 
-            for (const auto& [mesh, instances] : ctx->_meshInstanceMap) {
-                if (instances.empty()) continue;
+            for (const auto& batch : batches) {
+                Mesh* mesh = batch.mesh;
+                const auto& instances = batch.instances;
 
                 if (!mesh->initialized) throw std::runtime_error(fmt::format("Mesh uninitialized!"));
 
@@ -477,18 +591,17 @@ void ShadowPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
 
                 if (mesh->type == MeshType::PRIM) {
                     glBindVertexArray(mesh->vao);
-                    if (instances.size() > 0) {
-                        glBindBuffer(GL_ARRAY_BUFFER, mesh->ibo);
-                        glBufferData(
-                          GL_ARRAY_BUFFER, instances.size() * sizeof(InstanceData), instances.data(), GL_DYNAMIC_DRAW
-                        );
-                        for (const auto& instance : instances) {
-                            depthCubemapShader->SetUniform(std::string("Model"), instance.modelMatrix);
-                            glDrawElements(
-                              mesh->GetMaterial()->primitiveType, mesh->triCount * 3, GL_UNSIGNED_SHORT, 0
-                            );
-                        }
-                    }
+
+                    // Upload ALL instances for this batch once
+                    glBindBuffer(GL_ARRAY_BUFFER, mesh->ibo);
+                    glBufferData(
+                      GL_ARRAY_BUFFER, instances.size() * sizeof(InstanceData), instances.data(), GL_DYNAMIC_DRAW
+                    );
+
+                    // Instanced Draw
+                    glDrawElementsInstanced(
+                      mesh->GetMaterial()->primitiveType, mesh->triCount * 3, GL_UNSIGNED_SHORT, 0, instances.size()
+                    );
                 }
                 glBindVertexArray(0);
             }
@@ -531,8 +644,17 @@ void ForwardOpaquePass::Execute(GraphicsServer* ctx, Renderer& renderer) {
 
     auto terrainShader = ctx->GetShader("terrain");
     auto colorShader = ctx->GetShader("color");
-    for (const auto& [mesh, instances] : ctx->_meshInstanceMap) {
-        if (instances.empty()) continue;
+    // 1. Batching Phase
+    std::vector<RenderBatch> batches;
+
+    if (!renderer.GetOpaqueQueue().empty()) {
+        batches = BuildBatches(renderer.GetOpaqueQueue());
+    }
+
+    // 2. Drawing Phase
+    for (const auto& batch : batches) {
+        Mesh* mesh = batch.mesh;
+        const auto& instances = batch.instances;
 
         if (!mesh->initialized) throw std::runtime_error(fmt::format("Mesh uninitialized!"));
 
@@ -600,6 +722,9 @@ void ForwardOpaquePass::Execute(GraphicsServer* ctx, Renderer& renderer) {
               std::string("height_map_unit"), SCENE_TEXTURE_BASE_INDEX + mesh->GetMaterial()->heightMap
             );
             terrainShader->SetUniform(std::string("ProjectionView"), projectionView);
+
+            // Terrain is usually a single instance, but we handle it in the batch loop
+            // Assuming terrain is not instanced for now or handled as single instance
             terrainShader->SetUniform(std::string("World"), instances[0].modelMatrix);
 
             glBindVertexArray(mesh->vao);
@@ -708,18 +833,18 @@ void ForwardOpaquePass::Execute(GraphicsServer* ctx, Renderer& renderer) {
 
             glBindVertexArray(mesh->vao);
             glBindBuffer(GL_ARRAY_BUFFER, mesh->ibo);
-            if (instances.size() > 0) {// TODO: use non-instanced rendering for one-off meshes
+
+            // Upload batched instance data
+            if (!instances.empty()) {
                 glBufferData(
                   GL_ARRAY_BUFFER, instances.size() * sizeof(InstanceData), instances.data(), GL_DYNAMIC_DRAW
                 );
                 glDrawElementsInstanced(
                   mesh->GetMaterial()->primitiveType, mesh->triCount * 3, GL_UNSIGNED_SHORT, 0, instances.size()
                 );
-            } else {
-                glDrawElements(mesh->GetMaterial()->primitiveType, mesh->triCount * 3, GL_UNSIGNED_SHORT, 0);
             }
-            glBindVertexArray(0);
 
+            glBindVertexArray(0);
             break;
         }
     }
@@ -782,8 +907,14 @@ void DeferredGeometryPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
     auto geometryShader = ctx->GetShader("geometry");
     geometryShader->Activate();
 
-    for (const auto& [mesh, instances] : ctx->_meshInstanceMap) {
-        if (instances.empty()) continue;
+    std::vector<RenderBatch> batches;
+
+    if (!renderer.GetOpaqueQueue().empty()) {
+        batches = BuildBatches(renderer.GetOpaqueQueue());
+    }
+    for (const auto& batch : batches) {
+        Mesh* mesh = batch.mesh;
+        const auto& instances = batch.instances;
 
         if (!mesh->initialized) throw std::runtime_error("Mesh uninitialized!");
 
@@ -838,7 +969,7 @@ void DeferredGeometryPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
 
             glBindVertexArray(mesh->vao);
             glBindBuffer(GL_ARRAY_BUFFER, mesh->ibo);
-            if (instances.size() > 0) {
+            if (!instances.empty()) {
                 glBufferData(
                   GL_ARRAY_BUFFER, instances.size() * sizeof(InstanceData), instances.data(), GL_DYNAMIC_DRAW
                 );

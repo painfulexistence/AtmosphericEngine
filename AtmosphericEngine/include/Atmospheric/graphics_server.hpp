@@ -66,7 +66,6 @@ public:
     std::vector<LightComponent*> pointLights;
     std::vector<CameraComponent*> cameras;
 
-    std::unordered_map<Mesh*, std::vector<InstanceData>> _meshInstanceMap;
     std::vector<DebugVertex> debugLines;
     std::vector<CanvasVertex> canvasDrawList;
     int _debugLineCount = 0;

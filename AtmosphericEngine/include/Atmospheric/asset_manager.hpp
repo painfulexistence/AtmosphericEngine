@@ -60,7 +60,8 @@ public:
     GLuint GetTextureByID(uint32_t id) const;
     void LoadDefaultTextures();
     void LoadTextures(const std::vector<std::string>& paths);
-    Mesh* CreateMesh(const std::string& name);
+    Mesh* CreateMesh(Mesh* mesh = nullptr);
+    Mesh* CreateMesh(const std::string& name, Mesh* mesh = nullptr);
     Mesh* CreateCubeMesh(const std::string& name, float size = 1.0f);
     Mesh* CreateSphereMesh(const std::string& name, float radius = 0.5f, int division = 18);
     Mesh* CreateCapsuleMesh(const std::string& name, float radius = 0.5f, float height = 3.0f);
@@ -111,4 +112,5 @@ private:
     // Meshes
     std::vector<Mesh*> meshes;
     std::unordered_map<std::string, Mesh*> _meshCache;
+    uint32_t _nextMeshID = 0;
 };

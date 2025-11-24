@@ -96,11 +96,12 @@ public:
 protected:
     // These subsystems will be game accessible
     // AudioManager audio;
-    GraphicsServer graphics;
     PhysicsServer physics;
     Console console;
     Input input;
     Script script;
+
+    GraphicsServer graphics;
 
     std::vector<Scene> scenes;
     CameraComponent* mainCamera = nullptr;

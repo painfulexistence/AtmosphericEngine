@@ -6,9 +6,6 @@
 
 MeshComponent::MeshComponent(GameObject* gameObject, Mesh* mesh) {
     this->_mesh = mesh;
-
-    this->gameObject = gameObject;
-    this->gameObject->AddComponent(this);
 }
 
 MeshComponent::~MeshComponent() {

@@ -48,9 +48,6 @@ RigidbodyComponent::RigidbodyComponent(
     // _rigidbody->setCollisionFlags(_rigidbody->getCollisionFlags() |
     //     btCollisionObject::CF_NO_CONTACT_RESPONSE);
     _rigidbody->setUserPointer(gameObject);
-
-    this->gameObject = gameObject;
-    this->gameObject->AddComponent(this);
 };
 
 RigidbodyComponent::RigidbodyComponent(GameObject* gameObject, const RigidbodyProps& props) {
@@ -77,9 +74,6 @@ RigidbodyComponent::RigidbodyComponent(GameObject* gameObject, const RigidbodyPr
     // _rigidbody->setCollisionFlags(_rigidbody->getCollisionFlags() |
     //     btCollisionObject::CF_NO_CONTACT_RESPONSE);
     _rigidbody->setUserPointer(gameObject);
-
-    this->gameObject = gameObject;
-    this->gameObject->AddComponent(this);
 }
 
 RigidbodyComponent::~RigidbodyComponent(){

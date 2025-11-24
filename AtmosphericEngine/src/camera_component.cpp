@@ -26,9 +26,6 @@ CameraComponent::CameraComponent(GameObject* gameObject, const CameraProps& prop
     }
     _eyeOffset = props.eyeOffset;
     _vhAngle = glm::vec2(props.verticalAngle, props.horizontalAngle);
-
-    this->gameObject = gameObject;
-    this->gameObject->AddComponent(this);
 }
 
 std::string CameraComponent::GetName() const {

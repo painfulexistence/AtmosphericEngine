@@ -1,6 +1,7 @@
 #include "mesh.hpp"
 #include "asset_manager.hpp"
 #include "config.hpp"
+#include "graphics_server.hpp"
 
 void PrintVertex(const Vertex& v) {
     fmt::print(
@@ -359,13 +360,30 @@ Mesh* MeshBuilder::CreateTerrainWithPhysics(const float& size, const int& resolu
     return terrain;
 }
 
-void MeshBuilder::PushQuad() {
-    // vertices.push_back();
-    // vertices.push_back();
-    // vertices.push_back();
-    // vertices.push_back();
+void MeshBuilder::PushQuad(
+  glm::vec3 position, glm::vec2 size, glm::vec3 normal, glm::quat rotation, glm::vec2 uvMin, glm::vec2 uvMax
+) {
+    uint32_t baseIndex = static_cast<uint32_t>(vertices.size());
 
-    uint32_t baseIndex = static_cast<uint32_t>(vertices.size() - 4);
+    glm::vec3 tangent = glm::normalize(glm::cross(normal, glm::vec3(0, 1, 0)));
+    if (glm::length(tangent) < 0.01f) {
+        tangent = glm::normalize(glm::cross(normal, glm::vec3(1, 0, 0)));
+    }
+    glm::vec3 bitangent = glm::cross(normal, tangent);
+
+    vertices.push_back(
+      { { position.x - size.x / 2, position.y - size.y / 2, position.z }, { 0, 0 }, normal, tangent, bitangent }
+    );
+    vertices.push_back(
+      { { position.x - size.x / 2, position.y + size.y / 2, position.z }, { 0, 1 }, normal, tangent, bitangent }
+    );
+    vertices.push_back(
+      { { position.x + size.x / 2, position.y + size.y / 2, position.z }, { 1, 1 }, normal, tangent, bitangent }
+    );
+    vertices.push_back(
+      { { position.x + size.x / 2, position.y - size.y / 2, position.z }, { 1, 0 }, normal, tangent, bitangent }
+    );
+
     indices.push_back(baseIndex + 0);
     indices.push_back(baseIndex + 1);
     indices.push_back(baseIndex + 2);
@@ -374,12 +392,102 @@ void MeshBuilder::PushQuad() {
     indices.push_back(baseIndex + 3);
 }
 
-void MeshBuilder::PushCube() {
+void MeshBuilder::PushCube(glm::vec3 position, glm::vec3 size, glm::quat rotation) {
+    // Front face
+    PushQuad(position + glm::vec3(0, 0, size.z / 2), glm::vec2(size.x, size.y), glm::vec3(0, 0, 1));
 
+    // Back face
+    PushQuad(position + glm::vec3(0, 0, -size.z / 2), glm::vec2(size.x, size.y), glm::vec3(0, 0, -1));
+
+    // Right face
+    PushQuad(position + glm::vec3(size.x / 2, 0, 0), glm::vec2(size.z, size.y), glm::vec3(1, 0, 0));
+
+    // Left face
+    PushQuad(position + glm::vec3(-size.x / 2, 0, 0), glm::vec2(size.z, size.y), glm::vec3(-1, 0, 0));
+
+    // Top face
+    PushQuad(position + glm::vec3(0, size.y / 2, 0), glm::vec2(size.x, size.z), glm::vec3(0, 1, 0));
+
+    // Bottom face
+    PushQuad(position + glm::vec3(0, -size.y / 2, 0), glm::vec2(size.x, size.z), glm::vec3(0, -1, 0));
 }
 
 std::shared_ptr<Mesh> MeshBuilder::Build() {
+    // CalculateNormalsAndTangents(vertices, indices);
+
     auto mesh = std::make_shared<Mesh>(MeshType::PRIM);
     mesh->Initialize(vertices, indices);
+
+    // vertices.clear();
+    // indices.clear();
+
     return mesh;
 }
+
+// Template method implementations for dynamic updates
+template<typename VertexType> void Mesh::InitializeDynamic(GLenum primType) {
+    _primitiveType = primType;
+
+    glBindVertexArray(vao);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+
+    // Setup vertex attributes based on vertex type
+    if constexpr (std::is_same_v<VertexType, DebugVertex>) {
+        // DebugVertex: position (vec3) + color (vec3)
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(DebugVertex), (void*)0);
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(DebugVertex), (void*)(3 * sizeof(float)));
+        glEnableVertexAttribArray(0);
+        glEnableVertexAttribArray(1);
+    } else if constexpr (std::is_same_v<VertexType, CanvasVertex>) {
+        // CanvasVertex: position (vec2) + texCoord (vec2) + color (vec4) + texIndex (int)
+        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(CanvasVertex), (void*)0);
+        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(CanvasVertex), (void*)(2 * sizeof(float)));
+        glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, sizeof(CanvasVertex), (void*)(4 * sizeof(float)));
+        glVertexAttribIPointer(3, 1, GL_INT, sizeof(CanvasVertex), (void*)(8 * sizeof(float)));
+        glEnableVertexAttribArray(0);
+        glEnableVertexAttribArray(1);
+        glEnableVertexAttribArray(2);
+        glEnableVertexAttribArray(3);
+    } else if constexpr (std::is_same_v<VertexType, Vertex>) {
+        // Standard Vertex: full vertex attributes
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)0);
+        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)(3 * sizeof(float)));
+        glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)(5 * sizeof(float)));
+        glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)(8 * sizeof(float)));
+        glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)(11 * sizeof(float)));
+        glEnableVertexAttribArray(0);
+        glEnableVertexAttribArray(1);
+        glEnableVertexAttribArray(2);
+        glEnableVertexAttribArray(3);
+        glEnableVertexAttribArray(4);
+    }
+
+    glBindVertexArray(0);
+    initialized = true;
+}
+
+template<typename VertexType> void Mesh::UpdateDynamic(const std::vector<VertexType>& verts, GLenum primType) {
+    if (!initialized) {
+        InitializeDynamic<VertexType>(primType);
+    }
+
+    vertCount = verts.size();
+    triCount = (primType == GL_TRIANGLES) ? verts.size() / 3 : 0;
+
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    glBufferData(
+      GL_ARRAY_BUFFER,
+      verts.size() * sizeof(VertexType),
+      verts.data(),
+      updateFreq == UpdateFrequency::Stream ? GL_STREAM_DRAW : GL_DYNAMIC_DRAW
+    );
+}
+
+// Explicit template instantiations
+template void Mesh::UpdateDynamic<DebugVertex>(const std::vector<DebugVertex>&, GLenum);
+template void Mesh::UpdateDynamic<CanvasVertex>(const std::vector<CanvasVertex>&, GLenum);
+template void Mesh::UpdateDynamic<Vertex>(const std::vector<Vertex>&, GLenum);
+
+template void Mesh::InitializeDynamic<DebugVertex>(GLenum);
+template void Mesh::InitializeDynamic<CanvasVertex>(GLenum);
+template void Mesh::InitializeDynamic<Vertex>(GLenum);

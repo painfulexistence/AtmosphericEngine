@@ -153,11 +153,6 @@ void Application::Update(const FrameData& props) {
     // audio.Process(dt);
     script.Process(dt);
     physics.Process(dt);// TODO: Update only every entity's physics transform
-    for (auto go : _entities) {
-        auto impostor = go->GetComponent<RigidbodyComponent>();
-        if (impostor == nullptr) continue;
-        go->SyncObjectTransform(impostor->GetWorldTransform());
-    }
     graphics.Process(dt);
     for (auto& subsystem : _subsystems) {
         subsystem->Process(dt);

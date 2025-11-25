@@ -51,6 +51,11 @@ struct InstanceData {
 
 class Renderer;
 
+class MeshComponent;
+class SpriteComponent;
+class CameraComponent;
+class LightComponent;
+
 class GraphicsServer : public Server {
 private:
     static GraphicsServer* _instance;
@@ -84,7 +89,7 @@ public:
     void DrawImGui(float dt) override;
 
     void Reset();
-    void Render(float dt);
+    void Render(CameraComponent* camera, float dt);
 
     void PushDebugLine(DebugVertex from, DebugVertex to) {
         debugLines.push_back(from);

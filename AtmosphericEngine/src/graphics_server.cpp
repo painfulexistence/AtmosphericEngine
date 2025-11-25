@@ -2,6 +2,7 @@
 #include "application.hpp"
 #include "asset_manager.hpp"
 #include "camera_component.hpp"
+#include "frustum.hpp"
 #include "game_object.hpp"
 #include "material.hpp"
 #include "mesh.hpp"
@@ -114,16 +115,43 @@ void GraphicsServer::Process(float dt) {
 }
 
 // NOTES: this only fills in command buffers, rendering should be done by the renderer
-void GraphicsServer::Render(float dt) {
+void GraphicsServer::Render(CameraComponent* camera, float dt) {
+    if (!camera) {
+        // Attempt to use the default camera if none is provided
+        camera = defaultCamera;
+        if (!camera) return;
+    }
+
+    Frustum frustum(camera->GetProjectionMatrix() * camera->GetViewMatrix());
+
     // Submit render commands
     for (auto r : renderables) {
         if (!r->gameObject->isActive) continue;
 
         Mesh* mesh = r->GetMesh();
-        Material* material = r->GetMaterial();
+        if (!mesh) continue;
 
-        RenderCommand cmd{ .mesh = mesh, .transform = r->gameObject->GetTransform() };
-        renderer->SubmitCommand(cmd);
+        // Frustum Culling
+        const auto& transform = r->gameObject->GetTransform();
+        const auto& boundingBox = mesh->GetBoundingBox();
+
+        // Transform the local-space bounding box corners to world space
+        std::array<glm::vec3, 8> worldBounds;
+        bool hasValidBounds = false;
+        for (int i = 0; i < 8; ++i) {
+            // If the bounding box has not been set, the default value is (0,0,0) for all corners.
+            // We can check this to avoid culling objects that don't have proper bounds.
+            if (boundingBox[i] != glm::vec3(0.0f)) {
+                hasValidBounds = true;
+            }
+            worldBounds[i] = transform * glm::vec4(boundingBox[i], 1.0f);
+        }
+
+        // If the mesh has valid bounds, perform culling. Otherwise, draw it.
+        if (!hasValidBounds || frustum.Intersects(worldBounds)) {
+            RenderCommand cmd{ .mesh = mesh, .transform = r->gameObject->GetTransform() };
+            renderer->SubmitCommand(cmd);
+        }
     }
 
     // TODO: migrate canvas drawables to use commands

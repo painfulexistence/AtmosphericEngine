@@ -88,6 +88,9 @@ public:
     inline Input* GetInput() {
         return &input;
     }
+    inline CameraComponent* GetMainCamera() {
+        return mainCamera;
+    }
     inline AudioManager* GetAudioManager() {
         return &audio;
     }

@@ -11,11 +11,12 @@
 #endif
 
 // #include <pch.hpp>
-#include <vector>
-#include <string>
+#include <fmt/core.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
-#include <fmt/core.h>
+#include <glm/gtc/quaternion.hpp>
+#include <string>
+#include <vector>
 
 #define CAMERA_ANGULAR_OFFSET 0.05
 #define CAMERA_SPEED 15
@@ -24,11 +25,7 @@
 #define GRAVITY 9.8
 #define FIXED_TIME_STEP 1.0 / 60.0
 
-enum Axis {
-    UP, DOWN,
-    BACK, FRONT,
-    RIGHT, LEFT
-};
+enum Axis { UP, DOWN, BACK, FRONT, RIGHT, LEFT };
 
 enum class ShapeType {
     Cube,

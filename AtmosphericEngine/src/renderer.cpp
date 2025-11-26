@@ -2,6 +2,7 @@
 #include "asset_manager.hpp"
 #include "console.hpp"
 #include "graphics_server.hpp"
+#include "particle_server.hpp"
 #include "window.hpp"
 #include <algorithm>
 
@@ -98,7 +99,7 @@ void Renderer::BindTransformFeedbackBuffer(GLuint bufferId, GLuint index) {
 
 void Renderer::EndTransformFeedbackPass() {
     glEndTransformFeedback();
-    glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, 0); // Unbind
+    glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, 0);// Unbind
     glDisable(GL_RASTERIZER_DISCARD);
 }
 
@@ -1055,8 +1056,10 @@ void DeferredLightingPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
 
 void TransparentPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
     auto& cam = *ctx->GetMainCamera();
-    Atmospheric::CameraInfo camInfo = { .view = cam.GetViewMatrix(), .projection = cam.GetProjectionMatrix(), .position = cam.GetEyePosition() };
-    Atmospheric::ParticleServer::GetInstance().Draw(camInfo);    // TODO: transparent pass
+    Atmospheric::CameraInfo camInfo = { .view = cam.GetViewMatrix(),
+                                        .projection = cam.GetProjectionMatrix(),
+                                        .position = cam.GetEyePosition() };
+    Atmospheric::ParticleServer::GetInstance().Draw(camInfo);// TODO: transparent pass
 }
 
 void MSAAResolvePass::Execute(GraphicsServer* ctx, Renderer& renderer) {

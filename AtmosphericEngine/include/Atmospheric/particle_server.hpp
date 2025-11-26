@@ -1,15 +1,22 @@
 #pragma once
 
+#include <glm/glm.hpp>
 #include <vector>
 
 // Forward declarations
+// Forward declarations
+class GraphicsServer;
+class Renderer;
+class ShaderProgram;
+class Mesh;
+
 namespace Atmospheric {
-    class GraphicsServer;
-    class Renderer;
-    struct CameraInfo;
+    struct CameraInfo {
+        glm::mat4 view;
+        glm::mat4 projection;
+        glm::vec3 position;
+    };
     class ParticleEmitterComponent;
-    class ShaderProgram;
-    class Mesh;
 
     class ParticleServer {
     public:
@@ -44,10 +51,10 @@ namespace Atmospheric {
 
         ShaderProgram* simulation_shader = nullptr;
         ShaderProgram* drawing_shader = nullptr;
-        
+
         Mesh* quad_mesh = nullptr;
 
         void CreatePipelines();
         void CreateSharedResources();
     };
-}
+}// namespace Atmospheric

@@ -1,16 +1,16 @@
 #include "particle_server.hpp"
-#include "particle_emitter.hpp"
-#include "graphics_server.hpp"
-#include "renderer.hpp"
+
 #include "asset_manager.hpp"
-#include "vertex.hpp"
-#include "camera.hpp"
-#include "rng.hpp"
 #include "console.hpp"
-#include <array>
-#include <stdexcept>
-#include <cmath>
+#include "graphics_server.hpp"
+#include "particle_emitter.hpp"
+#include "renderer.hpp"
+#include "rng.hpp"
+#include "vertex.hpp"
 #include <algorithm>
+#include <array>
+#include <cmath>
+#include <stdexcept>
 
 namespace Atmospheric {
 
@@ -23,10 +23,10 @@ namespace Atmospheric {
         if (this->renderer == nullptr) {
             throw std::runtime_error("Renderer is not initialized in GraphicsServer.");
         }
-        
+
         CreateSharedResources();
         CreatePipelines();
-        Console::Get()->Log("Particle Server Initialized");
+        Console::Get()->Info("Particle Server Initialized");
     }
 
     void ParticleServer::Shutdown() {
@@ -50,11 +50,10 @@ namespace Atmospheric {
             // Simulation Shader
             ShaderProgramProps sim_props;
             sim_props.vert = "shaders/ParticleSim.vert";
-            sim_props.frag = "shaders/noop.frag"; // A dummy fragment shader
-            sim_props.feedbackVaryings = {
-                "out_position", "out_velocity", "out_color", "out_life", "out_size", "out_pad0", "out_pad1"
-            };
-            assets.AddShader("particle_sim", sim_props);
+            sim_props.frag = "shaders/noop.frag";// A dummy fragment shader
+            sim_props.feedbackVaryings = { "out_position", "out_velocity", "out_color", "out_life",
+                                           "out_size",     "out_pad0",     "out_pad1" };
+            assets.CreateShader("particle_sim", sim_props);
             simulation_shader = assets.GetShader("particle_sim");
 
             // Drawing Shader
@@ -62,7 +61,7 @@ namespace Atmospheric {
             ShaderProgramProps draw_props;
             draw_props.vert = "shaders/Particle.vert";
             draw_props.frag = "shaders/Particle.frag";
-            assets.AddShader("particle_draw", draw_props);
+            assets.CreateShader("particle_draw", draw_props);
             drawing_shader = assets.GetShader("particle_draw");
 
         } catch (const std::exception& e) {
@@ -71,12 +70,43 @@ namespace Atmospheric {
         }
     }
 
+    Mesh* CreateQuadMesh() {
+        std::vector<Vertex> vertices;
+        std::vector<uint16_t> indices;
+
+        glm::vec3 position(0.0f);
+        glm::vec2 size(1.0f);
+        glm::vec3 normal(0, 0, 1);
+        glm::vec3 tangent(1, 0, 0);
+        glm::vec3 bitangent(0, 1, 0);
+
+        vertices.push_back({ { -0.5f, -0.5f, 0.0f }, { 0, 0 }, normal, tangent, bitangent });
+        vertices.push_back({ { -0.5f, 0.5f, 0.0f }, { 0, 1 }, normal, tangent, bitangent });
+        vertices.push_back({ { 0.5f, 0.5f, 0.0f }, { 1, 1 }, normal, tangent, bitangent });
+        vertices.push_back({ { 0.5f, -0.5f, 0.0f }, { 1, 0 }, normal, tangent, bitangent });
+
+        indices = { 0, 1, 2, 0, 2, 3 };
+
+        auto mesh = new Mesh(MeshType::PRIM);
+        mesh->Initialize(vertices, indices);
+        // Calculate bounds
+        mesh->SetBoundingBox({ { glm::vec3(0.5f, 0.5f, 0.0f),
+                                 glm::vec3(-0.5f, 0.5f, 0.0f),
+                                 glm::vec3(-0.5f, -0.5f, 0.0f),
+                                 glm::vec3(0.5f, -0.5f, 0.0f),
+                                 glm::vec3(0.5f, 0.5f, 0.0f),
+                                 glm::vec3(-0.5f, 0.5f, 0.0f),
+                                 glm::vec3(-0.5f, -0.5f, 0.0f),
+                                 glm::vec3(0.5f, -0.5f, 0.0f) } });
+        return mesh;
+    }
+
     void ParticleServer::CreateSharedResources() {
         // The quad mesh for drawing particles
         quad_mesh = AssetManager::Get().GetMesh("quad");
         if (!quad_mesh) {
-            auto quad = Mesh::CreateQuad();
-            AssetManager::Get().AddMesh("quad", quad);
+            auto quad = CreateQuadMesh();
+            AssetManager::Get().CreateMesh("quad", quad);
             quad_mesh = AssetManager::Get().GetMesh("quad");
         }
     }
@@ -104,13 +134,15 @@ namespace Atmospheric {
         // 4. Upload data to both buffers
         for (int i = 0; i < 2; ++i) {
             glBindBuffer(GL_ARRAY_BUFFER, emitter->particle_vbos[i]);
-            glBufferData(GL_ARRAY_BUFFER, sizeof(Particle) * emitter->GetMaxParticles(), initial_particles.data(), GL_DYNAMIC_COPY);
+            glBufferData(
+              GL_ARRAY_BUFFER, sizeof(Particle) * emitter->GetMaxParticles(), initial_particles.data(), GL_DYNAMIC_COPY
+            );
         }
 
         // 5. Configure VAO layout for simulation shader
         glBindVertexArray(emitter->vao);
-        glBindBuffer(GL_ARRAY_BUFFER, emitter->GetCurrentSourceVBO()); // Bind one of the VBOs to set layout
-        
+        glBindBuffer(GL_ARRAY_BUFFER, emitter->GetCurrentSourceVBO());// Bind one of the VBOs to set layout
+
         glEnableVertexAttribArray(0);
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Particle), (void*)offsetof(Particle, position));
         glEnableVertexAttribArray(1);
@@ -141,7 +173,7 @@ namespace Atmospheric {
 
     void ParticleServer::Simulate(float deltaTime) {
         if (emitters.empty() || !simulation_shader) return;
-        
+
         simulation_shader->Activate();
         renderer->BeginTransformFeedbackPass();
 
@@ -169,10 +201,10 @@ namespace Atmospheric {
         drawing_shader->Activate();
         drawing_shader->SetUniform("cam_pos", camInfo.position);
         drawing_shader->SetUniform("ProjectionView", camInfo.projection * camInfo.view);
-        
+
         glEnable(GL_BLEND);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE); // Additive blending
-        glDepthMask(GL_FALSE); // Don't write to depth buffer
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE);// Additive blending
+        glDepthMask(GL_FALSE);// Don't write to depth buffer
 
         // Bind the quad mesh once for all emitters
         glBindVertexArray(quad_mesh->vao);
@@ -181,25 +213,27 @@ namespace Atmospheric {
             // Bind the buffer with the latest particle data as a storage buffer
             // This requires GL 4.3+, let's use vertex attributes for broader compatibility.
             // We'll bind the particle VBO and use instanced rendering.
-            
+
             // This is a simplified drawing path. A real engine would batch this.
             glBindBuffer(GL_ARRAY_BUFFER, emitter->GetCurrentDestinationVBO());
 
             // Re-set the vertex attrib pointers for the particle data, this time with divisors for instancing.
-            glEnableVertexAttribArray(2); // instance position
+            glEnableVertexAttribArray(2);// instance position
             glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(Particle), (void*)offsetof(Particle, position));
             glVertexAttribDivisor(2, 1);
 
-            glEnableVertexAttribArray(3); // instance color
+            glEnableVertexAttribArray(3);// instance color
             glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, sizeof(Particle), (void*)offsetof(Particle, color));
             glVertexAttribDivisor(3, 1);
-            
-            glEnableVertexAttribArray(4); // instance size
+
+            glEnableVertexAttribArray(4);// instance size
             glVertexAttribPointer(4, 1, GL_FLOAT, GL_FALSE, sizeof(Particle), (void*)offsetof(Particle, size));
             glVertexAttribDivisor(4, 1);
 
-            glDrawElementsInstanced(GL_TRIANGLES, quad_mesh->triCount * 3, GL_UNSIGNED_SHORT, 0, emitter->GetMaxParticles());
-            
+            glDrawElementsInstanced(
+              GL_TRIANGLES, quad_mesh->triCount * 3, GL_UNSIGNED_SHORT, 0, emitter->GetMaxParticles()
+            );
+
             // Reset divisors
             glVertexAttribDivisor(2, 0);
             glVertexAttribDivisor(3, 0);
@@ -213,4 +247,4 @@ namespace Atmospheric {
         glDisable(GL_BLEND);
         drawing_shader->Deactivate();
     }
-}
+}// namespace Atmospheric

@@ -86,6 +86,8 @@ set(SOURCES
     src/scene.cpp
     src/asset_manager.cpp
     src/job_system.cpp
+    src/particle_server.cpp
+    src/particle_emitter.cpp
     src/file.cpp
 )
 if(AE_USE_AUDIO)

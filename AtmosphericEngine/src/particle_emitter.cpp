@@ -2,11 +2,8 @@
 #include "particle_server.hpp"
 
 namespace Atmospheric {
-    ParticleEmitterComponent::ParticleEmitterComponent(const ComponentDef& def, uint32_t maxParticles)
-        : Component(def),
-          server(ParticleServer::GetInstance()),
-          max_particles(maxParticles)
-    {
+    ParticleEmitterComponent::ParticleEmitterComponent(const ParticleEmitterProps& def, uint32_t maxParticles)
+      : server(ParticleServer::GetInstance()), max_particles(maxParticles) {
     }
 
     ParticleEmitterComponent::~ParticleEmitterComponent() {
@@ -35,4 +32,4 @@ namespace Atmospheric {
     void ParticleEmitterComponent::SwapBuffers() {
         current_buffer_index = 1 - current_buffer_index;
     }
-}
+}// namespace Atmospheric

@@ -1,8 +1,7 @@
 #include "shader.hpp"
 #include "file.hpp"
 
-Shader::Shader(const std::string& path, ShaderType type)
-{
+Shader::Shader(const std::string& path, ShaderType type) {
     const auto& shaderSrc = File(path).GetContent();
     const char* src = shaderSrc.c_str();
     const int len = shaderSrc.size();
@@ -13,8 +12,7 @@ Shader::Shader(const std::string& path, ShaderType type)
     glCompileShader(shader);
     GLint isCompiled;
     glGetShaderiv(shader, GL_COMPILE_STATUS, &isCompiled);
-    if (isCompiled == GL_FALSE)
-    {
+    if (isCompiled == GL_FALSE) {
         GLint maxLength = 0;
         glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &maxLength);
 
@@ -25,10 +23,10 @@ Shader::Shader(const std::string& path, ShaderType type)
     }
 }
 
-ShaderProgram::ShaderProgram(const ShaderProgramProps& props) : _program(glCreateProgram())
-{
+ShaderProgram::ShaderProgram(const ShaderProgramProps& props) : _program(glCreateProgram()) {
     glAttachShader(_program, Shader(props.vert, ShaderType::VERTEX).shader);
     glAttachShader(_program, Shader(props.frag, ShaderType::FRAGMENT).shader);
+#ifndef __EMSCRIPTEN__
     if (props.tese.has_value()) {
         glAttachShader(_program, Shader(props.tese.value(), ShaderType::TESS_EVALUATION).shader);
     }
@@ -46,8 +44,10 @@ ShaderProgram::ShaderProgram(const ShaderProgramProps& props) : _program(glCreat
     glLinkProgram(_program);
 }
 
-ShaderProgram::ShaderProgram(std::string vert, std::string frag, std::optional<std::string> tesc, std::optional<std::string> tese) : _program(glCreateProgram())
-{
+ShaderProgram::ShaderProgram(
+  std::string vert, std::string frag, std::optional<std::string> tesc, std::optional<std::string> tese
+)
+  : _program(glCreateProgram()) {
     glAttachShader(_program, Shader(vert, ShaderType::VERTEX).shader);
     glAttachShader(_program, Shader(frag, ShaderType::FRAGMENT).shader);
 #ifndef __EMSCRIPTEN__
@@ -59,19 +59,15 @@ ShaderProgram::ShaderProgram(std::string vert, std::string frag, std::optional<s
     glLinkProgram(_program);
 }
 
-ShaderProgram::ShaderProgram(std::array<Shader, 2>& shaders) : _program(glCreateProgram())
-{
-    for (int i = shaders.size() - 1; i >= 0; i--)
-    {
+ShaderProgram::ShaderProgram(std::array<Shader, 2>& shaders) : _program(glCreateProgram()) {
+    for (int i = shaders.size() - 1; i >= 0; i--) {
         glAttachShader(_program, shaders[i].shader);
     }
     glLinkProgram(_program);
 }
 
-ShaderProgram::ShaderProgram(std::array<Shader, 4>& shaders) : _program(glCreateProgram())
-{
-    for (int i = shaders.size() - 1; i >= 0; i--)
-    {
+ShaderProgram::ShaderProgram(std::array<Shader, 4>& shaders) : _program(glCreateProgram()) {
+    for (int i = shaders.size() - 1; i >= 0; i--) {
         glAttachShader(_program, shaders[i].shader);
     }
     glLinkProgram(_program);

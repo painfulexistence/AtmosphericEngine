@@ -1,8 +1,8 @@
 #include "frustum.hpp"
 
-Frustum::Frustum(glm::mat4 viewingMatrix)
-{
-    //NOTES: https://www.gamedevs.org/uploads/fast-extraction-viewing-frustum-planes-from-world-view-projection-matrix.pdf
+Frustum::Frustum(glm::mat4 viewingMatrix) {
+    // NOTES:
+    // https://www.gamedevs.org/uploads/fast-extraction-viewing-frustum-planes-from-world-view-projection-matrix.pdf
     const float* mat = glm::value_ptr(viewingMatrix);
     _near.a = mat[2];
     _near.b = mat[6];
@@ -30,25 +30,18 @@ Frustum::Frustum(glm::mat4 viewingMatrix)
     _right.d = mat[15] - mat[12];
 }
 
-bool Frustum::Intersects(glm::vec3 point)
-{
-    //NOTES: a * x + b * y + c * z + d > 0 if (x, y, z) is in the "inside" halfsapce
-    if (_near.Halfspace(point) < 0 || _far.Halfspace(point) < 0)
-        return false;
-    if (_bottom.Halfspace(point) < 0 || _top.Halfspace(point) < 0)
-        return false;
-    if (_left.Halfspace(point) < 0 || _right.Halfspace(point) < 0)
-        return false;
+bool Frustum::Intersects(glm::vec3 point) const {
+    // NOTES: a * x + b * y + c * z + d > 0 if (x, y, z) is in the "inside" halfsapce
+    if (_near.Halfspace(point) < 0 || _far.Halfspace(point) < 0) return false;
+    if (_bottom.Halfspace(point) < 0 || _top.Halfspace(point) < 0) return false;
+    if (_left.Halfspace(point) < 0 || _right.Halfspace(point) < 0) return false;
 
     return true;
 }
 
-bool Frustum::Intersects(std::array<glm::vec3, 8> points)
-{
-    for(int i = 0; i < 8; ++i)
-    {
-        if (Intersects(points[i]))
-            return true;
+bool Frustum::Intersects(std::array<glm::vec3, 8> points) const {
+    for (int i = 0; i < 8; ++i) {
+        if (Intersects(points[i])) return true;
     }
     return false;
 }

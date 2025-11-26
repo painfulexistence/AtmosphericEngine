@@ -2,6 +2,7 @@
 #include "application.hpp"
 #include "asset_manager.hpp"
 #include "camera_component.hpp"
+#include "config.hpp"
 #include "frustum.hpp"
 #include "game_object.hpp"
 #include "material.hpp"
@@ -125,7 +126,10 @@ void GraphicsServer::Render(CameraComponent* camera, float dt) {
     Frustum frustum(camera->GetProjectionMatrix() * camera->GetViewMatrix());
 
     // Submit render commands
+    int totalCount = 0;
+    int culledCount = 0;
     for (auto r : renderables) {
+        totalCount++;
         if (!r->gameObject->isActive) continue;
 
         Mesh* mesh = r->GetMesh();
@@ -133,24 +137,29 @@ void GraphicsServer::Render(CameraComponent* camera, float dt) {
 
         // Frustum Culling
         const auto& transform = r->gameObject->GetTransform();
-        const auto& boundingBox = mesh->GetBoundingBox();
 
-        // Transform the local-space bounding box corners to world space
+        const auto& boundingBox = mesh->GetBoundingBox();
         std::array<glm::vec3, 8> worldBounds;
         bool hasValidBounds = false;
         for (int i = 0; i < 8; ++i) {
-            // If the bounding box has not been set, the default value is (0,0,0) for all corners.
-            // We can check this to avoid culling objects that don't have proper bounds.
             if (boundingBox[i] != glm::vec3(0.0f)) {
                 hasValidBounds = true;
             }
             worldBounds[i] = transform * glm::vec4(boundingBox[i], 1.0f);
         }
+        if (FRUSTUM_CULLING_ON && hasValidBounds && !frustum.Intersects(worldBounds)) {
+            culledCount++;
+            return;
+        }
 
-        // If the mesh has valid bounds, perform culling. Otherwise, draw it.
-        if (!hasValidBounds || frustum.Intersects(worldBounds)) {
-            RenderCommand cmd{ .mesh = mesh, .transform = r->gameObject->GetTransform() };
-            renderer->SubmitCommand(cmd);
+        RenderCommand cmd{ .mesh = mesh, .transform = transform };
+        renderer->SubmitCommand(cmd);
+    }
+
+    if (totalCount > 0) {
+        static int frameCounter = 0;
+        if (frameCounter++ % 60 == 0) {
+            Console::Get()->Info(fmt::format("Culling: total {} culled {}", totalCount, culledCount));
         }
     }
 

@@ -86,6 +86,7 @@ set(SOURCES
     src/scene.cpp
     src/asset_manager.cpp
     src/job_system.cpp
+    src/bullet_task_scheduler.cpp
     src/file.cpp
 )
 if(AE_USE_AUDIO)
@@ -139,6 +140,7 @@ if (AE_USE_AUDIO)
     )
 endif()
 if(AE_USE_EMSCRIPTEN)
+    target_compile_definitions(AtmosphericEngine PUBLIC BT_THREADSAFE=1)
     target_compile_options(AtmosphericEngine PRIVATE)
     if(AE_USE_SDL3)
         target_link_options(AtmosphericEngine PRIVATE -sWASM=1 -O3 -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2 -sFULL_ES3=1)
@@ -148,6 +150,7 @@ if(AE_USE_EMSCRIPTEN)
         target_link_options(AtmosphericEngine PRIVATE -sWASM=1 -O3 -sUSE_GLFW=3 -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2 -sFULL_ES3=1)
     endif()
 else()
+    target_compile_definitions(AtmosphericEngine PUBLIC BT_THREADSAFE=1)
     target_link_libraries(AtmosphericEngine
         PUBLIC
             glad::glad

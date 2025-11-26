@@ -1,10 +1,12 @@
 #include "physics_server.hpp"
+#include "LinearMath/btThreads.h"
 #include "bullet_task_scheduler.hpp"
 #include "game_object.hpp"
 #include "job_system.hpp"
 #include "physics_debug_drawer.hpp"
 #include "rigidbody_component.hpp"
-#include "LinearMath/btThreads.h"
+#include <BulletCollision/CollisionDispatch/btCollisionDispatcherMt.h>
+#include <BulletDynamics/ConstraintSolver/btSequentialImpulseConstraintSolverMt.h>
 
 class RaycastCallback : public btCollisionWorld::ClosestRayResultCallback {
 private:
@@ -56,12 +58,17 @@ void PhysicsServer::Init(Application* app) {
     btSetTaskScheduler(_taskScheduler.get());
 
     _config = new btDefaultCollisionConfiguration();
+    // Use multithreaded dispatcher if thread safe
+#ifdef BT_THREADSAFE
+    _dispatcher = new btCollisionDispatcherMt(_config, JobSystem::Get()->GetThreadCount());
+#else
     _dispatcher = new btCollisionDispatcher(_config);
+#endif
     _broadphase = new btDbvtBroadphase();
-    
-    // Use the sequential solver, but Bullet will still use the task scheduler for other systems.
-    _solver = new btSequentialImpulseConstraintSolver();
-    
+
+    // Use parallel solver
+    _solver = new btSequentialImpulseConstraintSolverMt();
+
     _world = new btDiscreteDynamicsWorld(_dispatcher, _broadphase, _solver, _config);
     SetGravity(glm::vec3(0, -GRAVITY, 0));
 

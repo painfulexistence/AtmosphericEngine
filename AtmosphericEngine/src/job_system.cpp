@@ -14,7 +14,7 @@ bool JobSystem::GetJob(Job& job, uint32_t thread_index) {
 
     // Local queue is empty, try to steal from other threads
     uint32_t other_thread = (thread_index + 1) % _numThreads;
-    while(other_thread != thread_index) {
+    while (other_thread != thread_index) {
         std::lock_guard<std::mutex> lock(*_threadMutexes[other_thread]);
         if (!_threadQueues[other_thread].empty()) {
             // Steal from the back of the other queue
@@ -25,7 +25,7 @@ bool JobSystem::GetJob(Job& job, uint32_t thread_index) {
         other_thread = (other_thread + 1) % _numThreads;
     }
 
-    return false; // No job found
+    return false;// No job found
 }
 
 
@@ -33,7 +33,7 @@ JobSystem::JobSystem() {
 #ifdef __EMSCRIPTEN__
     _numThreads = 1;
 #else
-	auto numCores = std::thread::hardware_concurrency();
+    auto numCores = std::thread::hardware_concurrency();
     _numThreads = std::max(1u, numCores);
 
     _threadQueues.resize(_numThreads);
@@ -52,7 +52,7 @@ JobSystem::JobSystem() {
 
                     // If we just finished the last job, notify the waiting thread
                     if (!IsBusy()) {
-                         std::unique_lock<std::mutex> lock(_waitMutex);
+                        std::unique_lock<std::mutex> lock(_waitMutex);
                         _waitCondition.notify_all();
                     }
                 } else {
@@ -63,4 +63,44 @@ JobSystem::JobSystem() {
         });
     }
 #endif
+}
+
+JobSystem::~JobSystem() {
+    _stopped = true;
+    for (auto& thread : _threads) {
+        if (thread.joinable()) {
+            thread.join();
+        }
+    }
+}
+
+void JobSystem::Init() {
+    // Already initialized in constructor for now
+}
+
+void JobSystem::Execute(const Job& job) {
+    currentLabel.fetch_add(1);
+
+    // Round-robin assignment
+    uint32_t queueIndex = _nextQueue.fetch_add(1) % _numThreads;
+
+    {
+        std::lock_guard<std::mutex> lock(*_threadMutexes[queueIndex]);
+        _threadQueues[queueIndex].push_back(job);
+    }
+
+    // Notify potentially waiting worker threads?
+    // Currently workers are busy-looping/yielding, so no notification needed unless we change to condition variables
+}
+
+bool JobSystem::IsBusy() {
+    return finishedLabel.load() < currentLabel.load();
+}
+
+void JobSystem::Wait() {
+    while (IsBusy()) {
+        // Help out while waiting
+        // TODO: Implement work stealing for the main thread or just yield
+        std::this_thread::yield();
+    }
 }

@@ -150,7 +150,8 @@ if(AE_USE_EMSCRIPTEN)
 else()
     target_link_libraries(AtmosphericEngine
         PUBLIC
-            glad::glad spdlog::spdlog
+            glad::glad
+            spdlog::spdlog
     )
     if(AE_USE_SDL3)
         target_link_libraries(AtmosphericEngine

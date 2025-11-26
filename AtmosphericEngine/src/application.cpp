@@ -24,8 +24,6 @@ Application::Application(AppConfig config) : _config(config) {
     _window->Init();
     _window->InitImGui();
 
-    JobSystem::Get()->Init();
-
     PushLayer(new GameLayer(this));
     PushLayer(new EditorLayer(this));
 }

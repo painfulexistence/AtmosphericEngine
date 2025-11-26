@@ -1,7 +1,10 @@
 #include "physics_server.hpp"
+#include "bullet_task_scheduler.hpp"
 #include "game_object.hpp"
+#include "job_system.hpp"
 #include "physics_debug_drawer.hpp"
 #include "rigidbody_component.hpp"
+#include "LinearMath/btThreads.h"
 
 class RaycastCallback : public btCollisionWorld::ClosestRayResultCallback {
 private:
@@ -32,6 +35,10 @@ PhysicsServer::PhysicsServer() {
 }
 
 PhysicsServer::~PhysicsServer() {
+    // It's important to set the task scheduler to null before deleting the world
+    // and other resources, to prevent it from being used during destruction.
+    btSetTaskScheduler(nullptr);
+
     delete _world;
     delete _debugDrawer;
 
@@ -44,18 +51,22 @@ PhysicsServer::~PhysicsServer() {
 void PhysicsServer::Init(Application* app) {
     Server::Init(app);
 
+    // Create and set the custom task scheduler
+    _taskScheduler = std::make_unique<BulletTaskScheduler>(*JobSystem::Get());
+    btSetTaskScheduler(_taskScheduler.get());
+
     _config = new btDefaultCollisionConfiguration();
     _dispatcher = new btCollisionDispatcher(_config);
     _broadphase = new btDbvtBroadphase();
+    
+    // Use the sequential solver, but Bullet will still use the task scheduler for other systems.
     _solver = new btSequentialImpulseConstraintSolver();
+    
     _world = new btDiscreteDynamicsWorld(_dispatcher, _broadphase, _solver, _config);
     SetGravity(glm::vec3(0, -GRAVITY, 0));
 
     _debugDrawer = new PhysicsDebugDrawer();
     _world->setDebugDrawer(_debugDrawer);
-    // 0: no debug
-    // 1: wireframe
-    // 14: fast wireframe
     _debugDrawer->setDebugMode(1);
 
     _timeAccum = 0.0f;

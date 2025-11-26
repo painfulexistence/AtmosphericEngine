@@ -1,7 +1,6 @@
 #include "renderer.hpp"
 #include "asset_manager.hpp"
 #include "console.hpp"
-#include "frustum.hpp"
 #include "graphics_server.hpp"
 #include "window.hpp"
 #include <algorithm>
@@ -36,15 +35,6 @@ static std::vector<RenderBatch> BuildBatches(const std::vector<Renderer::Sortabl
     }
 
     return batches;
-}
-
-static bool IsInFrustum(const Frustum& frustum, const Mesh* mesh, const glm::mat4& modelMatrix) {
-    const auto& bounds = mesh->GetBoundingBox();
-    std::array<glm::vec3, 8> worldBounds;
-    for (int i = 0; i < 8; ++i) {
-        worldBounds[i] = glm::vec3(modelMatrix * glm::vec4(bounds[i], 1.0f));
-    }
-    return frustum.Intersects(worldBounds);
 }
 
 static constexpr int MAX_CANVAS_TEXTURES = 32;
@@ -265,10 +255,6 @@ void Renderer::DestroyFBOs() {
 }
 
 void Renderer::CreateRTs(const RenderTargetProps& props) {
-    if (SHADOW_W <= 0 || SHADOW_H <= 0) {
-        Console::Get()->Error(fmt::format("Shadow map size invalid: {}x{}", SHADOW_W, SHADOW_H));
-        return;
-    }
     // 1. Create and set shadow pass attachments
     for (int i = 0; i < MAX_UNI_LIGHTS; ++i) {
         GLuint map;
@@ -662,17 +648,7 @@ void ForwardOpaquePass::Execute(GraphicsServer* ctx, Renderer& renderer) {
     std::vector<RenderBatch> batches;
 
     if (!renderer.GetOpaqueQueue().empty()) {
-        if (FRUSTUM_CULLING_ON) {
-            std::vector<Renderer::SortableCommand> visibleCommands;
-            visibleCommands.reserve(renderer.GetOpaqueQueue().size());
-            Frustum camFrustum(projectionView);
-            for (const auto& cmd : renderer.GetOpaqueQueue()) {
-                visibleCommands.push_back(cmd);
-            }
-            batches = BuildBatches(visibleCommands);
-        } else {
-            batches = BuildBatches(renderer.GetOpaqueQueue());
-        }
+        batches = BuildBatches(renderer.GetOpaqueQueue());
     }
 
     // 2. Drawing Phase
@@ -934,17 +910,7 @@ void DeferredGeometryPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
     std::vector<RenderBatch> batches;
 
     if (!renderer.GetOpaqueQueue().empty()) {
-        if (FRUSTUM_CULLING_ON) {
-            std::vector<Renderer::SortableCommand> visibleCommands;
-            visibleCommands.reserve(renderer.GetOpaqueQueue().size());
-            Frustum camFrustum(ctx->GetMainCamera()->GetProjectionMatrix() * ctx->GetMainCamera()->GetViewMatrix());
-            for (const auto& cmd : renderer.GetOpaqueQueue()) {
-                visibleCommands.push_back(cmd);
-            }
-            batches = BuildBatches(visibleCommands);
-        } else {
-            batches = BuildBatches(renderer.GetOpaqueQueue());
-        }
+        batches = BuildBatches(renderer.GetOpaqueQueue());
     }
     for (const auto& batch : batches) {
         Mesh* mesh = batch.mesh;

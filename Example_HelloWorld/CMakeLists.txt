@@ -1,6 +1,16 @@
 set(GAME_NAME HelloWorld)
 set(GAME_ASSETS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/assets)
 
+find_package(glm CONFIG REQUIRED)
+find_package(fmt CONFIG REQUIRED)
+find_package(spdlog CONFIG REQUIRED)
+find_package(lua REQUIRED)
+find_package(Bullet CONFIG REQUIRED)
+find_package(glad CONFIG REQUIRED)
+
+# Assuming SDL3 is already available through FetchContent from parent CMakeLists
+# find_package(SDL3 CONFIG REQUIRED) # No need if SDL3 targets are globally available via FetchContent
+
 add_executable(${GAME_NAME}
     main.cpp
 )
@@ -8,7 +18,24 @@ set_target_properties(${GAME_NAME} PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${GAME_NAME}
 )
 
-target_link_libraries(${GAME_NAME} PRIVATE AtmosphericEngine)
+target_include_directories(${GAME_NAME} PUBLIC ${CMAKE_SOURCE_DIR}/AtmosphericEngine/include)
+
+target_link_libraries(${GAME_NAME} PRIVATE
+    AtmosphericEngine
+    glm::glm
+    fmt::fmt
+    EnTT::EnTT
+    BulletSoftBody
+    BulletDynamics
+    BulletCollision
+    LinearMath
+    ${LUA_LIBRARIES}
+    sol2
+    raudio
+    glad::glad
+    spdlog::spdlog
+    SDL3::SDL3
+)
 if(AE_USE_EMSCRIPTEN)
     set(CMAKE_EXECUTABLE_SUFFIX ".html")
     target_compile_options(${GAME_NAME} PRIVATE)

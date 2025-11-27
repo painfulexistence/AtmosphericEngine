@@ -9,6 +9,9 @@
 #include <atomic>
 #include <memory> // Required for std::unique_ptr
 
+// Declared here, defined in job_system.cpp
+extern thread_local int G_WORKER_THREAD_INDEX;
+
 using Job = std::function<void(int)>;
 
 class JobSystem {

@@ -37,6 +37,8 @@ if(NOT AE_USE_EMSCRIPTEN)
     find_package(glad CONFIG REQUIRED)
 endif()
 find_package(glm CONFIG REQUIRED)
+find_package(Tracy CONFIG OPTIONAL) # Use OPTIONAL so it doesn't fail if Tracy is not found
+option(AE_USE_TRACY "Enable Tracy profiler instrumentation" OFF)
 
 option(BUILD_BULLET2_DEMOS OFF)
 option(BUILD_CPU_DEMOS OFF)
@@ -156,6 +158,10 @@ else()
             glad::glad
             spdlog::spdlog
     )
+    if(AE_USE_TRACY AND TARGET Tracy::TracyClient)
+        target_link_libraries(AtmosphericEngine PUBLIC Tracy::TracyClient)
+        target_compile_definitions(AtmosphericEngine PUBLIC TRACY_ENABLE TRACY_ON_DEMAND)
+    endif()
     if(AE_USE_SDL3)
         target_link_libraries(AtmosphericEngine
             PUBLIC

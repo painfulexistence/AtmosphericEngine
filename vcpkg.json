@@ -14,6 +14,7 @@
     "fmt",
     "spdlog",
     "lua",
-    "tinygltf"
+    "tinygltf",
+    "tracy"
   ]
 }

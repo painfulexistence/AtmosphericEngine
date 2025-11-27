@@ -1,7 +1,21 @@
 #include "job_system.hpp"
 
+#ifdef TRACY_ENABLE
+#include <tracy/Tracy.hpp> // Include Tracy for its macros
+#endif
+
+// Define the thread-local variable for worker index
+#ifdef TRACY_ENABLE
+thread_local int G_WORKER_THREAD_INDEX = -1;
+#else
+thread_local int G_WORKER_THREAD_INDEX = -1; // Still useful for the design even without Tracy
+#endif
+
 // Tries to pop a job from the local queue or steal from another
 bool JobSystem::GetJob(Job& job, uint32_t thread_index) {
+#ifdef TRACY_ENABLE
+    ZoneScoped;
+#endif
     // First, try to pop from the front of the local queue
     {
         std::lock_guard<std::mutex> lock(*_threadMutexes[thread_index]);
@@ -44,9 +58,20 @@ JobSystem::JobSystem() {
 
     for (uint32_t threadID = 0; threadID < _numThreads; ++threadID) {
         _threads.emplace_back([this, threadID]() {
+#ifdef TRACY_ENABLE
+            // Set thread-local index and name for Tracy
+            G_WORKER_THREAD_INDEX = threadID;
+            tracy::SetThreadName(fmt::format("Worker Thread {}", threadID).c_str());
+#endif
             while (!_stopped) {
+#ifdef TRACY_ENABLE
+                ZoneScopedN("JobSystem Worker Loop"); // Scope for overall worker activity
+#endif
                 Job job;
                 if (GetJob(job, threadID)) {
+#ifdef TRACY_ENABLE
+                    ZoneScopedN("Execute Job"); // Scope for individual job execution
+#endif
                     job(threadID);
                     finishedLabel.fetch_add(1);
 
@@ -67,6 +92,9 @@ JobSystem::JobSystem() {
 
 JobSystem::~JobSystem() {
     _stopped = true;
+#ifdef TRACY_ENABLE
+    ClientDisconnect(); // Disconnect Tracy client on shutdown
+#endif
     for (auto& thread : _threads) {
         if (thread.joinable()) {
             thread.join();
@@ -79,12 +107,18 @@ void JobSystem::Init() {
 }
 
 void JobSystem::Execute(const Job& job) {
+#ifdef TRACY_ENABLE
+    ZoneScoped; // Profile job submission
+#endif
     currentLabel.fetch_add(1);
 
     // Round-robin assignment
     uint32_t queueIndex = _nextQueue.fetch_add(1) % _numThreads;
 
     {
+#ifdef TRACY_ENABLE
+        ZoneScopedN("Push Job to Queue");
+#endif
         std::lock_guard<std::mutex> lock(*_threadMutexes[queueIndex]);
         _threadQueues[queueIndex].push_back(job);
     }
@@ -94,13 +128,22 @@ void JobSystem::Execute(const Job& job) {
 }
 
 bool JobSystem::IsBusy() {
+#ifdef TRACY_ENABLE
+    ZoneScoped;
+#endif
     return finishedLabel.load() < currentLabel.load();
 }
 
 void JobSystem::Wait() {
+#ifdef TRACY_ENABLE
+    ZoneScoped;
+#endif
     while (IsBusy()) {
         // Help out while waiting
         // TODO: Implement work stealing for the main thread or just yield
         std::this_thread::yield();
     }
+#ifdef TRACY_ENABLE
+    FrameMark; // Explicitly mark frame boundary if waiting for jobs concludes a logical frame
+#endif
 }

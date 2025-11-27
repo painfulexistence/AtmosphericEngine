@@ -59,6 +59,9 @@ void Application::Run() {
 
     _window->MainLoop([this](float currTime, float deltaTime) {
         FrameData currFrame = { GetClock(), currTime, deltaTime };
+#ifdef TRACY_ENABLE
+        FrameMark;
+#endif
 #if SINGLE_THREAD
         Update(currFrame);
         Render(currFrame);
@@ -141,6 +144,9 @@ void Application::Quit() {
 }
 
 void Application::Update(const FrameData& props) {
+#ifdef TRACY_ENABLE
+    ZoneScoped;
+#endif
     float dt = props.deltaTime;
 
     OnUpdate(dt, GetWindowTime());
@@ -174,6 +180,9 @@ void Application::Update(const FrameData& props) {
 }
 
 void Application::Render(const FrameData& props) {
+#ifdef TRACY_ENABLE
+    ZoneScoped;
+#endif
     float dt = props.deltaTime;
     float time = GetWindowTime();
 

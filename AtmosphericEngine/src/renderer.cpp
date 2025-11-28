@@ -447,11 +447,13 @@ void Renderer::CreateCanvasVAO() {
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(CanvasVertex), (void*)0);
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(CanvasVertex), (void*)offsetof(CanvasVertex, texCoord));
     glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, sizeof(CanvasVertex), (void*)offsetof(CanvasVertex, color));
-    glVertexAttribPointer(3, 1, GL_INT, GL_FALSE, sizeof(CanvasVertex), (void*)offsetof(CanvasVertex, texIndex));
+    glVertexAttribIPointer(3, 1, GL_INT, sizeof(CanvasVertex), (void*)offsetof(CanvasVertex, texIndex));
+    glVertexAttribIPointer(4, 1, GL_INT, sizeof(CanvasVertex), (void*)offsetof(CanvasVertex, layer));
     glEnableVertexAttribArray(0);
     glEnableVertexAttribArray(1);
     glEnableVertexAttribArray(2);
     glEnableVertexAttribArray(3);
+    glEnableVertexAttribArray(4);
     glBindVertexArray(0);
 }
 
@@ -1059,6 +1061,28 @@ void MSAAResolvePass::Execute(GraphicsServer* ctx, Renderer& renderer) {
 void CanvasPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
     ctx->_canvasQuadCount = ctx->canvasDrawList.size() / 6;
     if (ctx->canvasDrawList.size() > 0) {
+        // Sort by layer (z-order)
+        // Each quad is 6 vertices (2 triangles), so we sort groups of 6
+        std::vector<std::array<CanvasVertex, 6>> quads;
+        quads.reserve(ctx->canvasDrawList.size() / 6);
+
+        for (size_t i = 0; i < ctx->canvasDrawList.size(); i += 6) {
+            std::array<CanvasVertex, 6> quad;
+            std::copy_n(ctx->canvasDrawList.begin() + i, 6, quad.begin());
+            quads.push_back(quad);
+        }
+
+        // Sort quads by layer (lower layer values draw first = behind)
+        std::sort(quads.begin(), quads.end(), [](const auto& a, const auto& b) {
+            return a[0].layer < b[0].layer;
+        });
+
+        // Flatten back to vertex list
+        ctx->canvasDrawList.clear();
+        for (const auto& quad : quads) {
+            ctx->canvasDrawList.insert(ctx->canvasDrawList.end(), quad.begin(), quad.end());
+        }
+
         auto [width, height] = Window::Get()->GetFramebufferSize();
 
         glViewport(0, 0, width, height);

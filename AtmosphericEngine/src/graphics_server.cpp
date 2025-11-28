@@ -137,7 +137,16 @@ void GraphicsServer::Render(float dt) {
         glm::vec2 pivot = d->GetPivot();
 
         PushCanvasQuad(
-          pos.x, pos.y, size.x, size.y, angle, pivot.x, pivot.y, d->GetColor(), static_cast<int>(d->GetTextureID())
+          pos.x,
+          pos.y,
+          size.x,
+          size.y,
+          angle,
+          pivot.x,
+          pivot.y,
+          d->GetColor(),
+          static_cast<int>(d->GetTextureID()),
+          d->GetLayer()
         );
     }
 
@@ -316,6 +325,7 @@ void GraphicsServer::PushCanvasQuad(
   float pivotY,
   const glm::vec4& color,
   int texIndex,
+  CanvasLayer layer,
   const glm::vec2& uvMin,
   const glm::vec2& uvMax
 ) {
@@ -335,12 +345,12 @@ void GraphicsServer::PushCanvasQuad(
     glm::vec4 tr = transform * glm::vec4(1.0f, 1.0f, 0.0f, 1.0f);
     glm::vec4 tl = transform * glm::vec4(0.0f, 1.0f, 0.0f, 1.0f);
 
-    canvasDrawList.push_back({ glm::vec2(bl), glm::vec2(uvMin.x, uvMin.y), color, texIndex });
-    canvasDrawList.push_back({ glm::vec2(br), glm::vec2(uvMax.x, uvMin.y), color, texIndex });
-    canvasDrawList.push_back({ glm::vec2(tr), glm::vec2(uvMax.x, uvMax.y), color, texIndex });
-    canvasDrawList.push_back({ glm::vec2(bl), glm::vec2(uvMin.x, uvMin.y), color, texIndex });
-    canvasDrawList.push_back({ glm::vec2(tr), glm::vec2(uvMax.x, uvMax.y), color, texIndex });
-    canvasDrawList.push_back({ glm::vec2(tl), glm::vec2(uvMin.x, uvMax.y), color, texIndex });
+    canvasDrawList.push_back({ glm::vec2(bl), glm::vec2(uvMin.x, uvMin.y), color, texIndex, layer });
+    canvasDrawList.push_back({ glm::vec2(br), glm::vec2(uvMax.x, uvMin.y), color, texIndex, layer });
+    canvasDrawList.push_back({ glm::vec2(tr), glm::vec2(uvMax.x, uvMax.y), color, texIndex, layer });
+    canvasDrawList.push_back({ glm::vec2(bl), glm::vec2(uvMin.x, uvMin.y), color, texIndex, layer });
+    canvasDrawList.push_back({ glm::vec2(tr), glm::vec2(uvMax.x, uvMax.y), color, texIndex, layer });
+    canvasDrawList.push_back({ glm::vec2(tl), glm::vec2(uvMin.x, uvMax.y), color, texIndex, layer });
 }
 
 void GraphicsServer::PushCanvasQuadTiled(
@@ -353,12 +363,13 @@ void GraphicsServer::PushCanvasQuadTiled(
   float pivotY,
   const glm::vec4& color,
   int texIndex,
+  CanvasLayer layer,
   const glm::vec2& tilesetSize,
   const glm::vec2& tileIndex
 ) {
     glm::vec2 uvMin = tileIndex / tilesetSize;
     glm::vec2 uvMax = (tileIndex + glm::vec2(1.0f)) / tilesetSize;
-    PushCanvasQuad(x, y, w, h, angle, pivotX, pivotY, color, texIndex, uvMin, uvMax);
+    PushCanvasQuad(x, y, w, h, angle, pivotX, pivotY, color, texIndex, layer, uvMin, uvMax);
 }
 
 

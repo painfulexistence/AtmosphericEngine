@@ -5,6 +5,7 @@
 #include "shader.hpp"
 #include "vertex.hpp"
 #include <cstdint>
+#include <glm/gtc/quaternion.hpp>
 #include <vector>
 
 enum class MeshType {

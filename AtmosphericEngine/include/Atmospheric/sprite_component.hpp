@@ -1,6 +1,7 @@
 #pragma once
 #include "component.hpp"
 #include "globals.hpp"
+#include "graphics_server.hpp"
 #include <glm/vec2.hpp>
 #include <glm/vec4.hpp>
 
@@ -8,7 +9,8 @@ struct SpriteProps {
     glm::vec2 size = glm::vec2(100.0f, 100.0f);
     glm::vec2 pivot = glm::vec2(0.5f, 0.5f);
     glm::vec4 color = glm::vec4(1.0f);
-    uint8_t textureID = 0;
+    int textureID = -1;
+    CanvasLayer layer = CanvasLayer::LAYER_WORLD;// Default to main game layer
 };
 
 class SpriteComponent : public Component {
@@ -34,7 +36,7 @@ public:
     glm::vec4 GetColor() {
         return _color;
     }
-    uint8_t GetTextureID() {
+    int GetTextureID() {
         return _textureID;
     }
 
@@ -47,13 +49,21 @@ public:
     void SetColor(const glm::vec4& color) {
         _color = color;
     }
-    void SetTextureID(uint8_t textureID) {
+    void SetTextureID(int textureID) {
         _textureID = textureID;
+    }
+
+    CanvasLayer GetLayer() const {
+        return _layer;
+    }
+    void SetLayer(CanvasLayer layer) {
+        _layer = layer;
     }
 
 private:
     glm::vec2 _size;// Base size in pixels
     glm::vec2 _pivot;// Pivot point (0,0 = top-left, 1,1 = bottom-right)
     glm::vec4 _color;
-    uint8_t _textureID;
+    int _textureID;
+    CanvasLayer _layer;
 };

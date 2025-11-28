@@ -1137,3 +1137,9 @@ void PostProcessPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
 
     renderer.CheckErrors("Post process pass");
 }
+
+void UIPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
+    // RmlUi rendering is handled by RmlUiManager
+    // This pass is intentionally empty as RmlUi has its own render interface
+    // The RmlUiManager::Render() should be called separately after the main render pipeline
+}

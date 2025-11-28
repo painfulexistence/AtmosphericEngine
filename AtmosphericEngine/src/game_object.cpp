@@ -21,11 +21,13 @@ void GameObject::AddComponent(Component* component) {
     _components.push_back(component);
     // _namedComponents.insert_or_assign(component->GetName(), component);
     component->gameObject = this;
+    component->OnAttach();
 }
 
 void GameObject::RemoveComponent(Component* component) {
     auto it = std::find(_components.begin(), _components.end(), component);
     if (it != _components.end()) {
+        component->OnDetach();
         _components.erase(it);
     }
     // _namedComponents.erase(component->GetName());

@@ -463,7 +463,7 @@ void Renderer::CreateCanvasVAO() {
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(CanvasVertex), (void*)0);
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(CanvasVertex), (void*)offsetof(CanvasVertex, texCoord));
     glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, sizeof(CanvasVertex), (void*)offsetof(CanvasVertex, color));
-    glVertexAttribPointer(3, 1, GL_INT, GL_FALSE, sizeof(CanvasVertex), (void*)offsetof(CanvasVertex, texIndex));
+    glVertexAttribIPointer(3, 1, GL_INT, sizeof(CanvasVertex), (void*)offsetof(CanvasVertex, texIndex));
     glEnableVertexAttribArray(0);
     glEnableVertexAttribArray(1);
     glEnableVertexAttribArray(2);
@@ -1079,11 +1079,32 @@ void MSAAResolvePass::Execute(GraphicsServer* ctx, Renderer& renderer) {
 void CanvasPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
     ctx->_canvasQuadCount = ctx->canvasDrawList.size() / 6;
     if (ctx->canvasDrawList.size() > 0) {
+        // Sort by layer (z-order)
+        // Each quad is 6 vertices (2 triangles), so we sort groups of 6
+        std::vector<std::array<CanvasVertex, 6>> quads;
+        quads.reserve(ctx->canvasDrawList.size() / 6);
+
+        for (size_t i = 0; i < ctx->canvasDrawList.size(); i += 6) {
+            std::array<CanvasVertex, 6> quad;
+            std::copy_n(ctx->canvasDrawList.begin() + i, 6, quad.begin());
+            quads.push_back(quad);
+        }
+
+        // Sort quads by layer (lower layer values draw first = behind)
+        std::sort(quads.begin(), quads.end(), [](const auto& a, const auto& b) { return a[0].layer < b[0].layer; });
+
+        // Flatten back to vertex list
+        ctx->canvasDrawList.clear();
+        for (const auto& quad : quads) {
+            ctx->canvasDrawList.insert(ctx->canvasDrawList.end(), quad.begin(), quad.end());
+        }
+
         auto [width, height] = Window::Get()->GetFramebufferSize();
 
         glViewport(0, 0, width, height);
         glBindFramebuffer(GL_FRAMEBUFFER, renderer.postProcessEnabled ? renderer.msaaResolveFBO : renderer.finalFBO);
         glDisable(GL_DEPTH_TEST);
+        glDisable(GL_CULL_FACE);
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 #ifndef __EMSCRIPTEN__
@@ -1126,6 +1147,7 @@ void CanvasPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
 
         glDisable(GL_BLEND);
         glEnable(GL_DEPTH_TEST);
+        glEnable(GL_CULL_FACE);
     }
 }
 
@@ -1156,4 +1178,10 @@ void PostProcessPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
     renderer.CheckErrors("Post process pass");
+}
+
+void UIPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
+    // RmlUi rendering is handled by RmlUiManager
+    // This pass is intentionally empty as RmlUi has its own render interface
+    // The RmlUiManager::Render() should be called separately after the main render pipeline
 }

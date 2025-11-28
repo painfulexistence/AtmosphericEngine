@@ -51,11 +51,12 @@ bool RmlUiManager::Initialize(int width, int height) {
         return false;
     }
 
-    // Load default fonts
-    // Note: You'll need to provide font files in your assets directory
-    if (!Rml::LoadFontFace("assets/fonts/LatoLatin-Regular.ttf")) {
-        spdlog::warn("Failed to load default font, UI text may not render correctly");
-        // Try to load a fallback font or continue without it
+    // Load fonts
+    if (!Rml::LoadFontFace("assets/fonts/Arial Black.ttf")) {
+        spdlog::warn(
+          "Failed to load default font, UI text may not render correctly. Consider using 'rmlui-debugger-font' in your "
+          "RCSS."
+        );
     }
 
     // Create the main UI context

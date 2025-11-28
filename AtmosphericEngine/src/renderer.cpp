@@ -448,12 +448,10 @@ void Renderer::CreateCanvasVAO() {
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(CanvasVertex), (void*)offsetof(CanvasVertex, texCoord));
     glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, sizeof(CanvasVertex), (void*)offsetof(CanvasVertex, color));
     glVertexAttribIPointer(3, 1, GL_INT, sizeof(CanvasVertex), (void*)offsetof(CanvasVertex, texIndex));
-    glVertexAttribIPointer(4, 1, GL_INT, sizeof(CanvasVertex), (void*)offsetof(CanvasVertex, layer));
     glEnableVertexAttribArray(0);
     glEnableVertexAttribArray(1);
     glEnableVertexAttribArray(2);
     glEnableVertexAttribArray(3);
-    glEnableVertexAttribArray(4);
     glBindVertexArray(0);
 }
 
@@ -1073,9 +1071,7 @@ void CanvasPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
         }
 
         // Sort quads by layer (lower layer values draw first = behind)
-        std::sort(quads.begin(), quads.end(), [](const auto& a, const auto& b) {
-            return a[0].layer < b[0].layer;
-        });
+        std::sort(quads.begin(), quads.end(), [](const auto& a, const auto& b) { return a[0].layer < b[0].layer; });
 
         // Flatten back to vertex list
         ctx->canvasDrawList.clear();
@@ -1088,6 +1084,7 @@ void CanvasPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
         glViewport(0, 0, width, height);
         glBindFramebuffer(GL_FRAMEBUFFER, renderer.postProcessEnabled ? renderer.msaaResolveFBO : renderer.finalFBO);
         glDisable(GL_DEPTH_TEST);
+        glDisable(GL_CULL_FACE);
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 #ifndef __EMSCRIPTEN__
@@ -1130,6 +1127,7 @@ void CanvasPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
 
         glDisable(GL_BLEND);
         glEnable(GL_DEPTH_TEST);
+        glEnable(GL_CULL_FACE);
     }
 }
 

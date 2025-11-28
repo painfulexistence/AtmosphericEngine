@@ -1,8 +1,8 @@
 #include "rmlui_renderer.hpp"
 #include <RmlUi/Core.h>
-#include <spdlog/spdlog.h>
-#include <glm/gtc/type_ptr.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
+#include <spdlog/spdlog.h>
 
 // Vertex shader for RmlUi rendering
 static const char* VERTEX_SHADER_SOURCE = R"(
@@ -52,15 +52,43 @@ RmlUiRenderer::~RmlUiRenderer() {
 }
 
 void RmlUiRenderer::Initialize() {
-    // Create VAO, VBO, EBO
-    glGenVertexArrays(1, &m_vao);
-    glGenBuffers(1, &m_vbo);
-    glGenBuffers(1, &m_ebo);
+    CreateShaders();
+    spdlog::info("RmlUi renderer initialized");
+}
 
-    glBindVertexArray(m_vao);
+void RmlUiRenderer::Shutdown() {
+    for (auto& pair : m_textures) {
+        glDeleteTextures(1, &pair.second.id);
+    }
+    m_textures.clear();
 
-    // Setup vertex attributes
-    glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
+    DeleteShaders();
+}
+
+void RmlUiRenderer::BeginFrame(int width, int height) {
+    m_viewport_width = width;
+    m_viewport_height = height;
+    m_projection = glm::ortho(0.0f, (float)width, (float)height, 0.0f, -1.0f, 1.0f);
+    glDisable(GL_DEPTH_TEST);
+    glDisable(GL_CULL_FACE);
+}
+
+void RmlUiRenderer::EndFrame() {
+    glEnable(GL_DEPTH_TEST);
+    glEnable(GL_CULL_FACE);
+}
+
+Rml::CompiledGeometryHandle
+  RmlUiRenderer::CompileGeometry(Rml::Span<const Rml::Vertex> vertices, Rml::Span<const int> indices) {
+    GLuint vao, vbo, ebo;
+    glGenVertexArrays(1, &vao);
+    glGenBuffers(1, &vbo);
+    glGenBuffers(1, &ebo);
+
+    glBindVertexArray(vao);
+
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(Rml::Vertex), vertices.data(), GL_STATIC_DRAW);
 
     // Position (vec2)
     glEnableVertexAttribArray(0);
@@ -74,55 +102,24 @@ void RmlUiRenderer::Initialize() {
     glEnableVertexAttribArray(2);
     glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Rml::Vertex), (void*)offsetof(Rml::Vertex, tex_coord));
 
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_ebo);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(int), indices.data(), GL_STATIC_DRAW);
 
     glBindVertexArray(0);
 
-    CreateShaders();
+    Rml::CompiledGeometryHandle handle = m_next_geometry_handle++;
+    m_geometry[handle] = { vao, vbo, ebo, (int)indices.size() };
 
-    spdlog::info("RmlUi renderer initialized");
-}
-
-void RmlUiRenderer::Shutdown() {
-    // Delete textures
-    for (auto& pair : m_textures) {
-        glDeleteTextures(1, &pair.second.id);
-    }
-    m_textures.clear();
-
-    // Delete OpenGL resources
-    if (m_vao) glDeleteVertexArrays(1, &m_vao);
-    if (m_vbo) glDeleteBuffers(1, &m_vbo);
-    if (m_ebo) glDeleteBuffers(1, &m_ebo);
-
-    DeleteShaders();
-
-    m_vao = 0;
-    m_vbo = 0;
-    m_ebo = 0;
-}
-
-void RmlUiRenderer::BeginFrame(int width, int height) {
-    m_viewport_width = width;
-    m_viewport_height = height;
-
-    // Create orthographic projection matrix for 2D rendering
-    m_projection = glm::ortho(0.0f, (float)width, (float)height, 0.0f, -1.0f, 1.0f);
-}
-
-void RmlUiRenderer::EndFrame() {
-    // Nothing to do here for now
+    return handle;
 }
 
 void RmlUiRenderer::RenderGeometry(
-    Rml::Vertex* vertices,
-    int num_vertices,
-    int* indices,
-    int num_indices,
-    Rml::TextureHandle texture,
-    const Rml::Vector2f& translation
+  Rml::CompiledGeometryHandle geometry, Rml::Vector2f translation, Rml::TextureHandle texture
 ) {
-    if (num_vertices == 0 || num_indices == 0) return;
+    auto it = m_geometry.find(geometry);
+    if (it == m_geometry.end()) return;
+
+    const CompiledGeometry& geom = it->second;
 
     // Enable blending for UI rendering
     glEnable(GL_BLEND);
@@ -148,10 +145,10 @@ void RmlUiRenderer::RenderGeometry(
     glUniform1i(has_texture_loc, has_texture);
 
     if (has_texture) {
-        auto it = m_textures.find(texture);
-        if (it != m_textures.end()) {
+        auto tex_it = m_textures.find(texture);
+        if (tex_it != m_textures.end()) {
             glActiveTexture(GL_TEXTURE0);
-            glBindTexture(GL_TEXTURE_2D, it->second.id);
+            glBindTexture(GL_TEXTURE_2D, tex_it->second.id);
             GLint texture_loc = glGetUniformLocation(m_shader_program, "uTexture");
             glUniform1i(texture_loc, 0);
         }
@@ -160,64 +157,56 @@ void RmlUiRenderer::RenderGeometry(
     // Setup scissor test
     if (m_scissor.enabled) {
         glEnable(GL_SCISSOR_TEST);
-        glScissor(m_scissor.x, m_viewport_height - (m_scissor.y + m_scissor.height),
-                  m_scissor.width, m_scissor.height);
+        glScissor(m_scissor.x, m_viewport_height - (m_scissor.y + m_scissor.height), m_scissor.width, m_scissor.height);
     } else {
         glDisable(GL_SCISSOR_TEST);
     }
 
-    // Upload vertex data
-    glBindVertexArray(m_vao);
-    glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
-    glBufferData(GL_ARRAY_BUFFER, num_vertices * sizeof(Rml::Vertex), vertices, GL_STREAM_DRAW);
-
-    // Upload index data
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_ebo);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, num_indices * sizeof(int), indices, GL_STREAM_DRAW);
-
     // Draw
-    glDrawElements(GL_TRIANGLES, num_indices, GL_UNSIGNED_INT, nullptr);
-
-    // Cleanup
+    glBindVertexArray(geom.vao);
+    glDrawElements(GL_TRIANGLES, geom.num_indices, GL_UNSIGNED_INT, nullptr);
     glBindVertexArray(0);
+
     glUseProgram(0);
     glDisable(GL_SCISSOR_TEST);
+}
+
+void RmlUiRenderer::ReleaseGeometry(Rml::CompiledGeometryHandle geometry) {
+    auto it = m_geometry.find(geometry);
+    if (it != m_geometry.end()) {
+        glDeleteVertexArrays(1, &it->second.vao);
+        glDeleteBuffers(1, &it->second.vbo);
+        glDeleteBuffers(1, &it->second.ebo);
+        m_geometry.erase(it);
+    }
 }
 
 void RmlUiRenderer::EnableScissorRegion(bool enable) {
     m_scissor.enabled = enable;
 }
 
-void RmlUiRenderer::SetScissorRegion(int x, int y, int width, int height) {
-    m_scissor.x = x;
-    m_scissor.y = y;
-    m_scissor.width = width;
-    m_scissor.height = height;
+void RmlUiRenderer::SetScissorRegion(Rml::Rectanglei region) {
+    m_scissor.x = region.Left();
+    m_scissor.y = region.Top();
+    m_scissor.width = region.Width();
+    m_scissor.height = region.Height();
 }
 
-bool RmlUiRenderer::LoadTexture(
-    Rml::TextureHandle& texture_handle,
-    Rml::Vector2i& texture_dimensions,
-    const Rml::String& source
-) {
+Rml::TextureHandle RmlUiRenderer::LoadTexture(Rml::Vector2i& texture_dimensions, const Rml::String& source) {
     // For now, we'll just log that a texture was requested
     // In a full implementation, you'd load the image file here
     spdlog::warn("RmlUi texture loading not fully implemented: {}", source);
-    texture_handle = 0;
-    return false;
+    return 0;
 }
 
-bool RmlUiRenderer::GenerateTexture(
-    Rml::TextureHandle& texture_handle,
-    const Rml::byte* source,
-    const Rml::Vector2i& source_dimensions
-) {
+Rml::TextureHandle RmlUiRenderer::GenerateTexture(Rml::Span<const Rml::byte> source, Rml::Vector2i source_dimensions) {
     GLuint texture_id;
     glGenTextures(1, &texture_id);
     glBindTexture(GL_TEXTURE_2D, texture_id);
 
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, source_dimensions.x, source_dimensions.y,
-                 0, GL_RGBA, GL_UNSIGNED_BYTE, source);
+    glTexImage2D(
+      GL_TEXTURE_2D, 0, GL_RGBA8, source_dimensions.x, source_dimensions.y, 0, GL_RGBA, GL_UNSIGNED_BYTE, source.data()
+    );
 
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -226,10 +215,10 @@ bool RmlUiRenderer::GenerateTexture(
 
     glBindTexture(GL_TEXTURE_2D, 0);
 
-    texture_handle = m_next_texture_handle++;
+    Rml::TextureHandle texture_handle = m_next_texture_handle++;
     m_textures[texture_handle] = { texture_id, source_dimensions.x, source_dimensions.y };
 
-    return true;
+    return texture_handle;
 }
 
 void RmlUiRenderer::ReleaseTexture(Rml::TextureHandle texture_handle) {
@@ -244,7 +233,7 @@ void RmlUiRenderer::SetTransform(const Rml::Matrix4f* transform) {
     if (transform) {
         // Convert RmlUi matrix to glm matrix
         // RmlUi uses column-major ordering like OpenGL
-        m_transform = glm::make_mat4(&(*transform)(0, 0));
+        m_transform = glm::make_mat4(transform->data());
     } else {
         m_transform = glm::mat4(1.0f);
     }

@@ -137,7 +137,16 @@ void GraphicsServer::Render(float dt) {
         glm::vec2 pivot = d->GetPivot();
 
         PushCanvasQuad(
-          pos.x, pos.y, size.x, size.y, angle, pivot.x, pivot.y, d->GetColor(), static_cast<int>(d->GetTextureID()), d->GetLayer()
+          pos.x,
+          pos.y,
+          size.x,
+          size.y,
+          angle,
+          pivot.x,
+          pivot.y,
+          d->GetColor(),
+          static_cast<int>(d->GetTextureID()),
+          d->GetLayer()
         );
     }
 
@@ -316,7 +325,7 @@ void GraphicsServer::PushCanvasQuad(
   float pivotY,
   const glm::vec4& color,
   int texIndex,
-  int layer,
+  CanvasLayer layer,
   const glm::vec2& uvMin,
   const glm::vec2& uvMax
 ) {
@@ -354,7 +363,7 @@ void GraphicsServer::PushCanvasQuadTiled(
   float pivotY,
   const glm::vec4& color,
   int texIndex,
-  int layer,
+  CanvasLayer layer,
   const glm::vec2& tilesetSize,
   const glm::vec2& tileIndex
 ) {

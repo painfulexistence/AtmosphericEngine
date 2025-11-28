@@ -1,15 +1,15 @@
 {
-    "name": "atmospheric-engine",
-    "version": "0.1.0",
-    "license": "GPL-3.0",
-    "dependencies": [
-      "glad",
-      "glm",
-      "bullet3",
-      "fmt",
-      "spdlog",
-      "lua",
-      "tinygltf",
-      "rmlui"
-    ]
+  "name": "atmospheric-engine",
+  "version": "0.1.0",
+  "license": "GPL-3.0",
+  "dependencies": [
+    "glad",
+    "glm",
+    "bullet3",
+    "fmt",
+    "spdlog",
+    "lua",
+    "tinygltf",
+    "rmlui"
+  ]
 }

@@ -6,26 +6,27 @@
 #include "mesh_component.hpp"
 #include "server.hpp"
 #include "shader.hpp"
-#include "sprite_component.hpp"
 #include <glm/mat4x4.hpp>
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
 #include <unordered_map>
 
+class SpriteComponent;
+
 enum class DrawMode { Static, Dynamic, Stream };
 
 // Canvas layer constants for z-ordering
-enum CanvasLayer {
-    LAYER_BACKGROUND = 0,      // Far background (parallax, sky)
-    LAYER_WORLD_BACK = 10,     // Background game objects
-    LAYER_WORLD = 50,          // Main game objects (player, enemies)
-    LAYER_WORLD_FRONT = 90,    // Foreground game objects
-    LAYER_EFFECTS = 100,       // Particle effects, damage numbers
-    LAYER_UI_BACK = 200,       // UI background elements
-    LAYER_UI = 300,            // Main UI elements (HUD, health bars)
-    LAYER_UI_FRONT = 400,      // Popups, tooltips
-    LAYER_OVERLAY = 500,       // Debug overlay, screen fade
+enum class CanvasLayer {
+    LAYER_BACKGROUND = 0,// Far background (parallax, sky)
+    LAYER_WORLD_BACK = 10,// Background game objects
+    LAYER_WORLD = 50,// Main game objects (player, enemies)
+    LAYER_WORLD_FRONT = 90,// Foreground game objects
+    LAYER_EFFECTS = 100,// Particle effects, damage numbers
+    LAYER_UI_BACK = 200,// UI background elements
+    LAYER_UI = 300,// Main UI elements (HUD, health bars)
+    LAYER_UI_FRONT = 400,// Popups, tooltips
+    LAYER_OVERLAY = 500,// Debug overlay, screen fade
 };
 
 struct CanvasVertex {
@@ -33,7 +34,7 @@ struct CanvasVertex {
     glm::vec2 texCoord;
     glm::vec4 color;
     int texIndex;
-    int layer;  // Z-order layer for sorting
+    CanvasLayer layer;// Z-order layer for sorting
 };
 
 struct ScreenVertex {
@@ -148,7 +149,7 @@ private:
       float pivotY,
       const glm::vec4& color,
       int texIndex,
-      int layer = LAYER_WORLD,
+      CanvasLayer layer = CanvasLayer::LAYER_WORLD,
       const glm::vec2& uvMin = glm::vec2(0.0f),
       const glm::vec2& uvMax = glm::vec2(1.0f)
     );
@@ -162,7 +163,7 @@ private:
       float pivotY,
       const glm::vec4& color,
       int texIndex,
-      int layer = LAYER_WORLD,
+      CanvasLayer layer = CanvasLayer::LAYER_WORLD,
       const glm::vec2& tilesetSize = glm::vec2(1.0f),
       const glm::vec2& tileIndex = glm::vec2(0.0f)
     );

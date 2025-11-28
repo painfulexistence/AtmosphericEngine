@@ -6,8 +6,6 @@
 class RmlUiRenderer;
 class RmlUiSystem;
 
-namespace Rml = Rml;
-
 class RmlUiManager {
 public:
     static RmlUiManager* Get();
@@ -20,6 +18,11 @@ public:
 
     // Shutdown RmlUi
     void Shutdown();
+
+    // Check if RmlUi is initialized
+    bool IsInitialized() const {
+        return m_initialized;
+    }
 
     // Update RmlUi (call once per frame)
     void Update(float deltaTime);
@@ -37,7 +40,9 @@ public:
     void HideDocument(const std::string& id);
 
     // Context access
-    Rml::Context* GetContext() { return m_context; }
+    Rml::Context* GetContext() {
+        return m_context;
+    }
 
     // Input handling - to be called from the input system
     void ProcessKeyDown(Rml::Input::KeyIdentifier key, int key_modifier);

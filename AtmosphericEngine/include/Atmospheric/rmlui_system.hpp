@@ -2,8 +2,6 @@
 #include <RmlUi/Core/SystemInterface.h>
 #include <RmlUi/Core/Types.h>
 
-namespace Rml = Rml;
-
 class RmlUiSystem : public Rml::SystemInterface {
 public:
     RmlUiSystem();

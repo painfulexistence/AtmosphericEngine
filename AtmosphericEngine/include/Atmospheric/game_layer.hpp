@@ -9,8 +9,6 @@ public:
     GameLayer(Application* app);
     ~GameLayer() = default;
 
-    void OnAttach() override;
-    void OnDetach() override;
     void OnUpdate(float dt) override;
     void OnRender(float dt) override;
 

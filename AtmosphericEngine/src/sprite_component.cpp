@@ -8,6 +8,7 @@ SpriteComponent::SpriteComponent(GameObject* gameObject, const SpriteProps& prop
     _color = props.color;
     _pivot = props.pivot;
     _textureID = props.textureID;
+    _layer = props.layer;
 
     this->gameObject = gameObject;
     this->gameObject->AddComponent(this);

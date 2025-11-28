@@ -137,7 +137,7 @@ void GraphicsServer::Render(float dt) {
         glm::vec2 pivot = d->GetPivot();
 
         PushCanvasQuad(
-          pos.x, pos.y, size.x, size.y, angle, pivot.x, pivot.y, d->GetColor(), static_cast<int>(d->GetTextureID())
+          pos.x, pos.y, size.x, size.y, angle, pivot.x, pivot.y, d->GetColor(), static_cast<int>(d->GetTextureID()), d->GetLayer()
         );
     }
 

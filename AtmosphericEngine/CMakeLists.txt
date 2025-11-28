@@ -37,6 +37,8 @@ if(NOT AE_USE_EMSCRIPTEN)
     find_package(glad CONFIG REQUIRED)
 endif()
 find_package(glm CONFIG REQUIRED)
+find_package(Tracy CONFIG)
+option(AE_USE_TRACY "Enable Tracy profiler instrumentation" OFF)
 
 option(BUILD_BULLET2_DEMOS OFF)
 option(BUILD_CPU_DEMOS OFF)
@@ -87,6 +89,7 @@ set(SOURCES
     src/scene.cpp
     src/asset_manager.cpp
     src/job_system.cpp
+    src/bullet_task_scheduler.cpp
     src/particle_server.cpp
     src/particle_emitter.cpp
     src/file.cpp
@@ -145,6 +148,7 @@ if (AE_USE_AUDIO)
     )
 endif()
 if(AE_USE_EMSCRIPTEN)
+    target_compile_definitions(AtmosphericEngine PUBLIC BT_THREADSAFE=1)
     target_compile_options(AtmosphericEngine PRIVATE)
     if(AE_USE_SDL3)
         target_link_options(AtmosphericEngine PRIVATE -sWASM=1 -O3 -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2 -sFULL_ES3=1)
@@ -154,10 +158,16 @@ if(AE_USE_EMSCRIPTEN)
         target_link_options(AtmosphericEngine PRIVATE -sWASM=1 -O3 -sUSE_GLFW=3 -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2 -sFULL_ES3=1)
     endif()
 else()
+    target_compile_definitions(AtmosphericEngine PUBLIC BT_THREADSAFE=1)
     target_link_libraries(AtmosphericEngine
         PUBLIC
-            glad::glad spdlog::spdlog
+            glad::glad
+            spdlog::spdlog
     )
+    if(AE_USE_TRACY)
+        target_link_libraries(AtmosphericEngine PUBLIC Tracy::TracyClient)
+        target_compile_definitions(AtmosphericEngine PUBLIC TRACY_ENABLE TRACY_VERBOSE TRACY_ON_DEMAND)
+    endif()
     if(AE_USE_SDL3)
         target_link_libraries(AtmosphericEngine
             PUBLIC

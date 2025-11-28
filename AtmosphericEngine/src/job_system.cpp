@@ -1,14 +1,14 @@
 #include "job_system.hpp"
 
 #ifdef TRACY_ENABLE
-#include <tracy/Tracy.hpp> // Include Tracy for its macros
+#include <tracy/Tracy.hpp>// Include Tracy for its macros
 #endif
 
 // Define the thread-local variable for worker index
 #ifdef TRACY_ENABLE
 thread_local int G_WORKER_THREAD_INDEX = -1;
 #else
-thread_local int G_WORKER_THREAD_INDEX = -1; // Still useful for the design even without Tracy
+thread_local int G_WORKER_THREAD_INDEX = -1;// Still useful for the design even without Tracy
 #endif
 
 // Tries to pop a job from the local queue or steal from another
@@ -65,12 +65,12 @@ JobSystem::JobSystem() {
 #endif
             while (!_stopped) {
 #ifdef TRACY_ENABLE
-                ZoneScopedN("JobSystem Worker Loop"); // Scope for overall worker activity
+                ZoneScopedN("JobSystem Worker Loop");// Scope for overall worker activity
 #endif
                 Job job;
                 if (GetJob(job, threadID)) {
 #ifdef TRACY_ENABLE
-                    ZoneScopedN("Execute Job"); // Scope for individual job execution
+                    ZoneScopedN("Execute Job");// Scope for individual job execution
 #endif
                     job(threadID);
                     finishedLabel.fetch_add(1);
@@ -92,9 +92,6 @@ JobSystem::JobSystem() {
 
 JobSystem::~JobSystem() {
     _stopped = true;
-#ifdef TRACY_ENABLE
-    ClientDisconnect(); // Disconnect Tracy client on shutdown
-#endif
     for (auto& thread : _threads) {
         if (thread.joinable()) {
             thread.join();
@@ -108,7 +105,7 @@ void JobSystem::Init() {
 
 void JobSystem::Execute(const Job& job) {
 #ifdef TRACY_ENABLE
-    ZoneScoped; // Profile job submission
+    ZoneScoped;// Profile job submission
 #endif
     currentLabel.fetch_add(1);
 
@@ -144,6 +141,6 @@ void JobSystem::Wait() {
         std::this_thread::yield();
     }
 #ifdef TRACY_ENABLE
-    FrameMark; // Explicitly mark frame boundary if waiting for jobs concludes a logical frame
+    FrameMark;// Explicitly mark frame boundary if waiting for jobs concludes a logical frame
 #endif
 }

@@ -51,17 +51,7 @@ find_package(Bullet CONFIG REQUIRED)
 find_package(fmt REQUIRED)
 find_package(spdlog REQUIRED)
 find_package(lua REQUIRED)
-
-# RmlUi for game UI
-FetchContent_Declare(
-    RmlUi
-    GIT_REPOSITORY https://github.com/mikke89/RmlUi.git
-    GIT_TAG 6.0
-)
-set(DISABLE_RTTI_AND_EXCEPTIONS OFF CACHE BOOL "" FORCE)
-set(NO_FONT_INTERFACE_DEFAULT OFF CACHE BOOL "" FORCE)
-set(NO_THIRDPARTY_CONTAINERS OFF CACHE BOOL "" FORCE)
-FetchContent_MakeAvailable(RmlUi)
+find_package(RmlUi REQUIRED)
 
 add_subdirectory(external/entt)
 add_subdirectory(external/sol2)
@@ -144,7 +134,7 @@ target_include_directories(AtmosphericEngine
 target_precompile_headers(AtmosphericEngine PRIVATE src/pch.hpp)
 target_link_libraries(AtmosphericEngine
     PUBLIC
-        glm::glm fmt::fmt EnTT::EnTT BulletSoftBody BulletDynamics BulletCollision LinearMath ${LUA_LIBRARIES} sol2 raudio RmlCore RmlDebugger
+        glm::glm fmt::fmt EnTT::EnTT BulletSoftBody BulletDynamics BulletCollision LinearMath ${LUA_LIBRARIES} sol2 raudio RmlUi::RmlUi
 )
 if (AE_USE_AUDIO)
     target_link_libraries(AtmosphericEngine

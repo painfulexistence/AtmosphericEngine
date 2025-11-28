@@ -139,18 +139,21 @@ void GraphicsServer::Render(CameraComponent* camera, float dt) {
         // Frustum Culling
         const auto& transform = r->gameObject->GetTransform();
 
-        const auto& boundingBox = mesh->GetBoundingBox();
-        std::array<glm::vec3, 8> worldBounds;
-        bool hasValidBounds = false;
-        for (int i = 0; i < 8; ++i) {
-            if (boundingBox[i] != glm::vec3(0.0f)) {
-                hasValidBounds = true;
+        if (FRUSTUM_CULLING_ON) {
+            ZoneScopedN("Frustum Culling");
+            const auto& boundingBox = mesh->GetBoundingBox();
+            std::array<glm::vec3, 8> worldBounds;
+            bool hasValidBounds = false;
+            for (int i = 0; i < 8; ++i) {
+                if (boundingBox[i] != glm::vec3(0.0f)) {
+                    hasValidBounds = true;
+                }
+                worldBounds[i] = transform * glm::vec4(boundingBox[i], 1.0f);
             }
-            worldBounds[i] = transform * glm::vec4(boundingBox[i], 1.0f);
-        }
-        if (FRUSTUM_CULLING_ON && hasValidBounds && !frustum.Intersects(worldBounds)) {
-            culledCount++;
-            return;
+            if (hasValidBounds && !frustum.Intersects(worldBounds)) {
+                culledCount++;
+                continue;
+            }
         }
 
         RenderCommand cmd{ .mesh = mesh, .transform = transform };

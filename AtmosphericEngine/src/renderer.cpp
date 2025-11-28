@@ -5,6 +5,7 @@
 #include "particle_server.hpp"
 #include "window.hpp"
 #include <algorithm>
+#include <tracy/Tracy.hpp>
 
 struct RenderBatch {
     Mesh* mesh = nullptr;
@@ -507,6 +508,7 @@ void Renderer::CreateDebugVAO() {
 }
 
 void ShadowPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
+    ZoneScopedN("ShadowPass");
     glViewport(0, 0, SHADOW_W, SHADOW_H);
 #ifndef __EMSCRIPTEN__
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
@@ -630,6 +632,7 @@ void ShadowPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
 }
 
 void ForwardOpaquePass::Execute(GraphicsServer* ctx, Renderer& renderer) {
+    ZoneScopedN("ForwardOpaquePass");
     auto [width, height] = Window::Get()->GetFramebufferSize();
     glViewport(0, 0, width, height);
 
@@ -892,6 +895,7 @@ void ForwardOpaquePass::Execute(GraphicsServer* ctx, Renderer& renderer) {
 }
 
 void DeferredGeometryPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
+    ZoneScopedN("DeferredGeometryPass");
     auto [width, height] = Window::Get()->GetFramebufferSize();
     glViewport(0, 0, width, height);
 
@@ -1003,6 +1007,7 @@ void DeferredGeometryPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
 }
 
 void DeferredLightingPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
+    ZoneScopedN("DeferredLightingPass");
     auto [width, height] = Window::Get()->GetFramebufferSize();
     glViewport(0, 0, width, height);
     glBindFramebuffer(GL_FRAMEBUFFER, renderer.sceneFBO);
@@ -1057,6 +1062,7 @@ void DeferredLightingPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
 }
 
 void TransparentPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
+    ZoneScopedN("TransparentPass");
     auto& cam = *ctx->GetMainCamera();
     Atmospheric::CameraInfo camInfo = { .view = cam.GetViewMatrix(),
                                         .projection = cam.GetProjectionMatrix(),
@@ -1065,6 +1071,7 @@ void TransparentPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
 }
 
 void MSAAResolvePass::Execute(GraphicsServer* ctx, Renderer& renderer) {
+    ZoneScopedN("MSAAResolvePass");
     auto [width, height] = Window::Get()->GetFramebufferSize();
     glViewport(0, 0, width, height);
 
@@ -1079,6 +1086,7 @@ void MSAAResolvePass::Execute(GraphicsServer* ctx, Renderer& renderer) {
 }
 
 void CanvasPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
+    ZoneScopedN("CanvasPass");
     ctx->_canvasQuadCount = ctx->canvasDrawList.size() / 6;
     if (ctx->canvasDrawList.size() > 0) {
         // Sort by layer (z-order)
@@ -1154,6 +1162,7 @@ void CanvasPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
 }
 
 void PostProcessPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
+    ZoneScopedN("PostProcessPass");
     if (!renderer.postProcessEnabled) {
         return;
     }

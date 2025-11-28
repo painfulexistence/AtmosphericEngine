@@ -20,6 +20,9 @@ void BulletTaskScheduler::parallelFor(int iBegin, int iEnd, int grainSize, const
         const int end = (i == numTasks - 1) ? iEnd : start + grainSize;
 
         m_jobSystem.Execute([&body, start, end](int) {
+#ifdef TRACY_ENABLE
+            ZoneScopedN("BulletTask");
+#endif
             // Debug logging to verify multithreading
             // spdlog::info("Bullet Task on Thread: {}", std::this_thread::get_id());
             body.forLoop(start, end);

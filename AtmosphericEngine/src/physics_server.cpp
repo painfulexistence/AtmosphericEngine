@@ -80,6 +80,9 @@ void PhysicsServer::Init(Application* app) {
 }
 
 void PhysicsServer::Process(float dt) {
+#ifdef TRACY_ENABLE
+    ZoneScopedN("PhysicsServer::Process");
+#endif
     _timeAccum += dt;
     while (_timeAccum >= FIXED_TIME_STEP) {
         _world->stepSimulation(FIXED_TIME_STEP, 0);

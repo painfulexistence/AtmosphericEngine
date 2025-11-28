@@ -117,6 +117,7 @@ void GraphicsServer::Process(float dt) {
 
 // NOTES: this only fills in command buffers, rendering should be done by the renderer
 void GraphicsServer::Render(CameraComponent* camera, float dt) {
+    ZoneScopedN("GraphicsServer::Render");
     if (!camera) {
         // Attempt to use the default camera if none is provided
         camera = defaultCamera;
@@ -191,6 +192,7 @@ void GraphicsServer::Render(CameraComponent* camera, float dt) {
 }
 
 void GraphicsServer::DrawImGui(float dt) {
+    ZoneScopedN("GraphicsServer::DrawImGui");
     if (ImGui::CollapsingHeader("Graphics", ImGuiTreeNodeFlags_DefaultOpen)) {
         ImGui::Text("Frame rate: %.3f ms/frame (%.1f FPS)", 1000.0f * dt, 1.0f / dt);
         ImGui::Text(

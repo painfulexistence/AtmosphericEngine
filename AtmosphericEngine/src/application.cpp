@@ -9,6 +9,7 @@
 #include "scene.hpp"
 #include "sprite_component.hpp"
 #include "window.hpp"
+#include <tracy/Tracy.hpp>
 
 Application::Application(AppConfig config) : _config(config) {
     // setbuf(stdout, NULL); // Cancel output stream buffering so that output can be seen immediately
@@ -43,6 +44,10 @@ Application::~Application() {
 }
 
 void Application::Run() {
+#ifdef TRACY_ENABLE
+    TracyNoop;
+    tracy::InitCallstack();
+#endif
     console.Init(this);
     input.Init(this);
     audio.Init(this);
@@ -151,7 +156,7 @@ void Application::Quit() {
 
 void Application::Update(const FrameData& props) {
 #ifdef TRACY_ENABLE
-    ZoneScoped;
+    ZoneScopedN("Application::Update");
 #endif
     float dt = props.deltaTime;
 
@@ -187,7 +192,7 @@ void Application::Update(const FrameData& props) {
 
 void Application::Render(const FrameData& props) {
 #ifdef TRACY_ENABLE
-    ZoneScoped;
+    ZoneScopedN("Application::Render");
 #endif
     float dt = props.deltaTime;
     float time = GetWindowTime();

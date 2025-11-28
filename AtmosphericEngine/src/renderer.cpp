@@ -104,6 +104,7 @@ void Renderer::EndTransformFeedbackPass() {
 }
 
 void Renderer::SortAndBucket(const glm::vec3& cameraPos) {
+    ZoneScopedN("Renderer::SortAndBucket");
     // Clear previous frame's sorted queues
     _opaqueQueue.clear();
     _transparentQueue.clear();
@@ -187,6 +188,7 @@ void Renderer::SortTransparent() {
 
 
 void Renderer::RenderFrame(GraphicsServer* ctx, float dt) {
+    ZoneScopedN("Renderer::RenderFrame");
     SortAndBucket(ctx->GetMainCamera()->GetEyePosition());
     _pipeline->Render(ctx, *this);
 }

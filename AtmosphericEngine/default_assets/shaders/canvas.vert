@@ -15,6 +15,5 @@ void main() {
     texIndex = index;
     texUV = uv;
     fragColor = color;
-    // Layer is used for sorting on CPU, not needed in shader
     gl_Position = Projection * vec4(position, 0.0, 1.0);
 }

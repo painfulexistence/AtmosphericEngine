@@ -53,6 +53,7 @@ find_package(Bullet CONFIG REQUIRED)
 find_package(fmt REQUIRED)
 find_package(spdlog REQUIRED)
 find_package(lua REQUIRED)
+find_package(RmlUi REQUIRED)
 
 add_subdirectory(external/entt)
 add_subdirectory(external/sol2)
@@ -89,7 +90,12 @@ set(SOURCES
     src/asset_manager.cpp
     src/job_system.cpp
     src/bullet_task_scheduler.cpp
+    src/particle_server.cpp
+    src/particle_emitter.cpp
     src/file.cpp
+    src/rmlui_renderer.cpp
+    src/rmlui_system.cpp
+    src/rmlui_manager.cpp
 )
 if(AE_USE_AUDIO)
     list(APPEND SOURCES src/audio_manager.cpp)
@@ -133,7 +139,7 @@ target_include_directories(AtmosphericEngine
 target_precompile_headers(AtmosphericEngine PRIVATE src/pch.hpp)
 target_link_libraries(AtmosphericEngine
     PUBLIC
-        glm::glm fmt::fmt EnTT::EnTT BulletSoftBody BulletDynamics BulletCollision LinearMath ${LUA_LIBRARIES} sol2 raudio
+        glm::glm fmt::fmt EnTT::EnTT BulletSoftBody BulletDynamics BulletCollision LinearMath ${LUA_LIBRARIES} sol2 raudio RmlUi::RmlUi
 )
 if (AE_USE_AUDIO)
     target_link_libraries(AtmosphericEngine

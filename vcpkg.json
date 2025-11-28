@@ -15,6 +15,7 @@
     "spdlog",
     "lua",
     "tinygltf",
-    "tracy"
+    "tracy",
+    "rmlui"
   ]
 }

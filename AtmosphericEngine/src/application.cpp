@@ -5,6 +5,7 @@
 #include "game_object.hpp"
 #include "job_system.hpp"
 #include "rigidbody_component.hpp"
+#include "rmlui_manager.hpp"
 #include "scene.hpp"
 #include "sprite_component.hpp"
 #include "window.hpp"
@@ -53,6 +54,9 @@ void Application::Run() {
     }
     ENGINE_LOG("Subsystems initialized.");
 
+    auto windowSize = _window->GetFramebufferSize();
+    RmlUiManager::Get()->Initialize(windowSize.width, windowSize.height);
+
     OnInit();
 
     OnLoad();
@@ -72,6 +76,8 @@ void Application::Run() {
 #endif
         _clock++;
     });
+
+    RmlUiManager::Get()->Shutdown();
 }
 
 void Application::PushLayer(Layer* layer) {
@@ -195,8 +201,7 @@ void Application::Render(const FrameData& props) {
 #endif
 }
 
-void Application::SyncTransformWithPhysics()
-{
+void Application::SyncTransformWithPhysics() {
 }
 
 uint64_t Application::GetClock() {

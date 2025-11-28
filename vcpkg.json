@@ -9,6 +9,7 @@
       "fmt",
       "spdlog",
       "lua",
-      "tinygltf"
+      "tinygltf",
+      "rmlui"
     ]
 }

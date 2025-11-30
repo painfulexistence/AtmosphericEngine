@@ -1,8 +1,11 @@
 #include "renderer.hpp"
 #include "asset_manager.hpp"
+#include "batch_renderer_2d.hpp"
 #include "console.hpp"
+#include "game_object.hpp"
 #include "graphics_server.hpp"
 #include "particle_server.hpp"
+#include "sprite_component.hpp"
 #include "window.hpp"
 #include <algorithm>
 #include <tracy/Tracy.hpp>
@@ -59,6 +62,9 @@ void Renderer::Init(int width, int height) {
     CreateCanvasVAO();
     CreateScreenVAO();
 
+    m_BatchRenderer = std::make_unique<BatchRenderer2D>();
+    m_BatchRenderer->Init();
+
     _pipeline = std::make_unique<RenderPipeline>();
     _pipeline->AddPass(std::make_unique<ShadowPass>());
     _pipeline->AddPass(std::make_unique<ForwardOpaquePass>());
@@ -68,6 +74,10 @@ void Renderer::Init(int width, int height) {
 }
 
 void Renderer::Cleanup() {
+    if (m_BatchRenderer) {
+        m_BatchRenderer->Shutdown();
+        m_BatchRenderer.reset();
+    }
     DestroyRTs();
     DestroyFBOs();
 
@@ -1085,80 +1095,97 @@ void MSAAResolvePass::Execute(GraphicsServer* ctx, Renderer& renderer) {
     renderer.CheckErrors("MSAA resolve pass");
 }
 
+// Helper to reduce code duplication
+void DrawSprite(SpriteComponent* sprite, BatchRenderer2D* batchRenderer);
+
 void CanvasPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
     ZoneScopedN("CanvasPass");
-    ctx->_canvasQuadCount = ctx->canvasDrawList.size() / 6;
-    if (ctx->canvasDrawList.size() > 0) {
-        // Sort by layer (z-order)
-        // Each quad is 6 vertices (2 triangles), so we sort groups of 6
-        std::vector<std::array<CanvasVertex, 6>> quads;
-        quads.reserve(ctx->canvasDrawList.size() / 6);
 
-        for (size_t i = 0; i < ctx->canvasDrawList.size(); i += 6) {
-            std::array<CanvasVertex, 6> quad;
-            std::copy_n(ctx->canvasDrawList.begin() + i, 6, quad.begin());
-            quads.push_back(quad);
-        }
+    auto [width, height] = Window::Get()->GetFramebufferSize();
+    glViewport(0, 0, width, height);
+    glBindFramebuffer(GL_FRAMEBUFFER, renderer.postProcessEnabled ? renderer.msaaResolveFBO : renderer.finalFBO);
 
-        // Sort quads by layer (lower layer values draw first = behind)
-        std::sort(quads.begin(), quads.end(), [](const auto& a, const auto& b) { return a[0].layer < b[0].layer; });
-
-        // Flatten back to vertex list
-        ctx->canvasDrawList.clear();
-        for (const auto& quad : quads) {
-            ctx->canvasDrawList.insert(ctx->canvasDrawList.end(), quad.begin(), quad.end());
-        }
-
-        auto [width, height] = Window::Get()->GetFramebufferSize();
-
-        glViewport(0, 0, width, height);
-        glBindFramebuffer(GL_FRAMEBUFFER, renderer.postProcessEnabled ? renderer.msaaResolveFBO : renderer.finalFBO);
-        glDisable(GL_DEPTH_TEST);
-        glDisable(GL_CULL_FACE);
-        glEnable(GL_BLEND);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glDisable(GL_DEPTH_TEST);
+    glDisable(GL_CULL_FACE);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 #ifndef __EMSCRIPTEN__
-        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 #endif
 
-        // TODO: use canvas textures
-        for (int i = 0; i < AssetManager::Get().GetTextures().size(); ++i) {
-            glActiveTexture(GL_TEXTURE0 + i);
-            glBindTexture(GL_TEXTURE_2D, AssetManager::Get().GetTextures()[i]);
-        }
-        // for (int i = 0; i < MAX_CANVAS_TEXTURES; ++i) {
-        //     glActiveTexture(GL_TEXTURE0 + i);
-        //     if (i < ctx->canvasTextures.size()) {
-        //         glBindTexture(GL_TEXTURE_2D, ctx->canvasTextures[i]);
-        //     } else {
-        //         glBindTexture(GL_TEXTURE_2D, 0);
-        //     }
-        // }
-
-        auto canvasShader = ctx->GetShader("canvas");
-        canvasShader->Activate();
-        glm::mat4 projection = glm::ortho(0.0f, (float)width, (float)height, 0.0f, -1.0f, 1.0f);
-        canvasShader->SetUniform(std::string("Projection"), projection);
-        for (int i = 0; i < MAX_CANVAS_TEXTURES; i++) {
-            canvasShader->SetUniform(fmt::format("Textures[{}]", i), i);
-        }
-
-        glBindVertexArray(renderer.canvasVAO);
-        glBindBuffer(GL_ARRAY_BUFFER, renderer.canvasVBO);
-        glBufferData(
-          GL_ARRAY_BUFFER,
-          ctx->canvasDrawList.size() * sizeof(CanvasVertex),
-          ctx->canvasDrawList.data(),
-          GL_DYNAMIC_DRAW
-        );
-        glDrawArrays(GL_TRIANGLES, 0, ctx->canvasDrawList.size());
-        glBindVertexArray(0);
-        ctx->canvasDrawList.clear();
-
-        glDisable(GL_BLEND);
-        glEnable(GL_DEPTH_TEST);
-        glEnable(GL_CULL_FACE);
+    // 1. Calculate Projections
+    glm::mat4 worldViewProj;
+    CameraComponent* camera = ctx->GetMainCamera();
+    if (camera && camera->IsOrthographic()) {
+        worldViewProj = camera->GetProjectionMatrix() * camera->GetViewMatrix();
+    } else {
+        // Fallback or perspective camera handling for 2D?
+        // For now, if perspective, we might just use screen space or a default ortho.
+        // Let's assume default ortho for safety if no 2D camera is set.
+        worldViewProj = glm::ortho(0.0f, (float)width, (float)height, 0.0f, -1.0f, 1.0f);
     }
+
+    glm::mat4 screenViewProj = glm::ortho(0.0f, (float)width, (float)height, 0.0f, -1.0f, 1.0f);
+
+    // 2. Sort Drawables
+    std::vector<SpriteComponent*> sortedSprites = ctx->canvasDrawables;
+    std::sort(sortedSprites.begin(), sortedSprites.end(), [](SpriteComponent* a, SpriteComponent* b) {
+        return a->GetLayer() < b->GetLayer();
+    });
+
+    // 3. Render World Sprites (Layer < LAYER_UI_BACK)
+    renderer.GetBatchRenderer()->BeginScene(worldViewProj);
+    for (auto sprite : sortedSprites) {
+        if (!sprite->gameObject->isActive) continue;
+        if ((int)sprite->GetLayer() >= (int)CanvasLayer::LAYER_UI_BACK) continue;// Skip UI sprites
+
+        DrawSprite(sprite, renderer.GetBatchRenderer());
+    }
+    renderer.GetBatchRenderer()->EndScene();
+
+    // 4. Render UI Sprites (Layer >= LAYER_UI_BACK)
+    renderer.GetBatchRenderer()->BeginScene(screenViewProj);
+    for (auto sprite : sortedSprites) {
+        if (!sprite->gameObject->isActive) continue;
+        if ((int)sprite->GetLayer() < (int)CanvasLayer::LAYER_UI_BACK) continue;// Skip World sprites
+
+        DrawSprite(sprite, renderer.GetBatchRenderer());
+    }
+    renderer.GetBatchRenderer()->EndScene();
+
+    glDisable(GL_BLEND);
+    glEnable(GL_DEPTH_TEST);
+    glEnable(GL_CULL_FACE);
+}
+
+// Helper to reduce code duplication
+// Helper to reduce code duplication
+void DrawSprite(SpriteComponent* sprite, BatchRenderer2D* batchRenderer) {
+    glm::vec3 pos = sprite->gameObject->GetPosition();
+    glm::vec3 rot = sprite->gameObject->GetRotation();
+    glm::vec3 scale = sprite->gameObject->GetScale();
+
+    glm::vec2 size = sprite->GetSize() * glm::vec2(scale.x, scale.y);
+    glm::vec2 pivot = sprite->GetPivot();
+
+    glm::mat4 transform = glm::translate(glm::mat4(1.0f), pos);
+    transform = glm::rotate(transform, rot.z, glm::vec3(0.0f, 0.0f, 1.0f));
+
+    glm::vec2 pivotOffset = (glm::vec2(0.5f, 0.5f) - pivot) * size;
+    transform = glm::translate(transform, glm::vec3(pivotOffset, 0.0f));
+
+    transform = glm::scale(transform, glm::vec3(size.x, size.y, 1.0f));
+
+    glm::vec2 uvMin = sprite->GetUVMin();
+    glm::vec2 uvMax = sprite->GetUVMax();
+    glm::vec2 uvs[4] = {
+        { uvMin.x, uvMin.y },// BL
+        { uvMax.x, uvMin.y },// BR
+        { uvMax.x, uvMax.y },// TR
+        { uvMin.x, uvMax.y }// TL
+    };
+
+    batchRenderer->DrawQuad(transform, sprite->GetTextureID(), uvs, sprite->GetColor(), (int)sprite->GetLayer());
 }
 
 void PostProcessPass::Execute(GraphicsServer* ctx, Renderer& renderer) {

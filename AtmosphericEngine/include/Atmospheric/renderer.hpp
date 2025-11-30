@@ -1,5 +1,6 @@
 #pragma once
 #include "asset_manager.hpp"
+#include "batch_renderer_2d.hpp"
 #include "config.hpp"
 #include "glm/mat4x4.hpp"
 #include "globals.hpp"
@@ -197,4 +198,11 @@ private:
     void BucketCommands(const glm::vec3& cameraPos);
     void SortOpaque();
     void SortTransparent();
+
+    std::unique_ptr<BatchRenderer2D> m_BatchRenderer;
+
+public:
+    BatchRenderer2D* GetBatchRenderer() const {
+        return m_BatchRenderer.get();
+    }
 };

@@ -1,11 +1,10 @@
 #pragma once
 #include "globals.hpp"
+#include <glm/mat4x4.hpp>
 #include <optional>
 #include <unordered_map>
-#include <glm/mat4x4.hpp>
 
-enum ShaderType
-{
+enum ShaderType {
     VERTEX = GL_VERTEX_SHADER,
     FRAGMENT = GL_FRAGMENT_SHADER,
 #ifndef __EMSCRIPTEN__
@@ -14,14 +13,12 @@ enum ShaderType
 #endif
 };
 
-struct Shader
-{
+struct Shader {
     Shader(const std::string& path, ShaderType type);
     GLuint shader;
 };
 
-struct ShaderProgramProps
-{
+struct ShaderProgramProps {
     std::string vert;
     std::string frag;
     std::optional<std::string> tesc = std::nullopt;
@@ -29,12 +26,16 @@ struct ShaderProgramProps
     std::optional<std::vector<std::string>> feedbackVaryings = std::nullopt;
 };
 
-class ShaderProgram
-{
+class ShaderProgram {
 public:
     ShaderProgram() = default;
     ShaderProgram(const ShaderProgramProps& props);
-    ShaderProgram(std::string vert, std::string frag, std::optional<std::string> tesc = std::nullopt, std::optional<std::string> tese = std::nullopt);
+    ShaderProgram(
+      std::string vert,
+      std::string frag,
+      std::optional<std::string> tesc = std::nullopt,
+      std::optional<std::string> tese = std::nullopt
+    );
     ShaderProgram(std::array<Shader, 2>&);
     ShaderProgram(std::array<Shader, 4>&);
 
@@ -49,26 +50,26 @@ public:
         }
         return CacheUniform(uniform.c_str());
     }
-    void SetUniform(const std::string& uniform, const glm::mat4& val)
-    {
+    void SetUniform(const std::string& uniform, const glm::mat4& val) {
         glUniformMatrix4fv(GetUniform(uniform), 1, GL_FALSE, &val[0][0]);
     };
-    void SetUniform(const std::string& uniform, const glm::vec3& val)
-    {
+    void SetUniform(const std::string& uniform, const glm::vec3& val) {
         glUniform3fv(GetUniform(uniform), 1, &val[0]);
     };
-    void SetUniform(const std::string& uniform, int val)
-    {
+    void SetUniform(const std::string& uniform, int val) {
         glUniform1i(GetUniform(uniform), val);
     };
-    void SetUniform(const std::string& uniform, float val)
-    {
+    void SetUniform(const std::string& uniform, float val) {
         glUniform1f(GetUniform(uniform), val);
     };
 
     void Activate();
 
     void Deactivate();
+
+    GLuint GetProgramID() const {
+        return _program;
+    }
 
 private:
     GLuint _program;

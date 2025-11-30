@@ -96,6 +96,7 @@ set(SOURCES
     src/rmlui_renderer.cpp
     src/rmlui_system.cpp
     src/rmlui_manager.cpp
+    src/batch_renderer_2d.cpp
 )
 if(AE_USE_AUDIO)
     list(APPEND SOURCES src/audio_manager.cpp)

@@ -27,6 +27,9 @@ ShaderProgram::ShaderProgram(const ShaderProgramProps& props) : _program(glCreat
     glAttachShader(_program, Shader(props.vert, ShaderType::VERTEX).shader);
     glAttachShader(_program, Shader(props.frag, ShaderType::FRAGMENT).shader);
 #ifndef __EMSCRIPTEN__
+    if (props.tesc.has_value()) {
+        glAttachShader(_program, Shader(props.tesc.value(), ShaderType::TESS_CONTROL).shader);
+    }
     if (props.tese.has_value()) {
         glAttachShader(_program, Shader(props.tese.value(), ShaderType::TESS_EVALUATION).shader);
     }
@@ -42,6 +45,20 @@ ShaderProgram::ShaderProgram(const ShaderProgramProps& props) : _program(glCreat
     }
 
     glLinkProgram(_program);
+
+    // GLint isLinked;
+    // glGetProgramiv(_program, GL_LINK_STATUS, &isLinked);
+    // if (isLinked == GL_FALSE) {
+    //     GLint maxLength = 0;
+    //     glGetProgramiv(_program, GL_INFO_LOG_LENGTH, &maxLength);
+
+    //     std::vector<GLchar> infoLog(maxLength);
+    //     glGetProgramInfoLog(_program, maxLength, &maxLength, &infoLog[0]);
+
+    //     glDeleteProgram(_program);
+
+    //     throw std::runtime_error(fmt::format("Shader link error: {}", infoLog.data()));
+    // }
 }
 
 ShaderProgram::ShaderProgram(

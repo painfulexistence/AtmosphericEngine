@@ -41,6 +41,9 @@ void GraphicsServer::Init(Application* app) {
         throw std::runtime_error("Failed to initialize OpenGL!");
 #endif
 
+    // Ensure default shaders are loaded before initializing renderers that depend on them
+    AssetManager::Get().LoadDefaultShaders();
+
 #ifndef __EMSCRIPTEN__
     glPrimitiveRestartIndex(0xFFFF);
 #endif
@@ -168,28 +171,16 @@ void GraphicsServer::Render(CameraComponent* camera, float dt) {
     }
 
     // TODO: migrate canvas drawables to use commands
-    for (auto d : canvasDrawables) {
-        if (!d->gameObject->isActive) continue;
+    // We are now using BatchRenderer2D inside CanvasPass::Execute,
+    // but the data collection happens here or we pass the list to Renderer.
+    // Actually, GraphicsServer::Render calls renderer->RenderFrame(this, dt),
+    // and inside RenderFrame, it calls CanvasPass::Execute.
+    // So we should keep the list of sprites here, but we don't need to push quads manually anymore.
+    // The CanvasPass will iterate over canvasDrawables and call BatchRenderer2D::DrawQuad.
 
-        glm::vec2 pos = glm::vec2(d->gameObject->GetPosition());
-        float angle = d->gameObject->GetRotation().z;
-        glm::vec2 scale = glm::vec2(d->gameObject->GetScale());
-        glm::vec2 size = d->GetSize() * scale;
-        glm::vec2 pivot = d->GetPivot();
-
-        PushCanvasQuad(
-          pos.x,
-          pos.y,
-          size.x,
-          size.y,
-          angle,
-          pivot.x,
-          pivot.y,
-          d->GetColor(),
-          static_cast<int>(d->GetTextureID()),
-          d->GetLayer()
-        );
-    }
+    // However, the original code pushed quads to `canvasDrawList`.
+    // We should clear that list or stop using it.
+    // Let's stop using `canvasDrawList` and instead let `CanvasPass` access `canvasDrawables`.
 
     renderer->RenderFrame(this, dt);
 }

@@ -2,6 +2,8 @@
 #include "application.hpp"
 #include "asset_manager.hpp"
 #include "camera_component.hpp"
+#include "config.hpp"
+#include "frustum.hpp"
 #include "game_object.hpp"
 #include "material.hpp"
 #include "mesh.hpp"
@@ -38,6 +40,9 @@ void GraphicsServer::Init(Application* app) {
     if (gladLoadGLLoader((GLADloadproc)Window::GetProcAddress()) <= 0)
         throw std::runtime_error("Failed to initialize OpenGL!");
 #endif
+
+    // Ensure default shaders are loaded before initializing renderers that depend on them
+    AssetManager::Get().LoadDefaultShaders();
 
 #ifndef __EMSCRIPTEN__
     glPrimitiveRestartIndex(0xFFFF);
@@ -114,46 +119,74 @@ void GraphicsServer::Process(float dt) {
 }
 
 // NOTES: this only fills in command buffers, rendering should be done by the renderer
-void GraphicsServer::Render(float dt) {
+void GraphicsServer::Render(CameraComponent* camera, float dt) {
+    ZoneScopedN("GraphicsServer::Render");
+    if (!camera) {
+        // Attempt to use the default camera if none is provided
+        camera = defaultCamera;
+        if (!camera) return;
+    }
+
+    Frustum frustum(camera->GetProjectionMatrix() * camera->GetViewMatrix());
+
     // Submit render commands
+    int totalCount = 0;
+    int culledCount = 0;
     for (auto r : renderables) {
+        totalCount++;
         if (!r->gameObject->isActive) continue;
 
         Mesh* mesh = r->GetMesh();
-        Material* material = r->GetMaterial();
+        if (!mesh) continue;
 
-        RenderCommand cmd{ .mesh = mesh, .transform = r->gameObject->GetTransform() };
+        // Frustum Culling
+        const auto& transform = r->gameObject->GetTransform();
+
+        if (FRUSTUM_CULLING_ON) {
+            ZoneScopedN("Frustum Culling");
+            const auto& boundingBox = mesh->GetBoundingBox();
+            std::array<glm::vec3, 8> worldBounds;
+            bool hasValidBounds = false;
+            for (int i = 0; i < 8; ++i) {
+                if (boundingBox[i] != glm::vec3(0.0f)) {
+                    hasValidBounds = true;
+                }
+                worldBounds[i] = transform * glm::vec4(boundingBox[i], 1.0f);
+            }
+            if (hasValidBounds && !frustum.Intersects(worldBounds)) {
+                culledCount++;
+                continue;
+            }
+        }
+
+        RenderCommand cmd{ .mesh = mesh, .transform = transform };
         renderer->SubmitCommand(cmd);
     }
 
-    // TODO: migrate canvas drawables to use commands
-    for (auto d : canvasDrawables) {
-        if (!d->gameObject->isActive) continue;
-
-        glm::vec2 pos = glm::vec2(d->gameObject->GetPosition());
-        float angle = d->gameObject->GetRotation().z;
-        glm::vec2 scale = glm::vec2(d->gameObject->GetScale());
-        glm::vec2 size = d->GetSize() * scale;
-        glm::vec2 pivot = d->GetPivot();
-
-        PushCanvasQuad(
-          pos.x,
-          pos.y,
-          size.x,
-          size.y,
-          angle,
-          pivot.x,
-          pivot.y,
-          d->GetColor(),
-          static_cast<int>(d->GetTextureID()),
-          d->GetLayer()
-        );
+    if (totalCount > 0) {
+        static int frameCounter = 0;
+        if (frameCounter++ % 60 == 0) {
+            Console::Get()->Info(fmt::format("Culling: total {} culled {}", totalCount, culledCount));
+        }
     }
+
+    // TODO: migrate canvas drawables to use commands
+    // We are now using BatchRenderer2D inside CanvasPass::Execute,
+    // but the data collection happens here or we pass the list to Renderer.
+    // Actually, GraphicsServer::Render calls renderer->RenderFrame(this, dt),
+    // and inside RenderFrame, it calls CanvasPass::Execute.
+    // So we should keep the list of sprites here, but we don't need to push quads manually anymore.
+    // The CanvasPass will iterate over canvasDrawables and call BatchRenderer2D::DrawQuad.
+
+    // However, the original code pushed quads to `canvasDrawList`.
+    // We should clear that list or stop using it.
+    // Let's stop using `canvasDrawList` and instead let `CanvasPass` access `canvasDrawables`.
 
     renderer->RenderFrame(this, dt);
 }
 
 void GraphicsServer::DrawImGui(float dt) {
+    ZoneScopedN("GraphicsServer::DrawImGui");
     if (ImGui::CollapsingHeader("Graphics", ImGuiTreeNodeFlags_DefaultOpen)) {
         ImGui::Text("Frame rate: %.3f ms/frame (%.1f FPS)", 1000.0f * dt, 1.0f / dt);
         ImGui::Text(

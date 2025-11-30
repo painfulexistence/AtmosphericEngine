@@ -417,10 +417,20 @@ std::shared_ptr<Mesh> MeshBuilder::Build() {
 
     auto mesh = std::make_shared<Mesh>(MeshType::PRIM);
     mesh->Initialize(vertices, indices);
-
-    // vertices.clear();
-    // indices.clear();
-
+    // Calculate bounds
+    if (!vertices.empty()) {
+        glm::vec3 min = vertices[0].position;
+        glm::vec3 max = vertices[0].position;
+        for (const auto& v : vertices) {
+            min = glm::min(min, v.position);
+            max = glm::max(max, v.position);
+        }
+        std::array<glm::vec3, 8> bounds = { glm::vec3(min.x, min.y, min.z), glm::vec3(max.x, min.y, min.z),
+                                            glm::vec3(min.x, max.y, min.z), glm::vec3(max.x, max.y, min.z),
+                                            glm::vec3(min.x, min.y, max.z), glm::vec3(max.x, min.y, max.z),
+                                            glm::vec3(min.x, max.y, max.z), glm::vec3(max.x, max.y, max.z) };
+        mesh->SetBoundingBox(bounds);
+    }
     return mesh;
 }
 

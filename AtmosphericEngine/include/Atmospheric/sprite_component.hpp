@@ -60,10 +60,23 @@ public:
         _layer = layer;
     }
 
+    glm::vec2 GetUVMin() const {
+        return _uvMin;
+    }
+    glm::vec2 GetUVMax() const {
+        return _uvMax;
+    }
+    void SetUVs(const glm::vec2& min, const glm::vec2& max) {
+        _uvMin = min;
+        _uvMax = max;
+    }
+
 private:
     glm::vec2 _size;// Base size in pixels
     glm::vec2 _pivot;// Pivot point (0,0 = top-left, 1,1 = bottom-right)
     glm::vec4 _color;
     int _textureID;
     CanvasLayer _layer;
+    glm::vec2 _uvMin = glm::vec2(0.0f, 0.0f);
+    glm::vec2 _uvMax = glm::vec2(1.0f, 1.0f);
 };

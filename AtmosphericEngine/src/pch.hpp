@@ -18,7 +18,11 @@
 #include <optional>
 #include <utility>
 #include <stdexcept>
-//#include <iostream> // Note that IO should only be used for debugging here
+
+#ifdef TRACY_ENABLE
+#include <tracy/Tracy.hpp>
+#define TRACY_CALLSTACK 1 // Optional: Enable call stack capture for more detailed profiling
+#endif
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>

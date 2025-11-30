@@ -106,6 +106,7 @@ void RmlUiManager::Update(float deltaTime) {
 }
 
 void RmlUiManager::Render() {
+    ZoneScopedN("RmlUiManager::Render");
     if (!m_initialized || !m_context) return;
 
     // Begin rendering frame

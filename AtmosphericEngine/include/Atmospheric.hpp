@@ -5,6 +5,8 @@
 #include "Atmospheric/game_object.hpp"
 #include "Atmospheric/graphics_server.hpp"
 #include "Atmospheric/input.hpp"
+#include "Atmospheric/particle_emitter.hpp"
+#include "Atmospheric/particle_server.hpp"
 #include "Atmospheric/physics_server.hpp"
 #include "Atmospheric/rigidbody_component.hpp"
 #include "Atmospheric/rmlui_manager.hpp"

@@ -33,6 +33,10 @@ public:
 
     void SetOrthographic(float width, float height, float nearClip, float farClip);
 
+    bool IsOrthographic() const {
+        return _isOrthographic;
+    }
+
     glm::vec3 GetEyePosition();
 
     glm::vec3 GetEyeDirection();

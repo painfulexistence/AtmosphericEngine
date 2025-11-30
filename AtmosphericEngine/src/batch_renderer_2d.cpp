@@ -33,6 +33,9 @@ struct BatchRenderer2D::Renderer2DData {
     BatchStats Stats;
 
     ShaderProgram* TextureShader = nullptr;
+
+    // Blend mode state
+    BlendMode CurrentBlendMode = BlendMode::Alpha;
 };
 
 BatchRenderer2D::BatchRenderer2D() {
@@ -150,7 +153,7 @@ void BatchRenderer2D::Shutdown() {
     }
 }
 
-void BatchRenderer2D::BeginScene(const glm::mat4& viewProj) {
+void BatchRenderer2D::BeginScene(const glm::mat4& viewProj, BlendMode blendMode) {
     m_Data->TextureShader = AssetManager::Get().GetShader("canvas");// Or "batch_2d"
     m_Data->TextureShader->Activate();
 
@@ -166,6 +169,9 @@ void BatchRenderer2D::BeginScene(const glm::mat4& viewProj) {
     while ((err = glGetError()) != GL_NO_ERROR) {
         Console::Get()->Error(fmt::format("BatchRenderer2D::BeginScene (SetUniform): {}", err));
     }
+
+    // Set blend mode
+    SetBlendMode(blendMode);
 
     StartBatch();
 }
@@ -186,6 +192,33 @@ void BatchRenderer2D::Flush() {
     uint32_t dataSize = (uint32_t)((uint8_t*)m_Data->QuadVertexBufferPtr - (uint8_t*)m_Data->QuadVertexBufferBase);
     glBindBuffer(GL_ARRAY_BUFFER, m_Data->QuadVBO);
     glBufferSubData(GL_ARRAY_BUFFER, 0, dataSize, m_Data->QuadVertexBufferBase);
+
+    // Apply blend mode
+    if (m_Data->CurrentBlendMode == BlendMode::None) {
+        glDisable(GL_BLEND);
+    } else {
+        glEnable(GL_BLEND);
+        switch (m_Data->CurrentBlendMode) {
+        case BlendMode::Alpha:
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+            break;
+        case BlendMode::Additive:
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+            break;
+        case BlendMode::Multiply:
+            glBlendFunc(GL_DST_COLOR, GL_ZERO);
+            break;
+        case BlendMode::Screen:
+            glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_COLOR);
+            break;
+        case BlendMode::Premultiplied:
+            glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+            break;
+        default:
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+            break;
+        }
+    }
 
     // Bind textures
     for (uint32_t i = 0; i < m_Data->TextureSlotIndex; i++) {
@@ -323,4 +356,19 @@ BatchStats BatchRenderer2D::GetStats() {
 
 void BatchRenderer2D::ResetStats() {
     memset(&m_Data->Stats, 0, sizeof(BatchStats));
+}
+
+void BatchRenderer2D::SetBlendMode(BlendMode mode) {
+    if (m_Data->CurrentBlendMode != mode) {
+        // Flush current batch before changing blend mode
+        if (m_Data->QuadIndexCount > 0) {
+            Flush();
+            StartBatch();
+        }
+        m_Data->CurrentBlendMode = mode;
+    }
+}
+
+BlendMode BatchRenderer2D::GetBlendMode() const {
+    return m_Data->CurrentBlendMode;
 }

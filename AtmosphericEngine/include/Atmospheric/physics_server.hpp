@@ -26,6 +26,7 @@ class btCollisionShape;
 class RaycastCallback;
 class PhysicsDebugDrawer;
 class RigidbodyComponent;
+class BulletTaskScheduler;
 
 using ColliderID = uint32_t;
 
@@ -67,6 +68,7 @@ private:
     btConstraintSolver* _solver;
     btDiscreteDynamicsWorld* _world;
     PhysicsDebugDrawer* _debugDrawer;
+    std::unique_ptr<BulletTaskScheduler> _taskScheduler;
     std::unordered_map<ColliderID, btCollisionShape*> _colliders;
     std::vector<RigidbodyComponent*> _impostors;
     float _timeAccum;

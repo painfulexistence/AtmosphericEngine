@@ -9,6 +9,7 @@
 #include "scene.hpp"
 #include "sprite_component.hpp"
 #include "window.hpp"
+#include <tracy/Tracy.hpp>
 
 Application::Application(AppConfig config) : _config(config) {
     // setbuf(stdout, NULL); // Cancel output stream buffering so that output can be seen immediately
@@ -24,8 +25,6 @@ Application::Application(AppConfig config) : _config(config) {
     });// Multi-window not supported now
     _window->Init();
     _window->InitImGui();
-
-    JobSystem::Get()->Init();
 
     PushLayer(new GameLayer(this));
     PushLayer(new EditorLayer(this));
@@ -45,6 +44,10 @@ Application::~Application() {
 }
 
 void Application::Run() {
+#ifdef TRACY_ENABLE
+    TracyNoop;
+    tracy::InitCallstack();
+#endif
     console.Init(this);
     input.Init(this);
     audio.Init(this);
@@ -65,6 +68,9 @@ void Application::Run() {
 
     _window->MainLoop([this](float currTime, float deltaTime) {
         FrameData currFrame = { GetClock(), currTime, deltaTime };
+#ifdef TRACY_ENABLE
+        FrameMark;
+#endif
 #if SINGLE_THREAD
         Update(currFrame);
         Render(currFrame);
@@ -149,6 +155,9 @@ void Application::Quit() {
 }
 
 void Application::Update(const FrameData& props) {
+#ifdef TRACY_ENABLE
+    ZoneScopedN("Application::Update");
+#endif
     float dt = props.deltaTime;
 
     OnUpdate(dt, GetWindowTime());
@@ -182,6 +191,9 @@ void Application::Update(const FrameData& props) {
 }
 
 void Application::Render(const FrameData& props) {
+#ifdef TRACY_ENABLE
+    ZoneScopedN("Application::Render");
+#endif
     float dt = props.deltaTime;
     float time = GetWindowTime();
 

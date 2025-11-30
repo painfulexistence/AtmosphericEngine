@@ -1,7 +1,12 @@
 #include "physics_server.hpp"
+#include "LinearMath/btThreads.h"
+#include "bullet_task_scheduler.hpp"
 #include "game_object.hpp"
+#include "job_system.hpp"
 #include "physics_debug_drawer.hpp"
 #include "rigidbody_component.hpp"
+#include <BulletCollision/CollisionDispatch/btCollisionDispatcherMt.h>
+#include <BulletDynamics/ConstraintSolver/btSequentialImpulseConstraintSolverMt.h>
 
 class RaycastCallback : public btCollisionWorld::ClosestRayResultCallback {
 private:
@@ -32,6 +37,10 @@ PhysicsServer::PhysicsServer() {
 }
 
 PhysicsServer::~PhysicsServer() {
+    // It's important to set the task scheduler to null before deleting the world
+    // and other resources, to prevent it from being used during destruction.
+    btSetTaskScheduler(nullptr);
+
     delete _world;
     delete _debugDrawer;
 
@@ -44,24 +53,36 @@ PhysicsServer::~PhysicsServer() {
 void PhysicsServer::Init(Application* app) {
     Server::Init(app);
 
+    // Create and set the custom task scheduler
+    _taskScheduler = std::make_unique<BulletTaskScheduler>(*JobSystem::Get());
+    btSetTaskScheduler(_taskScheduler.get());
+
     _config = new btDefaultCollisionConfiguration();
+    // Use multithreaded dispatcher if thread safe
+#ifdef BT_THREADSAFE
+    _dispatcher = new btCollisionDispatcherMt(_config, JobSystem::Get()->GetThreadCount());
+#else
     _dispatcher = new btCollisionDispatcher(_config);
+#endif
     _broadphase = new btDbvtBroadphase();
-    _solver = new btSequentialImpulseConstraintSolver();
+
+    // Use parallel solver
+    _solver = new btSequentialImpulseConstraintSolverMt();
+
     _world = new btDiscreteDynamicsWorld(_dispatcher, _broadphase, _solver, _config);
     SetGravity(glm::vec3(0, -GRAVITY, 0));
 
     _debugDrawer = new PhysicsDebugDrawer();
     _world->setDebugDrawer(_debugDrawer);
-    // 0: no debug
-    // 1: wireframe
-    // 14: fast wireframe
     _debugDrawer->setDebugMode(1);
 
     _timeAccum = 0.0f;
 }
 
 void PhysicsServer::Process(float dt) {
+#ifdef TRACY_ENABLE
+    ZoneScopedN("PhysicsServer::Process");
+#endif
     _timeAccum += dt;
     while (_timeAccum >= FIXED_TIME_STEP) {
         _world->stepSimulation(FIXED_TIME_STEP, 0);

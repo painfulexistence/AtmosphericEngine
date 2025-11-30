@@ -2,18 +2,21 @@
 
 uniform mat4 Projection;
 
-layout(location = 0) in vec2 position;
-layout(location = 1) in vec2 uv;
-layout(location = 2) in vec4 color;
-layout(location = 3) in int index;
+layout(location = 0) in vec3 position;
+layout(location = 1) in vec4 color;
+layout(location = 2) in vec2 uv;
+layout(location = 3) in float texIndex;
+layout(location = 4) in float entityID;
 
-flat out int texIndex;
-out vec2 texUV;
 out vec4 fragColor;
+out vec2 texUV;
+flat out float tid;
+flat out float eid;
 
 void main() {
-    texIndex = index;
-    texUV = uv;
     fragColor = color;
-    gl_Position = Projection * vec4(position, 0.0, 1.0);
+    texUV = uv;
+    tid = texIndex;
+    eid = entityID;
+    gl_Position = Projection * vec4(position, 1.0);
 }

@@ -1,18 +1,16 @@
 #pragma once
-#include "globals.hpp"
 #include "config.hpp"
+#include "globals.hpp"
 #include <functional>
 #include <unordered_map>
 
-struct ImageSize
-{
-    ImageSize(int width, int height) : width(width), height(height) {};
+struct ImageSize {
+    ImageSize(int width, int height) : width(width), height(height){};
     int width;
     int height;
 };
 
-struct WindowProps
-{
+struct WindowProps {
     std::string title = INIT_SCREEN_TITLE;
     int width = INIT_SCREEN_WIDTH;
     int height = INIT_SCREEN_HEIGHT;
@@ -22,12 +20,7 @@ struct WindowProps
     bool vsync = VSYNC_ON;
 };
 
-enum class KeyState {
-    PRESSED,
-    RELEASED,
-    HELD,
-    UNKNOWN
-};
+enum class KeyState { PRESSED, RELEASED, HELD, UNKNOWN };
 
 enum class Key {
     SPACE,
@@ -98,8 +91,7 @@ private:
     static Window* _instance;
 
 public:
-    static Window* Get()
-    {
+    static Window* Get() {
         return _instance;
     }
     static void* GetProcAddress();
@@ -149,6 +141,10 @@ public:
 
     float GetTime();
     void SetTime(double time);
+
+    void SetClipboardText(const std::string& text);
+    std::string GetClipboardText();
+    void SetMouseCursor(const std::string& cursorName);
 
     ImageSize GetSize();
     ImageSize GetFramebufferSize();

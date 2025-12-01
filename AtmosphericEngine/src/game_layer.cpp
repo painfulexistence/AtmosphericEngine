@@ -20,9 +20,11 @@ void GameLayer::OnUpdate(float dt) {
 void GameLayer::OnRender(float dt) {
     // Note that draw calls are asynchronous, which means they return immediately.
     // So the drawing time can only be calculated along with the image presenting.
+    // Generate UI commands
+    RmlUiManager::Get()->Render();
+
+    // Render the frame (executes all passes including UI)
     _app->GetGraphicsServer()->Render(_app->GetMainCamera(), dt);
     // Nevertheless, glFinish() can force the GPU process all the commands synchronously.
     // glFinish();
-
-    RmlUiManager::Get()->Render();
 }

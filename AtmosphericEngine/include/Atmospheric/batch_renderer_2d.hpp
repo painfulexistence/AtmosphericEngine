@@ -11,12 +11,12 @@ class ShaderProgram;
 
 // Blend modes for 2D rendering
 enum class BlendMode {
-    None,           // No blending
-    Alpha,          // Standard alpha blending (SRC_ALPHA, ONE_MINUS_SRC_ALPHA)
-    Additive,       // Additive blending (SRC_ALPHA, ONE)
-    Multiply,       // Multiply blending (DST_COLOR, ZERO)
-    Screen,         // Screen blending (ONE, ONE_MINUS_SRC_COLOR)
-    Premultiplied   // Premultiplied alpha (ONE, ONE_MINUS_SRC_ALPHA)
+    None,// No blending
+    Alpha,// Standard alpha blending (SRC_ALPHA, ONE_MINUS_SRC_ALPHA)
+    Additive,// Additive blending (SRC_ALPHA, ONE)
+    Multiply,// Multiply blending (DST_COLOR, ZERO)
+    Screen,// Screen blending (ONE, ONE_MINUS_SRC_COLOR)
+    Premultiplied// Premultiplied alpha (ONE, ONE_MINUS_SRC_ALPHA)
 };
 
 struct BatchVertex {
@@ -89,6 +89,14 @@ public:
       const glm::vec2* texCoords,
       const glm::vec4& color = glm::vec4(1.0f),
       int entityID = -1
+    );
+
+    // Arbitrary Geometry (for RmlUi)
+    void DrawGeometry(
+      const std::vector<BatchVertex>& vertices,
+      const std::vector<uint32_t>& indices,
+      uint32_t textureID,
+      const glm::mat4& transform
     );
 
 

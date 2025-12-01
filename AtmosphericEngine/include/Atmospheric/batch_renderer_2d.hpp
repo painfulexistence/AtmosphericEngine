@@ -9,6 +9,16 @@
 // Forward declarations
 class ShaderProgram;
 
+// Blend modes for 2D rendering
+enum class BlendMode {
+    None,           // No blending
+    Alpha,          // Standard alpha blending (SRC_ALPHA, ONE_MINUS_SRC_ALPHA)
+    Additive,       // Additive blending (SRC_ALPHA, ONE)
+    Multiply,       // Multiply blending (DST_COLOR, ZERO)
+    Screen,         // Screen blending (ONE, ONE_MINUS_SRC_COLOR)
+    Premultiplied   // Premultiplied alpha (ONE, ONE_MINUS_SRC_ALPHA)
+};
+
 struct BatchVertex {
     glm::vec3 position;
     glm::vec4 color;
@@ -30,9 +40,13 @@ public:
     void Init();
     void Shutdown();
 
-    void BeginScene(const glm::mat4& viewProj);
+    void BeginScene(const glm::mat4& viewProj, BlendMode blendMode = BlendMode::Alpha);
     void EndScene();
     void Flush();
+
+    // Blend mode control
+    void SetBlendMode(BlendMode mode);
+    BlendMode GetBlendMode() const;
 
     // Primitives
     void DrawQuad(const glm::vec2& position, const glm::vec2& size, const glm::vec4& color);

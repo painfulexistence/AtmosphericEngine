@@ -50,6 +50,18 @@ option(BUILD_UNIT_TESTS OFF)
 option(BUILD_LUA_AS_DLL OFF)
 find_package(Bullet CONFIG REQUIRED)
 
+# Box2D for 2D physics
+FetchContent_Declare(
+    box2d
+    GIT_REPOSITORY https://github.com/erincatto/box2d.git
+    GIT_TAG v2.4.2
+)
+set(BOX2D_BUILD_UNIT_TESTS OFF CACHE BOOL "" FORCE)
+set(BOX2D_BUILD_TESTBED OFF CACHE BOOL "" FORCE)
+set(BOX2D_BUILD_DOCS OFF CACHE BOOL "" FORCE)
+set(BOX2D_USER_SETTINGS OFF CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(box2d)
+
 find_package(fmt REQUIRED)
 find_package(spdlog REQUIRED)
 find_package(lua REQUIRED)
@@ -97,6 +109,8 @@ set(SOURCES
     src/rmlui_system.cpp
     src/rmlui_manager.cpp
     src/batch_renderer_2d.cpp
+    src/physics_server_2d.cpp
+    src/rigidbody_2d_component.cpp
 )
 if(AE_USE_AUDIO)
     list(APPEND SOURCES src/audio_manager.cpp)
@@ -140,7 +154,7 @@ target_include_directories(AtmosphericEngine
 target_precompile_headers(AtmosphericEngine PRIVATE src/pch.hpp)
 target_link_libraries(AtmosphericEngine
     PUBLIC
-        glm::glm fmt::fmt EnTT::EnTT BulletSoftBody BulletDynamics BulletCollision LinearMath ${LUA_LIBRARIES} sol2 raudio RmlUi::RmlUi
+        glm::glm fmt::fmt EnTT::EnTT BulletSoftBody BulletDynamics BulletCollision LinearMath ${LUA_LIBRARIES} sol2 raudio RmlUi::RmlUi box2d
 )
 if (AE_USE_AUDIO)
     target_link_libraries(AtmosphericEngine

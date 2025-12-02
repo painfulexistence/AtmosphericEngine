@@ -41,9 +41,18 @@ public:
 
     void Initialize(const std::vector<Vertex>& verts, const std::vector<uint16_t>& tris);
 
-    // Dynamic update methods for per-frame geometry
+    // Dynamic update methods for per-frame geometry (legacy)
     template<typename VertexType>
     void UpdateDynamic(const std::vector<VertexType>& verts, GLenum primType = GL_TRIANGLES);
+
+    // Update with voxel vertex data (uses internal RenderMesh)
+    void Update(const std::vector<VoxelVertex>& vertices);
+
+    // Check if this mesh uses the new RenderMesh system
+    bool UsesRenderMesh() const { return _renderMeshHandle.IsValid(); }
+
+    // Get the RenderMesh handle (for rendering)
+    RenderMeshHandle GetRenderMeshHandle() const { return _renderMeshHandle; }
 
     GLenum GetPrimitiveType() const {
         return _primitiveType;
@@ -84,6 +93,9 @@ private:
 
     Material* _material;
     btCollisionShape* _shape;
+
+    // New RenderMesh-based storage (used by Update methods)
+    RenderMeshHandle _renderMeshHandle;
 
     template<typename VertexType> void InitializeDynamic(GLenum primType);
 };
@@ -139,8 +151,8 @@ public:
     // Push a full cube (all 6 faces) - use when all faces are visible
     void PushCube(glm::ivec3 pos, uint8_t voxelId);
 
-    // Build and upload to a RenderMesh
-    void Build(RenderMesh& renderMesh);
+    // Build and update a Mesh (game layer API)
+    void Build(Mesh& mesh);
 
     // Get vertex data for manual handling
     const std::vector<VoxelVertex>& GetVertices() const { return _vertices; }

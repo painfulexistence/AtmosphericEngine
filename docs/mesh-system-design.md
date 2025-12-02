@@ -193,15 +193,15 @@ class VoxelChunk {
     bool dirty = true;
 
     void Rebuild() {
-        MeshBuilder builder;
+        VoxelMeshBuilder builder;
 
         for (auto& voxel : voxels) {
             for (FaceDir face : GetVisibleFaces(voxel)) {
-                builder.PushVoxelFace(voxel.pos, face, voxel.id);
+                builder.PushFace(voxel.pos, face, voxel.id);
             }
         }
 
-        mesh.Update(builder.Build());
+        builder.Build(mesh);  // 內部呼叫 mesh.Update()
         dirty = false;
     }
 
@@ -321,33 +321,41 @@ class ClothSimulation {
 ```cpp
 class Mesh {
 public:
-    Mesh(const VertexFormat& format, UpdateFrequency freq = UpdateFrequency::Static);
+    Mesh(MeshType type = MeshType::PRIM);
 
-    void Update(const MeshData& data);
-    void Draw();
+    // 傳統初始化 (標準頂點格式)
+    void Initialize(const std::vector<Vertex>& verts);
+    void Initialize(const std::vector<Vertex>& verts, const std::vector<uint16_t>& tris);
+
+    // 新 API: 更新 voxel 頂點資料 (內部使用 RenderMesh)
+    void Update(const std::vector<VoxelVertex>& vertices);
+
+    // 檢查是否使用新的 RenderMesh 系統
+    bool UsesRenderMesh() const;
+    RenderMeshHandle GetRenderMeshHandle() const;
 
     Material* GetMaterial() const;
     void SetMaterial(Material* material);
-    AABB GetBounds() const;
 };
 ```
 
-### MeshBuilder
+### VoxelMeshBuilder
 
 ```cpp
-class MeshBuilder {
+class VoxelMeshBuilder {
 public:
-    // 通用
-    void PushQuad(glm::vec3 pos, glm::vec2 size, glm::vec3 normal);
-    void PushCube(glm::vec3 pos, glm::vec3 size);
+    // 推入單一 voxel 面
+    void PushFace(glm::ivec3 pos, FaceDir dir, uint8_t voxelId);
 
-    // Voxel 專用
-    void PushVoxelFace(glm::ivec3 pos, FaceDir dir, uint8_t voxelId);
+    // 推入完整方塊 (6 面)
+    void PushCube(glm::ivec3 pos, uint8_t voxelId);
 
-    // Spline 專用
-    void PushSplineSegment(glm::vec3 pos, glm::vec3 tangent, float t);
+    // 建構並更新 Mesh
+    void Build(Mesh& mesh);
 
-    MeshData Build();
+    // 取得頂點資料
+    const std::vector<VoxelVertex>& GetVertices() const;
+
     void Clear();
 };
 ```
@@ -357,22 +365,19 @@ public:
 ```cpp
 class RenderMesh {
 public:
-    void Initialize(const VertexFormat& format, size_t maxVertices);
-    void Upload(const void* data, size_t size);
+    void Initialize(VertexFormat format, BufferUsage usage);
+    void Upload(const void* data, size_t count, size_t vertexSize);
     void Draw(GLenum primitiveType = GL_TRIANGLES);
 };
 ```
 
-### RenderMeshPool（引擎內部）
+### GraphicsServer RenderMesh 管理
 
 ```cpp
-class RenderMeshPool {
-public:
-    RenderMeshHandle Allocate(const VertexFormat& format, UpdateFrequency freq);
-    void Update(RenderMeshHandle handle, const void* data, size_t size);
-    void Free(RenderMeshHandle handle);
-    RenderMesh* Get(RenderMeshHandle handle);
-};
+// GraphicsServer 提供的 RenderMesh 管理 API
+RenderMeshHandle AllocateRenderMesh(VertexFormat format, BufferUsage usage);
+void FreeRenderMesh(RenderMeshHandle handle);
+RenderMesh* GetRenderMesh(RenderMeshHandle handle);
 ```
 
 ## 總結

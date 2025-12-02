@@ -67,6 +67,11 @@ Mesh::Mesh(MeshType type) : type(type) {
 }
 
 Mesh::~Mesh() {
+    // Free RenderMesh if using new system
+    if (_renderMeshHandle.IsValid()) {
+        GraphicsServer::Get()->FreeRenderMesh(_renderMeshHandle);
+    }
+
     glDeleteBuffers(1, &vbo);
     glDeleteBuffers(1, &ebo);
     glDeleteBuffers(1, &ibo);
@@ -148,6 +153,24 @@ void Mesh::AddCapsuleShape(float radius, float height) {
     _shape = new btCapsuleShape(radius, height);
 }
 
+void Mesh::Update(const std::vector<VoxelVertex>& vertices) {
+    // Allocate RenderMesh on first use
+    if (!_renderMeshHandle.IsValid()) {
+        _renderMeshHandle = GraphicsServer::Get()->AllocateRenderMesh(
+            VertexFormat::Voxel,
+            updateFreq == UpdateFrequency::Static ? BufferUsage::Static : BufferUsage::Dynamic
+        );
+    }
+
+    // Get RenderMesh and upload data
+    RenderMesh* renderMesh = GraphicsServer::Get()->GetRenderMesh(_renderMeshHandle);
+    if (renderMesh) {
+        renderMesh->Upload(vertices.data(), vertices.size(), sizeof(VoxelVertex));
+        vertCount = vertices.size();
+        triCount = vertices.size() / 3;
+        initialized = true;
+    }
+}
 
 Mesh* MeshBuilder::CreateCube(const float& size) {
     Vertex vertices[] = { // front
@@ -576,11 +599,8 @@ void VoxelMeshBuilder::PushCube(glm::ivec3 pos, uint8_t voxelId) {
     PushFace(pos, FaceDir::BACK, voxelId);
 }
 
-void VoxelMeshBuilder::Build(RenderMesh& renderMesh) {
-    if (!renderMesh.IsInitialized()) {
-        renderMesh.Initialize(VertexFormat::Voxel, BufferUsage::Dynamic);
-    }
-    renderMesh.Upload(_vertices.data(), _vertices.size(), sizeof(VoxelVertex));
+void VoxelMeshBuilder::Build(Mesh& mesh) {
+    mesh.Update(_vertices);
 }
 
 void VoxelMeshBuilder::Clear() {

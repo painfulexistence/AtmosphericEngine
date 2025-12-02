@@ -501,3 +501,88 @@ template void Mesh::UpdateDynamic<Vertex>(const std::vector<Vertex>&, GLenum);
 template void Mesh::InitializeDynamic<DebugVertex>(GLenum);
 template void Mesh::InitializeDynamic<CanvasVertex>(GLenum);
 template void Mesh::InitializeDynamic<Vertex>(GLenum);
+
+// VoxelMeshBuilder implementation
+
+void VoxelMeshBuilder::PushFace(glm::ivec3 pos, FaceDir dir, uint8_t voxelId) {
+    uint8_t x = static_cast<uint8_t>(pos.x);
+    uint8_t y = static_cast<uint8_t>(pos.y);
+    uint8_t z = static_cast<uint8_t>(pos.z);
+    uint8_t faceId = static_cast<uint8_t>(dir);
+
+    // Each face has 4 corners, we generate 6 vertices (2 triangles)
+    // Vertex order: v0, v1, v2, v2, v3, v0 (two triangles sharing edge v0-v2)
+    VoxelVertex v0, v1, v2, v3;
+
+    switch (dir) {
+        case FaceDir::TOP: // +Y
+            v0 = { x,     static_cast<uint8_t>(y + 1), z,     voxelId, faceId };
+            v1 = { x,     static_cast<uint8_t>(y + 1), static_cast<uint8_t>(z + 1), voxelId, faceId };
+            v2 = { static_cast<uint8_t>(x + 1), static_cast<uint8_t>(y + 1), static_cast<uint8_t>(z + 1), voxelId, faceId };
+            v3 = { static_cast<uint8_t>(x + 1), static_cast<uint8_t>(y + 1), z,     voxelId, faceId };
+            break;
+
+        case FaceDir::BOTTOM: // -Y
+            v0 = { static_cast<uint8_t>(x + 1), y, z,     voxelId, faceId };
+            v1 = { static_cast<uint8_t>(x + 1), y, static_cast<uint8_t>(z + 1), voxelId, faceId };
+            v2 = { x,     y, static_cast<uint8_t>(z + 1), voxelId, faceId };
+            v3 = { x,     y, z,     voxelId, faceId };
+            break;
+
+        case FaceDir::RIGHT: // +X
+            v0 = { static_cast<uint8_t>(x + 1), static_cast<uint8_t>(y + 1), static_cast<uint8_t>(z + 1), voxelId, faceId };
+            v1 = { static_cast<uint8_t>(x + 1), y,     static_cast<uint8_t>(z + 1), voxelId, faceId };
+            v2 = { static_cast<uint8_t>(x + 1), y,     z,     voxelId, faceId };
+            v3 = { static_cast<uint8_t>(x + 1), static_cast<uint8_t>(y + 1), z,     voxelId, faceId };
+            break;
+
+        case FaceDir::LEFT: // -X
+            v0 = { x, static_cast<uint8_t>(y + 1), z,     voxelId, faceId };
+            v1 = { x, y,     z,     voxelId, faceId };
+            v2 = { x, y,     static_cast<uint8_t>(z + 1), voxelId, faceId };
+            v3 = { x, static_cast<uint8_t>(y + 1), static_cast<uint8_t>(z + 1), voxelId, faceId };
+            break;
+
+        case FaceDir::FRONT: // +Z
+            v0 = { x,     static_cast<uint8_t>(y + 1), static_cast<uint8_t>(z + 1), voxelId, faceId };
+            v1 = { x,     y,     static_cast<uint8_t>(z + 1), voxelId, faceId };
+            v2 = { static_cast<uint8_t>(x + 1), y,     static_cast<uint8_t>(z + 1), voxelId, faceId };
+            v3 = { static_cast<uint8_t>(x + 1), static_cast<uint8_t>(y + 1), static_cast<uint8_t>(z + 1), voxelId, faceId };
+            break;
+
+        case FaceDir::BACK: // -Z
+            v0 = { static_cast<uint8_t>(x + 1), static_cast<uint8_t>(y + 1), z, voxelId, faceId };
+            v1 = { static_cast<uint8_t>(x + 1), y,     z, voxelId, faceId };
+            v2 = { x,     y,     z, voxelId, faceId };
+            v3 = { x,     static_cast<uint8_t>(y + 1), z, voxelId, faceId };
+            break;
+    }
+
+    // Two triangles: (v0, v1, v2) and (v2, v3, v0)
+    _vertices.push_back(v0);
+    _vertices.push_back(v1);
+    _vertices.push_back(v2);
+    _vertices.push_back(v2);
+    _vertices.push_back(v3);
+    _vertices.push_back(v0);
+}
+
+void VoxelMeshBuilder::PushCube(glm::ivec3 pos, uint8_t voxelId) {
+    PushFace(pos, FaceDir::TOP, voxelId);
+    PushFace(pos, FaceDir::BOTTOM, voxelId);
+    PushFace(pos, FaceDir::RIGHT, voxelId);
+    PushFace(pos, FaceDir::LEFT, voxelId);
+    PushFace(pos, FaceDir::FRONT, voxelId);
+    PushFace(pos, FaceDir::BACK, voxelId);
+}
+
+void VoxelMeshBuilder::Build(RenderMesh& renderMesh) {
+    if (!renderMesh.IsInitialized()) {
+        renderMesh.Initialize(VertexFormat::Voxel, BufferUsage::Dynamic);
+    }
+    renderMesh.Upload(_vertices.data(), _vertices.size(), sizeof(VoxelVertex));
+}
+
+void VoxelMeshBuilder::Clear() {
+    _vertices.clear();
+}

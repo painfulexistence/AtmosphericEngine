@@ -4,12 +4,14 @@
 #include "light_component.hpp"
 #include "mesh.hpp"
 #include "mesh_component.hpp"
+#include "render_mesh.hpp"
 #include "server.hpp"
 #include "shader.hpp"
 #include <glm/mat4x4.hpp>
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
+#include <memory>
 #include <unordered_map>
 
 class SpriteComponent;
@@ -136,11 +138,20 @@ public:
     LightComponent* RegisterLight(LightComponent* light);
     SpriteComponent* RegisterSprite(SpriteComponent* sprite);
 
+    // RenderMesh management
+    RenderMeshHandle AllocateRenderMesh(VertexFormat format, BufferUsage usage = BufferUsage::Static);
+    void FreeRenderMesh(RenderMeshHandle handle);
+    RenderMesh* GetRenderMesh(RenderMeshHandle handle);
+
     Renderer* renderer = nullptr;
 
 private:
     CameraComponent* defaultCamera = nullptr;
     LightComponent* defaultLight = nullptr;
+
+    // RenderMesh storage
+    std::unordered_map<uint32_t, std::unique_ptr<RenderMesh>> _renderMeshes;
+    uint32_t _nextRenderMeshId = 0;
 
     static constexpr int MAX_CANVAS_TEXTURES = 32;
 

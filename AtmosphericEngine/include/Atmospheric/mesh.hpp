@@ -2,6 +2,7 @@
 #include "bullet_collision.hpp"
 #include "globals.hpp"
 #include "material.hpp"
+#include "render_mesh.hpp"
 #include "shader.hpp"
 #include "vertex.hpp"
 #include <cstdint>
@@ -124,4 +125,32 @@ public:
 private:
     std::vector<Vertex> vertices;
     std::vector<uint16_t> indices;
+};
+
+// Builder for voxel chunk meshes using compact VoxelVertex format
+class VoxelMeshBuilder {
+public:
+    // Push a single voxel face
+    // pos: local position within chunk (0-255 range)
+    // dir: face direction
+    // voxelId: voxel type identifier
+    void PushFace(glm::ivec3 pos, FaceDir dir, uint8_t voxelId);
+
+    // Push a full cube (all 6 faces) - use when all faces are visible
+    void PushCube(glm::ivec3 pos, uint8_t voxelId);
+
+    // Build and upload to a RenderMesh
+    void Build(RenderMesh& renderMesh);
+
+    // Get vertex data for manual handling
+    const std::vector<VoxelVertex>& GetVertices() const { return _vertices; }
+
+    // Get vertex count
+    size_t GetVertexCount() const { return _vertices.size(); }
+
+    // Clear accumulated data
+    void Clear();
+
+private:
+    std::vector<VoxelVertex> _vertices;
 };

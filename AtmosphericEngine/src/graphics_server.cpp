@@ -429,3 +429,79 @@ LightComponent* GraphicsServer::RegisterLight(LightComponent* light) {
     }
     return light;
 }
+
+// ===== Render Target Management Implementation =====
+
+std::shared_ptr<RenderTexture> GraphicsServer::CreateRenderTexture(int width, int height, bool withDepth) {
+    auto rt = std::make_shared<RenderTexture>(width, height, withDepth);
+    _renderTextures.push_back(rt);
+    return rt;
+}
+
+std::shared_ptr<RenderTexture> GraphicsServer::CreateRenderTexture(const RenderTexture::Props& props) {
+    auto rt = std::make_shared<RenderTexture>(props);
+    _renderTextures.push_back(rt);
+    return rt;
+}
+
+void GraphicsServer::PushRenderTarget(RenderTexture* target) {
+    // Save current target to stack
+    _renderTargetStack.push(_currentRenderTarget);
+
+    // Activate new target
+    if (target) {
+        target->Begin();
+    } else {
+        // If switching to default framebuffer and we had a target, end it
+        if (_currentRenderTarget) {
+            _currentRenderTarget->End();
+        }
+    }
+
+    _currentRenderTarget = target;
+}
+
+void GraphicsServer::PopRenderTarget() {
+    if (_renderTargetStack.empty()) {
+        Console::Get()->Warn("GraphicsServer::PopRenderTarget - Stack is empty!");
+        return;
+    }
+
+    // End current target if any
+    if (_currentRenderTarget) {
+        _currentRenderTarget->End();
+    }
+
+    // Restore previous target
+    RenderTexture* prevTarget = _renderTargetStack.top();
+    _renderTargetStack.pop();
+
+    if (prevTarget) {
+        prevTarget->Begin();
+    }
+
+    _currentRenderTarget = prevTarget;
+}
+
+void GraphicsServer::SetRenderTarget(RenderTexture* target) {
+    // End current target if switching
+    if (_currentRenderTarget && _currentRenderTarget != target) {
+        _currentRenderTarget->End();
+    }
+
+    // Begin new target
+    if (target && target != _currentRenderTarget) {
+        target->Begin();
+    } else if (!target && _currentRenderTarget) {
+        // Switching to default framebuffer
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        auto [width, height] = Window::Get()->GetFramebufferSize();
+        glViewport(0, 0, width, height);
+    }
+
+    _currentRenderTarget = target;
+}
+
+RenderTexture* GraphicsServer::GetCurrentRenderTarget() const {
+    return _currentRenderTarget;
+}

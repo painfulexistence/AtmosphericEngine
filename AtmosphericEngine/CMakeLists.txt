@@ -111,6 +111,7 @@ set(SOURCES
     src/batch_renderer_2d.cpp
     src/physics_server_2d.cpp
     src/rigidbody_2d_component.cpp
+    src/render_texture.cpp
 )
 if(AE_USE_AUDIO)
     list(APPEND SOURCES src/audio_manager.cpp)

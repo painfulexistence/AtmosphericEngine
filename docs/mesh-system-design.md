@@ -201,7 +201,7 @@ class VoxelChunk {
             }
         }
 
-        builder.Build(mesh);  // 內部呼叫 mesh.Update()
+        mesh.Update(builder.Build());  // 使用者自己呼叫 Update
         dirty = false;
     }
 
@@ -350,11 +350,8 @@ public:
     // 推入完整方塊 (6 面)
     void PushCube(glm::ivec3 pos, uint8_t voxelId);
 
-    // 建構並更新 Mesh
-    void Build(Mesh& mesh);
-
-    // 取得頂點資料
-    const std::vector<VoxelVertex>& GetVertices() const;
+    // 建構並回傳頂點資料
+    const std::vector<VoxelVertex>& Build();
 
     void Clear();
 };

@@ -599,10 +599,6 @@ void VoxelMeshBuilder::PushCube(glm::ivec3 pos, uint8_t voxelId) {
     PushFace(pos, FaceDir::BACK, voxelId);
 }
 
-void VoxelMeshBuilder::Build(Mesh& mesh) {
-    mesh.Update(_vertices);
-}
-
 void VoxelMeshBuilder::Clear() {
     _vertices.clear();
 }

@@ -151,11 +151,8 @@ public:
     // Push a full cube (all 6 faces) - use when all faces are visible
     void PushCube(glm::ivec3 pos, uint8_t voxelId);
 
-    // Build and update a Mesh (game layer API)
-    void Build(Mesh& mesh);
-
-    // Get vertex data for manual handling
-    const std::vector<VoxelVertex>& GetVertices() const { return _vertices; }
+    // Build and return vertex data
+    const std::vector<VoxelVertex>& Build() { return _vertices; }
 
     // Get vertex count
     size_t GetVertexCount() const { return _vertices.size(); }

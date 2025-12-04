@@ -5,6 +5,7 @@ set(LUA_FRONTEND_SOURCES
     main.cpp
     lua_application.cpp
     scriptable_component.cpp
+    font_manager.cpp
     bindings/bind_core.cpp
     bindings/bind_input.cpp
     bindings/bind_world.cpp
@@ -26,6 +27,7 @@ target_include_directories(${TARGET_NAME}
     PRIVATE
         ${CMAKE_SOURCE_DIR}/AtmosphericEngine/include
         ${CMAKE_SOURCE_DIR}/AtmosphericEngine/external/sol2/include
+        ${CMAKE_SOURCE_DIR}/AtmosphericEngine/external/stb
         ${LUA_INCLUDE_DIR}
 )
 

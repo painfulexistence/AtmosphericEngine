@@ -369,10 +369,10 @@ class PlayerController : public Component {
 - [x] `gameObject:addScript("ClassName")` binding
 - [x] Access to instance table via `getScript().instance`
 
-### Phase 4: Extended APIs ✅ MOSTLY COMPLETE
+### Phase 4: Extended APIs ✅ COMPLETE
 - [x] Graphics API: `drawSprite`, `drawRect`, `setColor`, `begin2D`/`end2D`
 - [x] Audio API: `loadSound`, `playSound`, `loadMusic`, `playMusic`, volume control
-- [ ] Text rendering: `drawText` (needs font atlas or FreeType)
+- [x] Text rendering: `loadFont`, `drawText`, `measureText` (via stb_truetype)
 - [x] Physics API: `raycast`, `addForce`, `addImpulse`, `setGravity`
 - [x] RigidbodyComponent bindings: velocity, forces, sleep/wake
 - [x] Collision callbacks: `onCollision(other)` in ScriptableComponent

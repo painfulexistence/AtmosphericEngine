@@ -716,3 +716,95 @@ sol::table atmos = lua.create_named_table("atmos");
 sol::table graphics = atmos.create("graphics");
 graphics["draw"] = &GraphicsAPI::Draw;
 ```
+
+## Appendix: Scripting Language Comparison
+
+### Architecture: ScriptApplication Pattern
+
+The recommended architecture is to implement each scripting language as an `Application` subclass:
+
+```
+AtmosphericEngine (core library)
+        │
+        ├── libatmos.a / atmos.dll
+        │
+        ▼
+┌───────────────────────────────────────────────────┐
+│              Different "Frontends"                 │
+├─────────────────┬─────────────────┬───────────────┤
+│ LuaApp.exe      │ MonoApp.exe     │ MyGame.exe    │
+│ (Love2D style)  │ (Unity style)   │ (Pure C++)    │
+│                 │                 │               │
+│ class LuaApp    │ class MonoApp   │ class MyGame  │
+│ : Application   │ : Application   │ : Application │
+└─────────────────┴─────────────────┴───────────────┘
+```
+
+**Benefits:**
+- No abstraction layer needed (no `IScriptRuntime` interface)
+- Each language frontend is completely independent
+- Zero overhead from polymorphism
+- Adding a new language = adding a new Application subclass
+
+### Language Comparison
+
+| Feature | Lua (Sol2) | Luau (LuaBridge3) | Mono (C#) | Lobster |
+|---------|------------|-------------------|-----------|---------|
+| **Type System** | Dynamic | Gradual (optional) | Static | Static |
+| **JIT** | LuaJIT ✅ | ✅ (weaker) | ✅ | ❌ |
+| **AOT** | ❌ | ❌ | ✅ | ✅ |
+| **GC** | Yes | Yes | Yes | No (compile-time) |
+| **Binding Convenience** | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐ |
+| **IDE Support** | Basic | Basic | Excellent | Basic |
+| **Runtime Size** | ~500KB | ~500KB | ~20-50MB | ~2MB |
+| **Community** | Large | Medium | Large | Small |
+| **Embedding Design** | Native | Native | Native | Standalone-first |
+
+### Binding Code Comparison
+
+**Lua (Sol2) - Most concise:**
+```cpp
+lua.new_usertype<GameObject>("GameObject",
+    "position", sol::property(&GameObject::GetPosition, &GameObject::SetPosition),
+    "addMesh", &GameObject::AddMesh
+);
+```
+
+**Luau (LuaBridge3) - Similar:**
+```cpp
+luabridge::getGlobalNamespace(L)
+    .beginClass<GameObject>("GameObject")
+        .addProperty("position", &GameObject::GetPosition, &GameObject::SetPosition)
+        .addFunction("addMesh", &GameObject::AddMesh)
+    .endClass();
+```
+
+**Mono (C#) - Requires both sides:**
+```cpp
+// C++ side
+mono_add_internal_call("Atmos.GameObject::GetPosition", (void*)GameObject_GetPosition);
+
+// C# side (also required)
+public class GameObject {
+    [MethodImpl(MethodImplOptions.InternalCall)]
+    public extern Vector3 GetPosition();
+}
+```
+
+### Estimated Implementation Cost
+
+| Component | Lua | Luau | Mono |
+|-----------|-----|------|------|
+| Application subclass | ~200 lines | ~200 lines | ~400 lines |
+| 100 API bindings | ~400 lines | ~500 lines | ~1400 lines |
+| Hot reload | ~100 lines | ~100 lines | ~500 lines |
+| **Total** | **~700 lines** | **~800 lines** | **~2300 lines** |
+
+### Recommendation
+
+| Use Case | Recommended |
+|----------|-------------|
+| Rapid prototyping, small teams | **Lua** — simplest binding |
+| Type safety without AOT | **Luau** — gradual typing |
+| Large projects, Unity familiarity | **Mono** — full static typing + IDE |
+| Minimal runtime, AOT required | Consider **AngelScript** or **Mono AOT** |

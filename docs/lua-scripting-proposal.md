@@ -369,10 +369,12 @@ class PlayerController : public Component {
 - [x] `gameObject:addScript("ClassName")` binding
 - [x] Access to instance table via `getScript().instance`
 
-### Phase 4: Extended APIs (Nice to have)
+### Phase 4: Extended APIs
 - [ ] Graphics API: `drawSprite`, `drawText`, `setColor`
 - [ ] Audio API: `play`, `stop`, `setVolume`
-- [ ] Physics API: `raycast`, `addForce`, `setVelocity`
+- [x] Physics API: `raycast`, `addForce`, `addImpulse`, `setGravity`
+- [x] RigidbodyComponent bindings: velocity, forces, sleep/wake
+- [x] Collision callbacks: `onCollision(other)` in ScriptableComponent
 
 ### Phase 5: Hot Reload (Nice to have)
 - [ ] File change detection
@@ -402,10 +404,11 @@ AtmosphericEngine/
 │       ├── example_main.lua     # Example game script
 │       ├── CMakeLists.txt
 │       └── bindings/
-│           ├── bind_core.cpp    # vec2, vec3, vec4, quat
-│           ├── bind_input.cpp   # Input API + key constants
+│           ├── bind_core.cpp     # vec2, vec3, vec4, quat
+│           ├── bind_input.cpp    # Input API + key constants
 │           ├── bind_graphics.cpp # Graphics, Camera, Light, Assets
-│           └── bind_world.cpp   # GameObject, World, Scene APIs
+│           ├── bind_world.cpp    # GameObject, World, Scene APIs
+│           └── bind_physics.cpp  # Raycast, RigidbodyComponent, Forces
 └── docs/
     └── lua-scripting-proposal.md  # This document
 ```

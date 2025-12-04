@@ -118,6 +118,20 @@ void BindWorldAPI(sol::state& lua, LuaApplication* app)
         "addScript", [&lua](GameObject* go, const std::string& className) {
             auto* script = new ScriptableComponent(go, lua, className);
             go->AddComponent(script);
+
+            // Set up collision callback to forward to all ScriptableComponents
+            // Capture 'go' by value (pointer copy) - safe because GameObject lifetime > callback
+            go->SetCollisionCallback([go](GameObject* other) {
+                // Iterate all ScriptableComponents and call their OnCollision
+                // Note: GetComponent only returns first match, so we use the script directly
+                // For now, just call the first ScriptableComponent's OnCollision
+                // TODO: iterate all ScriptableComponents when multiple scripts per GO is supported
+                auto* scriptComp = go->GetComponent<ScriptableComponent>();
+                if (scriptComp) {
+                    scriptComp->OnCollision(other);
+                }
+            });
+
             return go;
         },
 

@@ -60,6 +60,109 @@ function Bobber:update(dt)
 end
 
 -- =============================================================================
+-- Example ScriptableComponent: CharacterController
+-- A physics-based character with ground detection and collision handling
+-- =============================================================================
+CharacterController = {}
+CharacterController.__index = CharacterController
+
+function CharacterController:new()
+    local self = setmetatable({}, CharacterController)
+    self.speed = 5.0
+    self.jumpForce = 8.0
+    self.gravity = -20.0
+    self.velocityY = 0
+    self.isGrounded = false
+    self.groundCheckDistance = 0.1
+    return self
+end
+
+function CharacterController:init()
+    print("[CharacterController] Initialized")
+end
+
+function CharacterController:update(dt)
+    local go = self.gameObject
+    local pos = go.position
+
+    -- Ground detection via raycast
+    local rayStart = vec3(pos.x, pos.y + 0.5, pos.z)
+    local rayEnd = vec3(pos.x, pos.y - self.groundCheckDistance, pos.z)
+    local hit = atmos.physics.raycast(rayStart, rayEnd)
+
+    if hit then
+        self.isGrounded = true
+        self.velocityY = 0
+        -- Snap to ground
+        pos.y = hit.point.y
+    else
+        self.isGrounded = false
+    end
+
+    -- Horizontal movement
+    local move = vec3(0, 0, 0)
+    if atmos.input.isKeyDown(atmos.keys.W) then move.z = 1 end
+    if atmos.input.isKeyDown(atmos.keys.S) then move.z = -1 end
+    if atmos.input.isKeyDown(atmos.keys.A) then move.x = -1 end
+    if atmos.input.isKeyDown(atmos.keys.D) then move.x = 1 end
+
+    -- Normalize horizontal movement
+    local len = math.sqrt(move.x * move.x + move.z * move.z)
+    if len > 0 then
+        move.x = move.x / len * self.speed
+        move.z = move.z / len * self.speed
+    end
+
+    -- Jump
+    if self.isGrounded and atmos.input.isKeyPressed(atmos.keys.SPACE) then
+        self.velocityY = self.jumpForce
+        print("[CharacterController] Jump!")
+    end
+
+    -- Apply gravity
+    if not self.isGrounded then
+        self.velocityY = self.velocityY + self.gravity * dt
+    end
+
+    -- Apply movement
+    pos.x = pos.x + move.x * dt
+    pos.y = pos.y + self.velocityY * dt
+    pos.z = pos.z + move.z * dt
+
+    go.position = pos
+end
+
+function CharacterController:onCollision(other)
+    print("[CharacterController] Collided with: " .. tostring(other))
+end
+
+-- =============================================================================
+-- Example ScriptableComponent: Collectible
+-- Shows collision callback usage
+-- =============================================================================
+Collectible = {}
+Collectible.__index = Collectible
+
+function Collectible:new()
+    local self = setmetatable({}, Collectible)
+    self.collected = false
+    return self
+end
+
+function Collectible:init()
+    print("[Collectible] Spawned")
+end
+
+function Collectible:onCollision(other)
+    if not self.collected and other.name == "Player" then
+        self.collected = true
+        print("[Collectible] Picked up by player!")
+        -- Disable the object
+        self.gameObject.isActive = false
+    end
+end
+
+-- =============================================================================
 -- Game Code
 -- =============================================================================
 

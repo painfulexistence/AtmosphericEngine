@@ -6,6 +6,7 @@ void BindCoreTypes(sol::state& lua);
 void BindInputAPI(sol::state& lua, Input* input);
 void BindWorldAPI(sol::state& lua, LuaApplication* app);
 void BindGraphicsAPI(sol::state& lua, GraphicsServer* graphics);
+void BindPhysicsAPI(sol::state& lua, LuaApplication* app);
 
 LuaApplication::LuaApplication(AppConfig config)
     : Application(config)
@@ -86,6 +87,9 @@ void LuaApplication::BindEngineAPIs()
 
     // Bind Graphics API
     BindGraphicsAPI(_lua, GetGraphicsServer());
+
+    // Bind Physics API
+    BindPhysicsAPI(_lua, this);
 
     // Bind application-level functions
     atmos["quit"] = [this]() { Quit(); };

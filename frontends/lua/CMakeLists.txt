@@ -9,6 +9,7 @@ set(LUA_FRONTEND_SOURCES
     bindings/bind_input.cpp
     bindings/bind_world.cpp
     bindings/bind_graphics.cpp
+    bindings/bind_physics.cpp
 )
 
 # Create executable

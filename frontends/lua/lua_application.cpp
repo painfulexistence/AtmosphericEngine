@@ -7,6 +7,7 @@ void BindInputAPI(sol::state& lua, Input* input);
 void BindWorldAPI(sol::state& lua, LuaApplication* app);
 void BindGraphicsAPI(sol::state& lua, GraphicsServer* graphics);
 void BindPhysicsAPI(sol::state& lua, LuaApplication* app);
+void BindAudioAPI(sol::state& lua, AudioManager* audio);
 
 LuaApplication::LuaApplication(AppConfig config)
     : Application(config)
@@ -90,6 +91,9 @@ void LuaApplication::BindEngineAPIs()
 
     // Bind Physics API
     BindPhysicsAPI(_lua, this);
+
+    // Bind Audio API
+    BindAudioAPI(_lua, GetAudioManager());
 
     // Bind application-level functions
     atmos["quit"] = [this]() { Quit(); };

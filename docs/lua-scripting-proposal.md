@@ -369,9 +369,10 @@ class PlayerController : public Component {
 - [x] `gameObject:addScript("ClassName")` binding
 - [x] Access to instance table via `getScript().instance`
 
-### Phase 4: Extended APIs
-- [ ] Graphics API: `drawSprite`, `drawText`, `setColor`
-- [ ] Audio API: `play`, `stop`, `setVolume`
+### Phase 4: Extended APIs ✅ MOSTLY COMPLETE
+- [x] Graphics API: `drawSprite`, `drawRect`, `setColor`, `begin2D`/`end2D`
+- [x] Audio API: `loadSound`, `playSound`, `loadMusic`, `playMusic`, volume control
+- [ ] Text rendering: `drawText` (needs font atlas or FreeType)
 - [x] Physics API: `raycast`, `addForce`, `addImpulse`, `setGravity`
 - [x] RigidbodyComponent bindings: velocity, forces, sleep/wake
 - [x] Collision callbacks: `onCollision(other)` in ScriptableComponent
@@ -406,9 +407,10 @@ AtmosphericEngine/
 │       └── bindings/
 │           ├── bind_core.cpp     # vec2, vec3, vec4, quat
 │           ├── bind_input.cpp    # Input API + key constants
-│           ├── bind_graphics.cpp # Graphics, Camera, Light, Assets
+│           ├── bind_graphics.cpp # Graphics, Camera, Light, 2D Drawing
 │           ├── bind_world.cpp    # GameObject, World, Scene APIs
-│           └── bind_physics.cpp  # Raycast, RigidbodyComponent, Forces
+│           ├── bind_physics.cpp  # Raycast, RigidbodyComponent, Forces
+│           └── bind_audio.cpp    # Sound, Music, Volume control
 └── docs/
     └── lua-scripting-proposal.md  # This document
 ```

@@ -75,6 +75,7 @@ set(SOURCES
     src/camera_component.cpp
     src/mesh.cpp
     src/render_mesh.cpp
+    src/csg.cpp
     src/frustum.cpp
     src/mesh_component.cpp
     src/sprite_component.cpp

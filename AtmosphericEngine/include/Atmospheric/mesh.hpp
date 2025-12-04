@@ -1,5 +1,6 @@
 #pragma once
 #include "bullet_collision.hpp"
+#include "csg.hpp"
 #include "globals.hpp"
 #include "material.hpp"
 #include "render_mesh.hpp"
@@ -132,7 +133,12 @@ public:
 
     void PushCube(glm::vec3 position, glm::vec3 size, glm::quat rotation = glm::quat(1.0f, 0.0f, 0.0f, 0.0f));
 
+    // Push CSG compiled boxes
+    void PushCSG(const std::vector<CSG::AABB>& boxes);
+
     std::shared_ptr<Mesh> Build();
+
+    void Clear();
 
 private:
     std::vector<Vertex> vertices;

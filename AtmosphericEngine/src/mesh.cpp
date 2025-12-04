@@ -435,6 +435,17 @@ void MeshBuilder::PushCube(glm::vec3 position, glm::vec3 size, glm::quat rotatio
     PushQuad(position + glm::vec3(0, -size.y / 2, 0), glm::vec2(size.x, size.z), glm::vec3(0, -1, 0));
 }
 
+void MeshBuilder::PushCSG(const std::vector<CSG::AABB>& boxes) {
+    for (const auto& box : boxes) {
+        PushCube(box.GetCenter(), box.GetSize());
+    }
+}
+
+void MeshBuilder::Clear() {
+    vertices.clear();
+    indices.clear();
+}
+
 std::shared_ptr<Mesh> MeshBuilder::Build() {
     // CalculateNormalsAndTangents(vertices, indices);
 

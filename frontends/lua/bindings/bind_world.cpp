@@ -1,8 +1,29 @@
 #include "../lua_application.hpp"
+#include "../scriptable_component.hpp"
 
 void BindWorldAPI(sol::state& lua, LuaApplication* app)
 {
     sol::table atmos = lua["atmos"];
+
+    // ===== ScriptableComponent usertype =====
+    lua.new_usertype<ScriptableComponent>("ScriptableComponent",
+        sol::no_constructor,
+
+        // Access the Lua instance table
+        "instance", sol::property(&ScriptableComponent::GetInstance),
+
+        // Get the class name
+        "className", sol::property(&ScriptableComponent::GetClassName),
+
+        // Check if a method exists
+        "hasMethod", &ScriptableComponent::HasMethod,
+
+        // Access the owning GameObject
+        "gameObject", sol::readonly(&ScriptableComponent::gameObject),
+
+        // Enable/disable the component
+        "enabled", &ScriptableComponent::enabled
+    );
 
     // ===== GameObject usertype =====
     lua.new_usertype<GameObject>("GameObject",
@@ -91,6 +112,18 @@ void BindWorldAPI(sol::state& lua, LuaApplication* app)
 
             go->AddRigidbody(rbProps);
             return go;
+        },
+
+        // Add a Lua script component
+        "addScript", [&lua](GameObject* go, const std::string& className) {
+            auto* script = new ScriptableComponent(go, lua, className);
+            go->AddComponent(script);
+            return go;
+        },
+
+        // Get the first ScriptableComponent (TODO: support multiple scripts per GameObject)
+        "getScript", [](GameObject* go) -> ScriptableComponent* {
+            return go->GetComponent<ScriptableComponent>();
         },
 
         "setPhysicsActivated", &GameObject::SetPhysicsActivated,

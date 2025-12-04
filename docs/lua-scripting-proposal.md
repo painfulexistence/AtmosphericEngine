@@ -347,22 +347,27 @@ class PlayerController : public Component {
 
 ## Implementation Phases
 
-### Phase 1: Foundation (Required)
-- [ ] Create `ScriptRuntime` class (not inheriting from Server)
-- [ ] Fix initialization order
-- [ ] Implement proper error handling with stack traces
-- [ ] Basic callbacks: `load()`, `update(dt)`, `draw()`
+### Phase 1: Foundation ✅ COMPLETED
+- [x] Create `LuaApplication` class (Application subclass pattern)
+- [x] Fix initialization order (load() called after scene ready)
+- [x] Implement proper error handling with stack traces
+- [x] Basic callbacks: `load()`, `update(dt)`, `draw()`
 
-### Phase 2: Core Bindings (Required)
-- [ ] Math types: `vec3`, `vec2`, `mat4`, `quat`
-- [ ] `GameObject` usertype with position/rotation/scale
-- [ ] Input API: `isKeyDown`, `isKeyPressed`, `getMousePosition`
-- [ ] Basic world API: `spawn`, `destroy`, `find`
+### Phase 2: Core Bindings ✅ COMPLETED
+- [x] Math types: `vec3`, `vec2`, `vec4`, `quat`
+- [x] `GameObject` usertype with position/rotation/scale
+- [x] Input API: `isKeyDown`, `isKeyPressed`, `getMousePosition`
+- [x] Basic world API: `spawn`, `destroy`, `find`
+- [x] Graphics API: `getMainCamera`, `getMainLight`, `reloadShaders`
+- [x] Asset management: `createCubeMesh`, `createSphereMesh`, `getMesh`
 
-### Phase 3: ScriptableComponent (Required)
-- [ ] Implement `ScriptableComponent`
-- [ ] Lua class instantiation
-- [ ] Lifecycle callbacks: `onAttach`, `onDetach`, `onUpdate`
+### Phase 3: ScriptableComponent ✅ COMPLETED
+- [x] Implement `ScriptableComponent` class
+- [x] Lua class instantiation (with `new()` constructor support)
+- [x] Lifecycle callbacks: `init()`, `update(dt)`, `physicsUpdate(dt)`, `onCollision()`, `onDestroy()`
+- [x] Method caching for performance
+- [x] `gameObject:addScript("ClassName")` binding
+- [x] Access to instance table via `getScript().instance`
 
 ### Phase 4: Extended APIs (Nice to have)
 - [ ] Graphics API: `drawSprite`, `drawText`, `setColor`
@@ -381,31 +386,41 @@ class PlayerController : public Component {
 
 ## File Structure
 
+**Current Implementation:**
+
 ```
 AtmosphericEngine/
-├── include/Atmospheric/
-│   ├── scripting/
-│   │   ├── script_runtime.hpp
-│   │   ├── scriptable_component.hpp
-│   │   └── script_bindings.hpp
-│   └── ...
-├── src/
-│   ├── scripting/
-│   │   ├── script_runtime.cpp
-│   │   ├── scriptable_component.cpp
-│   │   └── bindings/
-│   │       ├── bind_core.cpp
-│   │       ├── bind_input.cpp
-│   │       ├── bind_graphics.cpp
-│   │       ├── bind_audio.cpp
-│   │       ├── bind_physics.cpp
-│   │       └── bind_world.cpp
-│   └── ...
+├── AtmosphericEngine/           # Core engine library
+│   └── include/Atmospheric/     # Public headers
+├── frontends/
+│   └── lua/                     # Lua frontend (AtmosLua.exe)
+│       ├── main.cpp             # Entry point
+│       ├── lua_application.hpp  # LuaApplication class
+│       ├── lua_application.cpp
+│       ├── scriptable_component.hpp  # ScriptableComponent
+│       ├── scriptable_component.cpp
+│       ├── example_main.lua     # Example game script
+│       ├── CMakeLists.txt
+│       └── bindings/
+│           ├── bind_core.cpp    # vec2, vec3, vec4, quat
+│           ├── bind_input.cpp   # Input API + key constants
+│           ├── bind_graphics.cpp # Graphics, Camera, Light, Assets
+│           └── bind_world.cpp   # GameObject, World, Scene APIs
+└── docs/
+    └── lua-scripting-proposal.md  # This document
+```
+
+**Runtime Output:**
+
+```
+build/bin/AtmosLua/
+├── AtmosLua.exe
 └── assets/
-    └── scripts/
-        ├── main.lua
-        └── components/
-            └── player_controller.lua
+    ├── scripts/
+    │   └── main.lua             # User's game script
+    ├── shaders/
+    ├── textures/
+    └── scenes/
 ```
 
 ## Data-Driven Architecture Under Scripting

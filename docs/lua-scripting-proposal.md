@@ -408,6 +408,270 @@ AtmosphericEngine/
             └── player_controller.lua
 ```
 
+## Data-Driven Architecture Under Scripting
+
+### The Problem: FFI Overhead
+
+When Lua spawns entities by calling C++ APIs repeatedly, each call crosses the language boundary:
+
+```lua
+-- Naive approach: 4+ FFI calls per entity
+function load()
+    for i = 1, 1000 do
+        local e = atmos.world.spawn()      -- 1. Lua→C++ create GameObject
+        e:addMesh("enemy")                  -- 2. Lua→C++ load mesh, register renderer
+        e:addRigidbody({mass = 1})          -- 3. Lua→C++ create physics body
+        e:addScript("EnemyAI")              -- 4. Lua→C++ create component
+    end
+end
+-- 1000 entities × 4 calls = 4000+ FFI crossings
+```
+
+This is inefficient because:
+1. Each FFI call has overhead (~100-500ns)
+2. No batching opportunity
+3. Memory allocation scattered across calls
+
+### Why Love2D Doesn't Have This Problem
+
+Love2D's "entities" are just Lua tables:
+
+```lua
+-- Love2D style: zero FFI calls for "spawning"
+function love.load()
+    enemies = {}
+    for i = 1, 1000 do
+        table.insert(enemies, {
+            x = math.random(800),
+            y = math.random(600),
+            sprite = enemyImage,  -- Pre-loaded image reference
+            health = 100
+        })
+    end
+end
+
+function love.draw()
+    for _, e in ipairs(enemies) do
+        love.graphics.draw(e.sprite, e.x, e.y)  -- Only here: Lua→C++
+    end
+end
+```
+
+Love2D has no GameObject/Component system. "Entities" are pure Lua data with zero C++ involvement until rendering.
+
+### Solution: Shared C++ Scene Loader
+
+Instead of Lua calling spawn APIs, let C++ batch-process scene data:
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│                     Configuration Layer                       │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐           │
+│  │ level1.lua  │  │ level2.lua  │  │ prefabs.lua │           │
+│  │ (scene def) │  │ (scene def) │  │ (templates) │           │
+│  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘           │
+└─────────┼────────────────┼────────────────┼──────────────────┘
+          │                │                │
+          └────────────────┼────────────────┘
+                           ▼
+┌──────────────────────────────────────────────────────────────┐
+│                      C++ SceneLoader                          │
+│  - Single FFI call from Lua                                   │
+│  - Batch creates all GameObjects                              │
+│  - Batch attaches all Components                              │
+│  - Can optimize memory layout                                 │
+└─────────────────────────┬────────────────────────────────────┘
+                          │
+          ┌───────────────┼───────────────┐
+          ▼               ▼               ▼
+┌──────────────┐  ┌──────────────┐  ┌──────────────┐
+│ C++ OnLoad() │  │ Lua load()   │  │ Runtime      │
+│ Direct call  │  │ via binding  │  │ spawn()      │
+└──────────────┘  └──────────────┘  └──────────────┘
+```
+
+### Scene Configuration Format
+
+```lua
+-- assets/scenes/level1.lua
+return {
+    entities = {
+        player = {
+            position = {0, 1, 0},
+            rotation = {0, 0, 0},
+            components = {
+                mesh = { name = "player_mesh" },
+                rigidbody = { mass = 1.0, kinematic = false },
+                script = { class = "PlayerController" }
+            }
+        },
+        main_camera = {
+            position = {0, 5, -10},
+            components = {
+                camera = { fov = 60, near = 0.1, far = 1000 }
+            }
+        }
+    },
+
+    -- Batch spawning
+    spawners = {
+        {
+            prefab = "enemy",
+            count = 100,
+            area = {-50, -50, 50, 50},
+            random_rotation = true
+        },
+        {
+            prefab = "tree",
+            count = 500,
+            area = {-100, -100, 100, 100}
+        }
+    }
+}
+```
+
+### C++ SceneLoader Implementation
+
+```cpp
+class SceneLoader {
+public:
+    // Load from Lua table - called once, creates everything
+    static void LoadFromTable(sol::table sceneData) {
+        auto& app = *Application::Get();
+
+        // Batch create entities
+        if (auto entities = sceneData["entities"]; entities.valid()) {
+            for (auto& [name, data] : entities) {
+                CreateEntity(name, data);
+            }
+        }
+
+        // Batch spawners
+        if (auto spawners = sceneData["spawners"]; spawners.valid()) {
+            for (auto& spawner : spawners) {
+                ProcessSpawner(spawner);
+            }
+        }
+    }
+
+    // Load from file path
+    static void LoadFromFile(const std::string& name) {
+        auto& lua = ScriptRuntime::Get().GetState();
+        std::string path = "assets/scenes/" + name + ".lua";
+
+        sol::table sceneData = lua.script_file(path);
+        LoadFromTable(sceneData);
+    }
+
+private:
+    static void CreateEntity(const std::string& name, sol::table data) {
+        auto* go = Application::Get()->CreateGameObject();
+        go->SetName(name);
+
+        // Position/rotation/scale
+        if (auto pos = data["position"]; pos.valid()) {
+            go->SetPosition(TableToVec3(pos));
+        }
+        if (auto rot = data["rotation"]; rot.valid()) {
+            go->SetRotation(TableToVec3(rot));
+        }
+
+        // Components - all attached in C++, no FFI per component
+        if (auto components = data["components"]; components.valid()) {
+            AttachComponents(go, components);
+        }
+    }
+
+    static void ProcessSpawner(sol::table spawner) {
+        std::string prefab = spawner["prefab"];
+        int count = spawner["count"];
+        sol::table area = spawner["area"];
+
+        // Batch create - much faster than individual Lua calls
+        for (int i = 0; i < count; i++) {
+            auto* go = InstantiatePrefab(prefab);
+            go->SetPosition(RandomPositionInArea(area));
+        }
+    }
+};
+```
+
+### Binding for Lua Access
+
+```cpp
+void BindSceneAPI(sol::state& lua) {
+    sol::table scene = lua["atmos"]["scene"];
+
+    // Single call loads entire scene
+    scene["load"] = [](const std::string& name) {
+        SceneLoader::LoadFromFile(name);
+    };
+
+    // Load from inline table
+    scene["loadTable"] = [](sol::table data) {
+        SceneLoader::LoadFromTable(data);
+    };
+
+    // Runtime spawning (for dynamic objects)
+    scene["spawn"] = [](const std::string& prefab, float x, float y, float z) {
+        return SceneLoader::InstantiatePrefab(prefab, {x, y, z});
+    };
+}
+```
+
+### Usage Comparison
+
+**C++ Production Code:**
+```cpp
+void MyGame::OnLoad() {
+    SceneLoader::LoadFromFile("level1");
+
+    // Get handles for runtime manipulation
+    player = FindGameObject("player");
+    mainCamera = FindGameObject("main_camera");
+}
+```
+
+**Lua Prototyping Code:**
+```lua
+function load()
+    atmos.scene.load("level1")  -- Same loader, same result
+
+    -- Get handles
+    player = atmos.world.find("player")
+    camera = atmos.world.find("main_camera")
+
+    -- Runtime spawning still available for dynamic objects
+    local pickup = atmos.scene.spawn("coin", 10, 1, 5)
+end
+```
+
+### Performance Comparison
+
+| Approach | 1000 Entities | FFI Calls | Time |
+|----------|---------------|-----------|------|
+| Lua manual spawn | 4000+ | ~4000 | ~50ms |
+| C++ SceneLoader | 1 | 1 | ~5ms |
+
+### Key Design Principles
+
+1. **Configuration in Lua, Execution in C++**
+   - Scene data defined as Lua tables (human-readable, easy to edit)
+   - Parsing and instantiation done in C++ (fast, batched)
+
+2. **Single Entry Point**
+   - One `scene.load()` call replaces thousands of individual API calls
+   - C++ can optimize memory allocation, batch physics registration, etc.
+
+3. **Same Loader for Both Languages**
+   - C++ calls `SceneLoader::LoadFromFile()` directly
+   - Lua calls `atmos.scene.load()` which wraps the same function
+   - Consistent behavior, single source of truth
+
+4. **Runtime Spawning as Exception**
+   - Use `spawn()` for truly dynamic objects (projectiles, pickups)
+   - Static level geometry should always go through scene files
+
 ## Appendix: Sol2 Binding Patterns
 
 ### Function Binding

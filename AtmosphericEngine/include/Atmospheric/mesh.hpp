@@ -1,6 +1,5 @@
 #pragma once
 #include "bullet_collision.hpp"
-#include "csg.hpp"
 #include "globals.hpp"
 #include "material.hpp"
 #include "render_mesh.hpp"
@@ -35,11 +34,9 @@ public:
     GLuint ibo;
 
     Mesh(MeshType type = MeshType::PRIM);
-
     ~Mesh();
 
     void Initialize(const std::vector<Vertex>& verts);
-
     void Initialize(const std::vector<Vertex>& verts, const std::vector<uint16_t>& tris);
 
     // Dynamic update methods for per-frame geometry (legacy)
@@ -50,10 +47,14 @@ public:
     void Update(const std::vector<VoxelVertex>& vertices);
 
     // Check if this mesh uses the new RenderMesh system
-    bool UsesRenderMesh() const { return _renderMeshHandle.IsValid(); }
+    bool UsesRenderMesh() const {
+        return _renderMeshHandle.IsValid();
+    }
 
     // Get the RenderMesh handle (for rendering)
-    RenderMeshHandle GetRenderMeshHandle() const { return _renderMeshHandle; }
+    RenderMeshHandle GetRenderMeshHandle() const {
+        return _renderMeshHandle;
+    }
 
     GLenum GetPrimitiveType() const {
         return _primitiveType;
@@ -99,73 +100,4 @@ private:
     RenderMeshHandle _renderMeshHandle;
 
     template<typename VertexType> void InitializeDynamic(GLenum primType);
-};
-
-class MeshBuilder {
-public:
-    static Mesh* CreateCube(const float& size = 1.0f);
-
-    static Mesh* CreateSphere(const float& radius = 0.5f, const int& division = 18);
-
-    static Mesh* CreateTerrain(const float& size = 1024.f, const int& resolution = 10);
-
-    // static Mesh* CreateTerrain(const std::vector<float>& heightmap, const float& size = 1024.f, const int& resolution
-    // = 10);
-
-    static Mesh* CreateCubeWithPhysics(const float& size = 1.0f);
-
-    static Mesh* CreateSphereWithPhysics(const float& radius = 0.5f, const int& division = 18);
-
-    static Mesh* CreateTerrainWithPhysics(
-      const float& size = 1024.f,
-      const int& resolution = 10,
-      const std::string& heightmap = "assets/textures/heightmap_debug.jpg"
-    );
-
-    void PushQuad(
-      glm::vec3 position,
-      glm::vec2 size,
-      glm::vec3 normal,
-      glm::quat rotation = glm::quat(1.0f, 0.0f, 0.0f, 0.0f),
-      glm::vec2 uvMin = glm::vec2(0.0f),
-      glm::vec2 uvMax = glm::vec2(1.0f)
-    );
-
-    void PushCube(glm::vec3 position, glm::vec3 size, glm::quat rotation = glm::quat(1.0f, 0.0f, 0.0f, 0.0f));
-
-    // Push CSG compiled boxes
-    void PushCSG(const std::vector<CSG::AABB>& boxes);
-
-    std::shared_ptr<Mesh> Build();
-
-    void Clear();
-
-private:
-    std::vector<Vertex> vertices;
-    std::vector<uint16_t> indices;
-};
-
-// Builder for voxel chunk meshes using compact VoxelVertex format
-class VoxelMeshBuilder {
-public:
-    // Push a single voxel face
-    // pos: local position within chunk (0-255 range)
-    // dir: face direction
-    // voxelId: voxel type identifier
-    void PushFace(glm::ivec3 pos, FaceDir dir, uint8_t voxelId);
-
-    // Push a full cube (all 6 faces) - use when all faces are visible
-    void PushCube(glm::ivec3 pos, uint8_t voxelId);
-
-    // Build and return vertex data
-    const std::vector<VoxelVertex>& Build() { return _vertices; }
-
-    // Get vertex count
-    size_t GetVertexCount() const { return _vertices.size(); }
-
-    // Clear accumulated data
-    void Clear();
-
-private:
-    std::vector<VoxelVertex> _vertices;
 };

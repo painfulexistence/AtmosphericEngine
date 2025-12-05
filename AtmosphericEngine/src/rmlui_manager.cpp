@@ -25,7 +25,7 @@ RmlUiManager::~RmlUiManager() {
     }
 }
 
-bool RmlUiManager::Initialize(int width, int height) {
+bool RmlUiManager::Initialize(int width, int height, Renderer* renderer) {
     if (m_initialized) {
         spdlog::warn("RmlUiManager already initialized");
         return true;
@@ -35,7 +35,7 @@ bool RmlUiManager::Initialize(int width, int height) {
     m_height = height;
 
     // Create renderer and system interfaces
-    m_renderer = std::make_unique<RmlUiRenderer>();
+    m_renderer = std::make_unique<RmlUiRenderer>(renderer);
     m_system = std::make_unique<RmlUiSystem>();
 
     // Initialize renderer
@@ -109,14 +109,8 @@ void RmlUiManager::Render() {
     ZoneScopedN("RmlUiManager::Render");
     if (!m_initialized || !m_context) return;
 
-    // Begin rendering frame
-    m_renderer->BeginFrame(m_width, m_height);
-
-    // Render the context
+    // Render the context (generates commands to Renderer)
     m_context->Render();
-
-    // End rendering frame
-    m_renderer->EndFrame();
 }
 
 void RmlUiManager::OnResize(int width, int height) {

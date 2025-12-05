@@ -1,4 +1,5 @@
 #pragma once
+#include "batch_renderer_2d.hpp"
 #include <RmlUi/Core/RenderInterface.h>
 #include <RmlUi/Core/Types.h>
 #include <glad/glad.h>
@@ -6,9 +7,11 @@
 #include <unordered_map>
 #include <vector>
 
+class Renderer;
+
 class RmlUiRenderer : public Rml::RenderInterface {
 public:
-    RmlUiRenderer();
+    RmlUiRenderer(Renderer* renderer);
     ~RmlUiRenderer() override;
 
     Rml::CompiledGeometryHandle
@@ -28,10 +31,10 @@ public:
 
     void Initialize();
     void Shutdown();
-    void BeginFrame(int width, int height);
-    void EndFrame();
 
 private:
+    Renderer* m_Renderer;
+
     struct TextureData {
         GLuint id;
         int width;
@@ -39,10 +42,8 @@ private:
     };
 
     struct CompiledGeometry {
-        GLuint vao;
-        GLuint vbo;
-        GLuint ebo;
-        int num_indices;
+        std::vector<BatchVertex> vertices;
+        std::vector<uint32_t> indices;
     };
 
     struct Scissor {
@@ -52,9 +53,6 @@ private:
         int width = 0;
         int height = 0;
     };
-
-    // OpenGL resources
-    GLuint m_shader_program = 0;
 
     // Texture management
     std::unordered_map<Rml::TextureHandle, TextureData> m_textures;
@@ -67,13 +65,4 @@ private:
     // State
     Scissor m_scissor;
     glm::mat4 m_transform = glm::mat4(1.0f);
-    glm::mat4 m_projection = glm::mat4(1.0f);
-    int m_viewport_width = 0;
-    int m_viewport_height = 0;
-
-    // Helper methods
-    void CreateShaders();
-    void DeleteShaders();
-    GLuint CompileShader(GLenum type, const char* source);
-    GLuint LinkProgram(GLuint vertex_shader, GLuint fragment_shader);
 };

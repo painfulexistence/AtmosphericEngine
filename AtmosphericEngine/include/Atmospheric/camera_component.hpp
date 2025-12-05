@@ -51,11 +51,15 @@ public:
 
     void Pitch(float);
 
+    void SetSize(float size);
+
 private:
     float _fov;
     float _aspectRatio;
     float _nearZ;
     float _farZ;
+    float _orthoWidth = 10.0f;
+    float _orthoHeight = 10.0f;
     bool _isOrthographic = false;
     glm::vec3 _eyeOffset = glm::vec3(0.0f, 0.0f, 0.0f);
     glm::vec2 _vhAngle = glm::vec2(0.0f, 0.0f);

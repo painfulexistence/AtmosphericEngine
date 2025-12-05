@@ -2,6 +2,7 @@
 #include "bullet_collision.hpp"
 #include "globals.hpp"
 #include "material.hpp"
+#include "render_mesh.hpp"
 #include "shader.hpp"
 #include "vertex.hpp"
 #include <cstdint>
@@ -33,16 +34,27 @@ public:
     GLuint ibo;
 
     Mesh(MeshType type = MeshType::PRIM);
-
     ~Mesh();
 
     void Initialize(const std::vector<Vertex>& verts);
-
     void Initialize(const std::vector<Vertex>& verts, const std::vector<uint16_t>& tris);
 
-    // Dynamic update methods for per-frame geometry
+    // Dynamic update methods for per-frame geometry (legacy)
     template<typename VertexType>
     void UpdateDynamic(const std::vector<VertexType>& verts, GLenum primType = GL_TRIANGLES);
+
+    // Update with voxel vertex data (uses internal RenderMesh)
+    void Update(const std::vector<VoxelVertex>& vertices);
+
+    // Check if this mesh uses the new RenderMesh system
+    bool UsesRenderMesh() const {
+        return _renderMeshHandle.IsValid();
+    }
+
+    // Get the RenderMesh handle (for rendering)
+    RenderMeshHandle GetRenderMeshHandle() const {
+        return _renderMeshHandle;
+    }
 
     GLenum GetPrimitiveType() const {
         return _primitiveType;
@@ -84,44 +96,8 @@ private:
     Material* _material;
     btCollisionShape* _shape;
 
+    // New RenderMesh-based storage (used by Update methods)
+    RenderMeshHandle _renderMeshHandle;
+
     template<typename VertexType> void InitializeDynamic(GLenum primType);
-};
-
-class MeshBuilder {
-public:
-    static Mesh* CreateCube(const float& size = 1.0f);
-
-    static Mesh* CreateSphere(const float& radius = 0.5f, const int& division = 18);
-
-    static Mesh* CreateTerrain(const float& size = 1024.f, const int& resolution = 10);
-
-    // static Mesh* CreateTerrain(const std::vector<float>& heightmap, const float& size = 1024.f, const int& resolution
-    // = 10);
-
-    static Mesh* CreateCubeWithPhysics(const float& size = 1.0f);
-
-    static Mesh* CreateSphereWithPhysics(const float& radius = 0.5f, const int& division = 18);
-
-    static Mesh* CreateTerrainWithPhysics(
-      const float& size = 1024.f,
-      const int& resolution = 10,
-      const std::string& heightmap = "assets/textures/heightmap_debug.jpg"
-    );
-
-    void PushQuad(
-      glm::vec3 position,
-      glm::vec2 size,
-      glm::vec3 normal,
-      glm::quat rotation = glm::quat(1.0f, 0.0f, 0.0f, 0.0f),
-      glm::vec2 uvMin = glm::vec2(0.0f),
-      glm::vec2 uvMax = glm::vec2(1.0f)
-    );
-
-    void PushCube(glm::vec3 position, glm::vec3 size, glm::quat rotation = glm::quat(1.0f, 0.0f, 0.0f, 0.0f));
-
-    std::shared_ptr<Mesh> Build();
-
-private:
-    std::vector<Vertex> vertices;
-    std::vector<uint16_t> indices;
 };

@@ -425,3 +425,35 @@ LightComponent* GraphicsServer::RegisterLight(LightComponent* light) {
     }
     return light;
 }
+
+// RenderMesh management
+
+RenderMeshHandle GraphicsServer::AllocateRenderMesh(VertexFormat format, BufferUsage usage) {
+    auto renderMesh = std::make_unique<RenderMesh>();
+    renderMesh->Initialize(format, usage);
+
+    RenderMeshHandle handle;
+    handle.id = _nextRenderMeshId++;
+    _renderMeshes[handle.id] = std::move(renderMesh);
+
+    return handle;
+}
+
+void GraphicsServer::FreeRenderMesh(RenderMeshHandle handle) {
+    if (!handle.IsValid()) return;
+
+    auto it = _renderMeshes.find(handle.id);
+    if (it != _renderMeshes.end()) {
+        _renderMeshes.erase(it);
+    }
+}
+
+RenderMesh* GraphicsServer::GetRenderMesh(RenderMeshHandle handle) {
+    if (!handle.IsValid()) return nullptr;
+
+    auto it = _renderMeshes.find(handle.id);
+    if (it != _renderMeshes.end()) {
+        return it->second.get();
+    }
+    return nullptr;
+}

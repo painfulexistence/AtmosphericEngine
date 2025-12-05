@@ -74,6 +74,8 @@ set(SOURCES
     src/light_component.cpp
     src/camera_component.cpp
     src/mesh.cpp
+    src/render_mesh.cpp
+    src/csg.cpp
     src/frustum.cpp
     src/mesh_component.cpp
     src/sprite_component.cpp
@@ -97,6 +99,7 @@ set(SOURCES
     src/rmlui_system.cpp
     src/rmlui_manager.cpp
     src/batch_renderer_2d.cpp
+    src/mesh_builder.cpp
 )
 if(AE_USE_AUDIO)
     list(APPEND SOURCES src/audio_manager.cpp)

@@ -5,6 +5,7 @@
 #include "config.hpp"
 #include "frustum.hpp"
 #include "game_object.hpp"
+#include "light_component.hpp"
 #include "material.hpp"
 #include "mesh.hpp"
 #include "mesh_component.hpp"
@@ -72,27 +73,22 @@ void GraphicsServer::Init(Application* app) {
     canvasDrawList.reserve(1 << 16);
     debugLines.reserve(1 << 16);
 
-    defaultCamera = new CameraComponent(
-      app->GetDefaultGameObject(),
-      { .isOrthographic = false,
-        .perspective = { .fieldOfView = 45.0f, .aspectRatio = 4.0f / 3.0f, .nearClip = 0.1f, .farClip = 1000.0f },
-        .verticalAngle = 0.0f,
-        .horizontalAngle = 0.0f,
-        .eyeOffset = glm::vec3(0.0f) }
-    );
-    app->GetDefaultGameObject()->AddComponent(defaultCamera);
+    CameraProps defaultCameraProps{};
+    defaultCameraProps.isOrthographic = false;
+    defaultCameraProps.perspective = {
+        .fieldOfView = 45.0f, .aspectRatio = 4.0f / 3.0f, .nearClip = 0.1f, .farClip = 1000.0f
+    };
+    defaultCamera =
+      dynamic_cast<CameraComponent*>(app->GetDefaultGameObject()->AddComponent<CameraComponent>(defaultCameraProps));
 
-    defaultLight = new LightComponent(
-      app->GetDefaultGameObject(),
-      { .type = LightType::Directional,
-        .ambient = glm::vec3(1.0f, 1.0f, 1.0f),
-        .diffuse = glm::vec3(1.0f, 1.0f, 1.0f),
-        .specular = glm::vec3(1.0f, 1.0f, 1.0f),
-        .direction = glm::vec3(0.0f, -1.0f, 0.0f),
-        .intensity = 1.0f,
-        .castShadow = false }
-    );
-    app->GetDefaultGameObject()->AddComponent(defaultLight);
+    defaultLight = dynamic_cast<LightComponent*>(app->GetDefaultGameObject()->AddComponent<LightComponent>(LightProps{
+      .type = LightType::Directional,
+      .ambient = glm::vec3(1.0f, 1.0f, 1.0f),
+      .diffuse = glm::vec3(1.0f, 1.0f, 1.0f),
+      .specular = glm::vec3(1.0f, 1.0f, 1.0f),
+      .direction = glm::vec3(0.0f, -1.0f, 0.0f),
+      .intensity = 1.0f,
+      .castShadow = false }));
 
     // Initialize meshes for immediate mode geometry
     debugLineMesh = new Mesh(MeshType::DEBUG);

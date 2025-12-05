@@ -5,6 +5,7 @@
 #include "config.hpp"
 #include "frustum.hpp"
 #include "game_object.hpp"
+#include "light_component.hpp"
 #include "material.hpp"
 #include "mesh.hpp"
 #include "mesh_component.hpp"
@@ -72,27 +73,22 @@ void GraphicsServer::Init(Application* app) {
     canvasDrawList.reserve(1 << 16);
     debugLines.reserve(1 << 16);
 
-    defaultCamera = new CameraComponent(
-      app->GetDefaultGameObject(),
-      { .isOrthographic = false,
-        .perspective = { .fieldOfView = 45.0f, .aspectRatio = 4.0f / 3.0f, .nearClip = 0.1f, .farClip = 1000.0f },
-        .verticalAngle = 0.0f,
-        .horizontalAngle = 0.0f,
-        .eyeOffset = glm::vec3(0.0f) }
-    );
-    app->GetDefaultGameObject()->AddComponent(defaultCamera);
+    CameraProps defaultCameraProps{};
+    defaultCameraProps.isOrthographic = false;
+    defaultCameraProps.perspective = {
+        .fieldOfView = 45.0f, .aspectRatio = 4.0f / 3.0f, .nearClip = 0.1f, .farClip = 1000.0f
+    };
+    defaultCamera =
+      dynamic_cast<CameraComponent*>(app->GetDefaultGameObject()->AddComponent<CameraComponent>(defaultCameraProps));
 
-    defaultLight = new LightComponent(
-      app->GetDefaultGameObject(),
-      { .type = LightType::Directional,
-        .ambient = glm::vec3(1.0f, 1.0f, 1.0f),
-        .diffuse = glm::vec3(1.0f, 1.0f, 1.0f),
-        .specular = glm::vec3(1.0f, 1.0f, 1.0f),
-        .direction = glm::vec3(0.0f, -1.0f, 0.0f),
-        .intensity = 1.0f,
-        .castShadow = false }
-    );
-    app->GetDefaultGameObject()->AddComponent(defaultLight);
+    defaultLight = dynamic_cast<LightComponent*>(app->GetDefaultGameObject()->AddComponent<LightComponent>(LightProps{
+      .type = LightType::Directional,
+      .ambient = glm::vec3(1.0f, 1.0f, 1.0f),
+      .diffuse = glm::vec3(1.0f, 1.0f, 1.0f),
+      .specular = glm::vec3(1.0f, 1.0f, 1.0f),
+      .direction = glm::vec3(0.0f, -1.0f, 0.0f),
+      .intensity = 1.0f,
+      .castShadow = false }));
 
     // Initialize meshes for immediate mode geometry
     debugLineMesh = new Mesh(MeshType::DEBUG);
@@ -431,7 +427,6 @@ LightComponent* GraphicsServer::RegisterLight(LightComponent* light) {
 }
 
 // ===== Render Target Management Implementation =====
-
 std::shared_ptr<RenderTexture> GraphicsServer::CreateRenderTexture(int width, int height, bool withDepth) {
     auto rt = std::make_shared<RenderTexture>(width, height, withDepth);
     _renderTextures.push_back(rt);
@@ -504,4 +499,34 @@ void GraphicsServer::SetRenderTarget(RenderTexture* target) {
 
 RenderTexture* GraphicsServer::GetCurrentRenderTarget() const {
     return _currentRenderTarget;
-}
+
+    // RenderMesh management
+    RenderMeshHandle GraphicsServer::AllocateRenderMesh(VertexFormat format, BufferUsage usage) {
+        auto renderMesh = std::make_unique<RenderMesh>();
+        renderMesh->Initialize(format, usage);
+
+        RenderMeshHandle handle;
+        handle.id = _nextRenderMeshId++;
+        _renderMeshes[handle.id] = std::move(renderMesh);
+
+        return handle;
+    }
+
+    void GraphicsServer::FreeRenderMesh(RenderMeshHandle handle) {
+        if (!handle.IsValid()) return;
+
+        auto it = _renderMeshes.find(handle.id);
+        if (it != _renderMeshes.end()) {
+            _renderMeshes.erase(it);
+        }
+    }
+
+    RenderMesh* GraphicsServer::GetRenderMesh(RenderMeshHandle handle) {
+        if (!handle.IsValid()) return nullptr;
+
+        auto it = _renderMeshes.find(handle.id);
+        if (it != _renderMeshes.end()) {
+            return it->second.get();
+        }
+        return nullptr;
+    }

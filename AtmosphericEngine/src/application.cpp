@@ -1,5 +1,6 @@
 #include "application.hpp"
 #include "asset_manager.hpp"
+#include "camera_component.hpp"
 #include "editor_layer.hpp"
 #include "game_layer.hpp"
 #include "game_object.hpp"
@@ -61,7 +62,7 @@ void Application::Run() {
     ENGINE_LOG("Subsystems initialized.");
 
     auto windowSize = _window->GetFramebufferSize();
-    RmlUiManager::Get()->Initialize(windowSize.width, windowSize.height);
+    RmlUiManager::Get()->Initialize(windowSize.width, windowSize.height, graphics.renderer);
 
     OnInit();
 

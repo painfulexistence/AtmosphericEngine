@@ -4,6 +4,7 @@
 #include "light_component.hpp"
 #include "mesh.hpp"
 #include "mesh_component.hpp"
+#include "render_mesh.hpp"
 #include "render_texture.hpp"
 #include "server.hpp"
 #include "shader.hpp"
@@ -160,7 +161,14 @@ public:
     RenderTexture* GetCurrentRenderTarget() const;
 
     // Get the render target stack depth
-    size_t GetRenderTargetStackDepth() const { return _renderTargetStack.size(); }
+    size_t GetRenderTargetStackDepth() const {
+        return _renderTargetStack.size();
+    }
+
+    // RenderMesh management
+    RenderMeshHandle AllocateRenderMesh(VertexFormat format, BufferUsage usage = BufferUsage::Static);
+    void FreeRenderMesh(RenderMeshHandle handle);
+    RenderMesh* GetRenderMesh(RenderMeshHandle handle);
 
     Renderer* renderer = nullptr;
 
@@ -173,6 +181,10 @@ private:
     std::vector<std::shared_ptr<RenderTexture>> _renderTextures;
     CameraComponent* defaultCamera = nullptr;
     LightComponent* defaultLight = nullptr;
+
+    // RenderMesh storage
+    std::unordered_map<uint32_t, std::unique_ptr<RenderMesh>> _renderMeshes;
+    uint32_t _nextRenderMeshId = 0;
 
     static constexpr int MAX_CANVAS_TEXTURES = 32;
 

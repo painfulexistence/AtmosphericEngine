@@ -86,6 +86,8 @@ set(SOURCES
     src/light_component.cpp
     src/camera_component.cpp
     src/mesh.cpp
+    src/render_mesh.cpp
+    src/csg.cpp
     src/frustum.cpp
     src/mesh_component.cpp
     src/sprite_component.cpp
@@ -112,6 +114,7 @@ set(SOURCES
     src/physics_server_2d.cpp
     src/rigidbody_2d_component.cpp
     src/render_texture.cpp
+    src/mesh_builder.cpp
 )
 if(AE_USE_AUDIO)
     list(APPEND SOURCES src/audio_manager.cpp)

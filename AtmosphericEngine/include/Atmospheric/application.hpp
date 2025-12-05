@@ -103,6 +103,12 @@ public:
     void LoadScene(const SceneDef& scene);
     void ReloadScene();
 
+    GameObject* CreateGameObject(
+      glm::vec3 position = glm::vec3(0.0f), glm::vec3 rotation = glm::vec3(0.0f), glm::vec3 scale = glm::vec3(1.0f)
+    );
+
+    GameObject* CreateGameObject(glm::vec2 position, float rotation = 0.0f);
+
 protected:
     // These subsystems will be game accessible
     AudioManager audio;
@@ -135,12 +141,6 @@ protected:
         _subsystems.push_back(subsystem);
         return subsystem;
     }
-
-    GameObject* CreateGameObject(
-      glm::vec3 position = glm::vec3(0.0f), glm::vec3 rotation = glm::vec3(0.0f), glm::vec3 scale = glm::vec3(1.0f)
-    );
-
-    GameObject* CreateGameObject(glm::vec2 position, float rotation = 0.0f);
 
 private:
     AppConfig _config;

@@ -13,6 +13,7 @@
 #include "sprite_component.hpp"
 #include "stb_image.h"
 #include "window.hpp"
+#include <tracy/Tracy.hpp>
 
 #include <cstddef>
 

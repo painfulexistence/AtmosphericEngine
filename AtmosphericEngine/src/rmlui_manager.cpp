@@ -4,6 +4,7 @@
 #include <RmlUi/Core.h>
 #include <RmlUi/Debugger.h>
 #include <spdlog/spdlog.h>
+#include <tracy/Tracy.hpp>
 
 RmlUiManager* RmlUiManager::s_instance = nullptr;
 

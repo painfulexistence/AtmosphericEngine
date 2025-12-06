@@ -108,8 +108,8 @@ public:
     }
 
     // Box2D body access
-    b2Body* GetBody() {
-        return _body;
+    b2BodyId GetBodyId() {
+        return _bodyId;
     }
 
     // User data for callbacks
@@ -118,9 +118,9 @@ public:
 private:
     void CreateBody();
     void DestroyBody();
-    void CreateFixture();
+    void CreateShape();
 
     Rigidbody2DProps _props;
     Shape2DDef _shapeDef;
-    b2Body* _body = nullptr;
+    b2BodyId _bodyId;
 };

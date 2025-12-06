@@ -4,8 +4,6 @@
 #include <box2d/box2d.h>
 #include <functional>
 #include <glm/vec2.hpp>
-#include <memory>
-#include <unordered_map>
 #include <vector>
 
 class Rigidbody2DComponent;
@@ -13,16 +11,6 @@ class GameObject;
 
 // Collision callback types
 using CollisionCallback = std::function<void(Rigidbody2DComponent*, Rigidbody2DComponent*)>;
-
-// Contact listener for collision callbacks
-class Physics2DContactListener : public b2ContactListener {
-public:
-    void BeginContact(b2Contact* contact) override;
-    void EndContact(b2Contact* contact) override;
-
-    CollisionCallback onBeginContact;
-    CollisionCallback onEndContact;
-};
 
 // 2D Physics Server - manages Box2D world and all 2D physics bodies
 class Physics2DServer : public Server {
@@ -46,8 +34,8 @@ public:
     glm::vec2 GetGravity() const;
 
     // Body management
-    b2Body* CreateBody(const b2BodyDef* def);
-    void DestroyBody(b2Body* body);
+    b2BodyId CreateBody(const b2BodyDef* def);
+    void DestroyBody(b2BodyId bodyId);
 
     // Registration
     Rigidbody2DComponent* RegisterRigidbody2D(Rigidbody2DComponent* rb);
@@ -93,19 +81,21 @@ public:
         return meters * PIXELS_PER_METER;
     }
 
-    b2World* GetWorld() {
-        return _world.get();
+    b2WorldId GetWorldId() {
+        return _worldId;
     }
 
+    // Callback storage (public so static callbacks can access if needed, or friends)
+    CollisionCallback _onBeginContact;
+    CollisionCallback _onEndContact;
+
 private:
-    std::unique_ptr<b2World> _world;
-    Physics2DContactListener _contactListener;
+    b2WorldId _worldId;
     std::vector<Rigidbody2DComponent*> _rigidbodies;
     bool _debugDrawEnabled = false;
 
     // Simulation parameters
-    int32 _velocityIterations = 8;
-    int32 _positionIterations = 3;
+    int _subSteps = 4;
     float _accumulator = 0.0f;
     const float _fixedTimeStep = 1.0f / 60.0f;
 };

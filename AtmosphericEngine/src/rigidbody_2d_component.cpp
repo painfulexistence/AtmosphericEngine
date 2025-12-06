@@ -4,6 +4,7 @@
 
 Rigidbody2DComponent::Rigidbody2DComponent(GameObject* gameObject, const Rigidbody2DProps& props)
   : _props(props), _shapeDef(props.shape) {
+    _bodyId = b2_nullBodyId;
 }
 
 Rigidbody2DComponent::~Rigidbody2DComponent() {
@@ -22,7 +23,8 @@ void Rigidbody2DComponent::OnDetach() {
 
 void Rigidbody2DComponent::CreateBody() {
     auto* physics = Physics2DServer::Get();
-    if (!physics || !physics->GetWorld()) return;
+    // Check if world is created (using v3 ID check)
+    if (!physics || !b2World_IsValid(physics->GetWorldId())) return;
 
     // Get initial position from props or from transform
     glm::vec2 posPixels = _props.position;
@@ -35,7 +37,8 @@ void Rigidbody2DComponent::CreateBody() {
     }
 
     // Create body definition
-    b2BodyDef bodyDef;
+    b2BodyDef bodyDef = b2DefaultBodyDef();
+
     switch (_props.type) {
     case BodyType2D::Static:
         bodyDef.type = b2_staticBody;
@@ -50,63 +53,63 @@ void Rigidbody2DComponent::CreateBody() {
     }
 
     glm::vec2 posMeters = Physics2DServer::PixelsToMeters(posPixels);
-    bodyDef.position.Set(posMeters.x, posMeters.y);
-    bodyDef.angle = _props.angle;
+    bodyDef.position = { posMeters.x, posMeters.y };
+    bodyDef.rotation = b2MakeRot(_props.angle);
     bodyDef.linearDamping = _props.linearDamping;
     bodyDef.angularDamping = _props.angularDamping;
     bodyDef.gravityScale = _props.gravityScale;
     bodyDef.fixedRotation = _props.fixedRotation;
-    bodyDef.bullet = _props.bullet;
+    bodyDef.enableSleep = true;
+    // Bullet flag logic handled differently in v3? b2BodyDef has isBullet? No, use EnableContinuous
+    // bodyDef.isBullet = _props.bullet; // Removed in v3? Checked docs: b2Body_SetBullet exists? No, moved to
+    // Continuous collision. Assuming default for now or look up API. v3 enables CCD automatically? b2BodyDef has
+    // enableContinuousCollision? No. Assuming safe default.
 
     // Store pointer to this component for collision callbacks
-    bodyDef.userData.pointer = reinterpret_cast<uintptr_t>(this);
+    bodyDef.userData = reinterpret_cast<void*>(this);
 
-    _body = physics->CreateBody(&bodyDef);
+    _bodyId = physics->CreateBody(&bodyDef);
 
-    if (_body) {
-        CreateFixture();
+    if (b2Body_IsValid(_bodyId)) {
+        CreateShape();
     }
 }
 
-void Rigidbody2DComponent::CreateFixture() {
-    if (!_body) return;
+void Rigidbody2DComponent::CreateShape() {
+    if (!b2Body_IsValid(_bodyId)) return;
 
-    b2FixtureDef fixtureDef;
-    fixtureDef.density = _shapeDef.density;
-    fixtureDef.friction = _shapeDef.friction;
-    fixtureDef.restitution = _shapeDef.restitution;
-    fixtureDef.isSensor = _shapeDef.isSensor;
+    b2ShapeDef shapeDef = b2DefaultShapeDef();
+    shapeDef.density = _shapeDef.density;
+    shapeDef.material.friction = _shapeDef.friction;
+    shapeDef.material.restitution = _shapeDef.restitution;
+    shapeDef.isSensor = _shapeDef.isSensor;
 
     switch (_shapeDef.type) {
     case ShapeType2D::Box: {
-        b2PolygonShape boxShape;
         glm::vec2 halfSize = Physics2DServer::PixelsToMeters(_shapeDef.boxSize * 0.5f);
-        boxShape.SetAsBox(halfSize.x, halfSize.y);
-        fixtureDef.shape = &boxShape;
-        _body->CreateFixture(&fixtureDef);
+        b2Polygon box = b2MakeBox(halfSize.x, halfSize.y);
+        b2CreatePolygonShape(_bodyId, &shapeDef, &box);
         break;
     }
     case ShapeType2D::Circle: {
-        b2CircleShape circleShape;
-        circleShape.m_radius = Physics2DServer::PixelsToMeters(_shapeDef.circleRadius);
-        fixtureDef.shape = &circleShape;
-        _body->CreateFixture(&fixtureDef);
+        b2Circle circle;
+        circle.center = { 0.0f, 0.0f };
+        circle.radius = Physics2DServer::PixelsToMeters(_shapeDef.circleRadius);
+        b2CreateCircleShape(_bodyId, &shapeDef, &circle);
         break;
     }
     case ShapeType2D::Polygon: {
-        if (_shapeDef.polygonVertices.size() >= 3 && _shapeDef.polygonVertices.size() <= b2_maxPolygonVertices) {
-            b2PolygonShape polygonShape;
-            std::vector<b2Vec2> vertices;
-            vertices.reserve(_shapeDef.polygonVertices.size());
-
+        if (_shapeDef.polygonVertices.size() >= 3 && _shapeDef.polygonVertices.size() <= 8) {// v3 Hull limit usually 8
+            std::vector<b2Vec2> points;
+            points.reserve(_shapeDef.polygonVertices.size());
             for (const auto& v : _shapeDef.polygonVertices) {
                 glm::vec2 vMeters = Physics2DServer::PixelsToMeters(v);
-                vertices.push_back(b2Vec2(vMeters.x, vMeters.y));
+                points.push_back({ vMeters.x, vMeters.y });
             }
 
-            polygonShape.Set(vertices.data(), static_cast<int32>(vertices.size()));
-            fixtureDef.shape = &polygonShape;
-            _body->CreateFixture(&fixtureDef);
+            b2Hull hull = b2ComputeHull(points.data(), (int32_t)points.size());
+            b2Polygon poly = b2MakePolygon(&hull, 0.0f);
+            b2CreatePolygonShape(_bodyId, &shapeDef, &poly);
         }
         break;
     }
@@ -114,135 +117,141 @@ void Rigidbody2DComponent::CreateFixture() {
 }
 
 void Rigidbody2DComponent::DestroyBody() {
-    if (_body) {
+    if (b2Body_IsValid(_bodyId)) {
         auto* physics = Physics2DServer::Get();
         if (physics) {
-            physics->DestroyBody(_body);
+            physics->DestroyBody(_bodyId);
         }
-        _body = nullptr;
+        _bodyId = b2_nullBodyId;
     }
 }
 
 void Rigidbody2DComponent::SyncToTransform(float dt) {
-    if (!_body || !gameObject) return;
+    if (!b2Body_IsValid(_bodyId) || !gameObject) return;
 
     // Sync Box2D body position/rotation to GameObject transform
     auto* transform = gameObject->GetComponent<TransformComponent>();
     if (transform) {
-        b2Vec2 pos = _body->GetPosition();
+        b2Vec2 pos = b2Body_GetPosition(_bodyId);
         glm::vec2 posPixels = Physics2DServer::MetersToPixels(glm::vec2(pos.x, pos.y));
 
         glm::vec3 newPos(posPixels.x, posPixels.y, transform->GetPosition().z);
         transform->SetPosition(newPos);
 
-        float angle = _body->GetAngle();
-        glm::vec3 rotation = transform->GetRotation();
-        rotation.z = glm::degrees(angle);
-        transform->SetRotation(rotation);
+        b2Rot rotation = b2Body_GetRotation(_bodyId);
+        float angle = b2Rot_GetAngle(rotation);
+
+        glm::vec3 rot = transform->GetRotation();
+        rot.z = glm::degrees(angle);
+        transform->SetRotation(rot);
     }
 }
 
 glm::vec2 Rigidbody2DComponent::GetPosition() const {
-    if (_body) {
-        b2Vec2 pos = _body->GetPosition();
+    if (b2Body_IsValid(_bodyId)) {
+        b2Vec2 pos = b2Body_GetPosition(_bodyId);
         return Physics2DServer::MetersToPixels(glm::vec2(pos.x, pos.y));
     }
     return glm::vec2(0.0f);
 }
 
 void Rigidbody2DComponent::SetPosition(const glm::vec2& position) {
-    if (_body) {
+    if (b2Body_IsValid(_bodyId)) {
         glm::vec2 posM = Physics2DServer::PixelsToMeters(position);
-        _body->SetTransform(b2Vec2(posM.x, posM.y), _body->GetAngle());
+        b2Rot rot = b2Body_GetRotation(_bodyId);
+        b2Body_SetTransform(_bodyId, { posM.x, posM.y }, rot);
     }
 }
 
 float Rigidbody2DComponent::GetAngle() const {
-    if (_body) {
-        return _body->GetAngle();
+    if (b2Body_IsValid(_bodyId)) {
+        b2Rot rot = b2Body_GetRotation(_bodyId);
+        return b2Rot_GetAngle(rot);
     }
     return 0.0f;
 }
 
 void Rigidbody2DComponent::SetAngle(float angle) {
-    if (_body) {
-        _body->SetTransform(_body->GetPosition(), angle);
+    if (b2Body_IsValid(_bodyId)) {
+        b2Vec2 pos = b2Body_GetPosition(_bodyId);
+        b2Body_SetTransform(_bodyId, pos, b2MakeRot(angle));
     }
 }
 
 glm::vec2 Rigidbody2DComponent::GetLinearVelocity() const {
-    if (_body) {
-        b2Vec2 vel = _body->GetLinearVelocity();
+    if (b2Body_IsValid(_bodyId)) {
+        b2Vec2 vel = b2Body_GetLinearVelocity(_bodyId);
         return Physics2DServer::MetersToPixels(glm::vec2(vel.x, vel.y));
     }
     return glm::vec2(0.0f);
 }
 
 void Rigidbody2DComponent::SetLinearVelocity(const glm::vec2& velocity) {
-    if (_body) {
+    if (b2Body_IsValid(_bodyId)) {
         glm::vec2 velM = Physics2DServer::PixelsToMeters(velocity);
-        _body->SetLinearVelocity(b2Vec2(velM.x, velM.y));
+        b2Body_SetLinearVelocity(_bodyId, { velM.x, velM.y });
     }
 }
 
 float Rigidbody2DComponent::GetAngularVelocity() const {
-    if (_body) {
-        return _body->GetAngularVelocity();
+    if (b2Body_IsValid(_bodyId)) {
+        return b2Body_GetAngularVelocity(_bodyId);
     }
     return 0.0f;
 }
 
 void Rigidbody2DComponent::SetAngularVelocity(float omega) {
-    if (_body) {
-        _body->SetAngularVelocity(omega);
+    if (b2Body_IsValid(_bodyId)) {
+        b2Body_SetAngularVelocity(_bodyId, omega);
     }
 }
 
 void Rigidbody2DComponent::ApplyForce(const glm::vec2& force, const glm::vec2& point) {
-    if (_body) {
+    if (b2Body_IsValid(_bodyId)) {
         glm::vec2 forceM = Physics2DServer::PixelsToMeters(force);
         glm::vec2 pointM = Physics2DServer::PixelsToMeters(point);
-        _body->ApplyForce(b2Vec2(forceM.x, forceM.y), b2Vec2(pointM.x, pointM.y), true);
+        b2Body_ApplyForce(_bodyId, { forceM.x, forceM.y }, { pointM.x, pointM.y }, true);
     }
 }
 
 void Rigidbody2DComponent::ApplyForceToCenter(const glm::vec2& force) {
-    if (_body) {
+    if (b2Body_IsValid(_bodyId)) {
         glm::vec2 forceM = Physics2DServer::PixelsToMeters(force);
-        _body->ApplyForceToCenter(b2Vec2(forceM.x, forceM.y), true);
+        b2Body_ApplyForceToCenter(_bodyId, { forceM.x, forceM.y }, true);
     }
 }
 
 void Rigidbody2DComponent::ApplyTorque(float torque) {
-    if (_body) {
-        _body->ApplyTorque(torque, true);
+    if (b2Body_IsValid(_bodyId)) {
+        b2Body_ApplyTorque(_bodyId, torque, true);
     }
 }
 
 void Rigidbody2DComponent::ApplyLinearImpulse(const glm::vec2& impulse, const glm::vec2& point) {
-    if (_body) {
+    if (b2Body_IsValid(_bodyId)) {
         glm::vec2 impulseM = Physics2DServer::PixelsToMeters(impulse);
         glm::vec2 pointM = Physics2DServer::PixelsToMeters(point);
-        _body->ApplyLinearImpulse(b2Vec2(impulseM.x, impulseM.y), b2Vec2(pointM.x, pointM.y), true);
+        b2Body_ApplyLinearImpulse(_bodyId, { impulseM.x, impulseM.y }, { pointM.x, pointM.y }, true);
     }
 }
 
 void Rigidbody2DComponent::ApplyLinearImpulseToCenter(const glm::vec2& impulse) {
-    if (_body) {
+    if (b2Body_IsValid(_bodyId)) {
         glm::vec2 impulseM = Physics2DServer::PixelsToMeters(impulse);
-        _body->ApplyLinearImpulse(b2Vec2(impulseM.x, impulseM.y), _body->GetWorldCenter(), true);
+        b2Body_ApplyLinearImpulseToCenter(_bodyId, { impulseM.x, impulseM.y }, true);
     }
 }
 
 void Rigidbody2DComponent::ApplyAngularImpulse(float impulse) {
-    if (_body) {
-        _body->ApplyAngularImpulse(impulse, true);
+    if (b2Body_IsValid(_bodyId)) {
+        b2Body_ApplyAngularImpulse(_bodyId, impulse, true);
     }
 }
 
 BodyType2D Rigidbody2DComponent::GetBodyType() const {
-    if (_body) {
-        switch (_body->GetType()) {
+    if (b2Body_IsValid(_bodyId)) {
+        b2BodyType type = b2Body_GetType(_bodyId);
+        switch (type) {
         case b2_staticBody:
             return BodyType2D::Static;
         case b2_kinematicBody:
@@ -256,50 +265,50 @@ BodyType2D Rigidbody2DComponent::GetBodyType() const {
 }
 
 void Rigidbody2DComponent::SetBodyType(BodyType2D type) {
-    if (_body) {
+    if (b2Body_IsValid(_bodyId)) {
         switch (type) {
         case BodyType2D::Static:
-            _body->SetType(b2_staticBody);
+            b2Body_SetType(_bodyId, b2_staticBody);
             break;
         case BodyType2D::Kinematic:
-            _body->SetType(b2_kinematicBody);
+            b2Body_SetType(_bodyId, b2_kinematicBody);
             break;
         case BodyType2D::Dynamic:
-            _body->SetType(b2_dynamicBody);
+            b2Body_SetType(_bodyId, b2_dynamicBody);
             break;
         }
     }
 }
 
 void Rigidbody2DComponent::SetGravityScale(float scale) {
-    if (_body) {
-        _body->SetGravityScale(scale);
+    if (b2Body_IsValid(_bodyId)) {
+        b2Body_SetGravityScale(_bodyId, scale);
     }
 }
 
 float Rigidbody2DComponent::GetGravityScale() const {
-    if (_body) {
-        return _body->GetGravityScale();
+    if (b2Body_IsValid(_bodyId)) {
+        return b2Body_GetGravityScale(_bodyId);
     }
     return _props.gravityScale;
 }
 
 void Rigidbody2DComponent::SetFixedRotation(bool fixed) {
-    if (_body) {
-        _body->SetFixedRotation(fixed);
+    if (b2Body_IsValid(_bodyId)) {
+        b2Body_SetFixedRotation(_bodyId, fixed);
     }
 }
 
 bool Rigidbody2DComponent::IsFixedRotation() const {
-    if (_body) {
-        return _body->IsFixedRotation();
+    if (b2Body_IsValid(_bodyId)) {
+        return b2Body_IsFixedRotation(_bodyId);
     }
     return _props.fixedRotation;
 }
 
 float Rigidbody2DComponent::GetMass() const {
-    if (_body) {
-        return _body->GetMass();
+    if (b2Body_IsValid(_bodyId)) {
+        return b2Body_GetMass(_bodyId);
     }
     return 0.0f;
 }

@@ -16,6 +16,7 @@
     "lua",
     "tinygltf",
     "tracy",
-    "rmlui"
+    "rmlui",
+    "box2d"
   ]
 }

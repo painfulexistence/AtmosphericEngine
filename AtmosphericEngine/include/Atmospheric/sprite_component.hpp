@@ -57,7 +57,7 @@ public:
         _textureID = textureID;
     }
 
-    CanvasLayer GetLayer() const {
+    CanvasLayer GetLayer() const override {
         return _layer;
     }
     void SetLayer(CanvasLayer layer) {

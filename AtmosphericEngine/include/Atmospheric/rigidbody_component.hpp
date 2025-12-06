@@ -67,6 +67,8 @@ public:
     glm::vec3 GetAngularVelocity();
     void SetAngularVelocity(const glm::vec3& vel);
 
+    bool IsKinematic() const;
+
 private:
     btRigidBody* _rigidbody;
     friend class PhysicsServer;

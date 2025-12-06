@@ -55,21 +55,34 @@ public:
     /// Called every frame
     void OnTick(float dt) override;
 
+    /// Override CanTick to optimize updates
+    bool CanTick() const override {
+        return enabled && _updateFunc.valid();
+    }
+
     /// Called on physics tick (if the script defines it)
     void OnPhysicsTick(float dt) override;
+
+    /// Override CanPhysicsTick to optimize updates
+    bool CanPhysicsTick() const override {
+        return enabled && _physicsUpdateFunc.valid();
+    }
 
     /// Handle collision events (called from C++ collision system)
     void OnCollision(GameObject* other);
 
     /// Get the Lua instance table for advanced manipulation
-    sol::table& GetInstance() { return _instance; }
+    sol::table& GetInstance() {
+        return _instance;
+    }
 
     /// Get the class name
-    const std::string& GetClassName() const { return _className; }
+    const std::string& GetClassName() const {
+        return _className;
+    }
 
     /// Call a custom method on the Lua instance
-    template<typename... Args>
-    void CallMethod(const std::string& methodName, Args&&... args);
+    template<typename... Args> void CallMethod(const std::string& methodName, Args&&... args);
 
     /// Check if the script has a specific method
     bool HasMethod(const std::string& methodName) const;
@@ -100,9 +113,7 @@ private:
 };
 
 // Template implementation
-template<typename... Args>
-void ScriptableComponent::CallMethod(const std::string& methodName, Args&&... args)
-{
+template<typename... Args> void ScriptableComponent::CallMethod(const std::string& methodName, Args&&... args) {
     if (!_instance.valid()) return;
 
     sol::object methodObj = _instance[methodName];
@@ -117,8 +128,9 @@ void ScriptableComponent::CallMethod(const std::string& methodName, Args&&... ar
 }
 
 template<typename... Args>
-void ScriptableComponent::CallMethodSafeWithArgs(sol::protected_function& func, const std::string& methodName, Args&&... args)
-{
+void ScriptableComponent::CallMethodSafeWithArgs(
+  sol::protected_function& func, const std::string& methodName, Args&&... args
+) {
     if (!func.valid()) return;
 
     auto result = func(_instance, std::forward<Args>(args)...);

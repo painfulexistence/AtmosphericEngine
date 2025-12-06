@@ -200,3 +200,7 @@ void RigidbodyComponent::SetAngularVelocity(const glm::vec3& vel) {
     _rigidbody->activate();
     _rigidbody->setAngularVelocity(btVector3(vel.x, vel.y, vel.z));
 }
+
+bool RigidbodyComponent::IsKinematic() const {
+    return _rigidbody->isKinematicObject();
+}

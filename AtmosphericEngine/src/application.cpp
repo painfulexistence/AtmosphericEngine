@@ -187,6 +187,7 @@ void Application::Update(const FrameData& props) {
     for (auto go : _entities) {
         auto impostor = go->GetComponent<RigidbodyComponent>();
         if (impostor == nullptr) continue;
+        if (impostor->IsKinematic()) continue;
         go->SyncObjectTransform(impostor->GetWorldTransform());
     }
 }

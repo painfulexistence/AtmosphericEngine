@@ -194,19 +194,15 @@ function load()
     if cube then
         cube.name = "MyCube"
         cube.position = vec3.new(5, 0, 0)
+        cube.rotation = vec3.new(0, 0, math.rad(45))
         
         cube:addMesh("Cube")
         cube:addScript("Spinner")
         cube:addScript("Bobber")
-        cube:addRigidbody({
-            mass = 1.0,
-            kinematic = false,
-            gravity = true
-        })
 
         local spinner = cube:getScript()
         if spinner then
-            spinner.instance.speed = 0.04  -- Faster rotation
+            spinner.instance.speed = 5.0  -- Faster rotation
         end
     end
 

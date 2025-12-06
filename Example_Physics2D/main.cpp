@@ -1,4 +1,5 @@
 #include "Atmospheric.hpp"
+#include "Atmospheric/renderer.hpp"
 #include <random>
 
 class Physics2DDemo : public Application {
@@ -14,9 +15,21 @@ class Physics2DDemo : public Application {
     void OnLoad() override {
         rng.seed(42);
 
+        mainCamera = graphics.GetMainCamera();
+
         // Set up orthographic camera for 2D view
-        mainCamera->SetOrthographic(800.0f, 600.0f, -100.0f, 100.0f);
-        mainCamera->gameObject->SetPosition(glm::vec3(400.0f, 300.0f, 0.0f));
+        if (mainCamera) {
+            mainCamera->SetOrthographic(800.0f, 600.0f, -100.0f, 100.0f);
+            mainCamera->gameObject->SetPosition(glm::vec3(400.0f, 300.0f, 0.0f));
+
+            // Default camera looks at +X (0 angle). Rotate -90 degrees to look at -Z.
+            // We need to reset angles first just in case or apply delta.
+            // Since we know it's the default camera, we assume angles are 0.
+            // But CameraComponent doesn't expose "SetAngle", only Yaw (delta).
+            // A clearer way: The default camera looks +X. We want -Z.
+            // That's a -90 degree yaw.
+            mainCamera->Yaw(-glm::half_pi<float>());
+        }
 
         // Set gravity (positive Y = down in screen space)
         physics2D.SetGravity(glm::vec2(0.0f, 500.0f));
@@ -111,39 +124,39 @@ class Physics2DDemo : public Application {
         spriteProps.layer = CanvasLayer::LAYER_WORLD;
 
         switch (shapeType) {
-            case 0: {
-                // Box
-                float size = sizeDist(rng);
-                spriteProps.size = glm::vec2(size, size);
-                rbProps.shape.type = ShapeType2D::Box;
-                rbProps.shape.boxSize = glm::vec2(size, size);
-                break;
-            }
-            case 1: {
-                // Circle (rendered as sprite, physics as circle)
-                float radius = sizeDist(rng) * 0.5f;
-                spriteProps.size = glm::vec2(radius * 2.0f, radius * 2.0f);
-                rbProps.shape.type = ShapeType2D::Circle;
-                rbProps.shape.circleRadius = radius;
-                break;
-            }
-            case 2: {
-                // Polygon (triangle or pentagon)
-                std::uniform_int_distribution<int> vertDist(3, 5);
-                int numVerts = vertDist(rng);
-                float size = sizeDist(rng);
+        case 0: {
+            // Box
+            float size = sizeDist(rng);
+            spriteProps.size = glm::vec2(size, size);
+            rbProps.shape.type = ShapeType2D::Box;
+            rbProps.shape.boxSize = glm::vec2(size, size);
+            break;
+        }
+        case 1: {
+            // Circle (rendered as sprite, physics as circle)
+            float radius = sizeDist(rng) * 0.5f;
+            spriteProps.size = glm::vec2(radius * 2.0f, radius * 2.0f);
+            rbProps.shape.type = ShapeType2D::Circle;
+            rbProps.shape.circleRadius = radius;
+            break;
+        }
+        case 2: {
+            // Polygon (triangle or pentagon)
+            std::uniform_int_distribution<int> vertDist(3, 5);
+            int numVerts = vertDist(rng);
+            float size = sizeDist(rng);
 
-                std::vector<glm::vec2> vertices;
-                for (int i = 0; i < numVerts; ++i) {
-                    float angle = (2.0f * glm::pi<float>() * i) / numVerts - glm::pi<float>() / 2.0f;
-                    vertices.push_back(glm::vec2(std::cos(angle) * size * 0.5f, std::sin(angle) * size * 0.5f));
-                }
-
-                spriteProps.size = glm::vec2(size, size);
-                rbProps.shape.type = ShapeType2D::Polygon;
-                rbProps.shape.polygonVertices = vertices;
-                break;
+            std::vector<glm::vec2> vertices;
+            for (int i = 0; i < numVerts; ++i) {
+                float angle = (2.0f * glm::pi<float>() * i) / numVerts - glm::pi<float>() / 2.0f;
+                vertices.push_back(glm::vec2(std::cos(angle) * size * 0.5f, std::sin(angle) * size * 0.5f));
             }
+
+            spriteProps.size = glm::vec2(size, size);
+            rbProps.shape.type = ShapeType2D::Polygon;
+            rbProps.shape.polygonVertices = vertices;
+            break;
+        }
         }
 
         body->AddComponent<SpriteComponent>(spriteProps);

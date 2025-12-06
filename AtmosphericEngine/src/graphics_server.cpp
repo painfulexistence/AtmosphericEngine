@@ -499,34 +499,34 @@ void GraphicsServer::SetRenderTarget(RenderTexture* target) {
 
 RenderTexture* GraphicsServer::GetCurrentRenderTarget() const {
     return _currentRenderTarget;
+}
 
-    // RenderMesh management
-    RenderMeshHandle GraphicsServer::AllocateRenderMesh(VertexFormat format, BufferUsage usage) {
-        auto renderMesh = std::make_unique<RenderMesh>();
-        renderMesh->Initialize(format, usage);
+RenderMeshHandle GraphicsServer::AllocateRenderMesh(VertexFormat format, BufferUsage usage) {
+    auto renderMesh = std::make_unique<RenderMesh>();
+    renderMesh->Initialize(format, usage);
 
-        RenderMeshHandle handle;
-        handle.id = _nextRenderMeshId++;
-        _renderMeshes[handle.id] = std::move(renderMesh);
+    RenderMeshHandle handle;
+    handle.id = _nextRenderMeshId++;
+    _renderMeshes[handle.id] = std::move(renderMesh);
 
-        return handle;
+    return handle;
+}
+
+void GraphicsServer::FreeRenderMesh(RenderMeshHandle handle) {
+    if (!handle.IsValid()) return;
+
+    auto it = _renderMeshes.find(handle.id);
+    if (it != _renderMeshes.end()) {
+        _renderMeshes.erase(it);
     }
+}
 
-    void GraphicsServer::FreeRenderMesh(RenderMeshHandle handle) {
-        if (!handle.IsValid()) return;
+RenderMesh* GraphicsServer::GetRenderMesh(RenderMeshHandle handle) {
+    if (!handle.IsValid()) return nullptr;
 
-        auto it = _renderMeshes.find(handle.id);
-        if (it != _renderMeshes.end()) {
-            _renderMeshes.erase(it);
-        }
+    auto it = _renderMeshes.find(handle.id);
+    if (it != _renderMeshes.end()) {
+        return it->second.get();
     }
-
-    RenderMesh* GraphicsServer::GetRenderMesh(RenderMeshHandle handle) {
-        if (!handle.IsValid()) return nullptr;
-
-        auto it = _renderMeshes.find(handle.id);
-        if (it != _renderMeshes.end()) {
-            return it->second.get();
-        }
-        return nullptr;
-    }
+    return nullptr;
+}

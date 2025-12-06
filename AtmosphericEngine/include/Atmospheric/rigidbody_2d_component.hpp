@@ -65,7 +65,8 @@ public:
     bool CanTick() const override {
         return true;
     }
-    void Tick(float dt) override;
+
+    void SyncToTransform(float dt);
 
     // Position and rotation (in pixels and radians)
     glm::vec2 GetPosition() const;

@@ -74,11 +74,9 @@ void Physics2DServer::Process(float dt) {
     // Step the physics simulation
     _world->Step(dt, _velocityIterations, _positionIterations);
 
-    // Update all registered rigidbodies to sync with their GameObjects
+    // Sync transforms
     for (auto* rb : _rigidbodies) {
-        if (rb) {
-            rb->Tick(dt);
-        }
+        rb->SyncToTransform(dt);
     }
 }
 
@@ -168,9 +166,8 @@ public:
     }
 };
 
-Physics2DServer::RaycastResult Physics2DServer::Raycast(
-  const glm::vec2& origin, const glm::vec2& direction, float maxDistance
-) {
+Physics2DServer::RaycastResult
+  Physics2DServer::Raycast(const glm::vec2& origin, const glm::vec2& direction, float maxDistance) {
     RaycastResult result;
     if (!_world) return result;
 
@@ -199,9 +196,8 @@ public:
     }
 };
 
-std::vector<Rigidbody2DComponent*> Physics2DServer::QueryAABB(
-  const glm::vec2& lowerBound, const glm::vec2& upperBound
-) {
+std::vector<Rigidbody2DComponent*>
+  Physics2DServer::QueryAABB(const glm::vec2& lowerBound, const glm::vec2& upperBound) {
     std::vector<Rigidbody2DComponent*> results;
     if (!_world) return results;
 

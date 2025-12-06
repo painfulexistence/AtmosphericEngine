@@ -3,7 +3,7 @@
 #include "transform_component.hpp"
 
 Rigidbody2DComponent::Rigidbody2DComponent(GameObject* gameObject, const Rigidbody2DProps& props)
-    : Component(gameObject), _props(props), _shapeDef(props.shape) {
+  : _props(props), _shapeDef(props.shape) {
 }
 
 Rigidbody2DComponent::~Rigidbody2DComponent() {
@@ -26,8 +26,8 @@ void Rigidbody2DComponent::CreateBody() {
 
     // Get initial position from props or from transform
     glm::vec2 posPixels = _props.position;
-    if (_gameObject) {
-        auto* transform = _gameObject->GetTransformComponent();
+    if (gameObject) {
+        auto* transform = gameObject->GetComponent<TransformComponent>();
         if (transform) {
             glm::vec3 pos = transform->GetPosition();
             posPixels = glm::vec2(pos.x, pos.y);
@@ -37,16 +37,16 @@ void Rigidbody2DComponent::CreateBody() {
     // Create body definition
     b2BodyDef bodyDef;
     switch (_props.type) {
-        case BodyType2D::Static:
-            bodyDef.type = b2_staticBody;
-            break;
-        case BodyType2D::Kinematic:
-            bodyDef.type = b2_kinematicBody;
-            break;
-        case BodyType2D::Dynamic:
-        default:
-            bodyDef.type = b2_dynamicBody;
-            break;
+    case BodyType2D::Static:
+        bodyDef.type = b2_staticBody;
+        break;
+    case BodyType2D::Kinematic:
+        bodyDef.type = b2_kinematicBody;
+        break;
+    case BodyType2D::Dynamic:
+    default:
+        bodyDef.type = b2_dynamicBody;
+        break;
     }
 
     glm::vec2 posMeters = Physics2DServer::PixelsToMeters(posPixels);
@@ -78,38 +78,38 @@ void Rigidbody2DComponent::CreateFixture() {
     fixtureDef.isSensor = _shapeDef.isSensor;
 
     switch (_shapeDef.type) {
-        case ShapeType2D::Box: {
-            b2PolygonShape boxShape;
-            glm::vec2 halfSize = Physics2DServer::PixelsToMeters(_shapeDef.boxSize * 0.5f);
-            boxShape.SetAsBox(halfSize.x, halfSize.y);
-            fixtureDef.shape = &boxShape;
-            _body->CreateFixture(&fixtureDef);
-            break;
-        }
-        case ShapeType2D::Circle: {
-            b2CircleShape circleShape;
-            circleShape.m_radius = Physics2DServer::PixelsToMeters(_shapeDef.circleRadius);
-            fixtureDef.shape = &circleShape;
-            _body->CreateFixture(&fixtureDef);
-            break;
-        }
-        case ShapeType2D::Polygon: {
-            if (_shapeDef.polygonVertices.size() >= 3 && _shapeDef.polygonVertices.size() <= b2_maxPolygonVertices) {
-                b2PolygonShape polygonShape;
-                std::vector<b2Vec2> vertices;
-                vertices.reserve(_shapeDef.polygonVertices.size());
+    case ShapeType2D::Box: {
+        b2PolygonShape boxShape;
+        glm::vec2 halfSize = Physics2DServer::PixelsToMeters(_shapeDef.boxSize * 0.5f);
+        boxShape.SetAsBox(halfSize.x, halfSize.y);
+        fixtureDef.shape = &boxShape;
+        _body->CreateFixture(&fixtureDef);
+        break;
+    }
+    case ShapeType2D::Circle: {
+        b2CircleShape circleShape;
+        circleShape.m_radius = Physics2DServer::PixelsToMeters(_shapeDef.circleRadius);
+        fixtureDef.shape = &circleShape;
+        _body->CreateFixture(&fixtureDef);
+        break;
+    }
+    case ShapeType2D::Polygon: {
+        if (_shapeDef.polygonVertices.size() >= 3 && _shapeDef.polygonVertices.size() <= b2_maxPolygonVertices) {
+            b2PolygonShape polygonShape;
+            std::vector<b2Vec2> vertices;
+            vertices.reserve(_shapeDef.polygonVertices.size());
 
-                for (const auto& v : _shapeDef.polygonVertices) {
-                    glm::vec2 vMeters = Physics2DServer::PixelsToMeters(v);
-                    vertices.push_back(b2Vec2(vMeters.x, vMeters.y));
-                }
-
-                polygonShape.Set(vertices.data(), static_cast<int32>(vertices.size()));
-                fixtureDef.shape = &polygonShape;
-                _body->CreateFixture(&fixtureDef);
+            for (const auto& v : _shapeDef.polygonVertices) {
+                glm::vec2 vMeters = Physics2DServer::PixelsToMeters(v);
+                vertices.push_back(b2Vec2(vMeters.x, vMeters.y));
             }
-            break;
+
+            polygonShape.Set(vertices.data(), static_cast<int32>(vertices.size()));
+            fixtureDef.shape = &polygonShape;
+            _body->CreateFixture(&fixtureDef);
         }
+        break;
+    }
     }
 }
 
@@ -123,11 +123,11 @@ void Rigidbody2DComponent::DestroyBody() {
     }
 }
 
-void Rigidbody2DComponent::Tick(float dt) {
-    if (!_body || !_gameObject) return;
+void Rigidbody2DComponent::SyncToTransform(float dt) {
+    if (!_body || !gameObject) return;
 
     // Sync Box2D body position/rotation to GameObject transform
-    auto* transform = _gameObject->GetTransformComponent();
+    auto* transform = gameObject->GetComponent<TransformComponent>();
     if (transform) {
         b2Vec2 pos = _body->GetPosition();
         glm::vec2 posPixels = Physics2DServer::MetersToPixels(glm::vec2(pos.x, pos.y));
@@ -243,13 +243,13 @@ void Rigidbody2DComponent::ApplyAngularImpulse(float impulse) {
 BodyType2D Rigidbody2DComponent::GetBodyType() const {
     if (_body) {
         switch (_body->GetType()) {
-            case b2_staticBody:
-                return BodyType2D::Static;
-            case b2_kinematicBody:
-                return BodyType2D::Kinematic;
-            case b2_dynamicBody:
-            default:
-                return BodyType2D::Dynamic;
+        case b2_staticBody:
+            return BodyType2D::Static;
+        case b2_kinematicBody:
+            return BodyType2D::Kinematic;
+        case b2_dynamicBody:
+        default:
+            return BodyType2D::Dynamic;
         }
     }
     return _props.type;
@@ -258,15 +258,15 @@ BodyType2D Rigidbody2DComponent::GetBodyType() const {
 void Rigidbody2DComponent::SetBodyType(BodyType2D type) {
     if (_body) {
         switch (type) {
-            case BodyType2D::Static:
-                _body->SetType(b2_staticBody);
-                break;
-            case BodyType2D::Kinematic:
-                _body->SetType(b2_kinematicBody);
-                break;
-            case BodyType2D::Dynamic:
-                _body->SetType(b2_dynamicBody);
-                break;
+        case BodyType2D::Static:
+            _body->SetType(b2_staticBody);
+            break;
+        case BodyType2D::Kinematic:
+            _body->SetType(b2_kinematicBody);
+            break;
+        case BodyType2D::Dynamic:
+            _body->SetType(b2_dynamicBody);
+            break;
         }
     }
 }

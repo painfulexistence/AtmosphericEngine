@@ -4,11 +4,11 @@
 #include "config.hpp"
 #include "glm/mat4x4.hpp"
 #include "globals.hpp"
-#include "graphics_server.hpp"
 #include "mesh.hpp"
 
 class GraphicsServer;
 class ShaderProgram;
+class Renderer;
 
 struct RenderCommand {
     Mesh* mesh;

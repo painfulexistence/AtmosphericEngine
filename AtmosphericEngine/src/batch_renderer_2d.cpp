@@ -578,84 +578,85 @@ void BatchRenderer2D::DrawRect(
     DrawLine(topRight, bottomRight, color, thickness);
     DrawLine(bottomRight, bottomLeft, color, thickness);
     DrawLine(bottomLeft, topLeft, color, thickness);
+}
 
-    void BatchRenderer2D::DrawGeometry(
-      const std::vector<BatchVertex>& vertices,
-      const std::vector<uint32_t>& indices,
-      uint32_t textureID,
-      const glm::mat4& transform
-    ) {
-        if (vertices.empty() || indices.empty()) return;
+void BatchRenderer2D::DrawGeometry(
+  const std::vector<BatchVertex>& vertices,
+  const std::vector<uint32_t>& indices,
+  uint32_t textureID,
+  const glm::mat4& transform
+) {
+    if (vertices.empty() || indices.empty()) return;
 
-        // Check if we have enough space
-        if (m_Data->QuadIndexCount + indices.size() >= Renderer2DData::MaxIndices
-        || (m_Data->QuadVertexBufferPtr - m_Data->QuadVertexBufferBase) + vertices.size() >= Renderer2DData::MaxVertices) {
-            NextBatch();
-        }
+    // Check if we have enough space
+    if (m_Data->QuadIndexCount + indices.size() >= Renderer2DData::MaxIndices
+    || (m_Data->QuadVertexBufferPtr - m_Data->QuadVertexBufferBase) + vertices.size() >= Renderer2DData::MaxVertices) {
+        NextBatch();
+    }
 
-        // Handle texture
-        if (textureID == (uint32_t)-1 || textureID == 0) textureID = m_Data->WhiteTexture;
+    // Handle texture
+    if (textureID == (uint32_t)-1 || textureID == 0) textureID = m_Data->WhiteTexture;
 
-        float textureIndex = 0.0f;
-        if (textureID != m_Data->WhiteTexture) {
-            for (uint32_t i = 1; i < m_Data->TextureSlotIndex; i++) {
-                if (m_Data->TextureSlots[i] == textureID) {
-                    textureIndex = (float)i;
-                    break;
-                }
-            }
-
-            if (textureIndex == 0.0f) {
-                if (m_Data->TextureSlotIndex >= Renderer2DData::MaxTextureSlots) NextBatch();
-
-                textureIndex = (float)m_Data->TextureSlotIndex;
-                m_Data->TextureSlots[m_Data->TextureSlotIndex] = textureID;
-                m_Data->TextureSlotIndex++;
+    float textureIndex = 0.0f;
+    if (textureID != m_Data->WhiteTexture) {
+        for (uint32_t i = 1; i < m_Data->TextureSlotIndex; i++) {
+            if (m_Data->TextureSlots[i] == textureID) {
+                textureIndex = (float)i;
+                break;
             }
         }
 
-        // Current vertex count (offset for indices)
-        uint32_t vertexOffset = (uint32_t)(m_Data->QuadVertexBufferPtr - m_Data->QuadVertexBufferBase);
+        if (textureIndex == 0.0f) {
+            if (m_Data->TextureSlotIndex >= Renderer2DData::MaxTextureSlots) NextBatch();
 
-        // Copy vertices
-        for (const auto& vertex : vertices) {
-            m_Data->QuadVertexBufferPtr->position = transform * glm::vec4(vertex.position, 1.0f);
-            m_Data->QuadVertexBufferPtr->color = vertex.color;
-            m_Data->QuadVertexBufferPtr->uv = vertex.uv;
-            m_Data->QuadVertexBufferPtr->texIndex = textureIndex;
-            m_Data->QuadVertexBufferPtr->entityID = vertex.entityID;
-            m_Data->QuadVertexBufferPtr++;
-        }
-
-        // Copy indices (with offset)
-        for (uint32_t index : indices) {
-            *m_Data->QuadIndexBufferPtr = vertexOffset + index;
-            m_Data->QuadIndexBufferPtr++;
-        }
-
-        m_Data->QuadIndexCount += (uint32_t)indices.size();
-        m_Data->Stats.quadCount += (uint32_t)indices.size() / 6;// Approx
-    }
-
-    BatchStats BatchRenderer2D::GetStats() {
-        return m_Data->Stats;
-    }
-
-    void BatchRenderer2D::ResetStats() {
-        memset(&m_Data->Stats, 0, sizeof(BatchStats));
-    }
-
-    void BatchRenderer2D::SetBlendMode(BlendMode mode) {
-        if (m_Data->CurrentBlendMode != mode) {
-            // Flush current batch before changing blend mode
-            if (m_Data->QuadIndexCount > 0) {
-                Flush();
-                StartBatch();
-            }
-            m_Data->CurrentBlendMode = mode;
+            textureIndex = (float)m_Data->TextureSlotIndex;
+            m_Data->TextureSlots[m_Data->TextureSlotIndex] = textureID;
+            m_Data->TextureSlotIndex++;
         }
     }
 
-    BlendMode BatchRenderer2D::GetBlendMode() const {
-        return m_Data->CurrentBlendMode;
+    // Current vertex count (offset for indices)
+    uint32_t vertexOffset = (uint32_t)(m_Data->QuadVertexBufferPtr - m_Data->QuadVertexBufferBase);
+
+    // Copy vertices
+    for (const auto& vertex : vertices) {
+        m_Data->QuadVertexBufferPtr->position = transform * glm::vec4(vertex.position, 1.0f);
+        m_Data->QuadVertexBufferPtr->color = vertex.color;
+        m_Data->QuadVertexBufferPtr->uv = vertex.uv;
+        m_Data->QuadVertexBufferPtr->texIndex = textureIndex;
+        m_Data->QuadVertexBufferPtr->entityID = vertex.entityID;
+        m_Data->QuadVertexBufferPtr++;
     }
+
+    // Copy indices (with offset)
+    for (uint32_t index : indices) {
+        *m_Data->QuadIndexBufferPtr = vertexOffset + index;
+        m_Data->QuadIndexBufferPtr++;
+    }
+
+    m_Data->QuadIndexCount += (uint32_t)indices.size();
+    m_Data->Stats.quadCount += (uint32_t)indices.size() / 6;// Approx
+}
+
+BatchStats BatchRenderer2D::GetStats() {
+    return m_Data->Stats;
+}
+
+void BatchRenderer2D::ResetStats() {
+    memset(&m_Data->Stats, 0, sizeof(BatchStats));
+}
+
+void BatchRenderer2D::SetBlendMode(BlendMode mode) {
+    if (m_Data->CurrentBlendMode != mode) {
+        // Flush current batch before changing blend mode
+        if (m_Data->QuadIndexCount > 0) {
+            Flush();
+            StartBatch();
+        }
+        m_Data->CurrentBlendMode = mode;
+    }
+}
+
+BlendMode BatchRenderer2D::GetBlendMode() const {
+    return m_Data->CurrentBlendMode;
+}

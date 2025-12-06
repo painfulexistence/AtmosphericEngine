@@ -1144,12 +1144,12 @@ void WorldUIPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
             return distA > distB;// Back to front
         });
 
-    renderer.GetBatchRenderer()->BeginScene(viewProj);
+    renderer.GetBatchRenderer()->BeginBatch(viewProj);
     for (auto* drawable : world3DDrawables) {
         if (!drawable->gameObject->isActive) continue;
         drawable->Draw(renderer.GetBatchRenderer());
     }
-    renderer.GetBatchRenderer()->EndScene();
+    renderer.GetBatchRenderer()->EndBatch();
 
     // Restore depth mask
     glDepthMask(GL_TRUE);
@@ -1196,7 +1196,7 @@ void CanvasPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
     });
 
     // 3. Render World Sprites (Layer < LAYER_WORLD_3D, skip 3D world UI handled by WorldUIPass)
-    renderer.GetBatchRenderer()->BeginScene(worldViewProj);
+    renderer.GetBatchRenderer()->BeginBatch(worldViewProj);
     for (auto drawable : sortedDrawables) {
         if (!drawable->gameObject->isActive) continue;
         if (drawable->GetLayer() == CanvasLayer::LAYER_WORLD_3D) continue;// Skip 3D world UI
@@ -1204,17 +1204,17 @@ void CanvasPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
 
         drawable->Draw(renderer.GetBatchRenderer());
     }
-    renderer.GetBatchRenderer()->EndScene();
+    renderer.GetBatchRenderer()->EndBatch();
 
     // 4. Render UI Sprites (Layer >= LAYER_UI_BACK)
-    renderer.GetBatchRenderer()->BeginScene(screenViewProj);
+    renderer.GetBatchRenderer()->BeginBatch(screenViewProj);
     for (auto drawable : sortedDrawables) {
         if (!drawable->gameObject->isActive) continue;
         if ((int)drawable->GetLayer() < (int)CanvasLayer::LAYER_UI_BACK) continue;// Skip World sprites
 
         drawable->Draw(renderer.GetBatchRenderer());
     }
-    renderer.GetBatchRenderer()->EndScene();
+    renderer.GetBatchRenderer()->EndBatch();
 
     glDisable(GL_BLEND);
     glEnable(GL_DEPTH_TEST);
@@ -1279,13 +1279,13 @@ void UIPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
 
     glm::mat4 projection = glm::ortho(0.0f, width, height, 0.0f, -1.0f, 1.0f);
 
-    batchRenderer->BeginScene(projection);
+    batchRenderer->BeginBatch(projection);
 
     for (const auto& cmd : queue) {
         batchRenderer->DrawGeometry(cmd.vertices, cmd.indices, cmd.textureID, cmd.transform);
     }
 
-    batchRenderer->EndScene();
+    batchRenderer->EndBatch();
 
     // Restore state
     glEnable(GL_DEPTH_TEST);

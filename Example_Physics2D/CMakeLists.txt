@@ -7,6 +7,7 @@ find_package(spdlog CONFIG REQUIRED)
 find_package(lua REQUIRED)
 find_package(Bullet CONFIG REQUIRED)
 find_package(glad CONFIG REQUIRED)
+find_package(box2d CONFIG REQUIRED)
 
 add_executable(${GAME_NAME}
     main.cpp
@@ -31,7 +32,7 @@ target_link_libraries(${GAME_NAME} PRIVATE
     glad::glad
     spdlog::spdlog
     SDL3::SDL3
-    box2d
+    box2d::box2d
 )
 if(AE_USE_EMSCRIPTEN)
     set(CMAKE_EXECUTABLE_SUFFIX ".html")

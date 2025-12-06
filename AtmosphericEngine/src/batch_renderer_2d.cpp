@@ -362,6 +362,224 @@ void BatchRenderer2D::DrawQuad(
     m_Data->Stats.quadCount++;
 }
 
+// ===== Shape Drawing Implementation =====
+
+void BatchRenderer2D::DrawLine(const glm::vec2& p0, const glm::vec2& p1, const glm::vec4& color, float thickness) {
+    DrawLine(glm::vec3(p0, 0.0f), glm::vec3(p1, 0.0f), color, thickness);
+}
+
+void BatchRenderer2D::DrawLine(const glm::vec3& p0, const glm::vec3& p1, const glm::vec4& color, float thickness) {
+    // Create a quad along the line with the specified thickness
+    glm::vec3 direction = p1 - p0;
+    float length = glm::length(glm::vec2(direction));
+    if (length < 0.0001f) return;
+
+    glm::vec3 normalized = direction / length;
+    glm::vec3 perpendicular(-normalized.y, normalized.x, 0.0f);
+    float halfThickness = thickness * 0.5f;
+
+    // Four corners of the line quad
+    glm::vec3 v0 = p0 - perpendicular * halfThickness;
+    glm::vec3 v1 = p1 - perpendicular * halfThickness;
+    glm::vec3 v2 = p1 + perpendicular * halfThickness;
+    glm::vec3 v3 = p0 + perpendicular * halfThickness;
+
+    if (m_Data->QuadIndexCount >= Renderer2DData::MaxIndices) NextBatch();
+
+    glm::vec2 defaultUV(0.5f, 0.5f);// Center of white texture
+
+    m_Data->QuadVertexBufferPtr->position = v0;
+    m_Data->QuadVertexBufferPtr->color = color;
+    m_Data->QuadVertexBufferPtr->uv = defaultUV;
+    m_Data->QuadVertexBufferPtr->texIndex = 0.0f;
+    m_Data->QuadVertexBufferPtr->entityID = -1.0f;
+    m_Data->QuadVertexBufferPtr++;
+
+    m_Data->QuadVertexBufferPtr->position = v1;
+    m_Data->QuadVertexBufferPtr->color = color;
+    m_Data->QuadVertexBufferPtr->uv = defaultUV;
+    m_Data->QuadVertexBufferPtr->texIndex = 0.0f;
+    m_Data->QuadVertexBufferPtr->entityID = -1.0f;
+    m_Data->QuadVertexBufferPtr++;
+
+    m_Data->QuadVertexBufferPtr->position = v2;
+    m_Data->QuadVertexBufferPtr->color = color;
+    m_Data->QuadVertexBufferPtr->uv = defaultUV;
+    m_Data->QuadVertexBufferPtr->texIndex = 0.0f;
+    m_Data->QuadVertexBufferPtr->entityID = -1.0f;
+    m_Data->QuadVertexBufferPtr++;
+
+    m_Data->QuadVertexBufferPtr->position = v3;
+    m_Data->QuadVertexBufferPtr->color = color;
+    m_Data->QuadVertexBufferPtr->uv = defaultUV;
+    m_Data->QuadVertexBufferPtr->texIndex = 0.0f;
+    m_Data->QuadVertexBufferPtr->entityID = -1.0f;
+    m_Data->QuadVertexBufferPtr++;
+
+    m_Data->QuadIndexCount += 6;
+    m_Data->Stats.lineCount++;
+}
+
+void BatchRenderer2D::DrawCircle(const glm::vec2& center, float radius, const glm::vec4& color, int segments) {
+    DrawCircle(glm::vec3(center, 0.0f), radius, color, segments);
+}
+
+void BatchRenderer2D::DrawCircle(const glm::vec3& center, float radius, const glm::vec4& color, int segments) {
+    float angleStep = 2.0f * glm::pi<float>() / static_cast<float>(segments);
+    for (int i = 0; i < segments; ++i) {
+        float angle0 = angleStep * i;
+        float angle1 = angleStep * (i + 1);
+
+        glm::vec3 p0 = center + glm::vec3(std::cos(angle0) * radius, std::sin(angle0) * radius, 0.0f);
+        glm::vec3 p1 = center + glm::vec3(std::cos(angle1) * radius, std::sin(angle1) * radius, 0.0f);
+
+        DrawLine(p0, p1, color, 1.0f);
+    }
+    m_Data->Stats.circleCount++;
+}
+
+void BatchRenderer2D::DrawCircleFilled(const glm::vec2& center, float radius, const glm::vec4& color, int segments) {
+    DrawCircleFilled(glm::vec3(center, 0.0f), radius, color, segments);
+}
+
+void BatchRenderer2D::DrawCircleFilled(const glm::vec3& center, float radius, const glm::vec4& color, int segments) {
+    // Draw as triangle fan using multiple triangles
+    float angleStep = 2.0f * glm::pi<float>() / static_cast<float>(segments);
+
+    for (int i = 0; i < segments; ++i) {
+        float angle0 = angleStep * i;
+        float angle1 = angleStep * (i + 1);
+
+        glm::vec3 p0 = center;
+        glm::vec3 p1 = center + glm::vec3(std::cos(angle0) * radius, std::sin(angle0) * radius, 0.0f);
+        glm::vec3 p2 = center + glm::vec3(std::cos(angle1) * radius, std::sin(angle1) * radius, 0.0f);
+
+        DrawTriangleFilled(p0, p1, p2, color);
+    }
+    m_Data->Stats.circleCount++;
+}
+
+void BatchRenderer2D::DrawTriangle(
+  const glm::vec2& p0, const glm::vec2& p1, const glm::vec2& p2, const glm::vec4& color
+) {
+    DrawTriangle(glm::vec3(p0, 0.0f), glm::vec3(p1, 0.0f), glm::vec3(p2, 0.0f), color);
+}
+
+void BatchRenderer2D::DrawTriangle(
+  const glm::vec3& p0, const glm::vec3& p1, const glm::vec3& p2, const glm::vec4& color
+) {
+    DrawLine(p0, p1, color, 1.0f);
+    DrawLine(p1, p2, color, 1.0f);
+    DrawLine(p2, p0, color, 1.0f);
+}
+
+void BatchRenderer2D::DrawTriangleFilled(
+  const glm::vec2& p0, const glm::vec2& p1, const glm::vec2& p2, const glm::vec4& color
+) {
+    DrawTriangleFilled(glm::vec3(p0, 0.0f), glm::vec3(p1, 0.0f), glm::vec3(p2, 0.0f), color);
+}
+
+void BatchRenderer2D::DrawTriangleFilled(
+  const glm::vec3& p0, const glm::vec3& p1, const glm::vec3& p2, const glm::vec4& color
+) {
+    // For triangles, we need to use 2 triangles forming a degenerate quad
+    // We'll use the same vertex layout but with careful positioning
+    if (m_Data->QuadIndexCount >= Renderer2DData::MaxIndices) NextBatch();
+
+    glm::vec2 defaultUV(0.5f, 0.5f);
+
+    // Vertex 0
+    m_Data->QuadVertexBufferPtr->position = p0;
+    m_Data->QuadVertexBufferPtr->color = color;
+    m_Data->QuadVertexBufferPtr->uv = defaultUV;
+    m_Data->QuadVertexBufferPtr->texIndex = 0.0f;
+    m_Data->QuadVertexBufferPtr->entityID = -1.0f;
+    m_Data->QuadVertexBufferPtr++;
+
+    // Vertex 1
+    m_Data->QuadVertexBufferPtr->position = p1;
+    m_Data->QuadVertexBufferPtr->color = color;
+    m_Data->QuadVertexBufferPtr->uv = defaultUV;
+    m_Data->QuadVertexBufferPtr->texIndex = 0.0f;
+    m_Data->QuadVertexBufferPtr->entityID = -1.0f;
+    m_Data->QuadVertexBufferPtr++;
+
+    // Vertex 2
+    m_Data->QuadVertexBufferPtr->position = p2;
+    m_Data->QuadVertexBufferPtr->color = color;
+    m_Data->QuadVertexBufferPtr->uv = defaultUV;
+    m_Data->QuadVertexBufferPtr->texIndex = 0.0f;
+    m_Data->QuadVertexBufferPtr->entityID = -1.0f;
+    m_Data->QuadVertexBufferPtr++;
+
+    // Vertex 3 (duplicate of vertex 2 to complete the quad - degenerate triangle)
+    m_Data->QuadVertexBufferPtr->position = p2;
+    m_Data->QuadVertexBufferPtr->color = color;
+    m_Data->QuadVertexBufferPtr->uv = defaultUV;
+    m_Data->QuadVertexBufferPtr->texIndex = 0.0f;
+    m_Data->QuadVertexBufferPtr->entityID = -1.0f;
+    m_Data->QuadVertexBufferPtr++;
+
+    m_Data->QuadIndexCount += 6;
+    m_Data->Stats.triangleCount++;
+}
+
+void BatchRenderer2D::DrawPolygon(const std::vector<glm::vec2>& vertices, const glm::vec4& color, float thickness) {
+    std::vector<glm::vec3> vertices3D;
+    vertices3D.reserve(vertices.size());
+    for (const auto& v : vertices) {
+        vertices3D.push_back(glm::vec3(v, 0.0f));
+    }
+    DrawPolygon(vertices3D, color, thickness);
+}
+
+void BatchRenderer2D::DrawPolygon(const std::vector<glm::vec3>& vertices, const glm::vec4& color, float thickness) {
+    if (vertices.size() < 3) return;
+
+    for (size_t i = 0; i < vertices.size(); ++i) {
+        size_t next = (i + 1) % vertices.size();
+        DrawLine(vertices[i], vertices[next], color, thickness);
+    }
+}
+
+void BatchRenderer2D::DrawPolygonFilled(const std::vector<glm::vec2>& vertices, const glm::vec4& color) {
+    std::vector<glm::vec3> vertices3D;
+    vertices3D.reserve(vertices.size());
+    for (const auto& v : vertices) {
+        vertices3D.push_back(glm::vec3(v, 0.0f));
+    }
+    DrawPolygonFilled(vertices3D, color);
+}
+
+void BatchRenderer2D::DrawPolygonFilled(const std::vector<glm::vec3>& vertices, const glm::vec4& color) {
+    if (vertices.size() < 3) return;
+
+    // Simple triangle fan for convex polygons
+    for (size_t i = 1; i < vertices.size() - 1; ++i) {
+        DrawTriangleFilled(vertices[0], vertices[i], vertices[i + 1], color);
+    }
+}
+
+void BatchRenderer2D::DrawRect(
+  const glm::vec2& position, const glm::vec2& size, const glm::vec4& color, float thickness
+) {
+    DrawRect(glm::vec3(position, 0.0f), size, color, thickness);
+}
+
+void BatchRenderer2D::DrawRect(
+  const glm::vec3& position, const glm::vec2& size, const glm::vec4& color, float thickness
+) {
+    glm::vec3 topLeft = position;
+    glm::vec3 topRight = position + glm::vec3(size.x, 0.0f, 0.0f);
+    glm::vec3 bottomRight = position + glm::vec3(size.x, size.y, 0.0f);
+    glm::vec3 bottomLeft = position + glm::vec3(0.0f, size.y, 0.0f);
+
+    DrawLine(topLeft, topRight, color, thickness);
+    DrawLine(topRight, bottomRight, color, thickness);
+    DrawLine(bottomRight, bottomLeft, color, thickness);
+    DrawLine(bottomLeft, topLeft, color, thickness);
+}
+
 void BatchRenderer2D::DrawGeometry(
   const std::vector<BatchVertex>& vertices,
   const std::vector<uint32_t>& indices,
@@ -372,7 +590,7 @@ void BatchRenderer2D::DrawGeometry(
 
     // Check if we have enough space
     if (m_Data->QuadIndexCount + indices.size() >= Renderer2DData::MaxIndices
-        || (m_Data->QuadVertexBufferPtr - m_Data->QuadVertexBufferBase) + vertices.size() >= Renderer2DData::MaxVertices) {
+    || (m_Data->QuadVertexBufferPtr - m_Data->QuadVertexBufferBase) + vertices.size() >= Renderer2DData::MaxVertices) {
         NextBatch();
     }
 

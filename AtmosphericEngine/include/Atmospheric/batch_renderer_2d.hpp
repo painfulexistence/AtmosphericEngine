@@ -30,6 +30,9 @@ struct BatchVertex {
 struct BatchStats {
     uint32_t drawCalls = 0;
     uint32_t quadCount = 0;
+    uint32_t lineCount = 0;
+    uint32_t circleCount = 0;
+    uint32_t triangleCount = 0;
 };
 
 class BatchRenderer2D {
@@ -90,6 +93,34 @@ public:
       const glm::vec4& color = glm::vec4(1.0f),
       int entityID = -1
     );
+
+    // ===== Shape Drawing API =====
+
+    // Lines
+    void DrawLine(const glm::vec2& p0, const glm::vec2& p1, const glm::vec4& color, float thickness = 1.0f);
+    void DrawLine(const glm::vec3& p0, const glm::vec3& p1, const glm::vec4& color, float thickness = 1.0f);
+
+    // Circles
+    void DrawCircle(const glm::vec2& center, float radius, const glm::vec4& color, int segments = 32);
+    void DrawCircleFilled(const glm::vec2& center, float radius, const glm::vec4& color, int segments = 32);
+    void DrawCircle(const glm::vec3& center, float radius, const glm::vec4& color, int segments = 32);
+    void DrawCircleFilled(const glm::vec3& center, float radius, const glm::vec4& color, int segments = 32);
+
+    // Triangles
+    void DrawTriangle(const glm::vec2& p0, const glm::vec2& p1, const glm::vec2& p2, const glm::vec4& color);
+    void DrawTriangleFilled(const glm::vec2& p0, const glm::vec2& p1, const glm::vec2& p2, const glm::vec4& color);
+    void DrawTriangle(const glm::vec3& p0, const glm::vec3& p1, const glm::vec3& p2, const glm::vec4& color);
+    void DrawTriangleFilled(const glm::vec3& p0, const glm::vec3& p1, const glm::vec3& p2, const glm::vec4& color);
+
+    // Polygons (convex)
+    void DrawPolygon(const std::vector<glm::vec2>& vertices, const glm::vec4& color, float thickness = 1.0f);
+    void DrawPolygonFilled(const std::vector<glm::vec2>& vertices, const glm::vec4& color);
+    void DrawPolygon(const std::vector<glm::vec3>& vertices, const glm::vec4& color, float thickness = 1.0f);
+    void DrawPolygonFilled(const std::vector<glm::vec3>& vertices, const glm::vec4& color);
+
+    // Rectangles (outline)
+    void DrawRect(const glm::vec2& position, const glm::vec2& size, const glm::vec4& color, float thickness = 1.0f);
+    void DrawRect(const glm::vec3& position, const glm::vec2& size, const glm::vec4& color, float thickness = 1.0f);
 
     // Arbitrary Geometry (for RmlUi)
     void DrawGeometry(

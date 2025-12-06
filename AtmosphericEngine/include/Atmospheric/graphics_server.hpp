@@ -5,6 +5,7 @@
 #include "mesh.hpp"
 #include "mesh_component.hpp"
 #include "render_mesh.hpp"
+#include "render_texture.hpp"
 #include "server.hpp"
 #include "shader.hpp"
 #include <glm/mat4x4.hpp>
@@ -12,6 +13,7 @@
 #include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
 #include <memory>
+#include <stack>
 #include <unordered_map>
 
 class SpriteComponent;
@@ -138,6 +140,31 @@ public:
     LightComponent* RegisterLight(LightComponent* light);
     SpriteComponent* RegisterSprite(SpriteComponent* sprite);
 
+    // ===== Render Target Management =====
+
+    // Create a new RenderTexture (managed by GraphicsServer)
+    std::shared_ptr<RenderTexture> CreateRenderTexture(int width, int height, bool withDepth = false);
+    std::shared_ptr<RenderTexture> CreateRenderTexture(const RenderTexture::Props& props);
+
+    // Push a render target onto the stack (saves current state)
+    // Pass nullptr to render to the default framebuffer (screen)
+    void PushRenderTarget(RenderTexture* target);
+
+    // Pop the current render target (restores previous state)
+    void PopRenderTarget();
+
+    // Set render target directly (Three.js style, no stack)
+    // Pass nullptr to render to the default framebuffer
+    void SetRenderTarget(RenderTexture* target);
+
+    // Get current render target (nullptr = default framebuffer)
+    RenderTexture* GetCurrentRenderTarget() const;
+
+    // Get the render target stack depth
+    size_t GetRenderTargetStackDepth() const {
+        return _renderTargetStack.size();
+    }
+
     // RenderMesh management
     RenderMeshHandle AllocateRenderMesh(VertexFormat format, BufferUsage usage = BufferUsage::Static);
     void FreeRenderMesh(RenderMeshHandle handle);
@@ -146,6 +173,12 @@ public:
     Renderer* renderer = nullptr;
 
 private:
+    // Render target stack for Push/Pop
+    std::stack<RenderTexture*> _renderTargetStack;
+    RenderTexture* _currentRenderTarget = nullptr;
+
+    // Managed render textures
+    std::vector<std::shared_ptr<RenderTexture>> _renderTextures;
     CameraComponent* defaultCamera = nullptr;
     LightComponent* defaultLight = nullptr;
 

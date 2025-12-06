@@ -8,6 +8,7 @@
 #include "input.hpp"
 #include "layer.hpp"
 #include "physics_server.hpp"
+#include "physics_server_2d.hpp"
 #include "script.hpp"
 
 struct SceneDef;
@@ -82,6 +83,9 @@ public:
     inline PhysicsServer* GetPhysicsServer() {
         return &physics;
     }
+    inline Physics2DServer* GetPhysics2DServer() {
+        return &physics2D;
+    }
     inline Console* GetConsole() {
         return &console;
     }
@@ -109,6 +113,7 @@ protected:
     // These subsystems will be game accessible
     AudioManager audio;
     PhysicsServer physics;
+    Physics2DServer physics2D;
     Console console;
     Input input;
     Script script;

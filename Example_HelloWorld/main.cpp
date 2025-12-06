@@ -57,9 +57,9 @@ class HelloWorld : public Application {
             worldSprites.push_back(spriteObj);
         }
 
-        // === Screen Space Sprites (CanvasPass) ===
-        // These use screen coordinates (pixels), always on top of 3D
-        glm::vec4 screenColors[] = {
+        // === 2D Sprites (CanvasPass) ===
+        // These use screen coordinates (pixels), rendered after 3D
+        glm::vec4 sprite2DColors[] = {
             {1.0f, 0.5f, 0.0f, 0.9f},  // Orange
             {0.5f, 0.0f, 1.0f, 0.9f},  // Purple
             {0.0f, 1.0f, 1.0f, 0.9f},  // Cyan
@@ -73,9 +73,9 @@ class HelloWorld : public Application {
             spriteObj->AddComponent<SpriteComponent>(SpriteProps{
                 .size = glm::vec2(50.0f, 50.0f),  // Pixels
                 .pivot = glm::vec2(0.0f, 0.0f),   // Top-left pivot
-                .color = screenColors[i],
+                .color = sprite2DColors[i],
                 .textureID = -1,
-                .layer = CanvasLayer::LAYER_UI,   // UI layer = CanvasPass
+                .layer = CanvasLayer::LAYER_WORLD_2D,  // 2D layer = CanvasPass
             });
 
             screenSprites.push_back(spriteObj);
@@ -83,7 +83,7 @@ class HelloWorld : public Application {
 
         console.Info(fmt::format("Game fully loaded in {:.1f} seconds", GetWindowTime()));
         console.Info("Press R to reload shaders, ESC to quit");
-        console.Info("World sprites: 4 (depth tested), Screen sprites: 3 (always on top)");
+        console.Info("3D sprites: 4 (depth tested), 2D sprites: 3 (screen space)");
     }
 
     void OnUpdate(float dt, float time) override {

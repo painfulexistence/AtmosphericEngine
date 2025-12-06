@@ -1170,20 +1170,20 @@ void WorldCanvasPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
     renderer.CheckErrors("WorldCanvas pass");
 }
 
-// ===== CanvasPass: Screen-space UI sprites (no depth testing) =====
+// ===== CanvasPass: Pure 2D sprites (screen-space, no depth testing) =====
 void CanvasPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
     ZoneScopedN("CanvasPass");
 
-    // Filter UI layer sprites (>= LAYER_UI_BACK)
-    std::vector<CanvasDrawable*> uiDrawables;
+    // Filter LAYER_WORLD_2D sprites only
+    std::vector<CanvasDrawable*> drawables2D;
     for (auto* drawable : ctx->canvasDrawables) {
         if (!drawable->gameObject->isActive) continue;
-        if ((int)drawable->GetLayer() >= (int)CanvasLayer::LAYER_UI_BACK) {
-            uiDrawables.push_back(drawable);
+        if (drawable->GetLayer() == CanvasLayer::LAYER_WORLD_2D) {
+            drawables2D.push_back(drawable);
         }
     }
 
-    if (uiDrawables.empty()) return;
+    if (drawables2D.empty()) return;
 
     auto [width, height] = Window::Get()->GetFramebufferSize();
     glViewport(0, 0, width, height);
@@ -1197,17 +1197,12 @@ void CanvasPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 #endif
 
-    // Screen-space ortho projection (top-left origin)
+    // Screen-space ortho projection (top-left origin, pixels)
     glm::mat4 screenProj = glm::ortho(0.0f, (float)width, (float)height, 0.0f, -1.0f, 1.0f);
 
-    // Sort by layer
-    std::sort(uiDrawables.begin(), uiDrawables.end(), [](CanvasDrawable* a, CanvasDrawable* b) {
-        return a->GetLayer() < b->GetLayer();
-    });
-
-    // Render UI sprites
+    // Render 2D sprites (no sorting needed for single layer, but sort by z for sub-ordering)
     renderer.GetBatchRenderer()->BeginBatch(screenProj);
-    for (auto* drawable : uiDrawables) {
+    for (auto* drawable : drawables2D) {
         drawable->Draw(renderer.GetBatchRenderer());
     }
     renderer.GetBatchRenderer()->EndBatch();

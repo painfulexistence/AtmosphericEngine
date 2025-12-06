@@ -153,7 +153,7 @@ public:
     std::array<GLuint, MAX_OMNI_LIGHTS> omniShadowMaps;
     GLuint envMap, irradianceMap;
     GLuint sceneColorTexture, sceneDepthTexture, sceneStencilTexture;
-    GLuint msaaResolveTexture;
+    GLuint msaaResolveTexture, msaaResolveDepthTexture;
 
     struct GBuffer {
         GLuint id;

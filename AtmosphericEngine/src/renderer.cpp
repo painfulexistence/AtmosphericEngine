@@ -408,8 +408,15 @@ void Renderer::CreateRTs(const RenderTargetProps& props) {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, props.width, props.height, 0, GL_RGBA, GL_FLOAT, NULL);
 
+    glGenTextures(1, &msaaResolveDepthTexture);
+    glBindTexture(GL_TEXTURE_2D, msaaResolveDepthTexture);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, props.width, props.height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+
     glBindFramebuffer(GL_FRAMEBUFFER, msaaResolveFBO);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, msaaResolveTexture, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, msaaResolveDepthTexture, 0);
     CheckFramebufferStatus("MSAA framebuffer incomplete");
     CheckErrors("Create MSAA resolve RTs");
 
@@ -465,6 +472,7 @@ void Renderer::DestroyRTs() {
     glDeleteTextures(1, &sceneColorTexture);
     glDeleteTextures(1, &sceneDepthTexture);
     glDeleteTextures(1, &msaaResolveTexture);
+    glDeleteTextures(1, &msaaResolveDepthTexture);
 
     glDeleteTextures(1, &gBuffer.positionRT);
     glDeleteTextures(1, &gBuffer.normalRT);
@@ -1091,10 +1099,10 @@ void MSAAResolvePass::Execute(GraphicsServer* ctx, Renderer& renderer) {
     auto [width, height] = Window::Get()->GetFramebufferSize();
     glViewport(0, 0, width, height);
 
-    // Resolve MSAA
+    // Resolve MSAA (color + depth)
     glBindFramebuffer(GL_READ_FRAMEBUFFER, renderer.sceneFBO);
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, renderer.postProcessEnabled ? renderer.msaaResolveFBO : renderer.finalFBO);
-    glBlitFramebuffer(0, 0, width, height, 0, 0, width, height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+    glBlitFramebuffer(0, 0, width, height, 0, 0, width, height, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT, GL_NEAREST);
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
@@ -1159,7 +1167,7 @@ void WorldUIPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
     renderer.CheckErrors("WorldUI pass");
 }
 
-// ===== CanvasPass: 2D sprites and screen UI =====
+// ===== CanvasPass: 2D world sprites only (UI handled by UIPass) =====
 void CanvasPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
     ZoneScopedN("CanvasPass");
 
@@ -1175,43 +1183,32 @@ void CanvasPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 #endif
 
-    // 1. Calculate Projections
+    // Calculate world projection
     glm::mat4 worldViewProj;
     CameraComponent* camera = ctx->GetMainCamera();
     if (camera && camera->IsOrthographic()) {
         worldViewProj = camera->GetProjectionMatrix() * camera->GetViewMatrix();
     } else {
-        // Fallback or perspective camera handling for 2D?
-        // For now, if perspective, we might just use screen space or a default ortho.
-        // Let's assume default ortho for safety if no 2D camera is set.
+        // Fallback to screen-space ortho if no 2D camera
         worldViewProj = glm::ortho(0.0f, (float)width, (float)height, 0.0f, -1.0f, 1.0f);
     }
 
-    glm::mat4 screenViewProj = glm::ortho(0.0f, (float)width, (float)height, 0.0f, -1.0f, 1.0f);
+    // Filter and sort world sprites only (skip LAYER_WORLD_3D and UI layers)
+    std::vector<CanvasDrawable*> worldDrawables;
+    for (auto* drawable : ctx->canvasDrawables) {
+        if (!drawable->gameObject->isActive) continue;
+        if (drawable->GetLayer() == CanvasLayer::LAYER_WORLD_3D) continue;// Handled by WorldUIPass
+        if ((int)drawable->GetLayer() >= (int)CanvasLayer::LAYER_UI_BACK) continue;// Handled by UIPass
+        worldDrawables.push_back(drawable);
+    }
 
-    // 2. Sort Drawables
-    std::vector<CanvasDrawable*> sortedDrawables = ctx->canvasDrawables;
-    std::sort(sortedDrawables.begin(), sortedDrawables.end(), [](CanvasDrawable* a, CanvasDrawable* b) {
+    std::sort(worldDrawables.begin(), worldDrawables.end(), [](CanvasDrawable* a, CanvasDrawable* b) {
         return a->GetLayer() < b->GetLayer();
     });
 
-    // 3. Render World Sprites (Layer < LAYER_WORLD_3D, skip 3D world UI handled by WorldUIPass)
+    // Render world sprites
     renderer.GetBatchRenderer()->BeginBatch(worldViewProj);
-    for (auto drawable : sortedDrawables) {
-        if (!drawable->gameObject->isActive) continue;
-        if (drawable->GetLayer() == CanvasLayer::LAYER_WORLD_3D) continue;// Skip 3D world UI
-        if ((int)drawable->GetLayer() >= (int)CanvasLayer::LAYER_UI_BACK) continue;// Skip UI sprites
-
-        drawable->Draw(renderer.GetBatchRenderer());
-    }
-    renderer.GetBatchRenderer()->EndBatch();
-
-    // 4. Render UI Sprites (Layer >= LAYER_UI_BACK)
-    renderer.GetBatchRenderer()->BeginBatch(screenViewProj);
-    for (auto drawable : sortedDrawables) {
-        if (!drawable->gameObject->isActive) continue;
-        if ((int)drawable->GetLayer() < (int)CanvasLayer::LAYER_UI_BACK) continue;// Skip World sprites
-
+    for (auto* drawable : worldDrawables) {
         drawable->Draw(renderer.GetBatchRenderer());
     }
     renderer.GetBatchRenderer()->EndBatch();

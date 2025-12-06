@@ -21,6 +21,11 @@ struct CameraProps {
     float verticalAngle = 0.0f;
     float horizontalAngle = 0.0f;
     glm::vec3 eyeOffset = glm::vec3(0.0f);
+
+    CameraProps() {
+        perspective = { 45.0f, 1.333f, 0.1f, 500.0f };
+        isOrthographic = false;
+    }
 };
 
 class CameraComponent : public Component {
@@ -51,11 +56,15 @@ public:
 
     void Pitch(float);
 
+    void SetSize(float size);
+
 private:
     float _fov;
     float _aspectRatio;
     float _nearZ;
     float _farZ;
+    float _orthoWidth = 10.0f;
+    float _orthoHeight = 10.0f;
     bool _isOrthographic = false;
     glm::vec3 _eyeOffset = glm::vec3(0.0f, 0.0f, 0.0f);
     glm::vec2 _vhAngle = glm::vec2(0.0f, 0.0f);

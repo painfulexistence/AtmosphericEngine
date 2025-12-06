@@ -5,6 +5,7 @@
 #include "config.hpp"
 #include "frustum.hpp"
 #include "game_object.hpp"
+#include "light_component.hpp"
 #include "material.hpp"
 #include "mesh.hpp"
 #include "mesh_component.hpp"
@@ -12,6 +13,7 @@
 #include "sprite_component.hpp"
 #include "stb_image.h"
 #include "window.hpp"
+#include <tracy/Tracy.hpp>
 
 #include <cstddef>
 
@@ -72,27 +74,22 @@ void GraphicsServer::Init(Application* app) {
     canvasDrawList.reserve(1 << 16);
     debugLines.reserve(1 << 16);
 
-    defaultCamera = new CameraComponent(
-      app->GetDefaultGameObject(),
-      { .isOrthographic = false,
-        .perspective = { .fieldOfView = 45.0f, .aspectRatio = 4.0f / 3.0f, .nearClip = 0.1f, .farClip = 1000.0f },
-        .verticalAngle = 0.0f,
-        .horizontalAngle = 0.0f,
-        .eyeOffset = glm::vec3(0.0f) }
-    );
-    app->GetDefaultGameObject()->AddComponent(defaultCamera);
+    CameraProps defaultCameraProps{};
+    defaultCameraProps.isOrthographic = false;
+    defaultCameraProps.perspective = {
+        .fieldOfView = 45.0f, .aspectRatio = 4.0f / 3.0f, .nearClip = 0.1f, .farClip = 1000.0f
+    };
+    defaultCamera =
+      dynamic_cast<CameraComponent*>(app->GetDefaultGameObject()->AddComponent<CameraComponent>(defaultCameraProps));
 
-    defaultLight = new LightComponent(
-      app->GetDefaultGameObject(),
-      { .type = LightType::Directional,
-        .ambient = glm::vec3(1.0f, 1.0f, 1.0f),
-        .diffuse = glm::vec3(1.0f, 1.0f, 1.0f),
-        .specular = glm::vec3(1.0f, 1.0f, 1.0f),
-        .direction = glm::vec3(0.0f, -1.0f, 0.0f),
-        .intensity = 1.0f,
-        .castShadow = false }
-    );
-    app->GetDefaultGameObject()->AddComponent(defaultLight);
+    defaultLight = dynamic_cast<LightComponent*>(app->GetDefaultGameObject()->AddComponent<LightComponent>(LightProps{
+      .type = LightType::Directional,
+      .ambient = glm::vec3(1.0f, 1.0f, 1.0f),
+      .diffuse = glm::vec3(1.0f, 1.0f, 1.0f),
+      .specular = glm::vec3(1.0f, 1.0f, 1.0f),
+      .direction = glm::vec3(0.0f, -1.0f, 0.0f),
+      .intensity = 1.0f,
+      .castShadow = false }));
 
     // Initialize meshes for immediate mode geometry
     debugLineMesh = new Mesh(MeshType::DEBUG);
@@ -411,9 +408,9 @@ MeshComponent* GraphicsServer::RegisterMesh(MeshComponent* mesh) {
     return mesh;
 }
 
-SpriteComponent* GraphicsServer::RegisterSprite(SpriteComponent* sprite) {
-    canvasDrawables.push_back(sprite);
-    return sprite;
+CanvasDrawable* GraphicsServer::RegisterCanvasDrawable(CanvasDrawable* drawable) {
+    canvasDrawables.push_back(drawable);
+    return drawable;
 }
 
 CameraComponent* GraphicsServer::RegisterCamera(CameraComponent* camera) {
@@ -428,4 +425,109 @@ LightComponent* GraphicsServer::RegisterLight(LightComponent* light) {
         directionalLights.push_back(light);
     }
     return light;
+}
+
+// ===== Render Target Management Implementation =====
+std::shared_ptr<RenderTexture> GraphicsServer::CreateRenderTexture(int width, int height, bool withDepth) {
+    auto rt = std::make_shared<RenderTexture>(width, height, withDepth);
+    _renderTextures.push_back(rt);
+    return rt;
+}
+
+std::shared_ptr<RenderTexture> GraphicsServer::CreateRenderTexture(const RenderTexture::Props& props) {
+    auto rt = std::make_shared<RenderTexture>(props);
+    _renderTextures.push_back(rt);
+    return rt;
+}
+
+void GraphicsServer::PushRenderTarget(RenderTexture* target) {
+    // Save current target to stack
+    _renderTargetStack.push(_currentRenderTarget);
+
+    // Activate new target
+    if (target) {
+        target->Begin();
+    } else {
+        // If switching to default framebuffer and we had a target, end it
+        if (_currentRenderTarget) {
+            _currentRenderTarget->End();
+        }
+    }
+
+    _currentRenderTarget = target;
+}
+
+void GraphicsServer::PopRenderTarget() {
+    if (_renderTargetStack.empty()) {
+        Console::Get()->Warn("GraphicsServer::PopRenderTarget - Stack is empty!");
+        return;
+    }
+
+    // End current target if any
+    if (_currentRenderTarget) {
+        _currentRenderTarget->End();
+    }
+
+    // Restore previous target
+    RenderTexture* prevTarget = _renderTargetStack.top();
+    _renderTargetStack.pop();
+
+    if (prevTarget) {
+        prevTarget->Begin();
+    }
+
+    _currentRenderTarget = prevTarget;
+}
+
+void GraphicsServer::SetRenderTarget(RenderTexture* target) {
+    // End current target if switching
+    if (_currentRenderTarget && _currentRenderTarget != target) {
+        _currentRenderTarget->End();
+    }
+
+    // Begin new target
+    if (target && target != _currentRenderTarget) {
+        target->Begin();
+    } else if (!target && _currentRenderTarget) {
+        // Switching to default framebuffer
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        auto [width, height] = Window::Get()->GetFramebufferSize();
+        glViewport(0, 0, width, height);
+    }
+
+    _currentRenderTarget = target;
+}
+
+RenderTexture* GraphicsServer::GetCurrentRenderTarget() const {
+    return _currentRenderTarget;
+}
+
+RenderMeshHandle GraphicsServer::AllocateRenderMesh(VertexFormat format, BufferUsage usage) {
+    auto renderMesh = std::make_unique<RenderMesh>();
+    renderMesh->Initialize(format, usage);
+
+    RenderMeshHandle handle;
+    handle.id = _nextRenderMeshId++;
+    _renderMeshes[handle.id] = std::move(renderMesh);
+
+    return handle;
+}
+
+void GraphicsServer::FreeRenderMesh(RenderMeshHandle handle) {
+    if (!handle.IsValid()) return;
+
+    auto it = _renderMeshes.find(handle.id);
+    if (it != _renderMeshes.end()) {
+        _renderMeshes.erase(it);
+    }
+}
+
+RenderMesh* GraphicsServer::GetRenderMesh(RenderMeshHandle handle) {
+    if (!handle.IsValid()) return nullptr;
+
+    auto it = _renderMeshes.find(handle.id);
+    if (it != _renderMeshes.end()) {
+        return it->second.get();
+    }
+    return nullptr;
 }

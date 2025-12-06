@@ -8,14 +8,13 @@
 #include "input.hpp"
 #include "layer.hpp"
 #include "physics_server.hpp"
-#include "script.hpp"
+#include "physics_server_2d.hpp"
 
-struct SceneDef;
+#include "physics_server_2d.hpp"
+#include "scene.hpp"
 
+// Forward declarations
 class Window;
-
-class Scene;
-
 class GameObject;
 
 struct FrameData {
@@ -50,7 +49,7 @@ using EntityID = uint64_t;
 class Application {
 public:
     explicit Application(AppConfig config = {});
-    ~Application();
+    virtual ~Application();
 
     void Run();
 
@@ -82,6 +81,9 @@ public:
     inline PhysicsServer* GetPhysicsServer() {
         return &physics;
     }
+    inline Physics2DServer* GetPhysics2DServer() {
+        return &physics2D;
+    }
     inline Console* GetConsole() {
         return &console;
     }
@@ -99,13 +101,19 @@ public:
     void LoadScene(const SceneDef& scene);
     void ReloadScene();
 
+    GameObject* CreateGameObject(
+      glm::vec3 position = glm::vec3(0.0f), glm::vec3 rotation = glm::vec3(0.0f), glm::vec3 scale = glm::vec3(1.0f)
+    );
+
+    GameObject* CreateGameObject(glm::vec2 position, float rotation = 0.0f);
+
 protected:
     // These subsystems will be game accessible
     AudioManager audio;
     PhysicsServer physics;
+    Physics2DServer physics2D;
     Console console;
     Input input;
-    Script script;
 
     GraphicsServer graphics;
 
@@ -130,12 +138,6 @@ protected:
         _subsystems.push_back(subsystem);
         return subsystem;
     }
-
-    GameObject* CreateGameObject(
-      glm::vec3 position = glm::vec3(0.0f), glm::vec3 rotation = glm::vec3(0.0f), glm::vec3 scale = glm::vec3(1.0f)
-    );
-
-    GameObject* CreateGameObject(glm::vec2 position, float rotation = 0.0f);
 
 private:
     AppConfig _config;

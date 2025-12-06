@@ -14,7 +14,7 @@ public:
     ~RmlUiManager();
 
     // Initialize RmlUi with window dimensions
-    bool Initialize(int width, int height);
+    bool Initialize(int width, int height, class Renderer* renderer);
 
     // Shutdown RmlUi
     void Shutdown();

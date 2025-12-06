@@ -15,6 +15,7 @@ struct RigidbodyProps {
     glm::vec3 angularFactor = glm::vec3(1.0f, 1.0f, 1.0f);
     btCollisionShape* shape = nullptr;
     bool useGravity = true;
+    bool isKinematic = false;
 };
 
 class GameObject;
@@ -65,6 +66,8 @@ public:
     void SetLinearVelocity(const glm::vec3& vel);
     glm::vec3 GetAngularVelocity();
     void SetAngularVelocity(const glm::vec3& vel);
+
+    bool IsKinematic() const;
 
 private:
     btRigidBody* _rigidbody;

@@ -71,6 +71,10 @@ RigidbodyComponent::RigidbodyComponent(GameObject* gameObject, const RigidbodyPr
     _rigidbody->setFriction(props.friction);
     _rigidbody->setRestitution(props.restitution);
     _rigidbody->setDamping(props.linearDamping, props.angularDamping);
+    if (props.isKinematic) {
+        _rigidbody->setCollisionFlags(_rigidbody->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT);
+        _rigidbody->setActivationState(DISABLE_DEACTIVATION);
+    }
     // _rigidbody->setCollisionFlags(_rigidbody->getCollisionFlags() |
     //     btCollisionObject::CF_NO_CONTACT_RESPONSE);
     _rigidbody->setUserPointer(gameObject);
@@ -195,4 +199,8 @@ glm::vec3 RigidbodyComponent::GetAngularVelocity() {
 void RigidbodyComponent::SetAngularVelocity(const glm::vec3& vel) {
     _rigidbody->activate();
     _rigidbody->setAngularVelocity(btVector3(vel.x, vel.y, vel.z));
+}
+
+bool RigidbodyComponent::IsKinematic() const {
+    return _rigidbody->isKinematicObject();
 }

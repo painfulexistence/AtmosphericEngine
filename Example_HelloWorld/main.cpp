@@ -18,19 +18,21 @@ class HelloWorld : public Application {
         };
         LoadScene(scene);
 
-        mainCamera->gameObject->SetPosition(glm::vec3(-5.0, 0.0, 0.0));
+        mainCamera->gameObject->SetPosition(glm::vec3(-10.0, 5.0, 0.0));
 
+        // Create rotating cube
         auto cubeMesh = AssetManager::Get().CreateCubeMesh("CubeMesh", 1.0f);
         cubeMesh->SetMaterial(AssetManager::Get().GetMaterials()[0]);
 
         cube = CreateGameObject();
         cube->AddComponent<MeshComponent>(cubeMesh);
 
-        script.Print(fmt::format("Game fully loaded in {:.1f} seconds", GetWindowTime()));
+        console.Info(fmt::format("Game fully loaded in {:.1f} seconds", GetWindowTime()));
+        console.Info("Press 1-5 to switch level blockouts, R to reload shaders");
     }
 
     void OnUpdate(float dt, float time) override {
-        cube->SetPosition(glm::vec3(0.0f, 0.0f, std::cos(time) * 2.0f));
+        cube->SetPosition(glm::vec3(0.0f, 5.0f, std::cos(time) * 2.0f));
         cube->SetRotation(glm::vec3(0.0, time * 0.5, time * 1.0));
 
         if (input.IsKeyDown(Key::R)) {

@@ -50,12 +50,14 @@ option(BUILD_UNIT_TESTS OFF)
 option(BUILD_LUA_AS_DLL OFF)
 find_package(Bullet CONFIG REQUIRED)
 
+# Box2D for 2D physics
+find_package(box2d CONFIG REQUIRED)
+
 find_package(fmt REQUIRED)
 find_package(spdlog REQUIRED)
 find_package(lua REQUIRED)
 find_package(RmlUi REQUIRED)
 
-add_subdirectory(external/entt)
 add_subdirectory(external/sol2)
 if(AE_USE_AUDIO)
     add_subdirectory(external/raudio/projects/CMake)
@@ -74,6 +76,8 @@ set(SOURCES
     src/light_component.cpp
     src/camera_component.cpp
     src/mesh.cpp
+    src/render_mesh.cpp
+    src/csg.cpp
     src/frustum.cpp
     src/mesh_component.cpp
     src/sprite_component.cpp
@@ -84,7 +88,6 @@ set(SOURCES
     src/physics_server.cpp
     src/physics_debug_drawer.cpp
     src/input.cpp
-    src/entity.cpp
     src/script.cpp
     src/scene.cpp
     src/asset_manager.cpp
@@ -97,6 +100,11 @@ set(SOURCES
     src/rmlui_system.cpp
     src/rmlui_manager.cpp
     src/batch_renderer_2d.cpp
+    src/physics_server_2d.cpp
+    src/rigidbody_2d_component.cpp
+    src/render_texture.cpp
+    src/mesh_builder.cpp
+    src/shape_renderer_component.cpp
 )
 if(AE_USE_AUDIO)
     list(APPEND SOURCES src/audio_manager.cpp)
@@ -140,7 +148,7 @@ target_include_directories(AtmosphericEngine
 target_precompile_headers(AtmosphericEngine PRIVATE src/pch.hpp)
 target_link_libraries(AtmosphericEngine
     PUBLIC
-        glm::glm fmt::fmt EnTT::EnTT BulletSoftBody BulletDynamics BulletCollision LinearMath ${LUA_LIBRARIES} sol2 raudio RmlUi::RmlUi
+        glm::glm fmt::fmt BulletSoftBody BulletDynamics BulletCollision LinearMath ${LUA_LIBRARIES} sol2 raudio RmlUi::RmlUi box2d::box2d
 )
 if (AE_USE_AUDIO)
     target_link_libraries(AtmosphericEngine

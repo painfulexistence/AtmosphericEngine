@@ -31,8 +31,8 @@ class Physics2DDemo : public Application {
             mainCamera->Yaw(-glm::half_pi<float>());
         }
 
-        // Set gravity (positive Y = down in screen space)
-        physics2D.SetGravity(glm::vec2(0.0f, 500.0f));
+        // Set gravity (positive Y = up in math/GL coords, so we need negative for down)
+        physics2D.SetGravity(glm::vec2(0.0f, -500.0f));
 
         // Create ground (static body)
         CreateGround();
@@ -55,7 +55,7 @@ class Physics2DDemo : public Application {
     }
 
     void CreateGround() {
-        ground = CreateGameObject(glm::vec2(400.0f, 550.0f));
+        ground = CreateGameObject(glm::vec2(400.0f, 50.0f));
 
         // Add shape renderer for visualization
         ShapeRendererProps shapeProps;
@@ -180,14 +180,14 @@ class Physics2DDemo : public Application {
         // Spawn shapes on space press
         if (input.IsKeyPressed(Key::SPACE)) {
             std::uniform_real_distribution<float> xDist(100.0f, 700.0f);
-            SpawnRandomShape(glm::vec2(xDist(rng), 50.0f));
+            SpawnRandomShape(glm::vec2(xDist(rng), 550.0f));
         }
 
         // Auto-spawn every second
         spawnTimer += dt;
         if (spawnTimer > 1.0f && dynamicBodies.size() < 50) {
             std::uniform_real_distribution<float> xDist(100.0f, 700.0f);
-            SpawnRandomShape(glm::vec2(xDist(rng), 50.0f));
+            SpawnRandomShape(glm::vec2(xDist(rng), 550.0f));
             spawnTimer = 0.0f;
         }
 

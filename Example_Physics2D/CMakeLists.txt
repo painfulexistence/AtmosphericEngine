@@ -21,7 +21,6 @@ target_link_libraries(${GAME_NAME} PRIVATE
     AtmosphericEngine
     glm::glm
     fmt::fmt
-    EnTT::EnTT
     BulletSoftBody
     BulletDynamics
     BulletCollision

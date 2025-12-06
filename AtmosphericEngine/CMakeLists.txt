@@ -67,7 +67,6 @@ find_package(spdlog REQUIRED)
 find_package(lua REQUIRED)
 find_package(RmlUi REQUIRED)
 
-add_subdirectory(external/entt)
 add_subdirectory(external/sol2)
 if(AE_USE_AUDIO)
     add_subdirectory(external/raudio/projects/CMake)
@@ -98,7 +97,6 @@ set(SOURCES
     src/physics_server.cpp
     src/physics_debug_drawer.cpp
     src/input.cpp
-    src/entity.cpp
     src/script.cpp
     src/scene.cpp
     src/asset_manager.cpp
@@ -159,7 +157,7 @@ target_include_directories(AtmosphericEngine
 target_precompile_headers(AtmosphericEngine PRIVATE src/pch.hpp)
 target_link_libraries(AtmosphericEngine
     PUBLIC
-        glm::glm fmt::fmt EnTT::EnTT BulletSoftBody BulletDynamics BulletCollision LinearMath ${LUA_LIBRARIES} sol2 raudio RmlUi::RmlUi box2d
+        glm::glm fmt::fmt BulletSoftBody BulletDynamics BulletCollision LinearMath ${LUA_LIBRARIES} sol2 raudio RmlUi::RmlUi box2d
 )
 if (AE_USE_AUDIO)
     target_link_libraries(AtmosphericEngine

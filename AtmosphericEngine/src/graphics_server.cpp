@@ -407,9 +407,9 @@ MeshComponent* GraphicsServer::RegisterMesh(MeshComponent* mesh) {
     return mesh;
 }
 
-SpriteComponent* GraphicsServer::RegisterSprite(SpriteComponent* sprite) {
-    canvasDrawables.push_back(sprite);
-    return sprite;
+CanvasDrawable* GraphicsServer::RegisterCanvasDrawable(CanvasDrawable* drawable) {
+    canvasDrawables.push_back(drawable);
+    return drawable;
 }
 
 CameraComponent* GraphicsServer::RegisterCamera(CameraComponent* camera) {

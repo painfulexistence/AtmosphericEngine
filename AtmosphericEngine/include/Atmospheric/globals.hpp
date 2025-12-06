@@ -27,6 +27,19 @@
 
 enum Axis { UP, DOWN, BACK, FRONT, RIGHT, LEFT };
 
+// Canvas layer constants for z-ordering
+enum class CanvasLayer {
+    LAYER_BACKGROUND = 0,// Far background (parallax, sky)
+    LAYER_WORLD_BACK = 10,// Background game objects
+    LAYER_WORLD = 50,// Main game objects (player, enemies)
+    LAYER_WORLD_FRONT = 90,// Foreground game objects
+    LAYER_EFFECTS = 100,// Particle effects, damage numbers
+    LAYER_UI_BACK = 200,// UI background elements
+    LAYER_UI = 300,// Main UI elements (HUD, health bars)
+    LAYER_UI_FRONT = 400,// Popups, tooltips
+    LAYER_OVERLAY = 500,// Debug overlay, screen fade
+};
+
 enum class ShapeType {
     Cube,
     Sphere,

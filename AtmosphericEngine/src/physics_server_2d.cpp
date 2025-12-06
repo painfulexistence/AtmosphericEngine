@@ -71,10 +71,16 @@ void Physics2DServer::Init(Application* app) {
 void Physics2DServer::Process(float dt) {
     if (!_world) return;
 
-    // Step the physics simulation
-    _world->Step(dt, _velocityIterations, _positionIterations);
+    _accumulator += dt;
+    if (_accumulator > 0.2f) _accumulator = 0.2f;// Prevent spiral of death
+
+    while (_accumulator >= _fixedTimeStep) {
+        _world->Step(_fixedTimeStep, _velocityIterations, _positionIterations);
+        _accumulator -= _fixedTimeStep;
+    }
 
     // Sync transforms
+    // TODO: Implement interpolation for smoother rendering
     for (auto* rb : _rigidbodies) {
         rb->SyncToTransform(dt);
     }

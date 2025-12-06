@@ -1,11 +1,11 @@
 #include "renderer.hpp"
 #include "asset_manager.hpp"
 #include "batch_renderer_2d.hpp"
+#include "canvas_drawable.hpp"
 #include "console.hpp"
 #include "game_object.hpp"
 #include "graphics_server.hpp"
 #include "particle_server.hpp"
-#include "sprite_component.hpp"
 #include "window.hpp"
 #include <algorithm>
 #include <tracy/Tracy.hpp>
@@ -1101,7 +1101,8 @@ void MSAAResolvePass::Execute(GraphicsServer* ctx, Renderer& renderer) {
 }
 
 // Helper to reduce code duplication
-void DrawSprite(SpriteComponent* sprite, BatchRenderer2D* batchRenderer);
+// Helper to reduce code duplication
+// void DrawSprite(SpriteComponent* sprite, BatchRenderer2D* batchRenderer);
 
 void CanvasPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
     ZoneScopedN("CanvasPass");
@@ -1133,28 +1134,28 @@ void CanvasPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
     glm::mat4 screenViewProj = glm::ortho(0.0f, (float)width, (float)height, 0.0f, -1.0f, 1.0f);
 
     // 2. Sort Drawables
-    std::vector<SpriteComponent*> sortedSprites = ctx->canvasDrawables;
-    std::sort(sortedSprites.begin(), sortedSprites.end(), [](SpriteComponent* a, SpriteComponent* b) {
+    std::vector<CanvasDrawable*> sortedDrawables = ctx->canvasDrawables;
+    std::sort(sortedDrawables.begin(), sortedDrawables.end(), [](CanvasDrawable* a, CanvasDrawable* b) {
         return a->GetLayer() < b->GetLayer();
     });
 
     // 3. Render World Sprites (Layer < LAYER_UI_BACK)
     renderer.GetBatchRenderer()->BeginScene(worldViewProj);
-    for (auto sprite : sortedSprites) {
-        if (!sprite->gameObject->isActive) continue;
-        if ((int)sprite->GetLayer() >= (int)CanvasLayer::LAYER_UI_BACK) continue;// Skip UI sprites
+    for (auto drawable : sortedDrawables) {
+        if (!drawable->gameObject->isActive) continue;
+        if ((int)drawable->GetLayer() >= (int)CanvasLayer::LAYER_UI_BACK) continue;// Skip UI sprites
 
-        DrawSprite(sprite, renderer.GetBatchRenderer());
+        drawable->Draw(renderer.GetBatchRenderer());
     }
     renderer.GetBatchRenderer()->EndScene();
 
     // 4. Render UI Sprites (Layer >= LAYER_UI_BACK)
     renderer.GetBatchRenderer()->BeginScene(screenViewProj);
-    for (auto sprite : sortedSprites) {
-        if (!sprite->gameObject->isActive) continue;
-        if ((int)sprite->GetLayer() < (int)CanvasLayer::LAYER_UI_BACK) continue;// Skip World sprites
+    for (auto drawable : sortedDrawables) {
+        if (!drawable->gameObject->isActive) continue;
+        if ((int)drawable->GetLayer() < (int)CanvasLayer::LAYER_UI_BACK) continue;// Skip World sprites
 
-        DrawSprite(sprite, renderer.GetBatchRenderer());
+        drawable->Draw(renderer.GetBatchRenderer());
     }
     renderer.GetBatchRenderer()->EndScene();
 
@@ -1164,33 +1165,7 @@ void CanvasPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
 }
 
 // Helper to reduce code duplication
-void DrawSprite(SpriteComponent* sprite, BatchRenderer2D* batchRenderer) {
-    glm::vec3 pos = sprite->gameObject->GetPosition();
-    glm::vec3 rot = sprite->gameObject->GetRotation();
-    glm::vec3 scale = sprite->gameObject->GetScale();
 
-    glm::vec2 size = sprite->GetSize() * glm::vec2(scale.x, scale.y);
-    glm::vec2 pivot = sprite->GetPivot();
-
-    glm::mat4 transform = glm::translate(glm::mat4(1.0f), pos);
-    transform = glm::rotate(transform, rot.z, glm::vec3(0.0f, 0.0f, 1.0f));
-
-    glm::vec2 pivotOffset = (glm::vec2(0.5f, 0.5f) - pivot) * size;
-    transform = glm::translate(transform, glm::vec3(pivotOffset, 0.0f));
-
-    transform = glm::scale(transform, glm::vec3(size.x, size.y, 1.0f));
-
-    glm::vec2 uvMin = sprite->GetUVMin();
-    glm::vec2 uvMax = sprite->GetUVMax();
-    glm::vec2 uvs[4] = {
-        { uvMin.x, uvMin.y },// BL
-        { uvMax.x, uvMin.y },// BR
-        { uvMax.x, uvMax.y },// TR
-        { uvMin.x, uvMax.y }// TL
-    };
-
-    batchRenderer->DrawQuad(transform, sprite->GetTextureID(), uvs, sprite->GetColor(), (int)sprite->GetLayer());
-}
 
 void PostProcessPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
     ZoneScopedN("PostProcessPass");

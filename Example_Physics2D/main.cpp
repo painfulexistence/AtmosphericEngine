@@ -1,5 +1,5 @@
 #include "Atmospheric.hpp"
-#include "Atmospheric/renderer.hpp"
+#include "Atmospheric/shape_renderer_component.hpp"
 #include <random>
 
 class Physics2DDemo : public Application {
@@ -44,10 +44,9 @@ class Physics2DDemo : public Application {
         physics2D.SetBeginContactCallback([](Rigidbody2DComponent* a, Rigidbody2DComponent* b) {
             // Flash color on collision
             if (a->gameObject) {
-                auto* sprite = a->gameObject->GetComponent<SpriteComponent>();
-                if (sprite) {
-                    glm::vec4 color = sprite->GetColor();
-                    sprite->SetColor(glm::vec4(1.0f, 1.0f, 1.0f, color.a));
+                auto* shape = a->gameObject->GetComponent<ShapeRendererComponent>();
+                if (shape) {
+                    shape->SetColor(glm::vec4(1.0f, 1.0f, 1.0f, 1.0f));
                 }
             }
         });
@@ -58,12 +57,14 @@ class Physics2DDemo : public Application {
     void CreateGround() {
         ground = CreateGameObject(glm::vec2(400.0f, 550.0f));
 
-        // Add sprite for visualization
-        SpriteProps spriteProps;
-        spriteProps.size = glm::vec2(700.0f, 30.0f);
-        spriteProps.color = glm::vec4(0.4f, 0.4f, 0.4f, 1.0f);
-        spriteProps.layer = CanvasLayer::LAYER_WORLD;
-        ground->AddComponent<SpriteComponent>(spriteProps);
+        // Add shape renderer for visualization
+        ShapeRendererProps shapeProps;
+        shapeProps.type = ShapeType2D::Box;
+        shapeProps.boxHalfSize = glm::vec2(350.0f, 15.0f);// Half size
+        shapeProps.color = glm::vec4(0.4f, 0.4f, 0.4f, 1.0f);
+        shapeProps.layer = CanvasLayer::LAYER_WORLD;
+        shapeProps.filled = true;
+        ground->AddComponent<ShapeRendererComponent>(shapeProps);
 
         // Add static rigidbody
         Rigidbody2DProps rbProps;
@@ -76,10 +77,12 @@ class Physics2DDemo : public Application {
     void CreateWalls() {
         // Left wall
         auto leftWall = CreateGameObject(glm::vec2(30.0f, 300.0f));
-        SpriteProps leftSpriteProps;
-        leftSpriteProps.size = glm::vec2(20.0f, 500.0f);
-        leftSpriteProps.color = glm::vec4(0.4f, 0.4f, 0.4f, 1.0f);
-        leftWall->AddComponent<SpriteComponent>(leftSpriteProps);
+        ShapeRendererProps leftShapeProps;
+        leftShapeProps.type = ShapeType2D::Box;
+        leftShapeProps.boxHalfSize = glm::vec2(10.0f, 250.0f);
+        leftShapeProps.color = glm::vec4(0.4f, 0.4f, 0.4f, 1.0f);
+        leftShapeProps.filled = true;
+        leftWall->AddComponent<ShapeRendererComponent>(leftShapeProps);
 
         Rigidbody2DProps leftRbProps;
         leftRbProps.type = BodyType2D::Static;
@@ -90,10 +93,12 @@ class Physics2DDemo : public Application {
 
         // Right wall
         auto rightWall = CreateGameObject(glm::vec2(770.0f, 300.0f));
-        SpriteProps rightSpriteProps;
-        rightSpriteProps.size = glm::vec2(20.0f, 500.0f);
-        rightSpriteProps.color = glm::vec4(0.4f, 0.4f, 0.4f, 1.0f);
-        rightWall->AddComponent<SpriteComponent>(rightSpriteProps);
+        ShapeRendererProps rightShapeProps;
+        rightShapeProps.type = ShapeType2D::Box;
+        rightShapeProps.boxHalfSize = glm::vec2(10.0f, 250.0f);
+        rightShapeProps.color = glm::vec4(0.4f, 0.4f, 0.4f, 1.0f);
+        rightShapeProps.filled = true;
+        rightWall->AddComponent<ShapeRendererComponent>(rightShapeProps);
 
         Rigidbody2DProps rightRbProps;
         rightRbProps.type = BodyType2D::Static;
@@ -119,29 +124,34 @@ class Physics2DDemo : public Application {
         rbProps.shape.friction = 0.3f;
         rbProps.shape.restitution = 0.4f;
 
-        SpriteProps spriteProps;
-        spriteProps.color = color;
-        spriteProps.layer = CanvasLayer::LAYER_WORLD;
+        ShapeRendererProps shapeProps;
+        shapeProps.color = color;
+        shapeProps.layer = CanvasLayer::LAYER_WORLD;
+        shapeProps.filled = true;// Fill random shapes
 
         switch (shapeType) {
         case 0: {
             // Box
             float size = sizeDist(rng);
-            spriteProps.size = glm::vec2(size, size);
+            shapeProps.type = ShapeType2D::Box;
+            shapeProps.boxHalfSize = glm::vec2(size * 0.5f, size * 0.5f);
+
             rbProps.shape.type = ShapeType2D::Box;
             rbProps.shape.boxSize = glm::vec2(size, size);
             break;
         }
         case 1: {
-            // Circle (rendered as sprite, physics as circle)
+            // Circle
             float radius = sizeDist(rng) * 0.5f;
-            spriteProps.size = glm::vec2(radius * 2.0f, radius * 2.0f);
+            shapeProps.type = ShapeType2D::Circle;
+            shapeProps.radius = radius;
+
             rbProps.shape.type = ShapeType2D::Circle;
             rbProps.shape.circleRadius = radius;
             break;
         }
         case 2: {
-            // Polygon (triangle or pentagon)
+            // Polygon
             std::uniform_int_distribution<int> vertDist(3, 5);
             int numVerts = vertDist(rng);
             float size = sizeDist(rng);
@@ -151,15 +161,17 @@ class Physics2DDemo : public Application {
                 float angle = (2.0f * glm::pi<float>() * i) / numVerts - glm::pi<float>() / 2.0f;
                 vertices.push_back(glm::vec2(std::cos(angle) * size * 0.5f, std::sin(angle) * size * 0.5f));
             }
+            // For now, assume polygon is convex and centered
+            shapeProps.type = ShapeType2D::Polygon;
+            shapeProps.vertices = vertices;
 
-            spriteProps.size = glm::vec2(size, size);
             rbProps.shape.type = ShapeType2D::Polygon;
             rbProps.shape.polygonVertices = vertices;
             break;
         }
         }
 
-        body->AddComponent<SpriteComponent>(spriteProps);
+        body->AddComponent<ShapeRendererComponent>(shapeProps);
         body->AddComponent<Rigidbody2DComponent>(rbProps);
         dynamicBodies.push_back(body);
     }
@@ -181,29 +193,14 @@ class Physics2DDemo : public Application {
 
         // Reset colors back to original (fade effect)
         for (auto* body : dynamicBodies) {
-            auto* sprite = body->GetComponent<SpriteComponent>();
-            if (sprite) {
-                glm::vec4 color = sprite->GetColor();
+            auto* shape = body->GetComponent<ShapeRendererComponent>();
+            if (shape) {
+                glm::vec4 color = shape->GetColor();
                 // Fade white back to original color
                 color.r = glm::mix(color.r, 0.7f, dt * 2.0f);
                 color.g = glm::mix(color.g, 0.5f, dt * 2.0f);
                 color.b = glm::mix(color.b, 0.8f, dt * 2.0f);
-                sprite->SetColor(color);
-            }
-        }
-
-        // Draw debug shapes using new shape API
-        auto* renderer = graphics.renderer->GetBatchRenderer();
-
-        // Draw circles around each circle body
-        for (auto* body : dynamicBodies) {
-            auto* rb = body->GetComponent<Rigidbody2DComponent>();
-            if (rb && rb->GetShapeDef().type == ShapeType2D::Circle) {
-                glm::vec2 pos = rb->GetPosition();
-                float radius = rb->GetShapeDef().circleRadius;
-                renderer->BeginScene(mainCamera->GetProjectionMatrix() * mainCamera->GetViewMatrix());
-                renderer->DrawCircle(pos, radius + 2.0f, glm::vec4(1.0f, 1.0f, 0.0f, 0.5f), 16);
-                renderer->EndScene();
+                shape->SetColor(color);
             }
         }
 

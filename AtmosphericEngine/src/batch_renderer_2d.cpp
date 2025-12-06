@@ -416,6 +416,18 @@ void BatchRenderer2D::DrawLine(const glm::vec3& p0, const glm::vec3& p1, const g
     m_Data->QuadVertexBufferPtr->entityID = -1.0f;
     m_Data->QuadVertexBufferPtr++;
 
+    // Index population
+    uint32_t vertexOffset = (uint32_t)(m_Data->QuadVertexBufferPtr - m_Data->QuadVertexBufferBase) - 4;
+    m_Data->QuadIndexBufferPtr[0] = vertexOffset + 0;
+    m_Data->QuadIndexBufferPtr[1] = vertexOffset + 1;
+    m_Data->QuadIndexBufferPtr[2] = vertexOffset + 2;
+
+    m_Data->QuadIndexBufferPtr[3] = vertexOffset + 2;
+    m_Data->QuadIndexBufferPtr[4] = vertexOffset + 3;
+    m_Data->QuadIndexBufferPtr[5] = vertexOffset + 0;
+
+    m_Data->QuadIndexBufferPtr += 6;
+
     m_Data->QuadIndexCount += 6;
     m_Data->Stats.lineCount++;
 }
@@ -519,6 +531,18 @@ void BatchRenderer2D::DrawTriangleFilled(
     m_Data->QuadVertexBufferPtr->texIndex = 0.0f;
     m_Data->QuadVertexBufferPtr->entityID = -1.0f;
     m_Data->QuadVertexBufferPtr++;
+
+    // Index population
+    uint32_t vertexOffset = (uint32_t)(m_Data->QuadVertexBufferPtr - m_Data->QuadVertexBufferBase) - 4;
+    m_Data->QuadIndexBufferPtr[0] = vertexOffset + 0;
+    m_Data->QuadIndexBufferPtr[1] = vertexOffset + 1;
+    m_Data->QuadIndexBufferPtr[2] = vertexOffset + 2;
+
+    m_Data->QuadIndexBufferPtr[3] = vertexOffset + 2;
+    m_Data->QuadIndexBufferPtr[4] = vertexOffset + 3;
+    m_Data->QuadIndexBufferPtr[5] = vertexOffset + 0;
+
+    m_Data->QuadIndexBufferPtr += 6;
 
     m_Data->QuadIndexCount += 6;
     m_Data->Stats.triangleCount++;

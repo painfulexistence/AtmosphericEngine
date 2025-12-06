@@ -115,6 +115,7 @@ set(SOURCES
     src/rigidbody_2d_component.cpp
     src/render_texture.cpp
     src/mesh_builder.cpp
+    src/shape_renderer_component.cpp
 )
 if(AE_USE_AUDIO)
     list(APPEND SOURCES src/audio_manager.cpp)

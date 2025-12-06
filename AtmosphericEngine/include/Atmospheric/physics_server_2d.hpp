@@ -106,4 +106,6 @@ private:
     // Simulation parameters
     int32 _velocityIterations = 8;
     int32 _positionIterations = 3;
+    float _accumulator = 0.0f;
+    const float _fixedTimeStep = 1.0f / 60.0f;
 };

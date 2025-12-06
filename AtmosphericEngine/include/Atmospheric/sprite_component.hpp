@@ -1,4 +1,5 @@
 #pragma once
+#include "canvas_drawable.hpp"
 #include "component.hpp"
 #include "globals.hpp"
 #include "graphics_server.hpp"
@@ -13,7 +14,8 @@ struct SpriteProps {
     CanvasLayer layer = CanvasLayer::LAYER_WORLD;// Default to main game layer
 };
 
-class SpriteComponent : public Component {
+
+class SpriteComponent : public CanvasDrawable {
 public:
     SpriteComponent(GameObject* gameObject, const SpriteProps& props);
     // virtual ~SpriteComponent() = default;
@@ -22,6 +24,8 @@ public:
 
     void OnAttach() override;
     void OnDetach() override;
+
+    void Draw(BatchRenderer2D* renderer) override;
 
     bool CanTick() const override {
         return false;

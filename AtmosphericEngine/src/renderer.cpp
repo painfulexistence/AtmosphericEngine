@@ -1113,11 +1113,11 @@ void MSAAResolvePass::Execute(GraphicsServer* ctx, Renderer& renderer) {
 void WorldCanvasPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
     ZoneScopedN("WorldCanvasPass");
 
-    // Filter all world-space drawables (everything below LAYER_UI_BACK)
+    // Filter all world-space drawables (3D layers only, below LAYER_WORLD_2D)
     std::vector<CanvasDrawable*> worldDrawables;
     for (auto* drawable : ctx->canvasDrawables) {
         if (!drawable->gameObject->isActive) continue;
-        if ((int)drawable->GetLayer() < (int)CanvasLayer::LAYER_UI_BACK) {
+        if ((int)drawable->GetLayer() < (int)CanvasLayer::LAYER_WORLD_2D) {
             worldDrawables.push_back(drawable);
         }
     }

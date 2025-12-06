@@ -75,7 +75,7 @@ class HelloWorld : public Application {
                 .pivot = glm::vec2(0.0f, 0.0f),   // Top-left pivot
                 .color = sprite2DColors[i],
                 .textureID = -1,
-                .layer = CanvasLayer::LAYER_WORLD_2D,  // 2D layer = CanvasPass
+                // Default layer is LAYER_WORLD_2D (2D screen space)
             });
 
             screenSprites.push_back(spriteObj);

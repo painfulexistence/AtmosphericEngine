@@ -188,7 +188,7 @@ private:
       float pivotY,
       const glm::vec4& color,
       int texIndex,
-      CanvasLayer layer = CanvasLayer::LAYER_WORLD,
+      CanvasLayer layer = CanvasLayer::LAYER_WORLD_2D,
       const glm::vec2& uvMin = glm::vec2(0.0f),
       const glm::vec2& uvMax = glm::vec2(1.0f)
     );
@@ -202,7 +202,7 @@ private:
       float pivotY,
       const glm::vec4& color,
       int texIndex,
-      CanvasLayer layer = CanvasLayer::LAYER_WORLD,
+      CanvasLayer layer = CanvasLayer::LAYER_WORLD_2D,
       const glm::vec2& tilesetSize = glm::vec2(1.0f),
       const glm::vec2& tileIndex = glm::vec2(0.0f)
     );

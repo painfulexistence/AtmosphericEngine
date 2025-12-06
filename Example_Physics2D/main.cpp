@@ -62,7 +62,6 @@ class Physics2DDemo : public Application {
         shapeProps.type = ShapeType2D::Box;
         shapeProps.boxHalfSize = glm::vec2(350.0f, 15.0f);// Half size
         shapeProps.color = glm::vec4(0.4f, 0.4f, 0.4f, 1.0f);
-        shapeProps.layer = CanvasLayer::LAYER_WORLD;
         shapeProps.filled = true;
         ground->AddComponent<ShapeRendererComponent>(shapeProps);
 
@@ -126,7 +125,6 @@ class Physics2DDemo : public Application {
 
         ShapeRendererProps shapeProps;
         shapeProps.color = color;
-        shapeProps.layer = CanvasLayer::LAYER_WORLD;
         shapeProps.filled = true;// Fill random shapes
 
         switch (shapeType) {

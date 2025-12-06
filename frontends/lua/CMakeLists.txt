@@ -1,5 +1,12 @@
 set(TARGET_NAME AtmosLua)
 
+find_package(glm CONFIG REQUIRED)
+find_package(fmt CONFIG REQUIRED)
+find_package(spdlog CONFIG REQUIRED)
+find_package(lua REQUIRED)
+find_package(Bullet CONFIG REQUIRED)
+find_package(glad CONFIG REQUIRED)
+
 # Source files
 set(LUA_FRONTEND_SOURCES
     main.cpp
@@ -37,7 +44,6 @@ target_link_libraries(${TARGET_NAME}
         AtmosphericEngine
         glm::glm
         fmt::fmt
-        EnTT::EnTT
         BulletSoftBody
         BulletDynamics
         BulletCollision
@@ -76,12 +82,12 @@ add_custom_command(
         ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${TARGET_NAME}/assets/scripts
 )
 
-# Copy example main.lua if it exists
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/example_main.lua)
-    add_custom_command(
-        TARGET ${TARGET_NAME} POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy
-            ${CMAKE_CURRENT_SOURCE_DIR}/example_main.lua
-            ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${TARGET_NAME}/assets/scripts/main.lua
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/assets)
+    add_custom_target(
+        "copy_assets_for_${TARGET_NAME}"
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+            ${CMAKE_CURRENT_SOURCE_DIR}/assets
+            ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${TARGET_NAME}/assets
     )
+    add_dependencies(${TARGET_NAME} "copy_assets_for_${TARGET_NAME}")
 endif()

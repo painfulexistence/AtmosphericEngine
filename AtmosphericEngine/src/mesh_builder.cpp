@@ -90,6 +90,38 @@ Mesh* MeshBuilder::CreateCube(const float& size) {
     return cube;
 }
 
+Mesh* MeshBuilder::CreatePlane(float width, float height) {
+    float hw = width * 0.5f;
+    float hh = height * 0.5f;
+
+    // Normal points up (Y)
+    Vertex vertices[] = {
+        { { -hw, 0.0f, hh }, { 0.0f, 0.0f }, { 0.0f, 1.0f, 0.0f } },// Bottom-Left (Front-Left)
+        { { -hw, 0.0f, -hh }, { 0.0f, 1.0f }, { 0.0f, 1.0f, 0.0f } },// Top-Left (Back-Left)
+        { { hw, 0.0f, -hh }, { 1.0f, 1.0f }, { 0.0f, 1.0f, 0.0f } },// Top-Right (Back-Right)
+        { { hw, 0.0f, hh }, { 1.0f, 0.0f }, { 0.0f, 1.0f, 0.0f } }// Bottom-Right (Front-Right)
+    };
+
+    // CCW Winding
+    uint16_t indices[] = { 0, 1, 2, 0, 2, 3 };
+
+    std::vector<Vertex> verts(vertices, vertices + 4);
+    std::vector<uint16_t> tris(indices, indices + 6);
+    CalculateNormalsAndTangents(verts, tris);
+
+    auto plane = new Mesh(MeshType::PRIM);
+    plane->Initialize(verts, tris);
+    plane->SetBoundingBox({ { glm::vec3(hw, 0.0f, hh),
+                              glm::vec3(-hw, 0.0f, hh),
+                              glm::vec3(-hw, 0.0f, -hh),
+                              glm::vec3(hw, 0.0f, -hh),
+                              glm::vec3(hw, 0.0f, hh),
+                              glm::vec3(-hw, 0.0f, hh),
+                              glm::vec3(-hw, 0.0f, -hh),
+                              glm::vec3(hw, 0.0f, -hh) } });
+    return plane;
+}
+
 // TODO: make sure the uvs are correct
 Mesh* MeshBuilder::CreateSphere(const float& radius, const int& division) {
     float delta = (float)PI / (float)division;

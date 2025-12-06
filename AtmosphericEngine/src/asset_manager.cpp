@@ -403,12 +403,27 @@ Mesh* AssetManager::CreateMesh(const std::string& name, Mesh* mesh) {
 
 Mesh* AssetManager::CreateCubeMesh(const std::string& name, float size) {
     auto mesh = MeshBuilder::CreateCube(size);
+    if (_materialCache.find("Default") != _materialCache.end()) {
+        mesh->SetMaterial(GetMaterial("Default"));
+    }
+    _meshCache[name] = mesh;
+    return mesh;
+}
+
+Mesh* AssetManager::CreatePlaneMesh(const std::string& name, float width, float height) {
+    auto mesh = MeshBuilder::CreatePlane(width, height);
+    if (_materialCache.find("Default") != _materialCache.end()) {
+        mesh->SetMaterial(GetMaterial("Default"));
+    }
     _meshCache[name] = mesh;
     return mesh;
 }
 
 Mesh* AssetManager::CreateSphereMesh(const std::string& name, float radius, int division) {
     auto mesh = MeshBuilder::CreateSphere(radius, division);
+    if (_materialCache.find("Default") != _materialCache.end()) {
+        mesh->SetMaterial(GetMaterial("Default"));
+    }
     _meshCache[name] = mesh;
     return mesh;
 }
@@ -416,11 +431,19 @@ Mesh* AssetManager::CreateSphereMesh(const std::string& name, float radius, int 
 Mesh* AssetManager::CreateCapsuleMesh(const std::string& name, float radius, float height) {
     // TODO: Implement capsule mesh generation
     ENGINE_LOG("Capsule mesh '{}' created (generation not yet implemented)", name);
-    return new Mesh();
+    auto mesh = new Mesh();
+    if (_materialCache.find("Default") != _materialCache.end()) {
+        mesh->SetMaterial(GetMaterial("Default"));
+    }
+    _meshCache[name] = mesh;
+    return mesh;
 }
 
 Mesh* AssetManager::CreateTerrainMesh(const std::string& name, float worldSize, int resolution) {
     auto mesh = MeshBuilder::CreateTerrain(worldSize, resolution);
+    if (_materialCache.find("Default") != _materialCache.end()) {
+        mesh->SetMaterial(GetMaterial("Default"));
+    }
     _meshCache[name] = mesh;
     return mesh;
 }

@@ -28,7 +28,9 @@ public:
     ~LuaApplication() override;
 
     /// Access the Lua state (for advanced usage)
-    sol::state& GetLuaState() { return _lua; }
+    sol::state& GetLuaState() {
+        return _lua;
+    }
 
 protected:
     void OnInit() override;
@@ -61,6 +63,10 @@ private:
     void HandleError(const sol::protected_function_result& result, const std::string& context);
 
     /// Call a Lua function safely with error handling
-    template<typename... Args>
-    void CallLua(sol::protected_function& func, const std::string& name, Args&&... args);
+    template<typename... Args> void CallLua(sol::protected_function& func, const std::string& name, Args&&... args) {
+        auto result = func(std::forward<Args>(args)...);
+        if (!result.valid()) {
+            HandleError(result, name + "()");
+        }
+    }
 };

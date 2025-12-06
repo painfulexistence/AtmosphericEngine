@@ -9,25 +9,29 @@ void BindGraphicsAPI(sol::state& lua, GraphicsServer* graphics);
 void BindPhysicsAPI(sol::state& lua, LuaApplication* app);
 void BindAudioAPI(sol::state& lua, AudioManager* audio);
 
-LuaApplication::LuaApplication(AppConfig config)
-    : Application(config)
-{
+LuaApplication::LuaApplication(AppConfig config) : Application(config) {
 }
 
-LuaApplication::~LuaApplication()
-{
+LuaApplication::~LuaApplication() {
 }
 
-void LuaApplication::OnInit()
-{
+void LuaApplication::OnInit() {
+    // Load default shaders and textures
+    AssetManager::Get().LoadDefaultShaders();
+    AssetManager::Get().LoadDefaultTextures();
+
+    // Create a default material
+    MaterialProps defaultProps;
+    defaultProps.diffuse = glm::vec3(1.0f);
+    AssetManager::Get().CreateMaterial("Default", defaultProps);
+
     InitializeLua();
     BindEngineAPIs();
     LoadUserScripts();
     CacheCallbacks();
 }
 
-void LuaApplication::OnLoad()
-{
+void LuaApplication::OnLoad() {
     // Call parent to set up basic scene infrastructure
     // (User can override by not calling atmos.scene.loadDefault())
 
@@ -37,8 +41,7 @@ void LuaApplication::OnLoad()
     }
 }
 
-void LuaApplication::OnUpdate(float dt, float time)
-{
+void LuaApplication::OnUpdate(float dt, float time) {
     // Call Lua update(dt) callback
     if (_luaUpdate.valid()) {
         CallLua(_luaUpdate, "update", dt);
@@ -49,18 +52,17 @@ void LuaApplication::OnUpdate(float dt, float time)
     // For now, we'll let Lua poll input via atmos.input.isKeyDown()
 }
 
-void LuaApplication::InitializeLua()
-{
+void LuaApplication::InitializeLua() {
     // Open standard Lua libraries
     _lua.open_libraries(
-        sol::lib::base,
-        sol::lib::package,
-        sol::lib::string,
-        sol::lib::math,
-        sol::lib::table,
-        sol::lib::io,
-        sol::lib::os,
-        sol::lib::debug
+      sol::lib::base,
+      sol::lib::package,
+      sol::lib::string,
+      sol::lib::math,
+      sol::lib::table,
+      sol::lib::io,
+      sol::lib::os,
+      sol::lib::debug
     );
 
     // Set up package path for require()
@@ -72,8 +74,7 @@ void LuaApplication::InitializeLua()
     ENGINE_LOG("Lua environment initialized");
 }
 
-void LuaApplication::BindEngineAPIs()
-{
+void LuaApplication::BindEngineAPIs() {
     // Create atmos namespace
     sol::table atmos = _lua.create_named_table("atmos");
 
@@ -106,14 +107,9 @@ void LuaApplication::BindEngineAPIs()
     ENGINE_LOG("Engine APIs bound to Lua");
 }
 
-void LuaApplication::LoadUserScripts()
-{
+void LuaApplication::LoadUserScripts() {
     // Look for main.lua in assets/scripts/
-    std::vector<std::string> scriptPaths = {
-        "./assets/scripts/main.lua",
-        "./assets/main.lua",
-        "./main.lua"
-    };
+    std::vector<std::string> scriptPaths = { "./assets/scripts/main.lua", "./assets/main.lua", "./main.lua" };
 
     bool loaded = false;
     for (const auto& path : scriptPaths) {
@@ -122,7 +118,7 @@ void LuaApplication::LoadUserScripts()
             if (!result.valid()) {
                 HandleError(result, "Loading " + path);
             } else {
-                ENGINE_LOG(fmt::format("Loaded script: {}", path));
+                ENGINE_LOG("Loaded script: {}", path);
                 loaded = true;
                 break;
             }
@@ -134,15 +130,14 @@ void LuaApplication::LoadUserScripts()
     }
 }
 
-void LuaApplication::CacheCallbacks()
-{
+void LuaApplication::CacheCallbacks() {
     // Cache global callbacks for efficient access
     auto tryCache = [this](const char* name) -> sol::protected_function {
         sol::object obj = _lua[name];
         if (obj.is<sol::protected_function>()) {
             return obj.as<sol::protected_function>();
         }
-        return sol::nil;
+        return sol::lua_nil;
     };
 
     _luaLoad = tryCache("load");
@@ -156,8 +151,7 @@ void LuaApplication::CacheCallbacks()
     if (_luaDraw.valid()) ENGINE_LOG("Found draw() callback");
 }
 
-void LuaApplication::HandleError(const sol::protected_function_result& result, const std::string& context)
-{
+void LuaApplication::HandleError(const sol::protected_function_result& result, const std::string& context) {
     sol::error err = result;
     std::string errorMsg = err.what();
 
@@ -166,19 +160,5 @@ void LuaApplication::HandleError(const sol::protected_function_result& result, c
 
     // TODO: Show error overlay like Love2D's blue screen
     // For now, just log it
-    ENGINE_LOG(fmt::format("Lua error in {}: {}", context, errorMsg));
+    ENGINE_LOG("Lua error in {}: {}", context, errorMsg);
 }
-
-template<typename... Args>
-void LuaApplication::CallLua(sol::protected_function& func, const std::string& name, Args&&... args)
-{
-    auto result = func(std::forward<Args>(args)...);
-    if (!result.valid()) {
-        HandleError(result, name + "()");
-    }
-}
-
-// Explicit template instantiations
-template void LuaApplication::CallLua(sol::protected_function&, const std::string&);
-template void LuaApplication::CallLua(sol::protected_function&, const std::string&, float);
-template void LuaApplication::CallLua(sol::protected_function&, const std::string&, int);

@@ -1,6 +1,3 @@
--- AtmosLua Example Game
--- This is a simple example demonstrating the Lua scripting API
-
 local player
 local cube
 local time = 0
@@ -15,7 +12,7 @@ Spinner.__index = Spinner
 function Spinner:new()
     local self = setmetatable({}, Spinner)
     self.speed = 1.0
-    self.axis = vec3(0, 1, 0)  -- Rotate around Y axis by default
+    self.axis = vec3.new(0, 1, 0)  -- Rotate around Y axis by default
     return self
 end
 
@@ -86,8 +83,8 @@ function CharacterController:update(dt)
     local pos = go.position
 
     -- Ground detection via raycast
-    local rayStart = vec3(pos.x, pos.y + 0.5, pos.z)
-    local rayEnd = vec3(pos.x, pos.y - self.groundCheckDistance, pos.z)
+    local rayStart = vec3.new(pos.x, pos.y + 0.5, pos.z)
+    local rayEnd = vec3.new(pos.x, pos.y - self.groundCheckDistance, pos.z)
     local hit = atmos.physics.raycast(rayStart, rayEnd)
 
     if hit then
@@ -100,7 +97,7 @@ function CharacterController:update(dt)
     end
 
     -- Horizontal movement
-    local move = vec3(0, 0, 0)
+    local move = vec3.new(0, 0, 0)
     if atmos.input.isKeyDown(atmos.keys.W) then move.z = 1 end
     if atmos.input.isKeyDown(atmos.keys.S) then move.z = -1 end
     if atmos.input.isKeyDown(atmos.keys.A) then move.x = -1 end
@@ -167,24 +164,50 @@ end
 -- =============================================================================
 
 function load()
-    print("[Lua] Game loading...")
+    print("Lua: load() called")
+
+    -- -- Create Camera
+    -- local camObj = atmos.world.spawn(0, 5, 10)
+    -- camObj.name = "MainCamera"
+    -- camObj:addCamera({
+    --     fov = 60.0,
+    --     aspect = 16.0/9.0,
+    --     near = 0.1,
+    --     far = 100.0
+    -- })
+
+    -- Create Directional Light
+    local lightObj = atmos.world.spawn(0, 10, 0)
+    lightObj.name = "Sun"
+    lightObj.rotation = vec3.new(math.rad(45), math.rad(45), 0) -- Angled down
+    lightObj:addLight({
+        type = 0, -- Directional
+        intensity = 1.0,
+        castShadow = true
+    })
+
+    -- Create the cube mesh
+    local cubeMesh = atmos.assets.createCubeMesh("Cube", 1.0)
 
     -- Create a simple cube with ScriptableComponents
     cube = atmos.world.spawn(0, 0, 0)
-    cube.name = "Cube"
+    if cube then
+        cube.name = "MyCube"
+        cube.position = vec3.new(5, 0, 0)
+        
+        cube:addMesh("Cube")
+        cube:addScript("Spinner")
+        cube:addScript("Bobber")
+        cube:addRigidbody({
+            mass = 1.0,
+            kinematic = false,
+            gravity = true
+        })
 
-    -- Create the cube mesh
-    local cubeMesh = atmos.assets.createCubeMesh("TestCube", 1.0)
-    cube:addMesh("TestCube")
-
-    -- Add Spinner and Bobber components - cube will rotate and bob automatically!
-    cube:addScript("Spinner")
-    cube:addScript("Bobber")
-
-    -- Configure the Spinner via its instance table
-    local spinner = cube:getScript()
-    if spinner then
-        spinner.instance.speed = 2.0  -- Faster rotation
+        local spinner = cube:getScript()
+        if spinner then
+            spinner.instance.speed = 0.04  -- Faster rotation
+        end
     end
 
     -- Create player entity
@@ -199,10 +222,6 @@ end
 function update(dt)
     time = time + dt
 
-    -- Note: Cube rotation and bobbing is now handled by ScriptableComponents!
-    -- The Spinner and Bobber scripts update automatically via their update() methods.
-
-    -- Simple player movement
     if player then
         local speed = 5.0
         local pos = player.position

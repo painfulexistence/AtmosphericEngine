@@ -63,6 +63,7 @@ public:
     Mesh* CreateMesh(Mesh* mesh = nullptr);
     Mesh* CreateMesh(const std::string& name, Mesh* mesh = nullptr);
     Mesh* CreateCubeMesh(const std::string& name, float size = 1.0f);
+    Mesh* CreatePlaneMesh(const std::string& name, float width, float height);
     Mesh* CreateSphereMesh(const std::string& name, float radius = 0.5f, int division = 18);
     Mesh* CreateCapsuleMesh(const std::string& name, float radius = 0.5f, float height = 3.0f);
     Mesh* CreateTerrainMesh(const std::string& name, float worldSize = 1024.f, int resolution = 10);

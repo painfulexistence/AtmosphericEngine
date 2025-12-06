@@ -1,9 +1,7 @@
 #include "scriptable_component.hpp"
 
 ScriptableComponent::ScriptableComponent(GameObject* go, sol::state& lua, const std::string& className)
-    : _lua(lua)
-    , _className(className)
-{
+  : _lua(lua), _className(className) {
     gameObject = go;
 
     if (!CreateInstance()) {
@@ -11,29 +9,26 @@ ScriptableComponent::ScriptableComponent(GameObject* go, sol::state& lua, const 
     }
 }
 
-ScriptableComponent::~ScriptableComponent()
-{
+ScriptableComponent::~ScriptableComponent() {
     // Call onDestroy if defined
     if (_onDestroyFunc.valid()) {
         CallMethodSafe(_onDestroyFunc, "onDestroy");
     }
 
     // Clear references to allow Lua GC
-    _instance = sol::nil;
-    _initFunc = sol::nil;
-    _updateFunc = sol::nil;
-    _physicsUpdateFunc = sol::nil;
-    _onCollisionFunc = sol::nil;
-    _onDestroyFunc = sol::nil;
+    _instance = sol::lua_nil;
+    _initFunc = sol::lua_nil;
+    _updateFunc = sol::lua_nil;
+    _physicsUpdateFunc = sol::lua_nil;
+    _onCollisionFunc = sol::lua_nil;
+    _onDestroyFunc = sol::lua_nil;
 }
 
-std::string ScriptableComponent::GetName() const
-{
+std::string ScriptableComponent::GetName() const {
     return "ScriptableComponent:" + _className;
 }
 
-bool ScriptableComponent::CreateInstance()
-{
+bool ScriptableComponent::CreateInstance() {
     // Look up the class in global scope
     sol::object classObj = _lua[_className];
     if (!classObj.valid()) {
@@ -87,8 +82,7 @@ bool ScriptableComponent::CreateInstance()
     return true;
 }
 
-void ScriptableComponent::CacheMethods()
-{
+void ScriptableComponent::CacheMethods() {
     if (!_instance.valid()) return;
 
     // Helper to cache a method
@@ -97,7 +91,7 @@ void ScriptableComponent::CacheMethods()
         if (obj.is<sol::protected_function>()) {
             return obj.as<sol::protected_function>();
         }
-        return sol::nil;
+        return sol::lua_nil;
     };
 
     _initFunc = cacheMethod("init");
@@ -107,49 +101,42 @@ void ScriptableComponent::CacheMethods()
     _onDestroyFunc = cacheMethod("onDestroy");
 }
 
-void ScriptableComponent::OnAttach()
-{
+void ScriptableComponent::OnAttach() {
     if (_initFunc.valid()) {
         CallMethodSafe(_initFunc, "init");
     }
 }
 
-void ScriptableComponent::OnDetach()
-{
+void ScriptableComponent::OnDetach() {
     // onDestroy is called in destructor instead
 }
 
-void ScriptableComponent::OnTick(float dt)
-{
+void ScriptableComponent::OnTick(float dt) {
     if (_updateFunc.valid()) {
         CallMethodSafeWithArgs(_updateFunc, "update", dt);
     }
 }
 
-void ScriptableComponent::OnPhysicsTick(float dt)
-{
+void ScriptableComponent::OnPhysicsTick(float dt) {
     if (_physicsUpdateFunc.valid()) {
         CallMethodSafeWithArgs(_physicsUpdateFunc, "physicsUpdate", dt);
     }
 }
 
-void ScriptableComponent::OnCollision(GameObject* other)
-{
+void ScriptableComponent::OnCollision(GameObject* other) {
     if (_onCollisionFunc.valid()) {
         CallMethodSafeWithArgs(_onCollisionFunc, "onCollision", other);
     }
 }
 
-bool ScriptableComponent::HasMethod(const std::string& methodName) const
-{
+bool ScriptableComponent::HasMethod(const std::string& methodName) const {
     if (!_instance.valid()) return false;
 
     sol::object obj = _instance[methodName];
     return obj.is<sol::protected_function>();
 }
 
-void ScriptableComponent::CallMethodSafe(sol::protected_function& func, const std::string& methodName)
-{
+void ScriptableComponent::CallMethodSafe(sol::protected_function& func, const std::string& methodName) {
     if (!func.valid()) return;
 
     auto result = func(_instance);

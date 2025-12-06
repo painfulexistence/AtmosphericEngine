@@ -37,7 +37,7 @@ struct BatchStats {
 
 // Forward declarations for friend classes
 class CanvasPass;
-class WorldUIPass;
+class WorldCanvasPass;
 class UIPass;
 
 class BatchRenderer2D {
@@ -151,6 +151,6 @@ private:
 
     // Allow render passes to call BeginBatch/EndBatch
     friend class CanvasPass;
-    friend class WorldUIPass;
+    friend class WorldCanvasPass;
     friend class UIPass;
 };

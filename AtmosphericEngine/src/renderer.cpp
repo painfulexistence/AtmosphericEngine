@@ -69,8 +69,7 @@ void Renderer::Init(int width, int height) {
     _pipeline->AddPass(std::make_unique<ShadowPass>());
     _pipeline->AddPass(std::make_unique<ForwardOpaquePass>());
     _pipeline->AddPass(std::make_unique<MSAAResolvePass>());
-    _pipeline->AddPass(std::make_unique<WorldUIPass>());// 3D world UI (billboards, labels)
-    _pipeline->AddPass(std::make_unique<CanvasPass>());// 2D sprites and screen UI
+    _pipeline->AddPass(std::make_unique<WorldCanvasPass>());// World sprites with depth testing
     _pipeline->AddPass(std::make_unique<PostProcessPass>());
     _pipeline->AddPass(std::make_unique<UIPass>());
 }
@@ -1109,31 +1108,32 @@ void MSAAResolvePass::Execute(GraphicsServer* ctx, Renderer& renderer) {
     renderer.CheckErrors("MSAA resolve pass");
 }
 
-// ===== WorldUIPass: 3D world UI with perspective projection =====
-void WorldUIPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
-    ZoneScopedN("WorldUIPass");
+// ===== WorldCanvasPass: World sprites with depth testing =====
+void WorldCanvasPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
+    ZoneScopedN("WorldCanvasPass");
 
-    // Filter drawables for LAYER_WORLD_3D
-    std::vector<CanvasDrawable*> world3DDrawables;
+    // Filter all world-space drawables (everything below LAYER_UI_BACK)
+    std::vector<CanvasDrawable*> worldDrawables;
     for (auto* drawable : ctx->canvasDrawables) {
-        if (drawable->GetLayer() == CanvasLayer::LAYER_WORLD_3D) {
-            world3DDrawables.push_back(drawable);
+        if (!drawable->gameObject->isActive) continue;
+        if ((int)drawable->GetLayer() < (int)CanvasLayer::LAYER_UI_BACK) {
+            worldDrawables.push_back(drawable);
         }
     }
 
-    if (world3DDrawables.empty()) return;
+    if (worldDrawables.empty()) return;
 
     auto [width, height] = Window::Get()->GetFramebufferSize();
     glViewport(0, 0, width, height);
     glBindFramebuffer(GL_FRAMEBUFFER, renderer.postProcessEnabled ? renderer.msaaResolveFBO : renderer.finalFBO);
 
-    // Get perspective camera
+    // Get camera for projection
     CameraComponent* camera = ctx->GetMainCamera();
     if (!camera) return;
 
     glm::mat4 viewProj = camera->GetProjectionMatrix() * camera->GetViewMatrix();
 
-    // Enable depth test (read only, don't write)
+    // Enable depth test (read only, don't write) so sprites are occluded by 3D geometry
     glEnable(GL_DEPTH_TEST);
     glDepthMask(GL_FALSE);// Read depth but don't write
     glDisable(GL_CULL_FACE);
@@ -1143,18 +1143,20 @@ void WorldUIPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 #endif
 
-    // Sort by distance to camera (back to front for transparency)
+    // Sort by layer first, then by distance (back to front for transparency)
     glm::vec3 camPos = camera->GetEyePosition();
-    std::sort(world3DDrawables.begin(), world3DDrawables.end(),
+    std::sort(worldDrawables.begin(), worldDrawables.end(),
         [&camPos](CanvasDrawable* a, CanvasDrawable* b) {
+            if (a->GetLayer() != b->GetLayer()) {
+                return a->GetLayer() < b->GetLayer();
+            }
             float distA = glm::length(a->gameObject->GetPosition() - camPos);
             float distB = glm::length(b->gameObject->GetPosition() - camPos);
             return distA > distB;// Back to front
         });
 
     renderer.GetBatchRenderer()->BeginBatch(viewProj);
-    for (auto* drawable : world3DDrawables) {
-        if (!drawable->gameObject->isActive) continue;
+    for (auto* drawable : worldDrawables) {
         drawable->Draw(renderer.GetBatchRenderer());
     }
     renderer.GetBatchRenderer()->EndBatch();
@@ -1164,7 +1166,7 @@ void WorldUIPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
     glDisable(GL_DEPTH_TEST);
     glDisable(GL_BLEND);
 
-    renderer.CheckErrors("WorldUI pass");
+    renderer.CheckErrors("WorldCanvas pass");
 }
 
 // ===== CanvasPass: 2D world sprites only (UI handled by UIPass) =====
@@ -1193,11 +1195,10 @@ void CanvasPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
         worldViewProj = glm::ortho(0.0f, (float)width, (float)height, 0.0f, -1.0f, 1.0f);
     }
 
-    // Filter and sort world sprites only (skip LAYER_WORLD_3D and UI layers)
+    // Filter and sort world sprites only (skip UI layers)
     std::vector<CanvasDrawable*> worldDrawables;
     for (auto* drawable : ctx->canvasDrawables) {
         if (!drawable->gameObject->isActive) continue;
-        if (drawable->GetLayer() == CanvasLayer::LAYER_WORLD_3D) continue;// Handled by WorldUIPass
         if ((int)drawable->GetLayer() >= (int)CanvasLayer::LAYER_UI_BACK) continue;// Handled by UIPass
         worldDrawables.push_back(drawable);
     }

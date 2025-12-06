@@ -236,7 +236,7 @@ public:
     }
 
     CanvasLayer GetLayer() const override {
-        return CanvasLayer::LAYER_WORLD_3D;
+        return CanvasLayer::LAYER_EFFECTS;  // Render after regular world objects
     }
 
     // ─── Mesh / Deformation API ───

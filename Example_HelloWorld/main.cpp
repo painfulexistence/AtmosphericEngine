@@ -5,11 +5,8 @@ class HelloWorld : public Application {
 
     GameObject* cube;
 
-    // World space sprites
+    // World space sprites (rendered by WorldCanvasPass with depth testing)
     std::vector<GameObject*> worldSprites;
-
-    // Screen space sprites
-    std::vector<GameObject*> screenSprites;
 
     void OnLoad() override {
         SceneDef scene = {
@@ -34,7 +31,8 @@ class HelloWorld : public Application {
         cube->AddComponent<MeshComponent>(cubeMesh);
 
         // === World Space Sprites ===
-        // These follow the 2D camera and use world coordinates
+        // These are rendered by WorldCanvasPass with depth testing
+        // They will be occluded by 3D geometry in front of them
         glm::vec4 worldColors[] = {
             {1.0f, 0.3f, 0.3f, 0.8f},  // Red
             {0.3f, 1.0f, 0.3f, 0.8f},  // Green
@@ -44,10 +42,11 @@ class HelloWorld : public Application {
 
         for (int i = 0; i < 4; i++) {
             auto* spriteObj = CreateGameObject();
-            spriteObj->SetPosition(glm::vec3(100.0f + i * 120.0f, 200.0f, 0.0f));
+            // Position in 3D world space
+            spriteObj->SetPosition(glm::vec3(i * 2.0f - 3.0f, 2.0f, 3.0f));
 
-            auto* sprite = spriteObj->AddComponent<SpriteComponent>(SpriteProps{
-                .size = glm::vec2(80.0f, 80.0f),
+            spriteObj->AddComponent<SpriteComponent>(SpriteProps{
+                .size = glm::vec2(1.0f, 1.0f),  // World units
                 .pivot = glm::vec2(0.5f, 0.5f),
                 .color = worldColors[i],
                 .textureID = -1,  // No texture, solid color
@@ -57,56 +56,23 @@ class HelloWorld : public Application {
             worldSprites.push_back(spriteObj);
         }
 
-        // === Screen Space Sprites (UI) ===
-        // These stay fixed on screen regardless of camera
-        glm::vec4 uiColors[] = {
-            {1.0f, 0.5f, 0.0f, 0.9f},  // Orange
-            {0.5f, 0.0f, 1.0f, 0.9f},  // Purple
-            {0.0f, 1.0f, 1.0f, 0.9f},  // Cyan
-        };
-
-        for (int i = 0; i < 3; i++) {
-            auto* uiObj = CreateGameObject();
-            // Position in screen coordinates (top-left origin)
-            uiObj->SetPosition(glm::vec3(20.0f + i * 70.0f, 20.0f, 0.0f));
-
-            auto* sprite = uiObj->AddComponent<SpriteComponent>(SpriteProps{
-                .size = glm::vec2(50.0f, 50.0f),
-                .pivot = glm::vec2(0.0f, 0.0f),  // Top-left pivot for UI
-                .color = uiColors[i],
-                .textureID = -1,
-                .layer = CanvasLayer::LAYER_UI,
-            });
-
-            screenSprites.push_back(uiObj);
-        }
-
         console.Info(fmt::format("Game fully loaded in {:.1f} seconds", GetWindowTime()));
-        console.Info("Press 1-5 to switch level blockouts, R to reload shaders");
-        console.Info("Added 4 world-space sprites and 3 screen-space UI sprites");
+        console.Info("Press R to reload shaders, ESC to quit");
+        console.Info("Added 4 world-space sprites (depth tested)");
     }
 
     void OnUpdate(float dt, float time) override {
         cube->SetPosition(glm::vec3(0.0f, 5.0f, std::cos(time) * 2.0f));
         cube->SetRotation(glm::vec3(0.0, time * 0.5, time * 1.0));
 
-        // Animate world sprites (bounce up and down)
+        // Animate world sprites (float up and down)
         for (size_t i = 0; i < worldSprites.size(); i++) {
-            float offset = std::sin(time * 2.0f + i * 0.5f) * 30.0f;
+            float offset = std::sin(time * 2.0f + i * 0.5f) * 0.5f;
             worldSprites[i]->SetPosition(glm::vec3(
-                100.0f + i * 120.0f,
-                200.0f + offset,
-                0.0f
+                i * 2.0f - 3.0f,
+                2.0f + offset,
+                3.0f
             ));
-        }
-
-        // Animate UI sprites (pulse size effect via color alpha)
-        for (size_t i = 0; i < screenSprites.size(); i++) {
-            float pulse = 0.7f + 0.3f * std::sin(time * 3.0f + i * 1.0f);
-            auto* sprite = screenSprites[i]->GetComponent<SpriteComponent>();
-            glm::vec4 color = sprite->GetColor();
-            color.a = pulse;
-            sprite->SetColor(color);
         }
 
         if (input.IsKeyDown(Key::R)) {

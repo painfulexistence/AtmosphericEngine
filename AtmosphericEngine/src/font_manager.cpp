@@ -1,12 +1,13 @@
 #define STB_TRUETYPE_IMPLEMENTATION
 #include "stb_truetype.h"
 
-#include "font_manager.hpp"
-#include <fstream>
+#include "Atmospheric/font_manager.hpp"
 #include <cmath>
 #include <fmt/format.h>
+#include <fstream>
 
-FontManager::FontManager() {}
+FontManager::FontManager() {
+}
 
 FontManager::~FontManager() {
     // Clean up all font textures
@@ -17,8 +18,7 @@ FontManager::~FontManager() {
     }
 }
 
-FontID FontManager::LoadFont(const std::string& path, float baseSize,
-                              int firstChar, int numChars) {
+FontID FontManager::LoadFont(const std::string& path, float baseSize, int firstChar, int numChars) {
     // Read font file
     std::ifstream file(path, std::ios::binary | std::ios::ate);
     if (!file.is_open()) {
@@ -46,8 +46,13 @@ FontID FontManager::LoadFont(const std::string& path, float baseSize,
         return 0;
     }
 
-    fmt::print("[FontManager] Loaded font: {} (size: {}, texture: {}x{})\n",
-               path, baseSize, font.textureWidth, font.textureHeight);
+    fmt::print(
+      "[FontManager] Loaded font: {} (size: {}, texture: {}x{})\n",
+      path,
+      baseSize,
+      font.textureWidth,
+      font.textureHeight
+    );
 
     return id;
 }
@@ -99,8 +104,9 @@ const Glyph* FontManager::GetGlyph(FontID id, int codepoint) {
     return (it != font->glyphs.end()) ? &it->second : nullptr;
 }
 
-bool FontManager::BakeFontAtlas(Font& font, const unsigned char* fontData,
-                                 float fontSize, int firstChar, int numChars) {
+bool FontManager::BakeFontAtlas(
+  Font& font, const unsigned char* fontData, float fontSize, int firstChar, int numChars
+) {
     // Initialize stb_truetype
     stbtt_fontinfo fontInfo;
     if (!stbtt_InitFont(&fontInfo, fontData, 0)) {
@@ -124,7 +130,7 @@ bool FontManager::BakeFontAtlas(Font& font, const unsigned char* fontData,
     while (atlasSize < glyphsPerRow * static_cast<int>(fontSize * 1.5f)) {
         atlasSize *= 2;
     }
-    atlasSize = std::min(atlasSize, 2048);  // Cap at 2048
+    atlasSize = std::min(atlasSize, 2048);// Cap at 2048
 
     font.textureWidth = atlasSize;
     font.textureHeight = atlasSize;
@@ -165,10 +171,9 @@ bool FontManager::BakeFontAtlas(Font& font, const unsigned char* fontData,
 
         // Render glyph to atlas
         if (glyphWidth > 0 && glyphHeight > 0) {
-            stbtt_MakeCodepointBitmap(&fontInfo,
-                &atlasBitmap[y * atlasSize + x],
-                glyphWidth, glyphHeight, atlasSize,
-                scale, scale, codepoint);
+            stbtt_MakeCodepointBitmap(
+              &fontInfo, &atlasBitmap[y * atlasSize + x], glyphWidth, glyphHeight, atlasSize, scale, scale, codepoint
+            );
         }
 
         // Store glyph info
@@ -203,14 +208,13 @@ bool FontManager::BakeFontAtlas(Font& font, const unsigned char* fontData,
     // Convert single-channel to RGBA (white text with alpha)
     std::vector<unsigned char> rgbaData(atlasSize * atlasSize * 4);
     for (int i = 0; i < atlasSize * atlasSize; i++) {
-        rgbaData[i * 4 + 0] = 255;  // R
-        rgbaData[i * 4 + 1] = 255;  // G
-        rgbaData[i * 4 + 2] = 255;  // B
-        rgbaData[i * 4 + 3] = atlasBitmap[i];  // A (from grayscale)
+        rgbaData[i * 4 + 0] = 255;// R
+        rgbaData[i * 4 + 1] = 255;// G
+        rgbaData[i * 4 + 2] = 255;// B
+        rgbaData[i * 4 + 3] = atlasBitmap[i];// A (from grayscale)
     }
 
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, atlasSize, atlasSize, 0,
-                 GL_RGBA, GL_UNSIGNED_BYTE, rgbaData.data());
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, atlasSize, atlasSize, 0, GL_RGBA, GL_UNSIGNED_BYTE, rgbaData.data());
 
     glBindTexture(GL_TEXTURE_2D, 0);
 

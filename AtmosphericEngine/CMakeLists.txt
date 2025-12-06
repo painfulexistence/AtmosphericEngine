@@ -91,6 +91,7 @@ set(SOURCES
     src/script.cpp
     src/scene.cpp
     src/asset_manager.cpp
+    src/font_manager.cpp
     src/job_system.cpp
     src/bullet_task_scheduler.cpp
     src/particle_server.cpp

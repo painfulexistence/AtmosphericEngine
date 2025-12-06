@@ -1,5 +1,6 @@
 #include "application.hpp"
 #include "asset_manager.hpp"
+#include "camera_component.hpp"
 #include "editor_layer.hpp"
 #include "game_layer.hpp"
 #include "game_object.hpp"
@@ -53,6 +54,7 @@ void Application::Run() {
     audio.Init(this);
     graphics.Init(this);
     physics.Init(this);// Note that physics debug drawer is dependent on graphics server
+    physics2D.Init(this);
     script.Init(this);
     for (auto& subsystem : _subsystems) {
         subsystem->Init(this);
@@ -60,7 +62,7 @@ void Application::Run() {
     ENGINE_LOG("Subsystems initialized.");
 
     auto windowSize = _window->GetFramebufferSize();
-    RmlUiManager::Get()->Initialize(windowSize.width, windowSize.height);
+    RmlUiManager::Get()->Initialize(windowSize.width, windowSize.height, graphics.renderer);
 
     OnInit();
 
@@ -168,6 +170,7 @@ void Application::Update(const FrameData& props) {
     audio.Process(dt);
     script.Process(dt);
     physics.Process(dt);// TODO: Update only every entity's physics transform
+    physics2D.Process(dt);
     graphics.Process(dt);
     for (auto& subsystem : _subsystems) {
         subsystem->Process(dt);

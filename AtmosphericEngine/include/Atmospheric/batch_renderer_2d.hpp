@@ -9,6 +9,16 @@
 // Forward declarations
 class ShaderProgram;
 
+// Blend modes for 2D rendering
+enum class BlendMode {
+    None,// No blending
+    Alpha,// Standard alpha blending (SRC_ALPHA, ONE_MINUS_SRC_ALPHA)
+    Additive,// Additive blending (SRC_ALPHA, ONE)
+    Multiply,// Multiply blending (DST_COLOR, ZERO)
+    Screen,// Screen blending (ONE, ONE_MINUS_SRC_COLOR)
+    Premultiplied// Premultiplied alpha (ONE, ONE_MINUS_SRC_ALPHA)
+};
+
 struct BatchVertex {
     glm::vec3 position;
     glm::vec4 color;
@@ -20,6 +30,9 @@ struct BatchVertex {
 struct BatchStats {
     uint32_t drawCalls = 0;
     uint32_t quadCount = 0;
+    uint32_t lineCount = 0;
+    uint32_t circleCount = 0;
+    uint32_t triangleCount = 0;
 };
 
 class BatchRenderer2D {
@@ -30,9 +43,13 @@ public:
     void Init();
     void Shutdown();
 
-    void BeginScene(const glm::mat4& viewProj);
+    void BeginScene(const glm::mat4& viewProj, BlendMode blendMode = BlendMode::Alpha);
     void EndScene();
     void Flush();
+
+    // Blend mode control
+    void SetBlendMode(BlendMode mode);
+    BlendMode GetBlendMode() const;
 
     // Primitives
     void DrawQuad(const glm::vec2& position, const glm::vec2& size, const glm::vec4& color);
@@ -75,6 +92,42 @@ public:
       const glm::vec2* texCoords,
       const glm::vec4& color = glm::vec4(1.0f),
       int entityID = -1
+    );
+
+    // ===== Shape Drawing API =====
+
+    // Lines
+    void DrawLine(const glm::vec2& p0, const glm::vec2& p1, const glm::vec4& color, float thickness = 1.0f);
+    void DrawLine(const glm::vec3& p0, const glm::vec3& p1, const glm::vec4& color, float thickness = 1.0f);
+
+    // Circles
+    void DrawCircle(const glm::vec2& center, float radius, const glm::vec4& color, int segments = 32);
+    void DrawCircleFilled(const glm::vec2& center, float radius, const glm::vec4& color, int segments = 32);
+    void DrawCircle(const glm::vec3& center, float radius, const glm::vec4& color, int segments = 32);
+    void DrawCircleFilled(const glm::vec3& center, float radius, const glm::vec4& color, int segments = 32);
+
+    // Triangles
+    void DrawTriangle(const glm::vec2& p0, const glm::vec2& p1, const glm::vec2& p2, const glm::vec4& color);
+    void DrawTriangleFilled(const glm::vec2& p0, const glm::vec2& p1, const glm::vec2& p2, const glm::vec4& color);
+    void DrawTriangle(const glm::vec3& p0, const glm::vec3& p1, const glm::vec3& p2, const glm::vec4& color);
+    void DrawTriangleFilled(const glm::vec3& p0, const glm::vec3& p1, const glm::vec3& p2, const glm::vec4& color);
+
+    // Polygons (convex)
+    void DrawPolygon(const std::vector<glm::vec2>& vertices, const glm::vec4& color, float thickness = 1.0f);
+    void DrawPolygonFilled(const std::vector<glm::vec2>& vertices, const glm::vec4& color);
+    void DrawPolygon(const std::vector<glm::vec3>& vertices, const glm::vec4& color, float thickness = 1.0f);
+    void DrawPolygonFilled(const std::vector<glm::vec3>& vertices, const glm::vec4& color);
+
+    // Rectangles (outline)
+    void DrawRect(const glm::vec2& position, const glm::vec2& size, const glm::vec4& color, float thickness = 1.0f);
+    void DrawRect(const glm::vec3& position, const glm::vec2& size, const glm::vec4& color, float thickness = 1.0f);
+
+    // Arbitrary Geometry (for RmlUi)
+    void DrawGeometry(
+      const std::vector<BatchVertex>& vertices,
+      const std::vector<uint32_t>& indices,
+      uint32_t textureID,
+      const glm::mat4& transform
     );
 
 

@@ -29,4 +29,5 @@ include(FetchContent)
 
 add_subdirectory(AtmosphericEngine)
 add_subdirectory(Example_HelloWorld)
+add_subdirectory(Example_Physics2D)
 add_subdirectory(frontends/lua)

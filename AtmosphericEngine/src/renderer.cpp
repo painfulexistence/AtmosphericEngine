@@ -1,11 +1,11 @@
 #include "renderer.hpp"
 #include "asset_manager.hpp"
 #include "batch_renderer_2d.hpp"
+#include "canvas_drawable.hpp"
 #include "console.hpp"
 #include "game_object.hpp"
 #include "graphics_server.hpp"
 #include "particle_server.hpp"
-#include "sprite_component.hpp"
 #include "window.hpp"
 #include <algorithm>
 #include <tracy/Tracy.hpp>
@@ -71,6 +71,7 @@ void Renderer::Init(int width, int height) {
     _pipeline->AddPass(std::make_unique<MSAAResolvePass>());
     _pipeline->AddPass(std::make_unique<CanvasPass>());
     _pipeline->AddPass(std::make_unique<PostProcessPass>());
+    _pipeline->AddPass(std::make_unique<UIPass>());
 }
 
 void Renderer::Cleanup() {
@@ -119,7 +120,7 @@ void Renderer::SortAndBucket(const glm::vec3& cameraPos) {
     // Clear previous frame's sorted queues
     _opaqueQueue.clear();
     _transparentQueue.clear();
-    _hudQueue.clear();
+    // _hudQueue.clear(); // Managed separately
     _gizmoQueue.clear();
     _afterOpaqueQueue.clear();
 
@@ -161,26 +162,6 @@ uint64_t Renderer::CalculateSortKey(const RenderCommand& cmd, const glm::vec3& c
     return key;
 }
 
-void Renderer::BucketCommands(const glm::vec3& cameraPos) {
-    for (const auto& cmd : _commandList) {
-        Material* mat = cmd.mesh->GetMaterial();
-        if (!mat) continue;
-
-        int queue = mat->GetFinalRenderQueue();
-        uint64_t sortKey = CalculateSortKey(cmd, cameraPos);
-        SortableCommand sortable{ cmd, sortKey };
-
-        // Bucket based on render queue
-        if (queue < static_cast<int>(RenderQueue::Transparent)) {
-            _opaqueQueue.push_back(sortable);
-        } else if (queue < static_cast<int>(RenderQueue::Overlay)) {
-            _transparentQueue.push_back(sortable);
-        } else {
-            _hudQueue.push_back(sortable);
-        }
-    }
-}
-
 void Renderer::SortOpaque() {
     // Front-to-back sorting: render near objects first to reduce overdraw
     std::sort(_opaqueQueue.begin(), _opaqueQueue.end(), [](const SortableCommand& a, const SortableCommand& b) {
@@ -197,11 +178,35 @@ void Renderer::SortTransparent() {
     );
 }
 
+void Renderer::BucketCommands(const glm::vec3& cameraPos) {
+    for (const auto& cmd : _commandList) {
+        Material* mat = cmd.mesh->GetMaterial();
+        if (!mat) continue;
+
+        int queue = mat->GetFinalRenderQueue();
+        uint64_t sortKey = CalculateSortKey(cmd, cameraPos);
+        SortableCommand sortable{ cmd, sortKey };
+
+        // Bucket based on render queue
+        if (queue < static_cast<int>(RenderQueue::Transparent)) {
+            _opaqueQueue.push_back(sortable);
+        } else if (queue < static_cast<int>(RenderQueue::Overlay)) {
+            _transparentQueue.push_back(sortable);
+        } else {
+            // _hudQueue.push_back(sortable); // _hudQueue is now for RmlUi
+            // TODO: Handle overlay objects
+        }
+    }
+}
+
+// ... SortOpaque, SortTransparent ...
 
 void Renderer::RenderFrame(GraphicsServer* ctx, float dt) {
     ZoneScopedN("Renderer::RenderFrame");
     SortAndBucket(ctx->GetMainCamera()->GetEyePosition());
     _pipeline->Render(ctx, *this);
+
+    _hudQueue.clear();
 }
 
 void Renderer::CheckFramebufferStatus(const std::string& prefix) {
@@ -1096,7 +1101,8 @@ void MSAAResolvePass::Execute(GraphicsServer* ctx, Renderer& renderer) {
 }
 
 // Helper to reduce code duplication
-void DrawSprite(SpriteComponent* sprite, BatchRenderer2D* batchRenderer);
+// Helper to reduce code duplication
+// void DrawSprite(SpriteComponent* sprite, BatchRenderer2D* batchRenderer);
 
 void CanvasPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
     ZoneScopedN("CanvasPass");
@@ -1128,28 +1134,28 @@ void CanvasPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
     glm::mat4 screenViewProj = glm::ortho(0.0f, (float)width, (float)height, 0.0f, -1.0f, 1.0f);
 
     // 2. Sort Drawables
-    std::vector<SpriteComponent*> sortedSprites = ctx->canvasDrawables;
-    std::sort(sortedSprites.begin(), sortedSprites.end(), [](SpriteComponent* a, SpriteComponent* b) {
+    std::vector<CanvasDrawable*> sortedDrawables = ctx->canvasDrawables;
+    std::sort(sortedDrawables.begin(), sortedDrawables.end(), [](CanvasDrawable* a, CanvasDrawable* b) {
         return a->GetLayer() < b->GetLayer();
     });
 
     // 3. Render World Sprites (Layer < LAYER_UI_BACK)
     renderer.GetBatchRenderer()->BeginScene(worldViewProj);
-    for (auto sprite : sortedSprites) {
-        if (!sprite->gameObject->isActive) continue;
-        if ((int)sprite->GetLayer() >= (int)CanvasLayer::LAYER_UI_BACK) continue;// Skip UI sprites
+    for (auto drawable : sortedDrawables) {
+        if (!drawable->gameObject->isActive) continue;
+        if ((int)drawable->GetLayer() >= (int)CanvasLayer::LAYER_UI_BACK) continue;// Skip UI sprites
 
-        DrawSprite(sprite, renderer.GetBatchRenderer());
+        drawable->Draw(renderer.GetBatchRenderer());
     }
     renderer.GetBatchRenderer()->EndScene();
 
     // 4. Render UI Sprites (Layer >= LAYER_UI_BACK)
     renderer.GetBatchRenderer()->BeginScene(screenViewProj);
-    for (auto sprite : sortedSprites) {
-        if (!sprite->gameObject->isActive) continue;
-        if ((int)sprite->GetLayer() < (int)CanvasLayer::LAYER_UI_BACK) continue;// Skip World sprites
+    for (auto drawable : sortedDrawables) {
+        if (!drawable->gameObject->isActive) continue;
+        if ((int)drawable->GetLayer() < (int)CanvasLayer::LAYER_UI_BACK) continue;// Skip World sprites
 
-        DrawSprite(sprite, renderer.GetBatchRenderer());
+        drawable->Draw(renderer.GetBatchRenderer());
     }
     renderer.GetBatchRenderer()->EndScene();
 
@@ -1159,34 +1165,7 @@ void CanvasPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
 }
 
 // Helper to reduce code duplication
-// Helper to reduce code duplication
-void DrawSprite(SpriteComponent* sprite, BatchRenderer2D* batchRenderer) {
-    glm::vec3 pos = sprite->gameObject->GetPosition();
-    glm::vec3 rot = sprite->gameObject->GetRotation();
-    glm::vec3 scale = sprite->gameObject->GetScale();
 
-    glm::vec2 size = sprite->GetSize() * glm::vec2(scale.x, scale.y);
-    glm::vec2 pivot = sprite->GetPivot();
-
-    glm::mat4 transform = glm::translate(glm::mat4(1.0f), pos);
-    transform = glm::rotate(transform, rot.z, glm::vec3(0.0f, 0.0f, 1.0f));
-
-    glm::vec2 pivotOffset = (glm::vec2(0.5f, 0.5f) - pivot) * size;
-    transform = glm::translate(transform, glm::vec3(pivotOffset, 0.0f));
-
-    transform = glm::scale(transform, glm::vec3(size.x, size.y, 1.0f));
-
-    glm::vec2 uvMin = sprite->GetUVMin();
-    glm::vec2 uvMax = sprite->GetUVMax();
-    glm::vec2 uvs[4] = {
-        { uvMin.x, uvMin.y },// BL
-        { uvMax.x, uvMin.y },// BR
-        { uvMax.x, uvMax.y },// TR
-        { uvMin.x, uvMax.y }// TL
-    };
-
-    batchRenderer->DrawQuad(transform, sprite->GetTextureID(), uvs, sprite->GetColor(), (int)sprite->GetLayer());
-}
 
 void PostProcessPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
     ZoneScopedN("PostProcessPass");
@@ -1218,8 +1197,40 @@ void PostProcessPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
     renderer.CheckErrors("Post process pass");
 }
 
+void Renderer::SubmitUICommand(const UICommand& cmd) {
+    _hudQueue.push_back(cmd);
+}
+
 void UIPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
-    // RmlUi rendering is handled by RmlUiManager
-    // This pass is intentionally empty as RmlUi has its own render interface
-    // The RmlUiManager::Render() should be called separately after the main render pipeline
+    ZoneScopedN("UIPass");
+    auto* batchRenderer = renderer.GetBatchRenderer();
+    auto& queue = renderer.GetUIQueue();
+
+    if (queue.empty()) return;
+
+    // Setup OpenGL state for UI
+    glDisable(GL_DEPTH_TEST);
+    glDisable(GL_CULL_FACE);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    // Get viewport size
+    GLint viewport[4];
+    glGetIntegerv(GL_VIEWPORT, viewport);
+    float width = (float)viewport[2];
+    float height = (float)viewport[3];
+
+    glm::mat4 projection = glm::ortho(0.0f, width, height, 0.0f, -1.0f, 1.0f);
+
+    batchRenderer->BeginScene(projection);
+
+    for (const auto& cmd : queue) {
+        batchRenderer->DrawGeometry(cmd.vertices, cmd.indices, cmd.textureID, cmd.transform);
+    }
+
+    batchRenderer->EndScene();
+
+    // Restore state
+    glEnable(GL_DEPTH_TEST);
+    glEnable(GL_CULL_FACE);
 }

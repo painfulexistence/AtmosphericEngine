@@ -8,6 +8,7 @@
 #include "input.hpp"
 #include "layer.hpp"
 #include "physics_server.hpp"
+#include "physics_server_2d.hpp"
 #include "script.hpp"
 
 struct SceneDef;
@@ -82,6 +83,9 @@ public:
     inline PhysicsServer* GetPhysicsServer() {
         return &physics;
     }
+    inline Physics2DServer* GetPhysics2DServer() {
+        return &physics2D;
+    }
     inline Console* GetConsole() {
         return &console;
     }
@@ -99,10 +103,17 @@ public:
     void LoadScene(const SceneDef& scene);
     void ReloadScene();
 
+    GameObject* CreateGameObject(
+      glm::vec3 position = glm::vec3(0.0f), glm::vec3 rotation = glm::vec3(0.0f), glm::vec3 scale = glm::vec3(1.0f)
+    );
+
+    GameObject* CreateGameObject(glm::vec2 position, float rotation = 0.0f);
+
 protected:
     // These subsystems will be game accessible
     AudioManager audio;
     PhysicsServer physics;
+    Physics2DServer physics2D;
     Console console;
     Input input;
     Script script;
@@ -130,12 +141,6 @@ protected:
         _subsystems.push_back(subsystem);
         return subsystem;
     }
-
-    GameObject* CreateGameObject(
-      glm::vec3 position = glm::vec3(0.0f), glm::vec3 rotation = glm::vec3(0.0f), glm::vec3 scale = glm::vec3(1.0f)
-    );
-
-    GameObject* CreateGameObject(glm::vec2 position, float rotation = 0.0f);
 
 private:
     AppConfig _config;

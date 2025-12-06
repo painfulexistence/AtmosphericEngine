@@ -3,6 +3,7 @@
 #include "job_system.hpp"
 #include "material.hpp"
 #include "mesh.hpp"
+#include "mesh_builder.hpp"
 #include "shader.hpp"
 
 #include "fmt/core.h"

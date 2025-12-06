@@ -5,8 +5,13 @@ static const float maxVAngle = PI / 2.0f - 0.01f;
 static const float minVAngle = -PI / 2.0f + 0.01f;
 
 CameraComponent::CameraComponent(GameObject* gameObject, const CameraProps& props) {
+    this->gameObject = gameObject;
     if (props.isOrthographic) {
         _isOrthographic = true;
+        _orthoWidth = props.orthographic.width;
+        _orthoHeight = props.orthographic.height;
+        _nearZ = props.orthographic.nearClip;
+        _farZ = props.orthographic.farClip;
         _projectionMatrix = glm::ortho(
           -props.orthographic.width * .5f,
           props.orthographic.width * .5f,
@@ -17,6 +22,10 @@ CameraComponent::CameraComponent(GameObject* gameObject, const CameraProps& prop
         );
     } else {
         _isOrthographic = false;
+        _fov = props.perspective.fieldOfView;
+        _aspectRatio = props.perspective.aspectRatio;
+        _nearZ = props.perspective.nearClip;
+        _farZ = props.perspective.farClip;
         _projectionMatrix = glm::perspective(
           props.perspective.fieldOfView,
           props.perspective.aspectRatio,
@@ -39,6 +48,10 @@ void CameraComponent::SetPerspective(float fov, float aspectRatio, float nearCli
 
 void CameraComponent::SetOrthographic(float width, float height, float nearClip, float farClip) {
     _isOrthographic = true;
+    _orthoWidth = width;
+    _orthoHeight = height;
+    _nearZ = nearClip;
+    _farZ = farClip;
     _projectionMatrix = glm::ortho(-width * .5f, width * .5f, -height * .5f, height * .5f, nearClip, farClip);
 }
 
@@ -84,4 +97,14 @@ void CameraComponent::Yaw(float angleOffset) {
 
 void CameraComponent::Pitch(float angleOffset) {
     _vhAngle.x = std::max(minVAngle, std::min(maxVAngle, _vhAngle.x + angleOffset));
+}
+
+void CameraComponent::SetSize(float size) {
+    if (_isOrthographic) {
+        float aspectRatio = _orthoWidth / _orthoHeight;// Maintain aspect ratio
+        _orthoHeight = size;
+        _orthoWidth = size * aspectRatio;
+        _projectionMatrix =
+          glm::ortho(-_orthoWidth * .5f, _orthoWidth * .5f, -_orthoHeight * .5f, _orthoHeight * .5f, _nearZ, _farZ);
+    }
 }

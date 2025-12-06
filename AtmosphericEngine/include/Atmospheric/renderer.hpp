@@ -4,11 +4,11 @@
 #include "config.hpp"
 #include "glm/mat4x4.hpp"
 #include "globals.hpp"
-#include "graphics_server.hpp"
 #include "mesh.hpp"
 
 class GraphicsServer;
 class ShaderProgram;
+class Renderer;
 
 struct RenderCommand {
     Mesh* mesh;
@@ -171,6 +171,19 @@ public:
         uint64_t sortKey;
     };
 
+    struct UICommand {
+        std::vector<BatchVertex> vertices;
+        std::vector<uint32_t> indices;
+        uint32_t textureID;
+        glm::mat4 transform;
+    };
+
+    void SubmitUICommand(const UICommand& cmd);
+
+    auto& GetUIQueue() {
+        return _hudQueue;
+    }
+
 private:
     std::vector<RenderCommand> _commandList;
 
@@ -179,7 +192,7 @@ private:
     std::vector<SortableCommand> _afterOpaqueQueue;// For raymarching voxel chunks, GPU particles
     std::vector<SortableCommand> _transparentQueue;// For particles, world UI
     std::vector<SortableCommand> _gizmoQueue;// For world debug UI
-    std::vector<SortableCommand> _hudQueue;// For HUD
+    std::vector<UICommand> _hudQueue;// For HUD
 
     std::unique_ptr<RenderPipeline> _pipeline;// TODO: support forward and deferred
     RenderPath _currRenderPath = RenderPath::Forward;

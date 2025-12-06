@@ -1,4 +1,4 @@
-set(GAME_NAME HelloWorld)
+set(GAME_NAME Physics2DDemo)
 set(GAME_ASSETS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/assets)
 
 find_package(glm CONFIG REQUIRED)
@@ -7,9 +7,7 @@ find_package(spdlog CONFIG REQUIRED)
 find_package(lua REQUIRED)
 find_package(Bullet CONFIG REQUIRED)
 find_package(glad CONFIG REQUIRED)
-
-# Assuming SDL3 is already available through FetchContent from parent CMakeLists
-# find_package(SDL3 CONFIG REQUIRED) # No need if SDL3 targets are globally available via FetchContent
+find_package(box2d CONFIG REQUIRED)
 
 add_executable(${GAME_NAME}
     main.cpp
@@ -34,6 +32,7 @@ target_link_libraries(${GAME_NAME} PRIVATE
     glad::glad
     spdlog::spdlog
     SDL3::SDL3
+    box2d::box2d
 )
 if(AE_USE_EMSCRIPTEN)
     set(CMAKE_EXECUTABLE_SUFFIX ".html")

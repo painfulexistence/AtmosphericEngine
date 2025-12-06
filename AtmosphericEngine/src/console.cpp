@@ -2,28 +2,22 @@
 #ifdef __EMSCRIPTEN__
 #include "emscripten.h"
 #else
-#include "spdlog/spdlog.h"
 #include "spdlog/sinks/stdout_color_sinks.h"
+#include "spdlog/spdlog.h"
 #endif
-#include "script.hpp"
 
 Console* Console::_instance = nullptr;
 
-Console::Console()
-{
-    if (_instance != nullptr)
-        throw std::runtime_error("Console is already initialized!");
+Console::Console() {
+    if (_instance != nullptr) throw std::runtime_error("Console is already initialized!");
 
     _instance = this;
 }
 
-Console::~Console()
-{
-
+Console::~Console() {
 }
 
-void Console::Init(Application* app)
-{
+void Console::Init(Application* app) {
     Server::Init(app);
 
 #ifndef __EMSCRIPTEN__
@@ -33,13 +27,10 @@ void Console::Init(Application* app)
 #endif
 }
 
-void Console::Process(float dt)
-{
-
+void Console::Process(float dt) {
 }
 
-void Console::DrawImGui(float dt)
-{
+void Console::DrawImGui(float dt) {
     if (ImGui::CollapsingHeader("Console", ImGuiTreeNodeFlags_DefaultOpen)) {
 #ifndef __EMSCRIPTEN__
         ImGui::Text("Log Level:");
@@ -73,8 +64,7 @@ void Console::DrawImGui(float dt)
     }
 }
 
-void Console::Info(const std::string& message)
-{
+void Console::Info(const std::string& message) {
 #if RUNTIME_LOG_ON
 #ifdef __EMSCRIPTEN__
     EM_ASM(console.info(message));
@@ -84,8 +74,7 @@ void Console::Info(const std::string& message)
 #endif
 }
 
-void Console::Warn(const std::string& message)
-{
+void Console::Warn(const std::string& message) {
 #if RUNTIME_LOG_ON
 #ifdef __EMSCRIPTEN__
     EM_ASM(console.warn(message));
@@ -95,8 +84,7 @@ void Console::Warn(const std::string& message)
 #endif
 }
 
-void Console::Error(const std::string& message)
-{
+void Console::Error(const std::string& message) {
 #if RUNTIME_LOG_ON
 #ifdef __EMSCRIPTEN__
     EM_ASM(console.error(message));
@@ -106,17 +94,15 @@ void Console::Error(const std::string& message)
 #endif
 }
 
-void Console::RegisterCommand(const std::string& cmd, std::function<void(const std::vector<std::string>&)> callback)
-{
+void Console::RegisterCommand(const std::string& cmd, std::function<void(const std::vector<std::string>&)> callback) {
     _commands[cmd] = callback;
 }
 
-void Console::ExecuteCommand(const std::string& cmd)
-{
+void Console::ExecuteCommand(const std::string& cmd) {
     auto it = _commands.find(cmd);
     if (it != _commands.end()) {
         it->second({});
     }
 
-    Script::Get()->Run(cmd);
+    // Script::Get()->Run(cmd); // Script system refactored
 }

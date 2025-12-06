@@ -9,14 +9,12 @@
 #include "layer.hpp"
 #include "physics_server.hpp"
 #include "physics_server_2d.hpp"
-#include "script.hpp"
 
-struct SceneDef;
+#include "physics_server_2d.hpp"
+#include "scene.hpp"
 
+// Forward declarations
 class Window;
-
-class Scene;
-
 class GameObject;
 
 struct FrameData {
@@ -51,7 +49,7 @@ using EntityID = uint64_t;
 class Application {
 public:
     explicit Application(AppConfig config = {});
-    ~Application();
+    virtual ~Application();
 
     void Run();
 
@@ -116,7 +114,6 @@ protected:
     Physics2DServer physics2D;
     Console console;
     Input input;
-    Script script;
 
     GraphicsServer graphics;
 

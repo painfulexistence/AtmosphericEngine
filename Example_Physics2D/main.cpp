@@ -51,7 +51,7 @@ class Physics2DDemo : public Application {
             }
         });
 
-        script.Print("Physics2D Demo - Press SPACE to spawn shapes, R to reset");
+        console.Info("Physics2D Demo - Press SPACE to spawn shapes, R to reset");
     }
 
     void CreateGround() {

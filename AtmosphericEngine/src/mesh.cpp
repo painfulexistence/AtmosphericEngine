@@ -23,7 +23,7 @@ void PrintVertex(const Vertex& v) {
     );
 }
 
-Mesh::Mesh(MeshType type) : type(type) {
+Mesh::Mesh(MeshType type) : type(type), _material(nullptr), _shape(nullptr) {
     glGenVertexArrays(1, &vao);
     glGenBuffers(1, &vbo);
     glGenBuffers(1, &ebo);

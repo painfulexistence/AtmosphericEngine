@@ -19,6 +19,7 @@ enum class FaceDir : uint8_t {
 class MeshBuilder {
 public:
     static Mesh* CreateCube(const float& size = 1.0f);
+    static Mesh* CreatePlane(float width, float height);
 
     static Mesh* CreateSphere(const float& radius = 0.5f, const int& division = 18);
 

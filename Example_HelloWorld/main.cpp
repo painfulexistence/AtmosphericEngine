@@ -27,8 +27,8 @@ class HelloWorld : public Application {
         cube = CreateGameObject();
         cube->AddComponent<MeshComponent>(cubeMesh);
 
-        script.Print(fmt::format("Game fully loaded in {:.1f} seconds", GetWindowTime()));
-        script.Print("Press 1-5 to switch level blockouts, R to reload shaders");
+        console.Info(fmt::format("Game fully loaded in {:.1f} seconds", GetWindowTime()));
+        console.Info("Press 1-5 to switch level blockouts, R to reload shaders");
     }
 
     void OnUpdate(float dt, float time) override {

@@ -53,6 +53,11 @@ public:
     void Execute(GraphicsServer* ctx, Renderer& renderer) override;
 };
 
+class WorldUIPass : public RenderPass {
+public:
+    void Execute(GraphicsServer* ctx, Renderer& renderer) override;
+};
+
 class CanvasPass : public RenderPass {
 public:
     void Execute(GraphicsServer* ctx, Renderer& renderer) override;

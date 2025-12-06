@@ -69,7 +69,8 @@ void Renderer::Init(int width, int height) {
     _pipeline->AddPass(std::make_unique<ShadowPass>());
     _pipeline->AddPass(std::make_unique<ForwardOpaquePass>());
     _pipeline->AddPass(std::make_unique<MSAAResolvePass>());
-    _pipeline->AddPass(std::make_unique<CanvasPass>());
+    _pipeline->AddPass(std::make_unique<WorldUIPass>());// 3D world UI (billboards, labels)
+    _pipeline->AddPass(std::make_unique<CanvasPass>());// 2D sprites and screen UI
     _pipeline->AddPass(std::make_unique<PostProcessPass>());
     _pipeline->AddPass(std::make_unique<UIPass>());
 }
@@ -1100,10 +1101,65 @@ void MSAAResolvePass::Execute(GraphicsServer* ctx, Renderer& renderer) {
     renderer.CheckErrors("MSAA resolve pass");
 }
 
-// Helper to reduce code duplication
-// Helper to reduce code duplication
-// void DrawSprite(SpriteComponent* sprite, BatchRenderer2D* batchRenderer);
+// ===== WorldUIPass: 3D world UI with perspective projection =====
+void WorldUIPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
+    ZoneScopedN("WorldUIPass");
 
+    // Filter drawables for LAYER_WORLD_3D
+    std::vector<CanvasDrawable*> world3DDrawables;
+    for (auto* drawable : ctx->canvasDrawables) {
+        if (drawable->GetLayer() == CanvasLayer::LAYER_WORLD_3D) {
+            world3DDrawables.push_back(drawable);
+        }
+    }
+
+    if (world3DDrawables.empty()) return;
+
+    auto [width, height] = Window::Get()->GetFramebufferSize();
+    glViewport(0, 0, width, height);
+    glBindFramebuffer(GL_FRAMEBUFFER, renderer.postProcessEnabled ? renderer.msaaResolveFBO : renderer.finalFBO);
+
+    // Get perspective camera
+    CameraComponent* camera = ctx->GetMainCamera();
+    if (!camera) return;
+
+    glm::mat4 viewProj = camera->GetProjectionMatrix() * camera->GetViewMatrix();
+
+    // Enable depth test (read only, don't write)
+    glEnable(GL_DEPTH_TEST);
+    glDepthMask(GL_FALSE);// Read depth but don't write
+    glDisable(GL_CULL_FACE);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+#ifndef __EMSCRIPTEN__
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+#endif
+
+    // Sort by distance to camera (back to front for transparency)
+    glm::vec3 camPos = camera->GetEyePosition();
+    std::sort(world3DDrawables.begin(), world3DDrawables.end(),
+        [&camPos](CanvasDrawable* a, CanvasDrawable* b) {
+            float distA = glm::length(a->gameObject->GetPosition() - camPos);
+            float distB = glm::length(b->gameObject->GetPosition() - camPos);
+            return distA > distB;// Back to front
+        });
+
+    renderer.GetBatchRenderer()->BeginScene(viewProj);
+    for (auto* drawable : world3DDrawables) {
+        if (!drawable->gameObject->isActive) continue;
+        drawable->Draw(renderer.GetBatchRenderer());
+    }
+    renderer.GetBatchRenderer()->EndScene();
+
+    // Restore depth mask
+    glDepthMask(GL_TRUE);
+    glDisable(GL_DEPTH_TEST);
+    glDisable(GL_BLEND);
+
+    renderer.CheckErrors("WorldUI pass");
+}
+
+// ===== CanvasPass: 2D sprites and screen UI =====
 void CanvasPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
     ZoneScopedN("CanvasPass");
 
@@ -1139,10 +1195,11 @@ void CanvasPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
         return a->GetLayer() < b->GetLayer();
     });
 
-    // 3. Render World Sprites (Layer < LAYER_UI_BACK)
+    // 3. Render World Sprites (Layer < LAYER_WORLD_3D, skip 3D world UI handled by WorldUIPass)
     renderer.GetBatchRenderer()->BeginScene(worldViewProj);
     for (auto drawable : sortedDrawables) {
         if (!drawable->gameObject->isActive) continue;
+        if (drawable->GetLayer() == CanvasLayer::LAYER_WORLD_3D) continue;// Skip 3D world UI
         if ((int)drawable->GetLayer() >= (int)CanvasLayer::LAYER_UI_BACK) continue;// Skip UI sprites
 
         drawable->Draw(renderer.GetBatchRenderer());

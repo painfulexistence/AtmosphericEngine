@@ -34,10 +34,18 @@ enum class CanvasLayer {
     LAYER_WORLD = 50,// Main game objects (player, enemies)
     LAYER_WORLD_FRONT = 90,// Foreground game objects
     LAYER_EFFECTS = 100,// Particle effects, damage numbers
+    LAYER_WORLD_3D = 150,// 3D world UI (billboards, labels in 3D space)
     LAYER_UI_BACK = 200,// UI background elements
     LAYER_UI = 300,// Main UI elements (HUD, health bars)
     LAYER_UI_FRONT = 400,// Popups, tooltips
     LAYER_OVERLAY = 500,// Debug overlay, screen fade
+};
+
+// Billboard modes for 3D sprites
+enum class BillboardMode {
+    None,// No billboarding, use object's rotation
+    ViewPoint,// Face camera position (spherical)
+    ViewPlane,// Face camera plane (cylindrical, Y-axis locked)
 };
 
 enum class ShapeType {

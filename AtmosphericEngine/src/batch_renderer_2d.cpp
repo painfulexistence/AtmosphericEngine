@@ -146,7 +146,7 @@ void BatchRenderer2D::Shutdown() {
     }
 }
 
-void BatchRenderer2D::BeginScene(const glm::mat4& viewProj, BlendMode blendMode) {
+void BatchRenderer2D::BeginBatch(const glm::mat4& viewProj, BlendMode blendMode) {
     m_Data->TextureShader = AssetManager::Get().GetShader("canvas");// Or "batch_2d"
     m_Data->TextureShader->Activate();
 
@@ -169,7 +169,7 @@ void BatchRenderer2D::BeginScene(const glm::mat4& viewProj, BlendMode blendMode)
     StartBatch();
 }
 
-void BatchRenderer2D::EndScene() {
+void BatchRenderer2D::EndBatch() {
     Flush();
 }
 

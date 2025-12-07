@@ -11,7 +11,7 @@ struct SpriteProps {
     glm::vec2 pivot = glm::vec2(0.5f, 0.5f);
     glm::vec4 color = glm::vec4(1.0f);
     int textureID = -1;
-    CanvasLayer layer = CanvasLayer::LAYER_WORLD;// Default to main game layer
+    CanvasLayer layer = CanvasLayer::LAYER_WORLD_2D;// Default to 2D screen-space
 };
 
 

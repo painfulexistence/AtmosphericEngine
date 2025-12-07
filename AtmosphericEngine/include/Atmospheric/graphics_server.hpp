@@ -1,6 +1,7 @@
 #pragma once
 #include "camera_component.hpp"
 #include "config.hpp"
+#include "font_manager.hpp"
 #include "light_component.hpp"
 #include "mesh.hpp"
 #include "mesh_component.hpp"
@@ -160,6 +161,22 @@ public:
     void FreeRenderMesh(RenderMeshHandle handle);
     RenderMesh* GetRenderMesh(RenderMeshHandle handle);
 
+    // ===== 2D Rendering (Queued for UI) =====
+    void DrawQuad(float x, float y, float w, float h, float rotation, const glm::vec4& color);
+    void
+      DrawTexturedQuad(float x, float y, float w, float h, float rotation, uint32_t textureID, const glm::vec4& color);
+    void DrawRect(float x, float y, float w, float h, const glm::vec4& color);// Outline
+    void DrawLine(float x1, float y1, float x2, float y2, const glm::vec4& color);
+    void DrawCircle(float x, float y, float radius, const glm::vec4& color);
+
+    // ===== Text Rendering =====
+    FontID LoadFont(const std::string& path, float baseSize);
+    void UnloadFont(FontID id);
+    // Draw text (Immediate Mode 2D)
+    void DrawText(FontID fontID, const std::string& text, float x, float y, float scale, const glm::vec4& color);
+    glm::vec2 MeasureText(FontID fontID, const std::string& text, float scale = 1.0f);
+    float GetFontLineHeight(FontID fontID, float scale = 1.0f);
+
     Renderer* renderer = nullptr;
 
 private:
@@ -176,6 +193,8 @@ private:
     std::unordered_map<uint32_t, std::unique_ptr<RenderMesh>> _renderMeshes;
     uint32_t _nextRenderMeshId = 0;
 
+    FontManager _fontManager;
+
     static constexpr int MAX_CANVAS_TEXTURES = 32;
 
     void PushCanvasQuad(
@@ -188,7 +207,7 @@ private:
       float pivotY,
       const glm::vec4& color,
       int texIndex,
-      CanvasLayer layer = CanvasLayer::LAYER_WORLD,
+      CanvasLayer layer = CanvasLayer::LAYER_WORLD_2D,
       const glm::vec2& uvMin = glm::vec2(0.0f),
       const glm::vec2& uvMax = glm::vec2(1.0f)
     );
@@ -202,7 +221,7 @@ private:
       float pivotY,
       const glm::vec4& color,
       int texIndex,
-      CanvasLayer layer = CanvasLayer::LAYER_WORLD,
+      CanvasLayer layer = CanvasLayer::LAYER_WORLD_2D,
       const glm::vec2& tilesetSize = glm::vec2(1.0f),
       const glm::vec2& tileIndex = glm::vec2(0.0f)
     );

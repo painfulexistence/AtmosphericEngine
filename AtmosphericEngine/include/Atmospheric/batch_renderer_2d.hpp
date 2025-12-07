@@ -35,6 +35,11 @@ struct BatchStats {
     uint32_t triangleCount = 0;
 };
 
+// Forward declarations for friend classes
+class CanvasPass;
+class WorldCanvasPass;
+class UIPass;
+
 class BatchRenderer2D {
 public:
     BatchRenderer2D();
@@ -43,8 +48,7 @@ public:
     void Init();
     void Shutdown();
 
-    void BeginScene(const glm::mat4& viewProj, BlendMode blendMode = BlendMode::Alpha);
-    void EndScene();
+    // Flush current batch (use when changing blend mode mid-pass, etc.)
     void Flush();
 
     // Blend mode control
@@ -135,9 +139,18 @@ public:
     void ResetStats();
 
 private:
+    // Called by RenderPasses only (friend classes)
+    void BeginBatch(const glm::mat4& viewProj, BlendMode blendMode = BlendMode::Alpha);
+    void EndBatch();
+
     void StartBatch();
     void NextBatch();
 
     struct Renderer2DData;
     std::unique_ptr<Renderer2DData> m_Data;
+
+    // Allow render passes to call BeginBatch/EndBatch
+    friend class CanvasPass;
+    friend class WorldCanvasPass;
+    friend class UIPass;
 };

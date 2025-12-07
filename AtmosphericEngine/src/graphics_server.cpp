@@ -531,3 +531,58 @@ RenderMesh* GraphicsServer::GetRenderMesh(RenderMeshHandle handle) {
     }
     return nullptr;
 }
+
+// ===== Text Rendering Implementation =====
+
+FontID GraphicsServer::LoadFont(const std::string& path, float baseSize) {
+    return _fontManager.LoadFont(path, baseSize);
+}
+
+void GraphicsServer::UnloadFont(FontID id) {
+    _fontManager.UnloadFont(id);
+}
+
+void GraphicsServer::DrawText(
+  FontID fontID, const std::string& text, float x, float y, float scale, const glm::vec4& color
+) {
+    Font* font = _fontManager.GetFont(fontID);
+    if (!font) return;
+
+    auto* batch = renderer->GetBatchRenderer();
+    float cursorX = x;
+
+    for (char c : text) {
+        const Glyph* glyph = _fontManager.GetGlyph(fontID, static_cast<int>(c));
+        if (!glyph) continue;
+
+        float drawX = cursorX + glyph->xOffset * scale;
+        float drawY = y + glyph->yOffset * scale + font->ascent * scale;
+        float drawW = glyph->width * scale;
+        float drawH = glyph->height * scale;
+
+        if (drawW > 0 && drawH > 0) {
+            // Create UV coordinates for this glyph
+            glm::vec2 uvs[4] = {
+                { glyph->u0, glyph->v0 },// top-left
+                { glyph->u1, glyph->v0 },// top-right
+                { glyph->u1, glyph->v1 },// bottom-right
+                { glyph->u0, glyph->v1 }// bottom-left
+            };
+
+            glm::mat4 transform = glm::translate(glm::mat4(1.0f), glm::vec3(drawX, drawY, 0.0f));
+            transform = glm::scale(transform, glm::vec3(drawW, drawH, 1.0f));
+            batch->DrawQuad(transform, font->textureID, uvs, color);
+        }
+
+        cursorX += glyph->advance * scale;
+    }
+}
+
+glm::vec2 GraphicsServer::MeasureText(FontID fontID, const std::string& text, float scale) {
+    return _fontManager.MeasureText(fontID, text, scale);
+}
+
+float GraphicsServer::GetFontLineHeight(FontID fontID, float scale) {
+    Font* font = _fontManager.GetFont(fontID);
+    return font ? font->lineHeight * scale : 0.0f;
+}

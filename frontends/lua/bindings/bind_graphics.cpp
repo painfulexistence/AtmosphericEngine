@@ -1,12 +1,9 @@
 #include "../lua_application.hpp"
+#include "Atmospheric/graphics_server.hpp"
 #include "Atmospheric/renderer.hpp"
-#include <Atmospheric/font_manager.hpp>
 
 // Keep track of current draw color
 static glm::vec4 s_CurrentColor = glm::vec4(1.0f);
-
-// Global font manager instance
-static FontManager s_FontManager;
 
 void BindGraphicsAPI(sol::state& lua, GraphicsServer* graphics) {
     sol::table atmos = lua["atmos"];
@@ -76,98 +73,43 @@ void BindGraphicsAPI(sol::state& lua, GraphicsServer* graphics) {
 
     // ===== Text Rendering =====
 
+    // ===== Text Rendering =====
+
     // Load a font (returns FontID)
-    gfx["loadFont"] = [](const std::string& path, float size) -> FontID { return s_FontManager.LoadFont(path, size); };
+    gfx["loadFont"] = [graphics](const std::string& path, float size) -> FontID {
+        return graphics->LoadFont(path, size);
+    };
 
     // Unload a font
-    gfx["unloadFont"] = [](FontID id) { s_FontManager.UnloadFont(id); };
+    gfx["unloadFont"] = [graphics](FontID id) { graphics->UnloadFont(id); };
 
     // Draw text with current color
     // drawText(font, text, x, y)           -- uses base font size
     // drawText(font, text, x, y, scale)    -- scale relative to base size
     gfx["drawText"] = sol::overload(
       [graphics](FontID fontID, const std::string& text, float x, float y) {
-          Font* font = s_FontManager.GetFont(fontID);
-          if (!font) return;
-
-          auto* batch = graphics->renderer->GetBatchRenderer();
-          float cursorX = x;
-          float scale = 1.0f;
-
-          for (char c : text) {
-              const Glyph* glyph = s_FontManager.GetGlyph(fontID, static_cast<int>(c));
-              if (!glyph) continue;
-
-              float drawX = cursorX + glyph->xOffset * scale;
-              float drawY = y + glyph->yOffset * scale + font->ascent * scale;
-              float drawW = glyph->width * scale;
-              float drawH = glyph->height * scale;
-
-              if (drawW > 0 && drawH > 0) {
-                  // Create UV coordinates for this glyph
-                  glm::vec2 uvs[4] = {
-                      { glyph->u0, glyph->v0 },// top-left
-                      { glyph->u1, glyph->v0 },// top-right
-                      { glyph->u1, glyph->v1 },// bottom-right
-                      { glyph->u0, glyph->v1 }// bottom-left
-                  };
-
-                  glm::mat4 transform = glm::translate(glm::mat4(1.0f), glm::vec3(drawX, drawY, 0.0f));
-                  transform = glm::scale(transform, glm::vec3(drawW, drawH, 1.0f));
-                  batch->DrawQuad(transform, font->textureID, uvs, s_CurrentColor);
-              }
-
-              cursorX += glyph->advance * scale;
-          }
+          graphics->DrawText(fontID, text, x, y, 1.0f, s_CurrentColor);
       },
       [graphics](FontID fontID, const std::string& text, float x, float y, float scale) {
-          Font* font = s_FontManager.GetFont(fontID);
-          if (!font) return;
-
-          auto* batch = graphics->renderer->GetBatchRenderer();
-          float cursorX = x;
-
-          for (char c : text) {
-              const Glyph* glyph = s_FontManager.GetGlyph(fontID, static_cast<int>(c));
-              if (!glyph) continue;
-
-              float drawX = cursorX + glyph->xOffset * scale;
-              float drawY = y + glyph->yOffset * scale + font->ascent * scale;
-              float drawW = glyph->width * scale;
-              float drawH = glyph->height * scale;
-
-              if (drawW > 0 && drawH > 0) {
-                  glm::vec2 uvs[4] = { { glyph->u0, glyph->v0 },
-                                       { glyph->u1, glyph->v0 },
-                                       { glyph->u1, glyph->v1 },
-                                       { glyph->u0, glyph->v1 } };
-
-                  glm::mat4 transform = glm::translate(glm::mat4(1.0f), glm::vec3(drawX, drawY, 0.0f));
-                  transform = glm::scale(transform, glm::vec3(drawW, drawH, 1.0f));
-                  batch->DrawQuad(transform, font->textureID, uvs, s_CurrentColor);
-              }
-
-              cursorX += glyph->advance * scale;
-          }
+          graphics->DrawText(fontID, text, x, y, scale, s_CurrentColor);
       }
     );
 
     // Measure text dimensions
     gfx["measureText"] = sol::overload(
-      [](FontID fontID, const std::string& text) -> std::tuple<float, float> {
-          glm::vec2 size = s_FontManager.MeasureText(fontID, text, 1.0f);
+      [graphics](FontID fontID, const std::string& text) -> std::tuple<float, float> {
+          glm::vec2 size = graphics->MeasureText(fontID, text, 1.0f);
           return std::make_tuple(size.x, size.y);
       },
-      [](FontID fontID, const std::string& text, float scale) -> std::tuple<float, float> {
-          glm::vec2 size = s_FontManager.MeasureText(fontID, text, scale);
+      [graphics](FontID fontID, const std::string& text, float scale) -> std::tuple<float, float> {
+          glm::vec2 size = graphics->MeasureText(fontID, text, scale);
           return std::make_tuple(size.x, size.y);
       }
     );
 
     // Get font line height
-    gfx["getFontHeight"] = [](FontID fontID, float scale) -> float {
-        Font* font = s_FontManager.GetFont(fontID);
-        return font ? font->lineHeight * scale : 0.0f;
+    gfx["getFontHeight"] = [graphics](FontID fontID, float scale) -> float {
+        return graphics->GetFontLineHeight(fontID, scale);
     };
 
     // Begin/End 2D scene (for manual control)

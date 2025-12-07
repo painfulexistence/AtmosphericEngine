@@ -1,4 +1,5 @@
 #include "graphics_server.hpp"
+#include "Atmospheric/window.hpp"
 #include "application.hpp"
 #include "asset_manager.hpp"
 #include "camera_component.hpp"
@@ -12,7 +13,10 @@
 #include "renderer.hpp"
 #include "sprite_component.hpp"
 #include "stb_image.h"
-#include "window.hpp"
+#include "texture.hpp"// Corrected path for texture.hpp
+#include <fstream>
+#include <glm/gtc/matrix_transform.hpp>
+#include <sstream>
 #include <tracy/Tracy.hpp>
 
 #include <cstddef>
@@ -640,48 +644,49 @@ void GraphicsServer::UnloadFont(FontID id) {
 void GraphicsServer::DrawText(
   FontID fontID, const std::string& text, float x, float y, float scale, const glm::vec4& color
 ) {
-    Font* font = _fontManager.GetFont(fontID);
-    if (!font) return;
+    _textCommands.push_back({ fontID, text, x, y, scale, color });
+}
 
-    BatchDrawCommand cmd;
-    cmd.textureID = font->textureID;
-    cmd.transform = glm::mat4(1.0f);
+void GraphicsServer::RenderBufferedText(BatchRenderer2D* batch) {
+    if (_textCommands.empty()) return;
 
-    float cursorX = x;
+    for (const auto& cmd : _textCommands) {
+        Font* font = _fontManager.GetFont(cmd.fontID);
+        if (!font) continue;
 
-    for (char c : text) {
-        const Glyph* glyph = _fontManager.GetGlyph(fontID, static_cast<int>(c));
-        if (!glyph) continue;
+        float cursorX = cmd.x;
 
-        float drawX = cursorX + glyph->xOffset * scale;
-        float drawY = y + glyph->yOffset * scale + font->ascent * scale;
-        float drawW = glyph->width * scale;
-        float drawH = glyph->height * scale;
+        for (char c : cmd.text) {
+            const Glyph* glyph = _fontManager.GetGlyph(cmd.fontID, static_cast<int>(c));
+            if (!glyph) continue;
 
-        if (drawW > 0 && drawH > 0) {
-            glm::vec2 uvs[4] = {
-                { glyph->u0, glyph->v0 },// top-left
-                { glyph->u1, glyph->v0 },// top-right
-                { glyph->u1, glyph->v1 },// bottom-right
-                { glyph->u0, glyph->v1 }// bottom-left
-            };
+            float drawX = cursorX + glyph->xOffset * cmd.scale;
+            float drawY = cmd.y + glyph->yOffset * cmd.scale + font->ascent * cmd.scale;
+            float drawW = glyph->width * cmd.scale;
+            float drawH = glyph->height * cmd.scale;
 
-            // Center of the quad for transformation (since CreateQuad expects center)
-            float cx = drawX + drawW * 0.5f;
-            float cy = drawY + drawH * 0.5f;
+            if (drawW > 0 && drawH > 0) {
+                // Adjust for centered quad rendering
+                float finalX = drawX + drawW * 0.5f;
+                float finalY = drawY + drawH * 0.5f;
 
-            glm::mat4 transform = glm::translate(glm::mat4(1.0f), glm::vec3(cx, cy, 0.0f));
-            transform = glm::scale(transform, glm::vec3(drawW, drawH, 1.0f));
+                // Create UV coordinates for this glyph
+                glm::vec2 uvs[4] = {
+                    { glyph->u0, glyph->v0 },// top-left
+                    { glyph->u1, glyph->v0 },// top-right
+                    { glyph->u1, glyph->v1 },// bottom-right
+                    { glyph->u0, glyph->v1 }// bottom-left
+                };
 
-            CreateQuad(cmd.vertices, cmd.indices, transform, color, uvs);
+                glm::mat4 transform = glm::translate(glm::mat4(1.0f), glm::vec3(finalX, finalY, 0.0f));
+                transform = glm::scale(transform, glm::vec3(drawW, drawH, 1.0f));
+                batch->DrawQuad(transform, font->textureID, uvs, cmd.color);
+            }
+
+            cursorX += glyph->advance * cmd.scale;
         }
-
-        cursorX += glyph->advance * scale;
     }
-
-    if (!cmd.vertices.empty()) {
-        renderer->SubmitCanvasCommand(cmd);
-    }
+    _textCommands.clear();
 }
 
 glm::vec2 GraphicsServer::MeasureText(FontID fontID, const std::string& text, float scale) {
@@ -691,4 +696,33 @@ glm::vec2 GraphicsServer::MeasureText(FontID fontID, const std::string& text, fl
 float GraphicsServer::GetFontLineHeight(FontID fontID, float scale) {
     Font* font = _fontManager.GetFont(fontID);
     return font ? font->lineHeight * scale : 0.0f;
+}
+
+// Draw text at 3D position
+void GraphicsServer::DrawText3D(
+  FontID fontID, const std::string& text, glm::vec3 position, float scale, const glm::vec4& color
+) {
+    auto* camera = GetMainCamera();
+    if (!camera) return;
+
+    glm::mat4 view = camera->GetViewMatrix();
+    glm::mat4 projection = camera->GetProjectionMatrix();
+    glm::mat4 viewProjection = projection * view;
+
+    glm::vec4 clipSpacePos = viewProjection * glm::vec4(position, 1.0f);
+
+    // Check if behind camera
+    if (clipSpacePos.w <= 0.0f) {
+        return;
+    }
+
+    // Perspective division
+    glm::vec3 ndc = glm::vec3(clipSpacePos) / clipSpacePos.w;
+
+    // Viewport transform
+    auto [width, height] = Window::Get()->GetFramebufferSize();
+    float x = (ndc.x + 1.0f) * 0.5f * width;
+    float y = (1.0f - ndc.y) * 0.5f * height;// Flip Y for screen coordinates
+
+    DrawText(fontID, text, x, y, scale, color);
 }

@@ -65,6 +65,7 @@ class CanvasDrawable;
 class SpriteComponent;
 class CameraComponent;
 class LightComponent;
+class BatchRenderer2D;
 
 class GraphicsServer : public Server {
 private:
@@ -174,6 +175,8 @@ public:
     void UnloadFont(FontID id);
     // Draw text (Immediate Mode 2D)
     void DrawText(FontID fontID, const std::string& text, float x, float y, float scale, const glm::vec4& color);
+    // Draw text at 3D position (Projected to screen space)
+    void DrawText3D(FontID fontID, const std::string& text, glm::vec3 position, float scale, const glm::vec4& color);
     glm::vec2 MeasureText(FontID fontID, const std::string& text, float scale = 1.0f);
     float GetFontLineHeight(FontID fontID, float scale = 1.0f);
 
@@ -225,4 +228,16 @@ private:
       const glm::vec2& tilesetSize = glm::vec2(1.0f),
       const glm::vec2& tileIndex = glm::vec2(0.0f)
     );
+
+    struct TextCommand {
+        FontID fontID;
+        std::string text;
+        float x, y;
+        float scale;
+        glm::vec4 color;
+    };
+    std::vector<TextCommand> _textCommands;
+
+public:
+    void RenderBufferedText(BatchRenderer2D* batch);
 };

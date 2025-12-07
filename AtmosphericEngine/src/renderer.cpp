@@ -1218,9 +1218,8 @@ void CanvasPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
     for (const auto& cmd : renderer.GetCanvasQueue()) {
         renderer.GetBatchRenderer()->DrawGeometry(cmd.vertices, cmd.indices, cmd.textureID, cmd.transform);
     }
+    ctx->RenderBufferedText(renderer.GetBatchRenderer());
     renderer.GetBatchRenderer()->EndBatch();
-
-    // TODO: LAYER_UI_BACK is no longer used and can be removed
 
     glDisable(GL_BLEND);
     glEnable(GL_DEPTH_TEST);

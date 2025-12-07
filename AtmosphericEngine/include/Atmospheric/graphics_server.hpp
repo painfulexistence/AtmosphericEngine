@@ -1,6 +1,7 @@
 #pragma once
 #include "camera_component.hpp"
 #include "config.hpp"
+#include "font_manager.hpp"
 #include "light_component.hpp"
 #include "mesh.hpp"
 #include "mesh_component.hpp"
@@ -160,6 +161,14 @@ public:
     void FreeRenderMesh(RenderMeshHandle handle);
     RenderMesh* GetRenderMesh(RenderMeshHandle handle);
 
+    // ===== Text Rendering =====
+    FontID LoadFont(const std::string& path, float baseSize);
+    void UnloadFont(FontID id);
+    // Draw text (Immediate Mode 2D)
+    void DrawText(FontID fontID, const std::string& text, float x, float y, float scale, const glm::vec4& color);
+    glm::vec2 MeasureText(FontID fontID, const std::string& text, float scale = 1.0f);
+    float GetFontLineHeight(FontID fontID, float scale = 1.0f);
+
     Renderer* renderer = nullptr;
 
 private:
@@ -175,6 +184,8 @@ private:
     // RenderMesh storage
     std::unordered_map<uint32_t, std::unique_ptr<RenderMesh>> _renderMeshes;
     uint32_t _nextRenderMeshId = 0;
+
+    FontManager _fontManager;
 
     static constexpr int MAX_CANVAS_TEXTURES = 32;
 

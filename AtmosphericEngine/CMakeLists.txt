@@ -89,7 +89,6 @@ set(SOURCES
     src/physics_server.cpp
     src/physics_debug_drawer.cpp
     src/input.cpp
-    src/script.cpp
     src/scene.cpp
     src/asset_manager.cpp
     src/font_manager.cpp

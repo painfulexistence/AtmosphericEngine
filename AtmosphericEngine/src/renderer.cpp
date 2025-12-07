@@ -70,7 +70,7 @@ void Renderer::Init(int width, int height) {
     _pipeline->AddPass(std::make_unique<ForwardOpaquePass>());
     _pipeline->AddPass(std::make_unique<MSAAResolvePass>());
     _pipeline->AddPass(std::make_unique<WorldCanvasPass>());// World sprites with depth testing
-    _pipeline->AddPass(std::make_unique<CanvasPass>());// 2D sprites (screen-space ortho, no depth)
+    _pipeline->AddPass(std::make_unique<CanvasPass>());// 2D sprites, world space ortho, with no depth testing
     _pipeline->AddPass(std::make_unique<PostProcessPass>());
     _pipeline->AddPass(std::make_unique<UIPass>());
 }
@@ -1260,11 +1260,11 @@ void PostProcessPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
     renderer.CheckErrors("Post process pass");
 }
 
-void Renderer::SubmitUICommand(const UICommand& cmd) {
+void Renderer::SubmitUICommand(const BatchDrawCommand& cmd) {
     _hudQueue.push_back(cmd);
 }
 
-void Renderer::SubmitCanvasCommand(const UICommand& cmd) {
+void Renderer::SubmitCanvasCommand(const BatchDrawCommand& cmd) {
     _canvasQueue.push_back(cmd);
 }
 

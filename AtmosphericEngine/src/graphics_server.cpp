@@ -576,7 +576,7 @@ void GraphicsServer::DrawQuad(float x, float y, float w, float h, float rotation
 void GraphicsServer::DrawTexturedQuad(
   float x, float y, float w, float h, float rotation, uint32_t textureID, const glm::vec4& color
 ) {
-    Renderer::UICommand cmd;
+    BatchDrawCommand cmd;
     cmd.textureID = textureID;
     cmd.transform = glm::mat4(1.0f);// Transform handled in vertices
 
@@ -643,7 +643,7 @@ void GraphicsServer::DrawText(
     Font* font = _fontManager.GetFont(fontID);
     if (!font) return;
 
-    Renderer::UICommand cmd;
+    BatchDrawCommand cmd;
     cmd.textureID = font->textureID;
     cmd.transform = glm::mat4(1.0f);
 

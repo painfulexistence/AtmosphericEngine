@@ -62,7 +62,7 @@ void RmlUiRenderer::RenderGeometry(
 
     // Submit to Renderer
     if (m_Renderer) {
-        Renderer::UICommand cmd;
+        BatchDrawCommand cmd;
         cmd.vertices = geom.vertices;
         cmd.indices = geom.indices;
         cmd.textureID = (uint32_t)texture;

@@ -161,6 +161,14 @@ public:
     void FreeRenderMesh(RenderMeshHandle handle);
     RenderMesh* GetRenderMesh(RenderMeshHandle handle);
 
+    // ===== 2D Rendering (Queued for UI) =====
+    void DrawQuad(float x, float y, float w, float h, float rotation, const glm::vec4& color);
+    void
+      DrawTexturedQuad(float x, float y, float w, float h, float rotation, uint32_t textureID, const glm::vec4& color);
+    void DrawRect(float x, float y, float w, float h, const glm::vec4& color);// Outline
+    void DrawLine(float x1, float y1, float x2, float y2, const glm::vec4& color);
+    void DrawCircle(float x, float y, float radius, const glm::vec4& color);
+
     // ===== Text Rendering =====
     FontID LoadFont(const std::string& path, float baseSize);
     void UnloadFont(FontID id);

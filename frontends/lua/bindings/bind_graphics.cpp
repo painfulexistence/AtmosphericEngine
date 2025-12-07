@@ -40,40 +40,48 @@ void BindGraphicsAPI(sol::state& lua, GraphicsServer* graphics) {
 
     gfx["getColor"] = []() -> glm::vec4 { return s_CurrentColor; };
 
-    // Draw colored rectangle
+    // Draw line
+    gfx["drawLine"] = [graphics](float x1, float y1, float x2, float y2) {
+        graphics->DrawLine(x1, y1, x2, y2, s_CurrentColor);
+    };
+
+    // Draw circle (outline)
+    gfx["drawCircle"] = [graphics](float x, float y, float radius) {
+        graphics->DrawCircle(x, y, radius, s_CurrentColor);
+    };
+
     gfx["drawRect"] = sol::overload(
-      [graphics](float x, float y, float w, float h) {
-          auto* batch = graphics->renderer->GetBatchRenderer();
-          batch->DrawQuad(glm::vec2(x, y), glm::vec2(w, h), s_CurrentColor);
-      },
+      [graphics](float x, float y, float w, float h) { graphics->DrawQuad(x, y, w, h, 0.0f, s_CurrentColor); },
       [graphics](float x, float y, float w, float h, float rotation) {
-          auto* batch = graphics->renderer->GetBatchRenderer();
-          batch->DrawRotatedQuad(glm::vec2(x, y), glm::vec2(w, h), rotation, s_CurrentColor);
+          graphics->DrawQuad(x, y, w, h, rotation, s_CurrentColor);
       }
     );
 
+    // I should probably add drawRectangleOutline for outline?
+    gfx["drawRectangle"] = [graphics](float x, float y, float w, float h) {
+        graphics->DrawRect(x, y, w, h, s_CurrentColor);
+    };
+
+    // Draw textured sprite
     // Draw textured sprite
     gfx["drawSprite"] = sol::overload(
       // Draw with texture ID at position
       [graphics](uint32_t texID, float x, float y) {
-          auto* batch = graphics->renderer->GetBatchRenderer();
-          batch->DrawQuad(glm::vec2(x, y), glm::vec2(64, 64), texID, s_CurrentColor);
+          // Assume 64x64 default size. DrawTexturedQuad expects center position.
+          graphics->DrawTexturedQuad(x, y, 64.0f, 64.0f, 0.0f, texID, s_CurrentColor);
       },
       // Draw with texture ID, position, and size
       [graphics](uint32_t texID, float x, float y, float w, float h) {
-          auto* batch = graphics->renderer->GetBatchRenderer();
-          batch->DrawQuad(glm::vec2(x, y), glm::vec2(w, h), texID, s_CurrentColor);
+          graphics->DrawTexturedQuad(x, y, w, h, 0.0f, texID, s_CurrentColor);
       },
       // Draw with texture ID, position, size, and rotation
       [graphics](uint32_t texID, float x, float y, float w, float h, float rotation) {
-          auto* batch = graphics->renderer->GetBatchRenderer();
-          batch->DrawRotatedQuad(glm::vec2(x, y), glm::vec2(w, h), rotation, texID, s_CurrentColor);
+          graphics->DrawTexturedQuad(x, y, w, h, rotation, texID, s_CurrentColor);
       }
     );
 
     // ===== Text Rendering =====
 
-    // ===== Text Rendering =====
 
     // Load a font (returns FontID)
     gfx["loadFont"] = [graphics](const std::string& path, float size) -> FontID {
@@ -112,19 +120,6 @@ void BindGraphicsAPI(sol::state& lua, GraphicsServer* graphics) {
         return graphics->GetFontLineHeight(fontID, scale);
     };
 
-    // Begin/End 2D scene (for manual control)
-    gfx["begin2D"] = [graphics]() {
-        auto* batch = graphics->renderer->GetBatchRenderer();
-        // Use orthographic projection matching screen size
-        auto size = Window::Get()->GetSize();
-        glm::mat4 proj = glm::ortho(0.0f, (float)size.width, (float)size.height, 0.0f, -1.0f, 1.0f);
-        batch->BeginScene(proj);
-    };
-
-    gfx["end2D"] = [graphics]() {
-        auto* batch = graphics->renderer->GetBatchRenderer();
-        batch->EndScene();
-    };
 
     // ===== CameraComponent usertype =====
     lua.new_usertype<CameraComponent>(

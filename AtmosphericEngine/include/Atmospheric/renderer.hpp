@@ -189,6 +189,11 @@ public:
         return _hudQueue;
     }
 
+    void SubmitCanvasCommand(const UICommand& cmd);
+    auto& GetCanvasQueue() {
+        return _canvasQueue;
+    }
+
 private:
     std::vector<RenderCommand> _commandList;
 
@@ -197,7 +202,8 @@ private:
     std::vector<SortableCommand> _afterOpaqueQueue;// For raymarching voxel chunks, GPU particles
     std::vector<SortableCommand> _transparentQueue;// For particles, world UI
     std::vector<SortableCommand> _gizmoQueue;// For world debug UI
-    std::vector<UICommand> _hudQueue;// For HUD
+    std::vector<UICommand> _hudQueue;// For HUD (RmlUi)
+    std::vector<UICommand> _canvasQueue;// For immediate mode canvas (Lua)
 
     std::unique_ptr<RenderPipeline> _pipeline;// TODO: support forward and deferred
     RenderPath _currRenderPath = RenderPath::Forward;

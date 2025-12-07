@@ -208,6 +208,7 @@ void Renderer::RenderFrame(GraphicsServer* ctx, float dt) {
     _pipeline->Render(ctx, *this);
 
     _hudQueue.clear();
+    _canvasQueue.clear();
 }
 
 void Renderer::CheckFramebufferStatus(const std::string& prefix) {
@@ -412,7 +413,9 @@ void Renderer::CreateRTs(const RenderTargetProps& props) {
     glBindTexture(GL_TEXTURE_2D, msaaResolveDepthTexture);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, props.width, props.height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+    glTexImage2D(
+      GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, props.width, props.height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL
+    );
 
     glBindFramebuffer(GL_FRAMEBUFFER, msaaResolveFBO);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, msaaResolveTexture, 0);
@@ -1109,7 +1112,7 @@ void MSAAResolvePass::Execute(GraphicsServer* ctx, Renderer& renderer) {
     renderer.CheckErrors("MSAA resolve pass");
 }
 
-// ===== WorldCanvasPass: World sprites with depth testing =====
+// WorldCanvasPass: World sprites with depth testing
 void WorldCanvasPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
     ZoneScopedN("WorldCanvasPass");
 
@@ -1146,15 +1149,14 @@ void WorldCanvasPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
 
     // Sort by layer first, then by distance (back to front for transparency)
     glm::vec3 camPos = camera->GetEyePosition();
-    std::sort(worldDrawables.begin(), worldDrawables.end(),
-        [&camPos](CanvasDrawable* a, CanvasDrawable* b) {
-            if (a->GetLayer() != b->GetLayer()) {
-                return a->GetLayer() < b->GetLayer();
-            }
-            float distA = glm::length(a->gameObject->GetPosition() - camPos);
-            float distB = glm::length(b->gameObject->GetPosition() - camPos);
-            return distA > distB;// Back to front
-        });
+    std::sort(worldDrawables.begin(), worldDrawables.end(), [&camPos](CanvasDrawable* a, CanvasDrawable* b) {
+        if (a->GetLayer() != b->GetLayer()) {
+            return a->GetLayer() < b->GetLayer();
+        }
+        float distA = glm::length(a->gameObject->GetPosition() - camPos);
+        float distB = glm::length(b->gameObject->GetPosition() - camPos);
+        return distA > distB;// Back to front
+    });
 
     renderer.GetBatchRenderer()->BeginBatch(viewProj);
     for (auto* drawable : worldDrawables) {
@@ -1170,20 +1172,19 @@ void WorldCanvasPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
     renderer.CheckErrors("WorldCanvas pass");
 }
 
-// ===== CanvasPass: Pure 2D sprites (screen-space, no depth testing) =====
+// CanvasPass: Pure 2D sprites (no depth testing)
 void CanvasPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
     ZoneScopedN("CanvasPass");
 
-    // Filter LAYER_WORLD_2D sprites only
     std::vector<CanvasDrawable*> drawables2D;
     for (auto* drawable : ctx->canvasDrawables) {
         if (!drawable->gameObject->isActive) continue;
-        if (drawable->GetLayer() == CanvasLayer::LAYER_WORLD_2D) {
+        if (drawable->GetLayer() < CanvasLayer::LAYER_UI_BACK) {
             drawables2D.push_back(drawable);
         }
     }
 
-    if (drawables2D.empty()) return;
+    if (drawables2D.empty() && renderer.GetCanvasQueue().empty()) return;
 
     auto [width, height] = Window::Get()->GetFramebufferSize();
     glViewport(0, 0, width, height);
@@ -1197,15 +1198,29 @@ void CanvasPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 #endif
 
-    // Screen-space ortho projection (top-left origin, pixels)
-    glm::mat4 screenProj = glm::ortho(0.0f, (float)width, (float)height, 0.0f, -1.0f, 1.0f);
+    glm::mat4 worldViewProj;
+    CameraComponent* camera = ctx->GetMainCamera();
+    if (camera && camera->IsOrthographic()) {
+        // NOTES: by default, 2D sprites are rendered with a world space orthographic camera
+        worldViewProj = camera->GetProjectionMatrix() * camera->GetViewMatrix();
+    } else {
+        // Fallback or perspective camera handling for 2D?
+        // For now, if perspective, we might just use screen space or a default ortho.
+        // Let's assume default ortho for safety if no 2D camera is set.
+        worldViewProj = glm::ortho(0.0f, (float)width, (float)height, 0.0f, -1.0f, 1.0f);
+    }
 
-    // Render 2D sprites (no sorting needed for single layer, but sort by z for sub-ordering)
-    renderer.GetBatchRenderer()->BeginBatch(screenProj);
-    for (auto* drawable : drawables2D) {
+    renderer.GetBatchRenderer()->BeginBatch(worldViewProj);
+    for (auto drawable : drawables2D) {
+        if (!drawable->gameObject->isActive) continue;
         drawable->Draw(renderer.GetBatchRenderer());
     }
+    for (const auto& cmd : renderer.GetCanvasQueue()) {
+        renderer.GetBatchRenderer()->DrawGeometry(cmd.vertices, cmd.indices, cmd.textureID, cmd.transform);
+    }
     renderer.GetBatchRenderer()->EndBatch();
+
+    // TODO: LAYER_UI_BACK is no longer used and can be removed
 
     glDisable(GL_BLEND);
     glEnable(GL_DEPTH_TEST);
@@ -1247,6 +1262,10 @@ void PostProcessPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
 
 void Renderer::SubmitUICommand(const UICommand& cmd) {
     _hudQueue.push_back(cmd);
+}
+
+void Renderer::SubmitCanvasCommand(const UICommand& cmd) {
+    _canvasQueue.push_back(cmd);
 }
 
 void UIPass::Execute(GraphicsServer* ctx, Renderer& renderer) {

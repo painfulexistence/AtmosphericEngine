@@ -24,13 +24,7 @@ class CSBDemo : public Application {
             mainCamera->Yaw(-glm::half_pi<float>());
         }
 
-        // Try to load a scene file
-        SceneLoadConfig config;
-        config.basePath = "assets/";
-        config.defaultLayer = CanvasLayer::LAYER_WORLD;
-
-        loadedScene = sceneLoader->Load("assets/scenes/test_scene.csb", config);
-
+        loadedScene = sceneLoader->Load("assets/scenes/test.csb", glm::vec3(0.0f), CanvasLayer::LAYER_WORLD);
         if (loadedScene.success) {
             console.Info(fmt::format("CSB loaded successfully! {} nodes created", loadedScene.allNodes.size()));
         } else {
@@ -274,11 +268,6 @@ class CSBDemo : public Application {
         // Draw origin marker
         drawList->AddCircleFilled(ImVec2(0, 600), 5, IM_COL32(255, 255, 0, 255));
         drawList->AddText(ImVec2(8, 600 - 18), IM_COL32(255, 255, 0, 255), "Origin(0,0)");
-
-        // Draw pivot test point marker (200, 300)
-        int pivotTestScreenY = 600 - 300;
-        drawList->AddCircleFilled(ImVec2(200, pivotTestScreenY), 4, IM_COL32(255, 0, 255, 255));
-        drawList->AddText(ImVec2(205, pivotTestScreenY - 15), IM_COL32(255, 0, 255, 255), "PivotTest(200,300)");
 
         ImGui::End();
     }

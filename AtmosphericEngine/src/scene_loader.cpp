@@ -6,16 +6,27 @@
 
 #include "Scene_generated.h"
 
+#include <SDL3/SDL_filesystem.h>
 #include <fstream>
 #include <spdlog/spdlog.h>
 
 SceneLoader::SceneLoader(Application* app) : _app(app) {
 }
 
-SceneLoadResult SceneLoader::Load(const std::string& path, const SceneLoadConfig& config) {
-    SceneLoadResult result;
+SceneLoadResult SceneLoader::Load(const std::string& filename, const glm::vec3& rootPosition, CanvasLayer layer) {
+    SceneLoadConfig config;
+    config.overrideRootPosition = true;
+    config.rootPosition = rootPosition;
+    config.defaultLayer = layer;
+    // basePath will be inferred in the main Load function
 
-    // Read file
+    return Load(filename, config);
+}
+
+SceneLoadResult SceneLoader::Load(const std::string& filename, const SceneLoadConfig& config) {
+    const std::string path = SDL_GetBasePath() + filename;
+
+    SceneLoadResult result;
     std::ifstream file(path, std::ios::binary | std::ios::ate);
     if (!file.is_open()) {
         result.error = "Failed to open file: " + path;
@@ -74,8 +85,12 @@ SceneLoadResult SceneLoader::LoadFromBuffer(const uint8_t* buffer, size_t size, 
         for (auto tex : *csb->textures()) {
             if (tex) {
                 std::string texPath = config.basePath + tex->c_str();
-                AssetManager::Get().CreateTexture(texPath);
-                spdlog::debug("SceneLoader: Loaded texture {}", texPath);
+                try {
+                    AssetManager::Get().CreateTexture(texPath);
+                    spdlog::debug("SceneLoader: Loaded texture {}", texPath);
+                } catch (const std::exception& e) {
+                    spdlog::warn("SceneLoader: Failed to preload texture '{}': {}", texPath, e.what());
+                }
             }
         }
     }
@@ -85,8 +100,12 @@ SceneLoadResult SceneLoader::LoadFromBuffer(const uint8_t* buffer, size_t size, 
         for (auto tex : *csb->texturePngs()) {
             if (tex) {
                 std::string texPath = config.basePath + tex->c_str();
-                AssetManager::Get().CreateTexture(texPath);
-                spdlog::debug("SceneLoader: Loaded PNG texture {}", texPath);
+                try {
+                    AssetManager::Get().CreateTexture(texPath);
+                    spdlog::debug("SceneLoader: Loaded PNG texture {}", texPath);
+                } catch (const std::exception& e) {
+                    spdlog::warn("SceneLoader: Failed to preload PNG texture '{}': {}", texPath, e.what());
+                }
             }
         }
     }
@@ -95,6 +114,11 @@ SceneLoadResult SceneLoader::LoadFromBuffer(const uint8_t* buffer, size_t size, 
     if (csb->nodeTree()) {
         result.root = ParseNodeTree(csb->nodeTree(), config, result, nullptr);
         result.success = (result.root != nullptr);
+
+        // Apply root position override if requested
+        if (result.success && config.overrideRootPosition) {
+            result.root->SetPosition(config.rootPosition);
+        }
     } else {
         result.error = "CSB has no node tree";
         spdlog::warn("SceneLoader: {}", result.error);
@@ -108,8 +132,7 @@ SceneLoadResult SceneLoader::LoadFromBuffer(const uint8_t* buffer, size_t size, 
 GameObject* SceneLoader::ParseNodeTree(
   const flatbuffers::NodeTree* nodeTree, const SceneLoadConfig& config, SceneLoadResult& result, GameObject* parent
 ) {
-    if (!nodeTree)
-        return nullptr;
+    if (!nodeTree) return nullptr;
 
     std::string classname = nodeTree->classname() ? nodeTree->classname()->c_str() : "Node";
     GameObject* go = nullptr;
@@ -188,6 +211,41 @@ GameObject* SceneLoader::ParseNodeTree(
             props.zOrder = widgetOptions->zOrder();
             go->AddComponent<SpriteComponent>(props);
         }
+    } else if (classname == "Text") {
+        spdlog::warn(
+          "SceneLoader: Text node '{}' not fully supported, visualizing as placeholder sprite",
+          widgetOptions && widgetOptions->name() ? widgetOptions->name()->c_str() : "Text"
+        );
+
+        go = CreateNode(widgetOptions, config);
+        if (widgetOptions && go) {
+            SpriteProps props;
+            if (widgetOptions->size()) {
+                props.size = glm::vec2(widgetOptions->size()->width(), widgetOptions->size()->height());
+            }
+            if (widgetOptions->anchorPoint()) {
+                props.pivot = glm::vec2(widgetOptions->anchorPoint()->scaleX(), widgetOptions->anchorPoint()->scaleY());
+            }
+            if (widgetOptions->color()) {
+                props.color = glm::vec4(
+                  widgetOptions->color()->r() / 255.0f,
+                  widgetOptions->color()->g() / 255.0f,
+                  widgetOptions->color()->b() / 255.0f,
+                  widgetOptions->alpha() / 255.0f * 0.5f// Semi-transparent
+                );
+            } else {
+                props.color = glm::vec4(1.0f, 1.0f, 1.0f, 0.5f);
+            }
+
+            props.layer = config.defaultLayer;
+            props.flipX = widgetOptions->flipX();
+            props.flipY = widgetOptions->flipY();
+            props.zOrder = widgetOptions->zOrder();
+
+            // Allow textureID to be 0 (no texture)
+
+            go->AddComponent<SpriteComponent>(props);
+        }
     } else if (classname == "Node" || classname == "SingleNode") {
         go = CreateNode(widgetOptions, config);
     } else {
@@ -255,8 +313,7 @@ GameObject* SceneLoader::CreateNode(const flatbuffers::WidgetOptions* options, c
 
 GameObject* SceneLoader::CreateSprite(const flatbuffers::SpriteOptions* options, const SceneLoadConfig& config) {
     auto go = _app->CreateGameObject();
-    if (!go || !options)
-        return go;
+    if (!go || !options) return go;
 
     SpriteProps props;
 
@@ -297,8 +354,7 @@ GameObject* SceneLoader::CreateSprite(const flatbuffers::SpriteOptions* options,
 
 GameObject* SceneLoader::CreateImageView(const flatbuffers::ImageViewOptions* options, const SceneLoadConfig& config) {
     auto go = _app->CreateGameObject();
-    if (!go || !options)
-        return go;
+    if (!go || !options) return go;
 
     SpriteProps props;
 
@@ -336,15 +392,15 @@ GameObject* SceneLoader::CreateImageView(const flatbuffers::ImageViewOptions* op
     return go;
 }
 
-GameObject* SceneLoader::CreateSingleNode(const flatbuffers::SingleNodeOptions* options, const SceneLoadConfig& config) {
+GameObject*
+  SceneLoader::CreateSingleNode(const flatbuffers::SingleNodeOptions* options, const SceneLoadConfig& config) {
     return CreateNode(options ? options->nodeOptions() : nullptr, config);
 }
 
 void SceneLoader::ApplyWidgetOptions(
   GameObject* go, const flatbuffers::WidgetOptions* options, const SceneLoadConfig& config
 ) {
-    if (!go || !options)
-        return;
+    if (!go || !options) return;
 
     // Set name
     if (options->name()) {
@@ -388,15 +444,19 @@ int SceneLoader::ResolveTexture(
         spdlog::warn("SceneLoader: Plist sprite sheets not yet supported, loading as regular texture: {}", path);
     }
 
-    // Try to get existing texture or create new one
-    GLuint texID = AssetManager::Get().GetTexture(fullPath);
-    if (texID == 0) {
-        texID = AssetManager::Get().CreateTexture(fullPath);
+    try {
+        // Try to get existing texture or create new one
+        GLuint texID = AssetManager::Get().GetTexture(fullPath);
+        if (texID == 0) {
+            texID = AssetManager::Get().CreateTexture(fullPath);
+        }
+        return static_cast<int>(texID);
+    } catch (const std::exception& e) {
+        spdlog::warn("SceneLoader: Failed to load texture '{}': {}", fullPath, e.what());
+        return 0;// Return invalid texture ID
     }
-
-    return static_cast<int>(texID);
 }
 
 std::vector<std::string> SceneLoader::GetSupportedNodeTypes() {
-    return {"Node", "SingleNode", "Sprite", "ImageView"};
+    return { "Node", "SingleNode", "Sprite", "ImageView" };
 }

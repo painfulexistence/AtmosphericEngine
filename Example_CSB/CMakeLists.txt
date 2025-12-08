@@ -46,14 +46,14 @@ add_custom_command(
     TARGET ${GAME_NAME} POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
     ${CMAKE_SOURCE_DIR}/AtmosphericEngine/default_assets
-    ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${GAME_NAME}/assets
+    $<TARGET_FILE_DIR:${GAME_NAME}>/assets
 )
 
 if(EXISTS ${GAME_ASSETS_DIR})
     add_custom_target(copy_${GAME_NAME}_assets
         COMMAND ${CMAKE_COMMAND} -E copy_directory
             ${GAME_ASSETS_DIR}
-            ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${GAME_NAME}/assets
+            $<TARGET_FILE_DIR:${GAME_NAME}>/assets
     )
     add_dependencies(${GAME_NAME} copy_${GAME_NAME}_assets)
 endif()

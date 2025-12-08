@@ -9,12 +9,12 @@ class Application;
 class GameObject;
 
 namespace flatbuffers {
-struct CSParseBinary;
-struct NodeTree;
-struct WidgetOptions;
-struct SpriteOptions;
-struct ImageViewOptions;
-struct SingleNodeOptions;
+    struct CSParseBinary;
+    struct NodeTree;
+    struct WidgetOptions;
+    struct SpriteOptions;
+    struct ImageViewOptions;
+    struct SingleNodeOptions;
 }// namespace flatbuffers
 
 // Result of loading a scene file
@@ -38,6 +38,10 @@ struct SceneLoadConfig {
     // Return true if handled, false to use default handling
     std::function<bool(GameObject*, const std::string& classname, const flatbuffers::NodeTree*)> customNodeHandler =
       nullptr;
+
+    // Optional: Override the root node's position
+    bool overrideRootPosition = false;
+    glm::vec3 rootPosition = glm::vec3(0.0f);
 };
 
 class SceneLoader {
@@ -46,7 +50,12 @@ public:
     ~SceneLoader() = default;
 
     // Load a scene file (.csb format) and create GameObjects
-    SceneLoadResult Load(const std::string& path, const SceneLoadConfig& config = {});
+    // Advanced version using config struct
+    SceneLoadResult Load(const std::string& path, const SceneLoadConfig& config);
+
+    // Convenience version: Load with specific position and layer (automatically infers base path)
+    SceneLoadResult
+      Load(const std::string& path, const glm::vec3& rootPosition, CanvasLayer layer = CanvasLayer::LAYER_WORLD);
 
     // Load from memory buffer
     SceneLoadResult LoadFromBuffer(const uint8_t* buffer, size_t size, const SceneLoadConfig& config = {});
@@ -72,5 +81,7 @@ private:
     void ApplyWidgetOptions(GameObject* go, const flatbuffers::WidgetOptions* options, const SceneLoadConfig& config);
 
     // Resolve texture path
-    int ResolveTexture(const std::string& path, const std::string& plistFile, int resourceType, const SceneLoadConfig& config);
+    int ResolveTexture(
+      const std::string& path, const std::string& plistFile, int resourceType, const SceneLoadConfig& config
+    );
 };

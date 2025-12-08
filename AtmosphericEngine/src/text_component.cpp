@@ -1,6 +1,7 @@
 #include "text_component.hpp"
 #include "application.hpp"
 #include "batch_renderer_2d.hpp"
+#include "console.hpp"
 #include "game_object.hpp"
 #include "graphics_server.hpp"
 
@@ -23,14 +24,40 @@ std::string TextComponent::GetName() const {
 }
 
 void TextComponent::OnAttach() {
+    Console::Get()->Info(fmt::format("TextComponent: Attaching with text='{}', fontPath='{}'", _text, _fontPath));
     auto* graphics = gameObject->GetApp()->GetGraphicsServer();
     graphics->RegisterCanvasDrawable(this);
 
-    // If fontPath is provided and fontID is not set, load the font
-    if (_fontID == 0 && !_fontPath.empty()) {
+    // If fontPath is empty, use a default fallback
+    if (_fontPath.empty()) {
+        _fontPath = "assets/fonts/Arial Black.ttf";
+        Console::Get()->Warn(fmt::format("TextComponent: No font specified, falling back to default '{}'", _fontPath));
+    }
+
+    // If fontID is not set, load the font
+    if (_fontID == 0) {
         // Load at a base size for quality (we'll scale when rendering)
         _fontBaseSize = 48.0f;
         _fontID = graphics->LoadFont(_fontPath, _fontBaseSize);
+
+        if (_fontID == 0) {
+            Console::Get()->Error(
+              fmt::format("TextComponent: Failed to load font '{}'. Attempting to load default font.", _fontPath)
+            );
+            // Fallback to a known good default font
+            std::string defaultFallbackFontPath = "assets/fonts/NotoSans-SemiBold.ttf";
+            _fontID = graphics->LoadFont(defaultFallbackFontPath, _fontBaseSize);
+            if (_fontID == 0) {
+                Console::Get()->Error(fmt::format(
+                  "TextComponent: Failed to load default font '{}'. Text will not be rendered.", defaultFallbackFontPath
+                ));
+            } else {
+                Console::Get()->Warn(fmt::format(
+                  "TextComponent: Successfully loaded default font '{}' as fallback.", defaultFallbackFontPath
+                ));
+                _fontPath = defaultFallbackFontPath;// Update _fontPath to reflect the loaded font
+            }
+        }
     }
 }
 
@@ -39,8 +66,21 @@ void TextComponent::OnDetach() {
     // Font cleanup should be handled by the user or FontManager
 }
 
+// ...
+
 void TextComponent::Draw(BatchRenderer2D* renderer) {
-    if (_text.empty() || _fontID == 0) return;
+    if (_text.empty()) return;
+
+    if (_fontID == 0) {
+        static bool loggedError = false;
+        if (!loggedError) {
+            Console::Get()->Error(
+              fmt::format("TextComponent: Cannot draw text '{}' because font ID is 0 (font not loaded)", _text)
+            );
+            loggedError = true;
+        }
+        return;
+    }
     if (!gameObject->isActive) return;
 
     auto* graphics = GraphicsServer::Get();

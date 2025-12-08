@@ -14,10 +14,10 @@ enum class TextVAlignment { Top = 0, Center = 1, Bottom = 2 };
 
 struct TextProps {
     std::string text = "";
-    std::string fontPath = "";              // Path to font file (for auto-loading)
-    FontID fontID = 0;                      // Pre-loaded font ID (takes priority if non-zero)
-    float fontSize = 24.0f;                 // Desired font size
-    glm::vec2 size = glm::vec2(100.0f);     // Bounding box size
+    std::string fontPath = "";// Path to font file (for auto-loading)
+    FontID fontID = 0;// Pre-loaded font ID (takes priority if non-zero)
+    float fontSize = 24.0f;// Desired font size
+    glm::vec2 size = glm::vec2(100.0f);// Bounding box size
     glm::vec2 pivot = glm::vec2(0.0f, 0.0f);// Default to top-left
     glm::vec4 color = glm::vec4(1.0f);
     TextHAlignment hAlign = TextHAlignment::Left;
@@ -45,6 +45,9 @@ public:
     // Getters
     const std::string& GetText() const {
         return _text;
+    }
+    const std::string& GetFontPath() const {
+        return _fontPath;
     }
     FontID GetFontID() const {
         return _fontID;

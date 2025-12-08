@@ -148,8 +148,13 @@ void SceneLoader::ParseAnimations(const flatbuffers::NodeAction* actions, SceneL
 
     // Use configured frame rate (Unity typically uses 30fps, Cocos uses 60fps)
     float frameRate = config.animationFrameRate;
-    spdlog::info("SceneLoader: Parsing {} timelines at {}fps (loop={})...",
-                 actions->timeLines()->size(), frameRate, config.loopAnimations);
+
+    // Read speed from CSB (1.0 = normal speed, 2.0 = double speed)
+    float speed = actions->speed();
+    if (speed <= 0.0f) speed = 1.0f;// Fallback to normal speed if invalid
+
+    spdlog::info("SceneLoader: Parsing {} timelines at {}fps, speed={}, loop={}",
+                 actions->timeLines()->size(), frameRate, speed, config.loopAnimations);
 
     for (auto timeline : *actions->timeLines()) {
         if (!timeline || !timeline->frames() || timeline->frames()->size() == 0) {
@@ -193,7 +198,7 @@ void SceneLoader::ParseAnimations(const flatbuffers::NodeAction* actions, SceneL
             for (auto frame : *timeline->frames()) {
                 if (frame->pointFrame() && frame->pointFrame()->position()) {
                     int currentFrameIndex = frame->pointFrame()->frameIndex();
-                    float duration = (currentFrameIndex - lastFrameIndex) / frameRate;
+                    float duration = (currentFrameIndex - lastFrameIndex) / frameRate / speed;
                     // Prevent negative duration if frames are unordered (shouldn't happen in CSB)
                     if (duration < 0) duration = 0;
 
@@ -206,7 +211,7 @@ void SceneLoader::ParseAnimations(const flatbuffers::NodeAction* actions, SceneL
             for (auto frame : *timeline->frames()) {
                 if (frame->scaleFrame() && frame->scaleFrame()->scale()) {
                     int currentFrameIndex = frame->scaleFrame()->frameIndex();
-                    float duration = (currentFrameIndex - lastFrameIndex) / frameRate;
+                    float duration = (currentFrameIndex - lastFrameIndex) / frameRate / speed;
                     if (duration < 0) duration = 0;
 
                     lastFrameIndex = currentFrameIndex;
@@ -226,7 +231,7 @@ void SceneLoader::ParseAnimations(const flatbuffers::NodeAction* actions, SceneL
                     currentFrameIndex = frame->scaleFrame()->frameIndex();
                 }
 
-                float duration = (currentFrameIndex - lastFrameIndex) / frameRate;
+                float duration = (currentFrameIndex - lastFrameIndex) / frameRate / speed;
                 if (duration < 0) duration = 0;
                 lastFrameIndex = currentFrameIndex;
 

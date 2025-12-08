@@ -548,36 +548,114 @@ public class CSBExporter : EditorWindow
     private Offset<LayoutComponentTable> BuildLayoutComponent(FlatBufferBuilder builder,
         GameObject go, RectTransform rectTransform)
     {
-        var horizontalEdgeOffset = builder.CreateString("");
-        var verticalEdgeOffset = builder.CreateString("");
-
+        // Default values
+        string horizontalEdge = "";
+        string verticalEdge = "";
         float posXPercent = 0, posYPercent = 0;
         float sizeXPercent = 0, sizeYPercent = 0;
+        bool posXPercentEnabled = false, posYPercentEnabled = false;
+        bool sizeXPercentEnabled = false, sizeYPercentEnabled = false;
+        bool stretchHorizontal = false, stretchVertical = false;
+        float leftMargin = 0, rightMargin = 0, topMargin = 0, bottomMargin = 0;
 
         if (rectTransform != null)
         {
-            // Calculate percent positions based on anchors
-            posXPercent = rectTransform.anchorMin.x;
-            posYPercent = rectTransform.anchorMin.y;
+            var anchorMin = rectTransform.anchorMin;
+            var anchorMax = rectTransform.anchorMax;
+            var offsetMin = rectTransform.offsetMin;  // Left-Bottom offset from anchors
+            var offsetMax = rectTransform.offsetMax;  // Right-Top offset from anchors
+
+            // Horizontal Edge detection
+            // Unity: anchorMin.x == anchorMax.x means fixed width
+            // Unity: anchorMin.x != anchorMax.x means stretch horizontally
+            if (Mathf.Approximately(anchorMin.x, anchorMax.x))
+            {
+                // Fixed horizontal position
+                if (anchorMin.x <= 0.01f)
+                {
+                    horizontalEdge = "LeftEdge";
+                    leftMargin = offsetMin.x;
+                }
+                else if (anchorMin.x >= 0.99f)
+                {
+                    horizontalEdge = "RightEdge";
+                    rightMargin = -offsetMax.x;
+                }
+                else
+                {
+                    // Center or percent position
+                    posXPercent = anchorMin.x;
+                    posXPercentEnabled = true;
+                }
+            }
+            else
+            {
+                // Stretch horizontally (BothEdge)
+                horizontalEdge = "BothEdge";
+                stretchHorizontal = true;
+                leftMargin = offsetMin.x;
+                rightMargin = -offsetMax.x;
+
+                // Size percent = anchor range
+                sizeXPercent = anchorMax.x - anchorMin.x;
+                sizeXPercentEnabled = sizeXPercent > 0.01f && sizeXPercent < 0.99f;
+            }
+
+            // Vertical Edge detection
+            if (Mathf.Approximately(anchorMin.y, anchorMax.y))
+            {
+                // Fixed vertical position
+                if (anchorMin.y <= 0.01f)
+                {
+                    verticalEdge = "BottomEdge";
+                    bottomMargin = offsetMin.y;
+                }
+                else if (anchorMin.y >= 0.99f)
+                {
+                    verticalEdge = "TopEdge";
+                    topMargin = -offsetMax.y;
+                }
+                else
+                {
+                    // Center or percent position
+                    posYPercent = anchorMin.y;
+                    posYPercentEnabled = true;
+                }
+            }
+            else
+            {
+                // Stretch vertically (BothEdge)
+                verticalEdge = "BothEdge";
+                stretchVertical = true;
+                bottomMargin = offsetMin.y;
+                topMargin = -offsetMax.y;
+
+                // Size percent = anchor range
+                sizeYPercent = anchorMax.y - anchorMin.y;
+                sizeYPercentEnabled = sizeYPercent > 0.01f && sizeYPercent < 0.99f;
+            }
         }
 
+        var horizontalEdgeOffset = builder.CreateString(horizontalEdge);
+        var verticalEdgeOffset = builder.CreateString(verticalEdge);
+
         LayoutComponentTable.StartLayoutComponentTable(builder);
-        LayoutComponentTable.AddPositionXPercentEnabled(builder, false);
-        LayoutComponentTable.AddPositionYPercentEnabled(builder, false);
+        LayoutComponentTable.AddPositionXPercentEnabled(builder, posXPercentEnabled);
+        LayoutComponentTable.AddPositionYPercentEnabled(builder, posYPercentEnabled);
         LayoutComponentTable.AddPositionXPercent(builder, posXPercent);
         LayoutComponentTable.AddPositionYPercent(builder, posYPercent);
-        LayoutComponentTable.AddSizeXPercentEnable(builder, false);
-        LayoutComponentTable.AddSizeYPercentEnable(builder, false);
+        LayoutComponentTable.AddSizeXPercentEnable(builder, sizeXPercentEnabled);
+        LayoutComponentTable.AddSizeYPercentEnable(builder, sizeYPercentEnabled);
         LayoutComponentTable.AddSizeXPercent(builder, sizeXPercent);
         LayoutComponentTable.AddSizeYPercent(builder, sizeYPercent);
-        LayoutComponentTable.AddStretchHorizontalEnabled(builder, false);
-        LayoutComponentTable.AddStretchVerticalEnabled(builder, false);
+        LayoutComponentTable.AddStretchHorizontalEnabled(builder, stretchHorizontal);
+        LayoutComponentTable.AddStretchVerticalEnabled(builder, stretchVertical);
         LayoutComponentTable.AddHorizontalEdge(builder, horizontalEdgeOffset);
         LayoutComponentTable.AddVerticalEdge(builder, verticalEdgeOffset);
-        LayoutComponentTable.AddLeftMargin(builder, 0);
-        LayoutComponentTable.AddRightMargin(builder, 0);
-        LayoutComponentTable.AddTopMargin(builder, 0);
-        LayoutComponentTable.AddBottomMargin(builder, 0);
+        LayoutComponentTable.AddLeftMargin(builder, leftMargin);
+        LayoutComponentTable.AddRightMargin(builder, rightMargin);
+        LayoutComponentTable.AddTopMargin(builder, topMargin);
+        LayoutComponentTable.AddBottomMargin(builder, bottomMargin);
 
         return LayoutComponentTable.EndLayoutComponentTable(builder);
     }
@@ -889,12 +967,30 @@ public class CSBExporter : EditorWindow
         var bgImage = go.GetComponent<Image>();
         var bgDataOffset = BuildResourceData(builder, bgImage?.sprite?.texture, context);
 
-        var bgColor = flatbuffers.Color.CreateColor(builder, 255, 255, 255, 255);
-        var bgStartColor = flatbuffers.Color.CreateColor(builder, 255, 255, 255, 255);
-        var bgEndColor = flatbuffers.Color.CreateColor(builder, 255, 255, 255, 255);
+        // Use helper for background colors
+        var bgColorData = GetBackgroundColorData(bgImage);
+        var bgColor = flatbuffers.Color.CreateColor(builder,
+            (byte)(bgColorData.color.a * 255),
+            (byte)(bgColorData.color.r * 255),
+            (byte)(bgColorData.color.g * 255),
+            (byte)(bgColorData.color.b * 255));
+        var bgStartColor = bgColor;
+        var bgEndColor = bgColor;
         var colorVector = ColorVector.CreateColorVector(builder, 0, -0.5f);
+
+        // Scale9 support
         var capInsets = CapInsets.CreateCapInsets(builder, 0, 0, 0, 0);
-        var scale9Size = FlatSize.CreateFlatSize(builder, 100, 100);
+        var rectTransform = go.GetComponent<RectTransform>();
+        var scale9Size = FlatSize.CreateFlatSize(builder,
+            rectTransform?.sizeDelta.x ?? 100,
+            rectTransform?.sizeDelta.y ?? 100);
+
+        if (bgImage != null && bgImage.type == Image.Type.Sliced && bgImage.sprite != null)
+        {
+            var border = bgImage.sprite.border;
+            capInsets = CapInsets.CreateCapInsets(builder, border.x, border.y, border.z, border.w);
+        }
+
         var innerSize = FlatSize.CreateFlatSize(builder,
             scrollRect.content?.sizeDelta.x ?? 100,
             scrollRect.content?.sizeDelta.y ?? 100);
@@ -911,12 +1007,12 @@ public class CSBExporter : EditorWindow
         ScrollViewOptions.AddBgColor(builder, bgColor);
         ScrollViewOptions.AddBgStartColor(builder, bgStartColor);
         ScrollViewOptions.AddBgEndColor(builder, bgEndColor);
-        ScrollViewOptions.AddColorType(builder, 0);
-        ScrollViewOptions.AddBgColorOpacity(builder, 255);
+        ScrollViewOptions.AddColorType(builder, bgColorData.colorType);
+        ScrollViewOptions.AddBgColorOpacity(builder, (byte)(bgColorData.color.a * 255));
         ScrollViewOptions.AddColorVector(builder, colorVector);
         ScrollViewOptions.AddCapInsets(builder, capInsets);
         ScrollViewOptions.AddScale9Size(builder, scale9Size);
-        ScrollViewOptions.AddBackGroundScale9Enabled(builder, false);
+        ScrollViewOptions.AddBackGroundScale9Enabled(builder, bgImage?.type == Image.Type.Sliced);
         ScrollViewOptions.AddInnerSize(builder, innerSize);
         ScrollViewOptions.AddDirection(builder, direction);
         ScrollViewOptions.AddBounceEnabled(builder, scrollRect.movementType == ScrollRect.MovementType.Elastic);
@@ -937,12 +1033,29 @@ public class CSBExporter : EditorWindow
         var image = go.GetComponent<Image>();
         var bgDataOffset = BuildResourceData(builder, image?.sprite?.texture, context);
 
-        var bgColor = flatbuffers.Color.CreateColor(builder, 255, 255, 255, 255);
-        var bgStartColor = flatbuffers.Color.CreateColor(builder, 255, 255, 255, 255);
-        var bgEndColor = flatbuffers.Color.CreateColor(builder, 255, 255, 255, 255);
+        // Extract actual colors from Image component
+        var bgColorData = GetBackgroundColorData(image);
+        var bgColor = flatbuffers.Color.CreateColor(builder,
+            (byte)(bgColorData.color.a * 255),
+            (byte)(bgColorData.color.r * 255),
+            (byte)(bgColorData.color.g * 255),
+            (byte)(bgColorData.color.b * 255));
+        var bgStartColor = bgColor; // Same as bgColor for solid
+        var bgEndColor = bgColor;
         var colorVector = ColorVector.CreateColorVector(builder, 0, -0.5f);
+
+        // Scale9 support
         var capInsets = CapInsets.CreateCapInsets(builder, 0, 0, 0, 0);
-        var scale9Size = FlatSize.CreateFlatSize(builder, 100, 100);
+        var rectTransform = go.GetComponent<RectTransform>();
+        var scale9Size = FlatSize.CreateFlatSize(builder,
+            rectTransform?.sizeDelta.x ?? 100,
+            rectTransform?.sizeDelta.y ?? 100);
+
+        if (image != null && image.type == Image.Type.Sliced && image.sprite != null)
+        {
+            var border = image.sprite.border;
+            capInsets = CapInsets.CreateCapInsets(builder, border.x, border.y, border.z, border.w);
+        }
 
         PanelOptions.StartPanelOptions(builder);
         PanelOptions.AddWidgetOptions(builder, widgetOffset);
@@ -951,8 +1064,8 @@ public class CSBExporter : EditorWindow
         PanelOptions.AddBgColor(builder, bgColor);
         PanelOptions.AddBgStartColor(builder, bgStartColor);
         PanelOptions.AddBgEndColor(builder, bgEndColor);
-        PanelOptions.AddColorType(builder, 0);
-        PanelOptions.AddBgColorOpacity(builder, 255);
+        PanelOptions.AddColorType(builder, bgColorData.colorType);
+        PanelOptions.AddBgColorOpacity(builder, (byte)(bgColorData.color.a * 255));
         PanelOptions.AddColorVector(builder, colorVector);
         PanelOptions.AddCapInsets(builder, capInsets);
         PanelOptions.AddScale9Size(builder, scale9Size);
@@ -964,6 +1077,35 @@ public class CSBExporter : EditorWindow
         return Options.EndOptions(builder);
     }
 
+    // Helper to extract background color data from Unity Image
+    private (UnityEngine.Color color, int colorType) GetBackgroundColorData(Image image)
+    {
+        if (image == null)
+        {
+            return (UnityEngine.Color.clear, 0); // colorType 0 = None
+        }
+
+        var color = image.color;
+
+        // Determine color type
+        // 0 = None (transparent), 1 = Solid color, 2 = Gradient (not directly supported in Unity Image)
+        int colorType;
+        if (color.a < 0.01f)
+        {
+            colorType = 0; // None/Transparent
+        }
+        else if (image.sprite == null)
+        {
+            colorType = 1; // Solid color (no image, just color)
+        }
+        else
+        {
+            colorType = 1; // Has image with color tint
+        }
+
+        return (color, colorType);
+    }
+
     private Offset<Options> BuildListViewOptions(FlatBufferBuilder builder, GameObject go,
         ScrollRect scrollRect, ExportContext context)
     {
@@ -972,12 +1114,30 @@ public class CSBExporter : EditorWindow
         var bgImage = go.GetComponent<Image>();
         var bgDataOffset = BuildResourceData(builder, bgImage?.sprite?.texture, context);
 
-        var bgColor = flatbuffers.Color.CreateColor(builder, 255, 255, 255, 255);
-        var bgStartColor = flatbuffers.Color.CreateColor(builder, 255, 255, 255, 255);
-        var bgEndColor = flatbuffers.Color.CreateColor(builder, 255, 255, 255, 255);
+        // Use helper for background colors
+        var bgColorData = GetBackgroundColorData(bgImage);
+        var bgColor = flatbuffers.Color.CreateColor(builder,
+            (byte)(bgColorData.color.a * 255),
+            (byte)(bgColorData.color.r * 255),
+            (byte)(bgColorData.color.g * 255),
+            (byte)(bgColorData.color.b * 255));
+        var bgStartColor = bgColor;
+        var bgEndColor = bgColor;
         var colorVector = ColorVector.CreateColorVector(builder, 0, -0.5f);
+
+        // Scale9 support
         var capInsets = CapInsets.CreateCapInsets(builder, 0, 0, 0, 0);
-        var scale9Size = FlatSize.CreateFlatSize(builder, 100, 100);
+        var rectTransform = go.GetComponent<RectTransform>();
+        var scale9Size = FlatSize.CreateFlatSize(builder,
+            rectTransform?.sizeDelta.x ?? 100,
+            rectTransform?.sizeDelta.y ?? 100);
+
+        if (bgImage != null && bgImage.type == Image.Type.Sliced && bgImage.sprite != null)
+        {
+            var border = bgImage.sprite.border;
+            capInsets = CapInsets.CreateCapInsets(builder, border.x, border.y, border.z, border.w);
+        }
+
         var innerSize = FlatSize.CreateFlatSize(builder,
             scrollRect?.content?.sizeDelta.x ?? 100,
             scrollRect?.content?.sizeDelta.y ?? 100);
@@ -1019,12 +1179,12 @@ public class CSBExporter : EditorWindow
         ListViewOptions.AddBgColor(builder, bgColor);
         ListViewOptions.AddBgStartColor(builder, bgStartColor);
         ListViewOptions.AddBgEndColor(builder, bgEndColor);
-        ListViewOptions.AddColorType(builder, 0);
-        ListViewOptions.AddBgColorOpacity(builder, 255);
+        ListViewOptions.AddColorType(builder, bgColorData.colorType);
+        ListViewOptions.AddBgColorOpacity(builder, (byte)(bgColorData.color.a * 255));
         ListViewOptions.AddColorVector(builder, colorVector);
         ListViewOptions.AddCapInsets(builder, capInsets);
         ListViewOptions.AddScale9Size(builder, scale9Size);
-        ListViewOptions.AddBackGroundScale9Enabled(builder, false);
+        ListViewOptions.AddBackGroundScale9Enabled(builder, bgImage?.type == Image.Type.Sliced);
         ListViewOptions.AddInnerSize(builder, innerSize);
         ListViewOptions.AddDirection(builder, direction);
         ListViewOptions.AddBounceEnabled(builder, scrollRect?.movementType == ScrollRect.MovementType.Elastic);
@@ -1047,12 +1207,29 @@ public class CSBExporter : EditorWindow
         var bgImage = go.GetComponent<Image>();
         var bgDataOffset = BuildResourceData(builder, bgImage?.sprite?.texture, context);
 
-        var bgColor = flatbuffers.Color.CreateColor(builder, 255, 255, 255, 255);
-        var bgStartColor = flatbuffers.Color.CreateColor(builder, 255, 255, 255, 255);
-        var bgEndColor = flatbuffers.Color.CreateColor(builder, 255, 255, 255, 255);
+        // Use helper for background colors
+        var bgColorData = GetBackgroundColorData(bgImage);
+        var bgColor = flatbuffers.Color.CreateColor(builder,
+            (byte)(bgColorData.color.a * 255),
+            (byte)(bgColorData.color.r * 255),
+            (byte)(bgColorData.color.g * 255),
+            (byte)(bgColorData.color.b * 255));
+        var bgStartColor = bgColor;
+        var bgEndColor = bgColor;
         var colorVector = ColorVector.CreateColorVector(builder, 0, -0.5f);
+
+        // Scale9 support
         var capInsets = CapInsets.CreateCapInsets(builder, 0, 0, 0, 0);
-        var scale9Size = FlatSize.CreateFlatSize(builder, 100, 100);
+        var rectTransform = go.GetComponent<RectTransform>();
+        var scale9Size = FlatSize.CreateFlatSize(builder,
+            rectTransform?.sizeDelta.x ?? 100,
+            rectTransform?.sizeDelta.y ?? 100);
+
+        if (bgImage != null && bgImage.type == Image.Type.Sliced && bgImage.sprite != null)
+        {
+            var border = bgImage.sprite.border;
+            capInsets = CapInsets.CreateCapInsets(builder, border.x, border.y, border.z, border.w);
+        }
 
         PageViewOptions.StartPageViewOptions(builder);
         PageViewOptions.AddWidgetOptions(builder, widgetOffset);
@@ -1061,12 +1238,12 @@ public class CSBExporter : EditorWindow
         PageViewOptions.AddBgColor(builder, bgColor);
         PageViewOptions.AddBgStartColor(builder, bgStartColor);
         PageViewOptions.AddBgEndColor(builder, bgEndColor);
-        PageViewOptions.AddColorType(builder, 0);
-        PageViewOptions.AddBgColorOpacity(builder, 255);
+        PageViewOptions.AddColorType(builder, bgColorData.colorType);
+        PageViewOptions.AddBgColorOpacity(builder, (byte)(bgColorData.color.a * 255));
         PageViewOptions.AddColorVector(builder, colorVector);
         PageViewOptions.AddCapInsets(builder, capInsets);
         PageViewOptions.AddScale9Size(builder, scale9Size);
-        PageViewOptions.AddBackGroundScale9Enabled(builder, false);
+        PageViewOptions.AddBackGroundScale9Enabled(builder, bgImage?.type == Image.Type.Sliced);
         var pageViewOffset = PageViewOptions.EndPageViewOptions(builder);
 
         Options.StartOptions(builder);

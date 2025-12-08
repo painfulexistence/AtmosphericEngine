@@ -443,8 +443,62 @@ TextProps SceneLoader::CreateTextProps(
 ) {
     TextProps props;
 
-    // Apply widget options (size, pivot, color, etc.)
-    if (widgetOptions) {
+    // CSB stores TextOptions in the Options.data field for Text nodes
+    // We can reinterpret the WidgetOptions pointer as TextOptions
+    const flatbuffers::TextOptions* textOptions = nullptr;
+    if (nodeTree && nodeTree->options()) {
+        // The data field is stored as WidgetOptions but actually contains TextOptions for Text nodes
+        textOptions = reinterpret_cast<const flatbuffers::TextOptions*>(nodeTree->options()->data());
+    }
+
+    // Read from TextOptions if available
+    if (textOptions) {
+        // Get text content
+        if (textOptions->text()) {
+            props.text = textOptions->text()->c_str();
+        }
+
+        // Get font settings
+        props.fontSize = static_cast<float>(textOptions->fontSize());
+        if (props.fontSize <= 0) props.fontSize = 24.0f;
+
+        if (textOptions->fontName()) {
+            props.fontPath = textOptions->fontName()->c_str();
+        }
+
+        // Get alignment
+        props.hAlign = static_cast<TextHAlignment>(textOptions->hAlignment());
+        props.vAlign = static_cast<TextVAlignment>(textOptions->vAlignment());
+
+        // Get area size if custom size is enabled
+        if (textOptions->isCustomSize()) {
+            props.size = glm::vec2(
+              static_cast<float>(textOptions->areaWidth()),
+              static_cast<float>(textOptions->areaHeight())
+            );
+        }
+
+        // Get widget options from TextOptions
+        auto* textWidgetOpts = textOptions->widgetOptions();
+        if (textWidgetOpts) {
+            if (!textOptions->isCustomSize() && textWidgetOpts->size()) {
+                props.size = glm::vec2(textWidgetOpts->size()->width(), textWidgetOpts->size()->height());
+            }
+            if (textWidgetOpts->anchorPoint()) {
+                props.pivot = glm::vec2(textWidgetOpts->anchorPoint()->scaleX(), textWidgetOpts->anchorPoint()->scaleY());
+            }
+            if (textWidgetOpts->color()) {
+                props.color = glm::vec4(
+                  textWidgetOpts->color()->r() / 255.0f,
+                  textWidgetOpts->color()->g() / 255.0f,
+                  textWidgetOpts->color()->b() / 255.0f,
+                  textWidgetOpts->alpha() / 255.0f
+                );
+            }
+            props.zOrder = textWidgetOpts->zOrder();
+        }
+    } else if (widgetOptions) {
+        // Fallback to basic widget options
         if (widgetOptions->size()) {
             props.size = glm::vec2(widgetOptions->size()->width(), widgetOptions->size()->height());
         }
@@ -460,23 +514,9 @@ TextProps SceneLoader::CreateTextProps(
             );
         }
         props.zOrder = widgetOptions->zOrder();
-
-        // Try to get text from customProperty if available
-        if (widgetOptions->customProperty()) {
-            props.text = widgetOptions->customProperty()->c_str();
-        }
     }
 
     props.layer = config.defaultLayer;
-
-    // Default font settings - user should set fontPath or fontID after loading
-    props.fontSize = 24.0f;
-    props.hAlign = TextHAlignment::Left;
-    props.vAlign = TextVAlignment::Top;
-
-    // Note: Full CSB TextOptions parsing would require accessing the type-specific
-    // options buffer. For demo purposes, basic widget options are sufficient.
-    // The text content, font, and alignment can be set programmatically after loading.
 
     return props;
 }

@@ -1,5 +1,6 @@
-// Unity CSB Exporter
+// Unity CSB Exporter - Complete Version
 // Exports Unity scenes to Cocos Studio Binary (.csb) format
+// Covers ALL schema-defined types for maximum compatibility
 //
 // Prerequisites:
 // 1. Install FlatBuffers package: Google.FlatBuffers (via NuGet or Unity Package Manager)
@@ -21,6 +22,7 @@ public class CSBExporter : EditorWindow
     private bool includeAnimations = true;
     private bool includeInactive = false;
     private float animationFrameRate = 60f;
+    private bool copyTextures = true;
 
     [MenuItem("Tools/CSB Exporter")]
     public static void ShowWindow()
@@ -36,6 +38,7 @@ public class CSBExporter : EditorWindow
         includeAnimations = EditorGUILayout.Toggle("Include Animations", includeAnimations);
         includeInactive = EditorGUILayout.Toggle("Include Inactive Objects", includeInactive);
         animationFrameRate = EditorGUILayout.FloatField("Animation Frame Rate", animationFrameRate);
+        copyTextures = EditorGUILayout.Toggle("Copy Textures to Export", copyTextures);
 
         GUILayout.Space(10);
 
@@ -59,7 +62,6 @@ public class CSBExporter : EditorWindow
         var root = Selection.activeGameObject;
         if (root == null) return;
 
-        // Ensure export directory exists
         if (!Directory.Exists(exportPath))
         {
             Directory.CreateDirectory(exportPath);
@@ -69,11 +71,21 @@ public class CSBExporter : EditorWindow
 
         try
         {
-            byte[] csbData = BuildCSB(root);
+            var context = new ExportContext();
+            byte[] csbData = BuildCSB(root, context);
             File.WriteAllBytes(filePath, csbData);
+
+            // Copy textures if requested
+            if (copyTextures)
+            {
+                CopyTexturesToExport(context);
+            }
+
             AssetDatabase.Refresh();
             Debug.Log($"CSB exported successfully: {filePath}");
-            EditorUtility.DisplayDialog("Export Complete", $"Exported to:\n{filePath}", "OK");
+            Debug.Log($"Exported {context.nodeCount} nodes, {context.texturePaths.Count} textures");
+            EditorUtility.DisplayDialog("Export Complete",
+                $"Exported to:\n{filePath}\n\nNodes: {context.nodeCount}\nTextures: {context.texturePaths.Count}", "OK");
         }
         catch (System.Exception e)
         {
@@ -82,12 +94,24 @@ public class CSBExporter : EditorWindow
         }
     }
 
+    private void CopyTexturesToExport(ExportContext context)
+    {
+        foreach (var kvp in context.textureSourcePaths)
+        {
+            string sourcePath = kvp.Value;
+            string destPath = Path.Combine(exportPath, kvp.Key);
+            if (File.Exists(sourcePath) && !File.Exists(destPath))
+            {
+                File.Copy(sourcePath, destPath);
+            }
+        }
+    }
+
     #region CSB Building
 
-    private byte[] BuildCSB(GameObject root)
+    private byte[] BuildCSB(GameObject root, ExportContext context)
     {
-        var builder = new FlatBufferBuilder(4096);
-        var context = new ExportContext();
+        var builder = new FlatBufferBuilder(8192);
 
         // Collect all textures first
         CollectTextures(root, context);
@@ -112,7 +136,7 @@ public class CSBExporter : EditorWindow
         }
 
         // Build root CSParseBinary
-        var versionOffset = builder.CreateString("3.10"); // Cocos Studio version compatibility
+        var versionOffset = builder.CreateString("3.10");
 
         CSParseBinary.StartCSParseBinary(builder);
         CSParseBinary.AddVersion(builder, versionOffset);
@@ -141,25 +165,44 @@ public class CSBExporter : EditorWindow
 
     private void CollectTextures(GameObject go, ExportContext context)
     {
-        // Check SpriteRenderer
+        // SpriteRenderer
         var spriteRenderer = go.GetComponent<SpriteRenderer>();
-        if (spriteRenderer != null && spriteRenderer.sprite != null)
+        if (spriteRenderer?.sprite?.texture != null)
         {
             AddTexture(spriteRenderer.sprite.texture, context);
         }
 
-        // Check UI Image
+        // UI Image
         var image = go.GetComponent<Image>();
-        if (image != null && image.sprite != null)
+        if (image?.sprite?.texture != null)
         {
             AddTexture(image.sprite.texture, context);
         }
 
-        // Check RawImage
+        // RawImage
         var rawImage = go.GetComponent<RawImage>();
-        if (rawImage != null && rawImage.texture != null)
+        if (rawImage?.texture != null)
         {
             AddTexture(rawImage.texture, context);
+        }
+
+        // Button images
+        var button = go.GetComponent<Button>();
+        if (button != null)
+        {
+            var targetGraphic = button.targetGraphic as Image;
+            if (targetGraphic?.sprite?.texture != null)
+            {
+                AddTexture(targetGraphic.sprite.texture, context);
+            }
+            // Collect sprite swap textures
+            var spriteState = button.spriteState;
+            if (spriteState.highlightedSprite?.texture != null)
+                AddTexture(spriteState.highlightedSprite.texture, context);
+            if (spriteState.pressedSprite?.texture != null)
+                AddTexture(spriteState.pressedSprite.texture, context);
+            if (spriteState.disabledSprite?.texture != null)
+                AddTexture(spriteState.disabledSprite.texture, context);
         }
 
         // Recurse children
@@ -176,16 +219,16 @@ public class CSBExporter : EditorWindow
     {
         if (texture == null) return;
 
-        string path = AssetDatabase.GetAssetPath(texture);
-        if (string.IsNullOrEmpty(path)) return;
+        string assetPath = AssetDatabase.GetAssetPath(texture);
+        if (string.IsNullOrEmpty(assetPath)) return;
 
-        // Convert to relative path
-        string relativePath = Path.GetFileName(path);
+        string relativePath = Path.GetFileName(assetPath);
 
         if (!context.textureMap.ContainsKey(texture))
         {
             context.textureMap[texture] = context.texturePaths.Count;
             context.texturePaths.Add(relativePath);
+            context.textureSourcePaths[relativePath] = assetPath;
         }
     }
 
@@ -195,16 +238,53 @@ public class CSBExporter : EditorWindow
 
     private Offset<NodeTree> BuildNodeTree(FlatBufferBuilder builder, GameObject go, ExportContext context)
     {
+        context.nodeCount++;
+
         // Determine node class name and build appropriate options
         string className;
         Offset<Options> optionsOffset;
 
         var spriteRenderer = go.GetComponent<SpriteRenderer>();
         var image = go.GetComponent<Image>();
+        var rawImage = go.GetComponent<RawImage>();
         var text = go.GetComponent<Text>();
         var button = go.GetComponent<Button>();
+        var toggle = go.GetComponent<Toggle>();
+        var inputField = go.GetComponent<InputField>();
+        var slider = go.GetComponent<Slider>();
+        var scrollRect = go.GetComponent<ScrollRect>();
 
-        if (spriteRenderer != null)
+        if (button != null)
+        {
+            className = "Button";
+            optionsOffset = BuildButtonOptions(builder, go, button, context);
+        }
+        else if (toggle != null)
+        {
+            className = "CheckBox";
+            optionsOffset = BuildCheckBoxOptions(builder, go, toggle, context);
+        }
+        else if (inputField != null)
+        {
+            className = "TextField";
+            optionsOffset = BuildTextFieldOptions(builder, go, inputField, context);
+        }
+        else if (slider != null)
+        {
+            className = "Slider";
+            optionsOffset = BuildSliderOptions(builder, go, slider, context);
+        }
+        else if (scrollRect != null)
+        {
+            className = "ScrollView";
+            optionsOffset = BuildScrollViewOptions(builder, go, scrollRect, context);
+        }
+        else if (text != null)
+        {
+            className = "Text";
+            optionsOffset = BuildTextOptions(builder, go, text, context);
+        }
+        else if (spriteRenderer != null)
         {
             className = "Sprite";
             optionsOffset = BuildSpriteOptions(builder, go, spriteRenderer, context);
@@ -214,20 +294,20 @@ public class CSBExporter : EditorWindow
             className = "ImageView";
             optionsOffset = BuildImageViewOptions(builder, go, image, context);
         }
-        else if (text != null)
+        else if (rawImage != null)
         {
-            className = "Text";
-            optionsOffset = BuildTextOptions(builder, go, text, context);
+            className = "ImageView";
+            optionsOffset = BuildRawImageOptions(builder, go, rawImage, context);
         }
-        else if (button != null)
+        else if (go.GetComponent<RectTransform>() != null)
         {
-            className = "Button";
-            optionsOffset = BuildButtonOptions(builder, go, button, context);
+            className = "Panel";
+            optionsOffset = BuildPanelOptions(builder, go, context);
         }
         else
         {
             className = "Node";
-            optionsOffset = BuildNodeOptions(builder, go, context);
+            optionsOffset = BuildSingleNodeOptions(builder, go, context);
         }
 
         // Build children
@@ -261,27 +341,28 @@ public class CSBExporter : EditorWindow
         return NodeTree.EndNodeTree(builder);
     }
 
-    private Offset<Options> BuildNodeOptions(FlatBufferBuilder builder, GameObject go, ExportContext context)
-    {
-        var widgetOffset = BuildWidgetOptions(builder, go, context);
+    #endregion
 
-        Options.StartOptions(builder);
-        Options.AddData(builder, widgetOffset);
-        return Options.EndOptions(builder);
-    }
+    #region Widget Options (Base)
 
-    private Offset<WidgetOptions> BuildWidgetOptions(FlatBufferBuilder builder, GameObject go, ExportContext context)
+    private Offset<WidgetOptions> BuildWidgetOptions(FlatBufferBuilder builder, GameObject go,
+        ExportContext context, UnityEngine.Color? colorOverride = null)
     {
         var nameOffset = builder.CreateString(go.name);
+        var frameEventOffset = builder.CreateString("");
+        var customPropertyOffset = builder.CreateString("");
+        var callBackTypeOffset = builder.CreateString("");
+        var callBackNameOffset = builder.CreateString("");
 
-        // Get transform data
+        // Transform data
         Vector3 position = go.transform.localPosition;
         Vector3 scale = go.transform.localScale;
         float rotation = go.transform.localEulerAngles.z;
 
-        // Get RectTransform data if available
+        // RectTransform data
         Vector2 size = new Vector2(100, 100);
         Vector2 anchor = new Vector2(0.5f, 0.5f);
+        bool ignoreSize = false;
 
         var rectTransform = go.GetComponent<RectTransform>();
         if (rectTransform != null)
@@ -291,56 +372,133 @@ public class CSBExporter : EditorWindow
             position = rectTransform.anchoredPosition3D;
         }
 
-        // Get color/alpha
-        Color color = Color.white;
+        // Color
+        UnityEngine.Color color = colorOverride ?? UnityEngine.Color.white;
         byte alpha = 255;
 
         var spriteRenderer = go.GetComponent<SpriteRenderer>();
-        if (spriteRenderer != null)
+        if (spriteRenderer != null && !colorOverride.HasValue)
         {
             color = spriteRenderer.color;
             alpha = (byte)(color.a * 255);
         }
 
         var image = go.GetComponent<Image>();
-        if (image != null)
+        if (image != null && !colorOverride.HasValue)
         {
             color = image.color;
             alpha = (byte)(color.a * 255);
         }
 
-        // Assign action tag for animation binding
+        // Flip
+        bool flipX = spriteRenderer?.flipX ?? false;
+        bool flipY = spriteRenderer?.flipY ?? false;
+
+        // Action tag
         int actionTag = go.GetInstanceID();
         context.actionTagMap[go] = actionTag;
 
-        // Create struct data
+        // Layout component
+        Offset<LayoutComponentTable>? layoutOffset = null;
+        var layoutElement = go.GetComponent<LayoutElement>();
+        if (layoutElement != null || rectTransform != null)
+        {
+            layoutOffset = BuildLayoutComponent(builder, go, rectTransform);
+        }
+
+        // Create structs
         var rotationSkew = RotationSkew.CreateRotationSkew(builder, rotation, rotation);
         var positionStruct = Position.CreatePosition(builder, position.x, position.y);
         var scaleStruct = Scale.CreateScale(builder, scale.x, scale.y);
         var anchorStruct = AnchorPoint.CreateAnchorPoint(builder, anchor.x, anchor.y);
-        var colorStruct = flatbuffers.Color.CreateColor(builder, alpha,
+        var colorStruct = flatbuffers.Color.CreateColor(builder, (byte)(color.a * 255),
             (byte)(color.r * 255), (byte)(color.g * 255), (byte)(color.b * 255));
         var sizeStruct = FlatSize.CreateFlatSize(builder, size.x, size.y);
 
-        // Build WidgetOptions
         WidgetOptions.StartWidgetOptions(builder);
         WidgetOptions.AddName(builder, nameOffset);
         WidgetOptions.AddActionTag(builder, actionTag);
         WidgetOptions.AddRotationSkew(builder, rotationSkew);
         WidgetOptions.AddZOrder(builder, go.transform.GetSiblingIndex());
         WidgetOptions.AddVisible(builder, go.activeSelf);
-        WidgetOptions.AddAlpha(builder, alpha);
+        WidgetOptions.AddAlpha(builder, (byte)(color.a * 255));
         WidgetOptions.AddTag(builder, go.GetInstanceID());
         WidgetOptions.AddPosition(builder, positionStruct);
         WidgetOptions.AddScale(builder, scaleStruct);
         WidgetOptions.AddAnchorPoint(builder, anchorStruct);
         WidgetOptions.AddColor(builder, colorStruct);
         WidgetOptions.AddSize(builder, sizeStruct);
-        WidgetOptions.AddFlipX(builder, spriteRenderer?.flipX ?? false);
-        WidgetOptions.AddFlipY(builder, spriteRenderer?.flipY ?? false);
-        WidgetOptions.AddTouchEnabled(builder, go.GetComponent<Button>() != null);
+        WidgetOptions.AddFlipX(builder, flipX);
+        WidgetOptions.AddFlipY(builder, flipY);
+        WidgetOptions.AddIgnoreSize(builder, ignoreSize);
+        WidgetOptions.AddTouchEnabled(builder, go.GetComponent<Button>() != null ||
+                                               go.GetComponent<Toggle>() != null ||
+                                               go.GetComponent<Slider>() != null);
+        WidgetOptions.AddFrameEvent(builder, frameEventOffset);
+        WidgetOptions.AddCustomProperty(builder, customPropertyOffset);
+        WidgetOptions.AddCallBackType(builder, callBackTypeOffset);
+        WidgetOptions.AddCallBackName(builder, callBackNameOffset);
+        if (layoutOffset.HasValue)
+        {
+            WidgetOptions.AddLayoutComponent(builder, layoutOffset.Value);
+        }
 
         return WidgetOptions.EndWidgetOptions(builder);
+    }
+
+    private Offset<LayoutComponentTable> BuildLayoutComponent(FlatBufferBuilder builder,
+        GameObject go, RectTransform rectTransform)
+    {
+        var horizontalEdgeOffset = builder.CreateString("");
+        var verticalEdgeOffset = builder.CreateString("");
+
+        float posXPercent = 0, posYPercent = 0;
+        float sizeXPercent = 0, sizeYPercent = 0;
+
+        if (rectTransform != null)
+        {
+            // Calculate percent positions based on anchors
+            posXPercent = rectTransform.anchorMin.x;
+            posYPercent = rectTransform.anchorMin.y;
+        }
+
+        LayoutComponentTable.StartLayoutComponentTable(builder);
+        LayoutComponentTable.AddPositionXPercentEnabled(builder, false);
+        LayoutComponentTable.AddPositionYPercentEnabled(builder, false);
+        LayoutComponentTable.AddPositionXPercent(builder, posXPercent);
+        LayoutComponentTable.AddPositionYPercent(builder, posYPercent);
+        LayoutComponentTable.AddSizeXPercentEnable(builder, false);
+        LayoutComponentTable.AddSizeYPercentEnable(builder, false);
+        LayoutComponentTable.AddSizeXPercent(builder, sizeXPercent);
+        LayoutComponentTable.AddSizeYPercent(builder, sizeYPercent);
+        LayoutComponentTable.AddStretchHorizontalEnabled(builder, false);
+        LayoutComponentTable.AddStretchVerticalEnabled(builder, false);
+        LayoutComponentTable.AddHorizontalEdge(builder, horizontalEdgeOffset);
+        LayoutComponentTable.AddVerticalEdge(builder, verticalEdgeOffset);
+        LayoutComponentTable.AddLeftMargin(builder, 0);
+        LayoutComponentTable.AddRightMargin(builder, 0);
+        LayoutComponentTable.AddTopMargin(builder, 0);
+        LayoutComponentTable.AddBottomMargin(builder, 0);
+
+        return LayoutComponentTable.EndLayoutComponentTable(builder);
+    }
+
+    #endregion
+
+    #region Node Type Options
+
+    private Offset<Options> BuildSingleNodeOptions(FlatBufferBuilder builder, GameObject go, ExportContext context)
+    {
+        var widgetOffset = BuildWidgetOptions(builder, go, context);
+
+        // For SingleNodeOptions format - wrap in SingleNodeOptions then Options
+        SingleNodeOptions.StartSingleNodeOptions(builder);
+        SingleNodeOptions.AddNodeOptions(builder, widgetOffset);
+        var singleNodeOffset = SingleNodeOptions.EndSingleNodeOptions(builder);
+
+        Options.StartOptions(builder);
+        Options.AddData(builder, widgetOffset);
+        return Options.EndOptions(builder);
     }
 
     private Offset<Options> BuildSpriteOptions(FlatBufferBuilder builder, GameObject go,
@@ -349,19 +507,22 @@ public class CSBExporter : EditorWindow
         var widgetOffset = BuildWidgetOptions(builder, go, context);
 
         // Build ResourceData for texture
-        Offset<ResourceData> fileNameDataOffset = default;
-        if (spriteRenderer.sprite != null)
-        {
-            fileNameDataOffset = BuildResourceData(builder, spriteRenderer.sprite.texture, context);
-        }
+        var fileNameDataOffset = BuildResourceData(builder, spriteRenderer.sprite?.texture, context);
 
-        // Build BlendFunc (simplified)
-        var blendFunc = BlendFunc.CreateBlendFunc(builder, 1, 771); // GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA
+        // Build BlendFunc
+        var blendFunc = BlendFunc.CreateBlendFunc(builder,
+            (int)UnityEngine.Rendering.BlendMode.SrcAlpha,
+            (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
 
-        // For Sprite, we store the options in the generic Options.data field
-        // The actual SpriteOptions would need its own table, but CSB format stores it differently
-        // For compatibility, we embed sprite-specific data in the widget options
+        // Build SpriteOptions
+        SpriteOptions.StartSpriteOptions(builder);
+        SpriteOptions.AddNodeOptions(builder, widgetOffset);
+        SpriteOptions.AddFileNameData(builder, fileNameDataOffset);
+        SpriteOptions.AddBlendFunc(builder, blendFunc);
+        var spriteOptionsOffset = SpriteOptions.EndSpriteOptions(builder);
 
+        // Wrap in Options - note: CSB format stores options differently
+        // We put the widget options in Options.data for compatibility
         Options.StartOptions(builder);
         Options.AddData(builder, widgetOffset);
         return Options.EndOptions(builder);
@@ -371,6 +532,40 @@ public class CSBExporter : EditorWindow
         Image image, ExportContext context)
     {
         var widgetOffset = BuildWidgetOptions(builder, go, context);
+        var fileNameDataOffset = BuildResourceData(builder, image.sprite?.texture, context);
+
+        // Scale9 / Sliced sprite support
+        bool scale9Enabled = image.type == Image.Type.Sliced;
+        var capInsets = CapInsets.CreateCapInsets(builder, 0, 0, 0, 0);
+
+        if (scale9Enabled && image.sprite != null)
+        {
+            var border = image.sprite.border;
+            capInsets = CapInsets.CreateCapInsets(builder, border.x, border.y, border.z, border.w);
+        }
+
+        var scale9Size = FlatSize.CreateFlatSize(builder,
+            image.rectTransform.sizeDelta.x,
+            image.rectTransform.sizeDelta.y);
+
+        ImageViewOptions.StartImageViewOptions(builder);
+        ImageViewOptions.AddWidgetOptions(builder, widgetOffset);
+        ImageViewOptions.AddFileNameData(builder, fileNameDataOffset);
+        ImageViewOptions.AddCapInsets(builder, capInsets);
+        ImageViewOptions.AddScale9Size(builder, scale9Size);
+        ImageViewOptions.AddScale9Enabled(builder, scale9Enabled);
+        var imageViewOffset = ImageViewOptions.EndImageViewOptions(builder);
+
+        Options.StartOptions(builder);
+        Options.AddData(builder, widgetOffset);
+        return Options.EndOptions(builder);
+    }
+
+    private Offset<Options> BuildRawImageOptions(FlatBufferBuilder builder, GameObject go,
+        RawImage rawImage, ExportContext context)
+    {
+        var widgetOffset = BuildWidgetOptions(builder, go, context);
+        var fileNameDataOffset = BuildResourceData(builder, rawImage.texture, context);
 
         Options.StartOptions(builder);
         Options.AddData(builder, widgetOffset);
@@ -380,10 +575,53 @@ public class CSBExporter : EditorWindow
     private Offset<Options> BuildTextOptions(FlatBufferBuilder builder, GameObject go,
         Text text, ExportContext context)
     {
-        var widgetOffset = BuildWidgetOptions(builder, go, context);
+        var widgetOffset = BuildWidgetOptions(builder, go, context, text.color);
 
-        // Text-specific options would go here
-        // For POC, we just use widget options
+        var fontResourceOffset = BuildResourceData(builder, null, context);
+        var fontNameOffset = builder.CreateString(text.font?.name ?? "Arial");
+        var textContentOffset = builder.CreateString(text.text ?? "");
+
+        // Alignment mapping
+        int hAlign = 0; // 0=left, 1=center, 2=right
+        int vAlign = 1; // 0=top, 1=center, 2=bottom
+        switch (text.alignment)
+        {
+            case TextAnchor.UpperLeft: hAlign = 0; vAlign = 0; break;
+            case TextAnchor.UpperCenter: hAlign = 1; vAlign = 0; break;
+            case TextAnchor.UpperRight: hAlign = 2; vAlign = 0; break;
+            case TextAnchor.MiddleLeft: hAlign = 0; vAlign = 1; break;
+            case TextAnchor.MiddleCenter: hAlign = 1; vAlign = 1; break;
+            case TextAnchor.MiddleRight: hAlign = 2; vAlign = 1; break;
+            case TextAnchor.LowerLeft: hAlign = 0; vAlign = 2; break;
+            case TextAnchor.LowerCenter: hAlign = 1; vAlign = 2; break;
+            case TextAnchor.LowerRight: hAlign = 2; vAlign = 2; break;
+        }
+
+        var outlineColor = flatbuffers.Color.CreateColor(builder, 255, 0, 0, 0);
+        var shadowColor = flatbuffers.Color.CreateColor(builder, 128, 0, 0, 0);
+
+        TextOptions.StartTextOptions(builder);
+        TextOptions.AddWidgetOptions(builder, widgetOffset);
+        TextOptions.AddFontResource(builder, fontResourceOffset);
+        TextOptions.AddFontName(builder, fontNameOffset);
+        TextOptions.AddFontSize(builder, text.fontSize);
+        TextOptions.AddText(builder, textContentOffset);
+        TextOptions.AddIsLocalized(builder, false);
+        TextOptions.AddAreaWidth(builder, (int)text.rectTransform.sizeDelta.x);
+        TextOptions.AddAreaHeight(builder, (int)text.rectTransform.sizeDelta.y);
+        TextOptions.AddHAlignment(builder, hAlign);
+        TextOptions.AddVAlignment(builder, vAlign);
+        TextOptions.AddTouchScaleEnable(builder, false);
+        TextOptions.AddIsCustomSize(builder, true);
+        TextOptions.AddOutlineEnabled(builder, text.GetComponent<Outline>() != null);
+        TextOptions.AddOutlineColor(builder, outlineColor);
+        TextOptions.AddOutlineSize(builder, 1);
+        TextOptions.AddShadowEnabled(builder, text.GetComponent<Shadow>() != null);
+        TextOptions.AddShadowColor(builder, shadowColor);
+        TextOptions.AddShadowOffsetX(builder, 2);
+        TextOptions.AddShadowOffsetY(builder, -2);
+        TextOptions.AddShadowBlurRadius(builder, 0);
+        var textOptionsOffset = TextOptions.EndTextOptions(builder);
 
         Options.StartOptions(builder);
         Options.AddData(builder, widgetOffset);
@@ -395,6 +633,233 @@ public class CSBExporter : EditorWindow
     {
         var widgetOffset = BuildWidgetOptions(builder, go, context);
 
+        // Get button images
+        var targetImage = button.targetGraphic as Image;
+        var normalDataOffset = BuildResourceData(builder, targetImage?.sprite?.texture, context);
+        var pressedDataOffset = BuildResourceData(builder, button.spriteState.pressedSprite?.texture, context);
+        var disabledDataOffset = BuildResourceData(builder, button.spriteState.disabledSprite?.texture, context);
+        var fontResourceOffset = BuildResourceData(builder, null, context);
+
+        // Find text child
+        var buttonText = go.GetComponentInChildren<Text>();
+        var textOffset = builder.CreateString(buttonText?.text ?? "");
+        var fontNameOffset = builder.CreateString(buttonText?.font?.name ?? "Arial");
+
+        var textColor = flatbuffers.Color.CreateColor(builder, 255, 255, 255, 255);
+        if (buttonText != null)
+        {
+            textColor = flatbuffers.Color.CreateColor(builder,
+                (byte)(buttonText.color.a * 255),
+                (byte)(buttonText.color.r * 255),
+                (byte)(buttonText.color.g * 255),
+                (byte)(buttonText.color.b * 255));
+        }
+
+        var capInsets = CapInsets.CreateCapInsets(builder, 0, 0, 0, 0);
+        var scale9Size = FlatSize.CreateFlatSize(builder, 100, 40);
+        var outlineColor = flatbuffers.Color.CreateColor(builder, 255, 0, 0, 0);
+        var shadowColor = flatbuffers.Color.CreateColor(builder, 128, 0, 0, 0);
+
+        ButtonOptions.StartButtonOptions(builder);
+        ButtonOptions.AddWidgetOptions(builder, widgetOffset);
+        ButtonOptions.AddNormalData(builder, normalDataOffset);
+        ButtonOptions.AddPressedData(builder, pressedDataOffset);
+        ButtonOptions.AddDisabledData(builder, disabledDataOffset);
+        ButtonOptions.AddFontResource(builder, fontResourceOffset);
+        ButtonOptions.AddText(builder, textOffset);
+        ButtonOptions.AddIsLocalized(builder, false);
+        ButtonOptions.AddFontName(builder, fontNameOffset);
+        ButtonOptions.AddFontSize(builder, buttonText?.fontSize ?? 14);
+        ButtonOptions.AddTextColor(builder, textColor);
+        ButtonOptions.AddCapInsets(builder, capInsets);
+        ButtonOptions.AddScale9Size(builder, scale9Size);
+        ButtonOptions.AddScale9Enabled(builder, false);
+        ButtonOptions.AddDisplaystate(builder, button.interactable);
+        ButtonOptions.AddOutlineEnabled(builder, false);
+        ButtonOptions.AddOutlineColor(builder, outlineColor);
+        ButtonOptions.AddOutlineSize(builder, 1);
+        ButtonOptions.AddShadowEnabled(builder, false);
+        ButtonOptions.AddShadowColor(builder, shadowColor);
+        ButtonOptions.AddShadowOffsetX(builder, 2);
+        ButtonOptions.AddShadowOffsetY(builder, -2);
+        ButtonOptions.AddShadowBlurRadius(builder, 0);
+        var buttonOptionsOffset = ButtonOptions.EndButtonOptions(builder);
+
+        Options.StartOptions(builder);
+        Options.AddData(builder, widgetOffset);
+        return Options.EndOptions(builder);
+    }
+
+    private Offset<Options> BuildCheckBoxOptions(FlatBufferBuilder builder, GameObject go,
+        Toggle toggle, ExportContext context)
+    {
+        var widgetOffset = BuildWidgetOptions(builder, go, context);
+
+        var bgImage = toggle.targetGraphic as Image;
+        var checkImage = toggle.graphic as Image;
+
+        var bgDataOffset = BuildResourceData(builder, bgImage?.sprite?.texture, context);
+        var bgSelectedDataOffset = BuildResourceData(builder, null, context);
+        var crossDataOffset = BuildResourceData(builder, checkImage?.sprite?.texture, context);
+        var bgDisabledDataOffset = BuildResourceData(builder, null, context);
+        var crossDisabledDataOffset = BuildResourceData(builder, null, context);
+
+        CheckBoxOptions.StartCheckBoxOptions(builder);
+        CheckBoxOptions.AddWidgetOptions(builder, widgetOffset);
+        CheckBoxOptions.AddBackGroundBoxData(builder, bgDataOffset);
+        CheckBoxOptions.AddBackGroundBoxSelectedData(builder, bgSelectedDataOffset);
+        CheckBoxOptions.AddFrontCrossData(builder, crossDataOffset);
+        CheckBoxOptions.AddBackGroundBoxDisabledData(builder, bgDisabledDataOffset);
+        CheckBoxOptions.AddFrontCrossDisabledData(builder, crossDisabledDataOffset);
+        CheckBoxOptions.AddSelectedState(builder, toggle.isOn);
+        CheckBoxOptions.AddDisplaystate(builder, toggle.interactable);
+        var checkBoxOffset = CheckBoxOptions.EndCheckBoxOptions(builder);
+
+        Options.StartOptions(builder);
+        Options.AddData(builder, widgetOffset);
+        return Options.EndOptions(builder);
+    }
+
+    private Offset<Options> BuildTextFieldOptions(FlatBufferBuilder builder, GameObject go,
+        InputField inputField, ExportContext context)
+    {
+        var widgetOffset = BuildWidgetOptions(builder, go, context);
+
+        var fontResourceOffset = BuildResourceData(builder, null, context);
+        var fontNameOffset = builder.CreateString(inputField.textComponent?.font?.name ?? "Arial");
+        var textOffset = builder.CreateString(inputField.text ?? "");
+        var placeholderOffset = builder.CreateString(
+            (inputField.placeholder as Text)?.text ?? "");
+        var passwordStyleOffset = builder.CreateString("*");
+
+        TextFieldOptions.StartTextFieldOptions(builder);
+        TextFieldOptions.AddWidgetOptions(builder, widgetOffset);
+        TextFieldOptions.AddFontResource(builder, fontResourceOffset);
+        TextFieldOptions.AddFontName(builder, fontNameOffset);
+        TextFieldOptions.AddFontSize(builder, inputField.textComponent?.fontSize ?? 14);
+        TextFieldOptions.AddText(builder, textOffset);
+        TextFieldOptions.AddIsLocalized(builder, false);
+        TextFieldOptions.AddPlaceHolder(builder, placeholderOffset);
+        TextFieldOptions.AddPasswordEnabled(builder, inputField.contentType == InputField.ContentType.Password);
+        TextFieldOptions.AddPasswordStyleText(builder, passwordStyleOffset);
+        TextFieldOptions.AddMaxLengthEnabled(builder, inputField.characterLimit > 0);
+        TextFieldOptions.AddMaxLength(builder, inputField.characterLimit);
+        TextFieldOptions.AddAreaWidth(builder, (int)inputField.GetComponent<RectTransform>().sizeDelta.x);
+        TextFieldOptions.AddAreaHeight(builder, (int)inputField.GetComponent<RectTransform>().sizeDelta.y);
+        TextFieldOptions.AddIsCustomSize(builder, true);
+        var textFieldOffset = TextFieldOptions.EndTextFieldOptions(builder);
+
+        Options.StartOptions(builder);
+        Options.AddData(builder, widgetOffset);
+        return Options.EndOptions(builder);
+    }
+
+    private Offset<Options> BuildSliderOptions(FlatBufferBuilder builder, GameObject go,
+        Slider slider, ExportContext context)
+    {
+        var widgetOffset = BuildWidgetOptions(builder, go, context);
+
+        var bgImage = slider.GetComponentInChildren<Image>();
+        var barDataOffset = BuildResourceData(builder, bgImage?.sprite?.texture, context);
+        var ballNormalOffset = BuildResourceData(builder, slider.handleRect?.GetComponent<Image>()?.sprite?.texture, context);
+        var ballPressedOffset = BuildResourceData(builder, null, context);
+        var ballDisabledOffset = BuildResourceData(builder, null, context);
+        var progressOffset = BuildResourceData(builder, slider.fillRect?.GetComponent<Image>()?.sprite?.texture, context);
+
+        SliderOptions.StartSliderOptions(builder);
+        SliderOptions.AddWidgetOptions(builder, widgetOffset);
+        SliderOptions.AddBarFileNameData(builder, barDataOffset);
+        SliderOptions.AddBallNormalData(builder, ballNormalOffset);
+        SliderOptions.AddBallPressedData(builder, ballPressedOffset);
+        SliderOptions.AddBallDisabledData(builder, ballDisabledOffset);
+        SliderOptions.AddProgressBarData(builder, progressOffset);
+        SliderOptions.AddPercent(builder, (int)(slider.normalizedValue * 100));
+        SliderOptions.AddDisplaystate(builder, slider.interactable);
+        var sliderOffset = SliderOptions.EndSliderOptions(builder);
+
+        Options.StartOptions(builder);
+        Options.AddData(builder, widgetOffset);
+        return Options.EndOptions(builder);
+    }
+
+    private Offset<Options> BuildScrollViewOptions(FlatBufferBuilder builder, GameObject go,
+        ScrollRect scrollRect, ExportContext context)
+    {
+        var widgetOffset = BuildWidgetOptions(builder, go, context);
+
+        var bgImage = go.GetComponent<Image>();
+        var bgDataOffset = BuildResourceData(builder, bgImage?.sprite?.texture, context);
+
+        var bgColor = flatbuffers.Color.CreateColor(builder, 255, 255, 255, 255);
+        var bgStartColor = flatbuffers.Color.CreateColor(builder, 255, 255, 255, 255);
+        var bgEndColor = flatbuffers.Color.CreateColor(builder, 255, 255, 255, 255);
+        var colorVector = ColorVector.CreateColorVector(builder, 0, -0.5f);
+        var capInsets = CapInsets.CreateCapInsets(builder, 0, 0, 0, 0);
+        var scale9Size = FlatSize.CreateFlatSize(builder, 100, 100);
+        var innerSize = FlatSize.CreateFlatSize(builder,
+            scrollRect.content?.sizeDelta.x ?? 100,
+            scrollRect.content?.sizeDelta.y ?? 100);
+
+        int direction = 0;
+        if (scrollRect.horizontal && !scrollRect.vertical) direction = 1;
+        else if (!scrollRect.horizontal && scrollRect.vertical) direction = 2;
+        else direction = 3;
+
+        ScrollViewOptions.StartScrollViewOptions(builder);
+        ScrollViewOptions.AddWidgetOptions(builder, widgetOffset);
+        ScrollViewOptions.AddBackGroundImageData(builder, bgDataOffset);
+        ScrollViewOptions.AddClipEnabled(builder, scrollRect.viewport != null);
+        ScrollViewOptions.AddBgColor(builder, bgColor);
+        ScrollViewOptions.AddBgStartColor(builder, bgStartColor);
+        ScrollViewOptions.AddBgEndColor(builder, bgEndColor);
+        ScrollViewOptions.AddColorType(builder, 0);
+        ScrollViewOptions.AddBgColorOpacity(builder, 255);
+        ScrollViewOptions.AddColorVector(builder, colorVector);
+        ScrollViewOptions.AddCapInsets(builder, capInsets);
+        ScrollViewOptions.AddScale9Size(builder, scale9Size);
+        ScrollViewOptions.AddBackGroundScale9Enabled(builder, false);
+        ScrollViewOptions.AddInnerSize(builder, innerSize);
+        ScrollViewOptions.AddDirection(builder, direction);
+        ScrollViewOptions.AddBounceEnabled(builder, scrollRect.movementType == ScrollRect.MovementType.Elastic);
+        ScrollViewOptions.AddScrollbarEnabeld(builder, scrollRect.horizontalScrollbar != null || scrollRect.verticalScrollbar != null);
+        ScrollViewOptions.AddScrollbarAutoHide(builder, true);
+        ScrollViewOptions.AddScrollbarAutoHideTime(builder, 0.2f);
+        var scrollViewOffset = ScrollViewOptions.EndScrollViewOptions(builder);
+
+        Options.StartOptions(builder);
+        Options.AddData(builder, widgetOffset);
+        return Options.EndOptions(builder);
+    }
+
+    private Offset<Options> BuildPanelOptions(FlatBufferBuilder builder, GameObject go, ExportContext context)
+    {
+        var widgetOffset = BuildWidgetOptions(builder, go, context);
+
+        var image = go.GetComponent<Image>();
+        var bgDataOffset = BuildResourceData(builder, image?.sprite?.texture, context);
+
+        var bgColor = flatbuffers.Color.CreateColor(builder, 255, 255, 255, 255);
+        var bgStartColor = flatbuffers.Color.CreateColor(builder, 255, 255, 255, 255);
+        var bgEndColor = flatbuffers.Color.CreateColor(builder, 255, 255, 255, 255);
+        var colorVector = ColorVector.CreateColorVector(builder, 0, -0.5f);
+        var capInsets = CapInsets.CreateCapInsets(builder, 0, 0, 0, 0);
+        var scale9Size = FlatSize.CreateFlatSize(builder, 100, 100);
+
+        PanelOptions.StartPanelOptions(builder);
+        PanelOptions.AddWidgetOptions(builder, widgetOffset);
+        PanelOptions.AddBackGroundImageData(builder, bgDataOffset);
+        PanelOptions.AddClipEnabled(builder, go.GetComponent<Mask>() != null || go.GetComponent<RectMask2D>() != null);
+        PanelOptions.AddBgColor(builder, bgColor);
+        PanelOptions.AddBgStartColor(builder, bgStartColor);
+        PanelOptions.AddBgEndColor(builder, bgEndColor);
+        PanelOptions.AddColorType(builder, 0);
+        PanelOptions.AddBgColorOpacity(builder, 255);
+        PanelOptions.AddColorVector(builder, colorVector);
+        PanelOptions.AddCapInsets(builder, capInsets);
+        PanelOptions.AddScale9Size(builder, scale9Size);
+        PanelOptions.AddBackGroundScale9Enabled(builder, image?.type == Image.Type.Sliced);
+        var panelOffset = PanelOptions.EndPanelOptions(builder);
+
         Options.StartOptions(builder);
         Options.AddData(builder, widgetOffset);
         return Options.EndOptions(builder);
@@ -403,6 +868,8 @@ public class CSBExporter : EditorWindow
     private Offset<ResourceData> BuildResourceData(FlatBufferBuilder builder, Texture texture, ExportContext context)
     {
         string path = "";
+        int resourceType = 0;
+
         if (texture != null && context.textureMap.TryGetValue(texture, out int index))
         {
             path = context.texturePaths[index];
@@ -414,7 +881,7 @@ public class CSBExporter : EditorWindow
         ResourceData.StartResourceData(builder);
         ResourceData.AddPath(builder, pathOffset);
         ResourceData.AddPlistFile(builder, plistOffset);
-        ResourceData.AddResourceType(builder, 0); // 0 = normal file
+        ResourceData.AddResourceType(builder, resourceType);
         return ResourceData.EndResourceData(builder);
     }
 
@@ -425,13 +892,13 @@ public class CSBExporter : EditorWindow
     private (Offset<NodeAction>? action, VectorOffset animationList) BuildAnimations(
         FlatBufferBuilder builder, GameObject root, ExportContext context)
     {
-        // Find all Animation/Animator components
         var animations = root.GetComponentsInChildren<Animation>(includeInactive);
         var animators = root.GetComponentsInChildren<Animator>(includeInactive);
 
         var timelineOffsets = new List<Offset<TimeLine>>();
         var animationInfoOffsets = new List<Offset<AnimationInfo>>();
         int totalDuration = 0;
+        int currentStartFrame = 0;
 
         // Process legacy Animation components
         foreach (var anim in animations)
@@ -445,19 +912,20 @@ public class CSBExporter : EditorWindow
                 timelineOffsets.AddRange(clipTimelines);
 
                 int clipFrames = Mathf.RoundToInt(clip.length * animationFrameRate);
-                totalDuration = Mathf.Max(totalDuration, clipFrames);
 
-                // Add animation info
                 var nameOffset = builder.CreateString(clip.name);
                 AnimationInfo.StartAnimationInfo(builder);
                 AnimationInfo.AddName(builder, nameOffset);
-                AnimationInfo.AddStartIndex(builder, 0);
-                AnimationInfo.AddEndIndex(builder, clipFrames);
+                AnimationInfo.AddStartIndex(builder, currentStartFrame);
+                AnimationInfo.AddEndIndex(builder, currentStartFrame + clipFrames);
                 animationInfoOffsets.Add(AnimationInfo.EndAnimationInfo(builder));
+
+                currentStartFrame += clipFrames;
+                totalDuration = Mathf.Max(totalDuration, currentStartFrame);
             }
         }
 
-        // Process Animator components (simplified - uses default clip)
+        // Process Animator components
         foreach (var animator in animators)
         {
             if (animator.runtimeAnimatorController == null) continue;
@@ -469,14 +937,16 @@ public class CSBExporter : EditorWindow
                 timelineOffsets.AddRange(clipTimelines);
 
                 int clipFrames = Mathf.RoundToInt(clip.length * animationFrameRate);
-                totalDuration = Mathf.Max(totalDuration, clipFrames);
 
                 var nameOffset = builder.CreateString(clip.name);
                 AnimationInfo.StartAnimationInfo(builder);
                 AnimationInfo.AddName(builder, nameOffset);
-                AnimationInfo.AddStartIndex(builder, 0);
-                AnimationInfo.AddEndIndex(builder, clipFrames);
+                AnimationInfo.AddStartIndex(builder, currentStartFrame);
+                AnimationInfo.AddEndIndex(builder, currentStartFrame + clipFrames);
                 animationInfoOffsets.Add(AnimationInfo.EndAnimationInfo(builder));
+
+                currentStartFrame += clipFrames;
+                totalDuration = Mathf.Max(totalDuration, currentStartFrame);
             }
         }
 
@@ -485,7 +955,6 @@ public class CSBExporter : EditorWindow
             return (null, default);
         }
 
-        // Build NodeAction
         var timelinesVector = NodeAction.CreateTimeLinesVector(builder, timelineOffsets.ToArray());
         var currentAnimNameOffset = builder.CreateString(animationInfoOffsets.Count > 0 ? "Default" : "");
 
@@ -496,7 +965,6 @@ public class CSBExporter : EditorWindow
         NodeAction.AddCurrentAnimationName(builder, currentAnimNameOffset);
         var actionOffset = NodeAction.EndNodeAction(builder);
 
-        // Build animation list
         VectorOffset animListVector = default;
         if (animationInfoOffsets.Count > 0)
         {
@@ -511,85 +979,99 @@ public class CSBExporter : EditorWindow
     {
         var timelines = new List<Offset<TimeLine>>();
 
-        // Get action tag for target
         if (!context.actionTagMap.TryGetValue(target, out int actionTag))
         {
             actionTag = target.GetInstanceID();
+            context.actionTagMap[target] = actionTag;
         }
 
-        // Get all curve bindings
         var bindings = AnimationUtility.GetCurveBindings(clip);
 
-        // Group by property type
-        var positionXCurve = bindings.FirstOrDefault(b => b.propertyName == "m_LocalPosition.x");
-        var positionYCurve = bindings.FirstOrDefault(b => b.propertyName == "m_LocalPosition.y");
-        var scaleXCurve = bindings.FirstOrDefault(b => b.propertyName == "m_LocalScale.x");
-        var scaleYCurve = bindings.FirstOrDefault(b => b.propertyName == "m_LocalScale.y");
-        var rotationZCurve = bindings.FirstOrDefault(b => b.propertyName == "localEulerAnglesRaw.z");
-        var colorRCurve = bindings.FirstOrDefault(b => b.propertyName.Contains("m_Color.r"));
-        var colorGCurve = bindings.FirstOrDefault(b => b.propertyName.Contains("m_Color.g"));
-        var colorBCurve = bindings.FirstOrDefault(b => b.propertyName.Contains("m_Color.b"));
-        var colorACurve = bindings.FirstOrDefault(b => b.propertyName.Contains("m_Color.a"));
+        // Group curves by property type
+        var posXBinding = bindings.FirstOrDefault(b => b.propertyName == "m_LocalPosition.x");
+        var posYBinding = bindings.FirstOrDefault(b => b.propertyName == "m_LocalPosition.y");
+        var scaleXBinding = bindings.FirstOrDefault(b => b.propertyName == "m_LocalScale.x");
+        var scaleYBinding = bindings.FirstOrDefault(b => b.propertyName == "m_LocalScale.y");
+        var rotZBinding = bindings.FirstOrDefault(b => b.propertyName.Contains("localEulerAngles") && b.propertyName.Contains("z"));
+        var colorRBinding = bindings.FirstOrDefault(b => b.propertyName.Contains("m_Color.r"));
+        var colorGBinding = bindings.FirstOrDefault(b => b.propertyName.Contains("m_Color.g"));
+        var colorBBinding = bindings.FirstOrDefault(b => b.propertyName.Contains("m_Color.b"));
+        var colorABinding = bindings.FirstOrDefault(b => b.propertyName.Contains("m_Color.a"));
+        var alphaBinding = bindings.FirstOrDefault(b => b.propertyName == "m_Alpha");
+        var spriteBinding = bindings.FirstOrDefault(b => b.propertyName == "m_Sprite");
+        var activeBinding = bindings.FirstOrDefault(b => b.propertyName == "m_IsActive");
 
-        // Build Position timeline
-        if (positionXCurve.propertyName != null || positionYCurve.propertyName != null)
+        // Position timeline
+        if (!string.IsNullOrEmpty(posXBinding.propertyName) || !string.IsNullOrEmpty(posYBinding.propertyName))
         {
-            var xCurve = positionXCurve.propertyName != null ?
-                AnimationUtility.GetEditorCurve(clip, positionXCurve) : null;
-            var yCurve = positionYCurve.propertyName != null ?
-                AnimationUtility.GetEditorCurve(clip, positionYCurve) : null;
-
-            var timeline = BuildPositionTimeline(builder, actionTag, xCurve, yCurve, clip.length);
-            if (timeline.HasValue)
-            {
-                timelines.Add(timeline.Value);
-            }
+            var xCurve = !string.IsNullOrEmpty(posXBinding.propertyName) ? AnimationUtility.GetEditorCurve(clip, posXBinding) : null;
+            var yCurve = !string.IsNullOrEmpty(posYBinding.propertyName) ? AnimationUtility.GetEditorCurve(clip, posYBinding) : null;
+            var timeline = BuildPositionTimeline(builder, actionTag, xCurve, yCurve);
+            if (timeline.HasValue) timelines.Add(timeline.Value);
         }
 
-        // Build Scale timeline
-        if (scaleXCurve.propertyName != null || scaleYCurve.propertyName != null)
+        // Scale timeline
+        if (!string.IsNullOrEmpty(scaleXBinding.propertyName) || !string.IsNullOrEmpty(scaleYBinding.propertyName))
         {
-            var xCurve = scaleXCurve.propertyName != null ?
-                AnimationUtility.GetEditorCurve(clip, scaleXCurve) : null;
-            var yCurve = scaleYCurve.propertyName != null ?
-                AnimationUtility.GetEditorCurve(clip, scaleYCurve) : null;
-
-            var timeline = BuildScaleTimeline(builder, actionTag, xCurve, yCurve, clip.length);
-            if (timeline.HasValue)
-            {
-                timelines.Add(timeline.Value);
-            }
+            var xCurve = !string.IsNullOrEmpty(scaleXBinding.propertyName) ? AnimationUtility.GetEditorCurve(clip, scaleXBinding) : null;
+            var yCurve = !string.IsNullOrEmpty(scaleYBinding.propertyName) ? AnimationUtility.GetEditorCurve(clip, scaleYBinding) : null;
+            var timeline = BuildScaleTimeline(builder, actionTag, xCurve, yCurve);
+            if (timeline.HasValue) timelines.Add(timeline.Value);
         }
 
-        // Build Color timeline
-        if (colorRCurve.propertyName != null || colorACurve.propertyName != null)
+        // Rotation timeline (as RotationSkew)
+        if (!string.IsNullOrEmpty(rotZBinding.propertyName))
         {
-            var rCurve = colorRCurve.propertyName != null ?
-                AnimationUtility.GetEditorCurve(clip, colorRCurve) : null;
-            var gCurve = colorGCurve.propertyName != null ?
-                AnimationUtility.GetEditorCurve(clip, colorGCurve) : null;
-            var bCurve = colorBCurve.propertyName != null ?
-                AnimationUtility.GetEditorCurve(clip, colorBCurve) : null;
-            var aCurve = colorACurve.propertyName != null ?
-                AnimationUtility.GetEditorCurve(clip, colorACurve) : null;
+            var zCurve = AnimationUtility.GetEditorCurve(clip, rotZBinding);
+            var timeline = BuildRotationTimeline(builder, actionTag, zCurve);
+            if (timeline.HasValue) timelines.Add(timeline.Value);
+        }
 
-            var timeline = BuildColorTimeline(builder, actionTag, rCurve, gCurve, bCurve, aCurve, clip.length);
-            if (timeline.HasValue)
-            {
-                timelines.Add(timeline.Value);
-            }
+        // Color timeline
+        if (!string.IsNullOrEmpty(colorRBinding.propertyName) || !string.IsNullOrEmpty(colorABinding.propertyName))
+        {
+            var rCurve = !string.IsNullOrEmpty(colorRBinding.propertyName) ? AnimationUtility.GetEditorCurve(clip, colorRBinding) : null;
+            var gCurve = !string.IsNullOrEmpty(colorGBinding.propertyName) ? AnimationUtility.GetEditorCurve(clip, colorGBinding) : null;
+            var bCurve = !string.IsNullOrEmpty(colorBBinding.propertyName) ? AnimationUtility.GetEditorCurve(clip, colorBBinding) : null;
+            var aCurve = !string.IsNullOrEmpty(colorABinding.propertyName) ? AnimationUtility.GetEditorCurve(clip, colorABinding) : null;
+            var timeline = BuildColorTimeline(builder, actionTag, rCurve, gCurve, bCurve, aCurve);
+            if (timeline.HasValue) timelines.Add(timeline.Value);
+        }
+
+        // Alpha timeline (separate IntFrame)
+        if (!string.IsNullOrEmpty(alphaBinding.propertyName))
+        {
+            var aCurve = AnimationUtility.GetEditorCurve(clip, alphaBinding);
+            var timeline = BuildAlphaTimeline(builder, actionTag, aCurve);
+            if (timeline.HasValue) timelines.Add(timeline.Value);
+        }
+
+        // Visibility timeline (BoolFrame)
+        if (!string.IsNullOrEmpty(activeBinding.propertyName))
+        {
+            var activeCurve = AnimationUtility.GetEditorCurve(clip, activeBinding);
+            var timeline = BuildVisibleTimeline(builder, actionTag, activeCurve);
+            if (timeline.HasValue) timelines.Add(timeline.Value);
+        }
+
+        // Sprite/Texture timeline
+        var objectBindings = AnimationUtility.GetObjectReferenceCurveBindings(clip);
+        var spriteObjBinding = objectBindings.FirstOrDefault(b => b.propertyName == "m_Sprite");
+        if (!string.IsNullOrEmpty(spriteObjBinding.propertyName))
+        {
+            var timeline = BuildTextureTimeline(builder, actionTag, clip, spriteObjBinding, context);
+            if (timeline.HasValue) timelines.Add(timeline.Value);
         }
 
         return timelines;
     }
 
     private Offset<TimeLine>? BuildPositionTimeline(FlatBufferBuilder builder, int actionTag,
-        AnimationCurve xCurve, AnimationCurve yCurve, float clipLength)
+        AnimationCurve xCurve, AnimationCurve yCurve)
     {
         var frameOffsets = new List<Offset<Frame>>();
-
-        // Sample keyframes
         var keyframeTimes = new HashSet<float>();
+
         if (xCurve != null) foreach (var key in xCurve.keys) keyframeTimes.Add(key.time);
         if (yCurve != null) foreach (var key in yCurve.keys) keyframeTimes.Add(key.time);
 
@@ -600,7 +1082,7 @@ public class CSBExporter : EditorWindow
             float y = yCurve?.Evaluate(time) ?? 0;
 
             var posStruct = Position.CreatePosition(builder, x, y);
-            var easingOffset = BuildEasingData(builder, EasingType.Linear);
+            var easingOffset = BuildEasingData(builder, GetEasingFromCurve(xCurve ?? yCurve, time));
 
             PointFrame.StartPointFrame(builder);
             PointFrame.AddFrameIndex(builder, frameIndex);
@@ -627,11 +1109,11 @@ public class CSBExporter : EditorWindow
     }
 
     private Offset<TimeLine>? BuildScaleTimeline(FlatBufferBuilder builder, int actionTag,
-        AnimationCurve xCurve, AnimationCurve yCurve, float clipLength)
+        AnimationCurve xCurve, AnimationCurve yCurve)
     {
         var frameOffsets = new List<Offset<Frame>>();
-
         var keyframeTimes = new HashSet<float>();
+
         if (xCurve != null) foreach (var key in xCurve.keys) keyframeTimes.Add(key.time);
         if (yCurve != null) foreach (var key in yCurve.keys) keyframeTimes.Add(key.time);
 
@@ -642,7 +1124,7 @@ public class CSBExporter : EditorWindow
             float y = yCurve?.Evaluate(time) ?? 1;
 
             var scaleStruct = Scale.CreateScale(builder, x, y);
-            var easingOffset = BuildEasingData(builder, EasingType.Linear);
+            var easingOffset = BuildEasingData(builder, GetEasingFromCurve(xCurve ?? yCurve, time));
 
             ScaleFrame.StartScaleFrame(builder);
             ScaleFrame.AddFrameIndex(builder, frameIndex);
@@ -668,12 +1150,50 @@ public class CSBExporter : EditorWindow
         return TimeLine.EndTimeLine(builder);
     }
 
-    private Offset<TimeLine>? BuildColorTimeline(FlatBufferBuilder builder, int actionTag,
-        AnimationCurve rCurve, AnimationCurve gCurve, AnimationCurve bCurve, AnimationCurve aCurve, float clipLength)
+    private Offset<TimeLine>? BuildRotationTimeline(FlatBufferBuilder builder, int actionTag, AnimationCurve zCurve)
     {
+        if (zCurve == null || zCurve.keys.Length == 0) return null;
+
         var frameOffsets = new List<Offset<Frame>>();
 
+        foreach (var key in zCurve.keys)
+        {
+            int frameIndex = Mathf.RoundToInt(key.time * animationFrameRate);
+            float z = key.value;
+
+            // RotationSkew uses IntFrame with rotation value
+            var easingOffset = BuildEasingData(builder, GetEasingFromCurve(zCurve, key.time));
+
+            IntFrame.StartIntFrame(builder);
+            IntFrame.AddFrameIndex(builder, frameIndex);
+            IntFrame.AddTween(builder, true);
+            IntFrame.AddValue(builder, (int)z);
+            IntFrame.AddEasingData(builder, easingOffset);
+            var intFrameOffset = IntFrame.EndIntFrame(builder);
+
+            Frame.StartFrame(builder);
+            Frame.AddIntFrame(builder, intFrameOffset);
+            frameOffsets.Add(Frame.EndFrame(builder));
+        }
+
+        if (frameOffsets.Count == 0) return null;
+
+        var propertyOffset = builder.CreateString("Rotation");
+        var framesVector = TimeLine.CreateFramesVector(builder, frameOffsets.ToArray());
+
+        TimeLine.StartTimeLine(builder);
+        TimeLine.AddProperty(builder, propertyOffset);
+        TimeLine.AddActionTag(builder, actionTag);
+        TimeLine.AddFrames(builder, framesVector);
+        return TimeLine.EndTimeLine(builder);
+    }
+
+    private Offset<TimeLine>? BuildColorTimeline(FlatBufferBuilder builder, int actionTag,
+        AnimationCurve rCurve, AnimationCurve gCurve, AnimationCurve bCurve, AnimationCurve aCurve)
+    {
+        var frameOffsets = new List<Offset<Frame>>();
         var keyframeTimes = new HashSet<float>();
+
         if (rCurve != null) foreach (var key in rCurve.keys) keyframeTimes.Add(key.time);
         if (gCurve != null) foreach (var key in gCurve.keys) keyframeTimes.Add(key.time);
         if (bCurve != null) foreach (var key in bCurve.keys) keyframeTimes.Add(key.time);
@@ -714,6 +1234,144 @@ public class CSBExporter : EditorWindow
         return TimeLine.EndTimeLine(builder);
     }
 
+    private Offset<TimeLine>? BuildAlphaTimeline(FlatBufferBuilder builder, int actionTag, AnimationCurve aCurve)
+    {
+        if (aCurve == null || aCurve.keys.Length == 0) return null;
+
+        var frameOffsets = new List<Offset<Frame>>();
+
+        foreach (var key in aCurve.keys)
+        {
+            int frameIndex = Mathf.RoundToInt(key.time * animationFrameRate);
+            int alpha = (int)(key.value * 255);
+
+            var easingOffset = BuildEasingData(builder, GetEasingFromCurve(aCurve, key.time));
+
+            IntFrame.StartIntFrame(builder);
+            IntFrame.AddFrameIndex(builder, frameIndex);
+            IntFrame.AddTween(builder, true);
+            IntFrame.AddValue(builder, alpha);
+            IntFrame.AddEasingData(builder, easingOffset);
+            var intFrameOffset = IntFrame.EndIntFrame(builder);
+
+            Frame.StartFrame(builder);
+            Frame.AddIntFrame(builder, intFrameOffset);
+            frameOffsets.Add(Frame.EndFrame(builder));
+        }
+
+        var propertyOffset = builder.CreateString("Alpha");
+        var framesVector = TimeLine.CreateFramesVector(builder, frameOffsets.ToArray());
+
+        TimeLine.StartTimeLine(builder);
+        TimeLine.AddProperty(builder, propertyOffset);
+        TimeLine.AddActionTag(builder, actionTag);
+        TimeLine.AddFrames(builder, framesVector);
+        return TimeLine.EndTimeLine(builder);
+    }
+
+    private Offset<TimeLine>? BuildVisibleTimeline(FlatBufferBuilder builder, int actionTag, AnimationCurve activeCurve)
+    {
+        if (activeCurve == null || activeCurve.keys.Length == 0) return null;
+
+        var frameOffsets = new List<Offset<Frame>>();
+
+        foreach (var key in activeCurve.keys)
+        {
+            int frameIndex = Mathf.RoundToInt(key.time * animationFrameRate);
+            bool visible = key.value > 0.5f;
+
+            var easingOffset = BuildEasingData(builder, EasingType.Linear);
+
+            BoolFrame.StartBoolFrame(builder);
+            BoolFrame.AddFrameIndex(builder, frameIndex);
+            BoolFrame.AddTween(builder, false);
+            BoolFrame.AddValue(builder, visible);
+            BoolFrame.AddEasingData(builder, easingOffset);
+            var boolFrameOffset = BoolFrame.EndBoolFrame(builder);
+
+            Frame.StartFrame(builder);
+            Frame.AddBoolFrame(builder, boolFrameOffset);
+            frameOffsets.Add(Frame.EndFrame(builder));
+        }
+
+        var propertyOffset = builder.CreateString("Visible");
+        var framesVector = TimeLine.CreateFramesVector(builder, frameOffsets.ToArray());
+
+        TimeLine.StartTimeLine(builder);
+        TimeLine.AddProperty(builder, propertyOffset);
+        TimeLine.AddActionTag(builder, actionTag);
+        TimeLine.AddFrames(builder, framesVector);
+        return TimeLine.EndTimeLine(builder);
+    }
+
+    private Offset<TimeLine>? BuildTextureTimeline(FlatBufferBuilder builder, int actionTag,
+        AnimationClip clip, EditorCurveBinding binding, ExportContext context)
+    {
+        var keyframes = AnimationUtility.GetObjectReferenceCurve(clip, binding);
+        if (keyframes == null || keyframes.Length == 0) return null;
+
+        var frameOffsets = new List<Offset<Frame>>();
+
+        foreach (var keyframe in keyframes)
+        {
+            int frameIndex = Mathf.RoundToInt(keyframe.time * animationFrameRate);
+            var sprite = keyframe.value as Sprite;
+
+            var textureFileOffset = BuildResourceData(builder, sprite?.texture, context);
+            var easingOffset = BuildEasingData(builder, EasingType.Linear);
+
+            TextureFrame.StartTextureFrame(builder);
+            TextureFrame.AddFrameIndex(builder, frameIndex);
+            TextureFrame.AddTween(builder, false);
+            TextureFrame.AddTextureFile(builder, textureFileOffset);
+            TextureFrame.AddEasingData(builder, easingOffset);
+            var textureFrameOffset = TextureFrame.EndTextureFrame(builder);
+
+            Frame.StartFrame(builder);
+            Frame.AddTextureFrame(builder, textureFrameOffset);
+            frameOffsets.Add(Frame.EndFrame(builder));
+        }
+
+        var propertyOffset = builder.CreateString("FileData");
+        var framesVector = TimeLine.CreateFramesVector(builder, frameOffsets.ToArray());
+
+        TimeLine.StartTimeLine(builder);
+        TimeLine.AddProperty(builder, propertyOffset);
+        TimeLine.AddActionTag(builder, actionTag);
+        TimeLine.AddFrames(builder, framesVector);
+        return TimeLine.EndTimeLine(builder);
+    }
+
+    private EasingType GetEasingFromCurve(AnimationCurve curve, float time)
+    {
+        // Analyze curve tangents to determine easing type
+        // This is a simplified version - full implementation would analyze in/out tangents
+        if (curve == null) return EasingType.Linear;
+
+        var keyIndex = -1;
+        for (int i = 0; i < curve.keys.Length; i++)
+        {
+            if (Mathf.Approximately(curve.keys[i].time, time))
+            {
+                keyIndex = i;
+                break;
+            }
+        }
+
+        if (keyIndex < 0 || keyIndex >= curve.keys.Length - 1)
+            return EasingType.Linear;
+
+        var key = curve.keys[keyIndex];
+        var outTangent = key.outTangent;
+
+        // Rough heuristic for easing type based on tangent
+        if (float.IsInfinity(outTangent)) return EasingType.Linear;
+        if (Mathf.Abs(outTangent) < 0.1f) return EasingType.EaseOutQuad;
+        if (outTangent > 2f) return EasingType.EaseInQuad;
+
+        return EasingType.Linear;
+    }
+
     private Offset<EasingData> BuildEasingData(FlatBufferBuilder builder, EasingType type)
     {
         EasingData.StartEasingData(builder);
@@ -729,10 +1387,11 @@ public class CSBExporter : EditorWindow
     {
         public List<string> texturePaths = new List<string>();
         public Dictionary<Texture, int> textureMap = new Dictionary<Texture, int>();
+        public Dictionary<string, string> textureSourcePaths = new Dictionary<string, string>();
         public Dictionary<GameObject, int> actionTagMap = new Dictionary<GameObject, int>();
+        public int nodeCount = 0;
     }
 
-    // CSB Easing types (matches Cocos Studio)
     private enum EasingType
     {
         Linear = 0,

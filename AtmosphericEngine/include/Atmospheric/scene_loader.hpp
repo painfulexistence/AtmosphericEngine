@@ -15,6 +15,7 @@ namespace flatbuffers {
     struct SpriteOptions;
     struct ImageViewOptions;
     struct SingleNodeOptions;
+    struct NodeAction;
 }// namespace flatbuffers
 
 // Result of loading a scene file
@@ -79,6 +80,9 @@ private:
 
     // Apply common widget options to a GameObject
     void ApplyWidgetOptions(GameObject* go, const flatbuffers::WidgetOptions* options, const SceneLoadConfig& config);
+
+    // Parse animations from CSB
+    void ParseAnimations(const flatbuffers::NodeAction* actions, SceneLoadResult& result);
 
     // Resolve texture path
     int ResolveTexture(

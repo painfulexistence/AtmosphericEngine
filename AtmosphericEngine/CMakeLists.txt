@@ -103,6 +103,8 @@ set(SOURCES
     src/physics_debug_drawer.cpp
     src/input.cpp
     src/scene.cpp
+    src/action.cpp
+    src/action_manager.cpp
     src/asset_manager.cpp
     src/font_manager.cpp
     src/job_system.cpp

@@ -53,7 +53,7 @@ bool RmlUiManager::Initialize(int width, int height, Renderer* renderer) {
     }
 
     // Load fonts
-    if (!Rml::LoadFontFace("assets/fonts/Arial Black.ttf")) {
+    if (!Rml::LoadFontFace("assets/fonts/NotoSans-SemiBold.ttf")) {
         spdlog::warn(
           "Failed to load default font, UI text may not render correctly. Consider using 'rmlui-debugger-font' in your "
           "RCSS."

@@ -29,30 +29,40 @@ glm::mat4 TransformComponent::GetLocalTransform() const {
 }
 
 glm::mat4 TransformComponent::GetWorldTransform() const {
-    return _worldToWorld;
+    if (gameObject && gameObject->parent) {
+        return gameObject->parent->GetTransform() * _localToWorld;
+    }
+    return _localToWorld;
 }
 
 void TransformComponent::SetLocalTransform(const glm::mat4& transform) {
     _localToWorld = transform;
+    UpdatePositionRotationScale();
 }
 
 void TransformComponent::SetWorldTransform(const glm::mat4& transform) {
-    _worldToWorld = transform;
+    if (gameObject && gameObject->parent) {
+        glm::mat4 parentTransform = gameObject->parent->GetTransform();
+        _localToWorld = glm::inverse(parentTransform) * transform;
+    } else {
+        _localToWorld = transform;
+    }
     UpdatePositionRotationScale();
 }
 
 void TransformComponent::SyncWorldTransform(const glm::mat4& transform) {
-    _worldToWorld = transform;
-    UpdatePositionRotationScale();
+    SetWorldTransform(transform);
 }
 
+// Update local matrix from P/R/S
 void TransformComponent::UpdateTransform() {
-    _worldToWorld = glm::translate(glm::mat4(1.0f), _position) * glm::mat4_cast(glm::quat(_rotation))
+    _localToWorld = glm::translate(glm::mat4(1.0f), _position) * glm::mat4_cast(glm::quat(_rotation))
                     * glm::scale(glm::mat4(1.0f), _scale);
 }
 
+// Update P/R/S from local matrix
 void TransformComponent::UpdatePositionRotationScale() {
-    _position = glm::vec3(_worldToWorld[3]);
-    _rotation = glm::eulerAngles(glm::quat_cast(glm::mat3(_worldToWorld)));
-    _scale = glm::vec3(glm::length(_worldToWorld[0]), glm::length(_worldToWorld[1]), glm::length(_worldToWorld[2]));
+    _position = glm::vec3(_localToWorld[3]);
+    _rotation = glm::eulerAngles(glm::quat_cast(glm::mat3(_localToWorld)));
+    _scale = glm::vec3(glm::length(_localToWorld[0]), glm::length(_localToWorld[1]), glm::length(_localToWorld[2]));
 }

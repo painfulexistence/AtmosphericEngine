@@ -28,16 +28,30 @@
 enum Axis { UP, DOWN, BACK, FRONT, RIGHT, LEFT };
 
 // Canvas layer constants for z-ordering
+// World 3D layers (< LAYER_WORLD_2D): rendered by WorldCanvasPass with depth testing
+// World 2D layers (LAYER_WORLD_2D): rendered by CanvasPass, screen-space ortho, no depth
+// UI layers (>= LAYER_UI_BACK): rendered by UIPass (RmlUi)
 enum class CanvasLayer {
+    // 3D world layers (WorldCanvasPass - depth tested)
     LAYER_BACKGROUND = 0,// Far background (parallax, sky)
     LAYER_WORLD_BACK = 10,// Background game objects
     LAYER_WORLD = 50,// Main game objects (player, enemies)
     LAYER_WORLD_FRONT = 90,// Foreground game objects
     LAYER_EFFECTS = 100,// Particle effects, damage numbers
+    // 2D layer (CanvasPass - screen space, no depth)
+    LAYER_WORLD_2D = 150,// Pure 2D sprites (screen coordinates)
+    // UI layers (UIPass - RmlUi)
     LAYER_UI_BACK = 200,// UI background elements
     LAYER_UI = 300,// Main UI elements (HUD, health bars)
     LAYER_UI_FRONT = 400,// Popups, tooltips
     LAYER_OVERLAY = 500,// Debug overlay, screen fade
+};
+
+// Billboard modes for 3D sprites
+enum class BillboardMode {
+    None,// No billboarding, use object's rotation
+    ViewPoint,// Face camera position (spherical)
+    ViewPlane,// Face camera plane (cylindrical, Y-axis locked)
 };
 
 enum class ShapeType {

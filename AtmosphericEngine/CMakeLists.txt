@@ -57,6 +57,19 @@ find_package(fmt REQUIRED)
 find_package(spdlog REQUIRED)
 find_package(lua REQUIRED)
 find_package(RmlUi REQUIRED)
+find_package(flatbuffers CONFIG REQUIRED)
+
+# Generate FlatBuffers headers from schema
+set(FLATBUFFERS_SCHEMA_DIR ${CMAKE_CURRENT_SOURCE_DIR}/schemas)
+set(FLATBUFFERS_GENERATED_DIR ${CMAKE_CURRENT_BINARY_DIR}/generated)
+file(MAKE_DIRECTORY ${FLATBUFFERS_GENERATED_DIR})
+
+add_custom_command(
+    OUTPUT ${FLATBUFFERS_GENERATED_DIR}/Scene_generated.h
+    COMMAND flatbuffers::flatc --cpp -o ${FLATBUFFERS_GENERATED_DIR} ${FLATBUFFERS_SCHEMA_DIR}/Scene.fbs
+    DEPENDS ${FLATBUFFERS_SCHEMA_DIR}/Scene.fbs
+    COMMENT "Generating FlatBuffers headers for Scene"
+)
 
 add_subdirectory(external/sol2)
 if(AE_USE_AUDIO)
@@ -81,6 +94,7 @@ set(SOURCES
     src/frustum.cpp
     src/mesh_component.cpp
     src/sprite_component.cpp
+    src/sprite_3d_component.cpp
     src/terrain_component.cpp
     src/shader.cpp
     src/graphics_server.cpp
@@ -88,9 +102,12 @@ set(SOURCES
     src/physics_server.cpp
     src/physics_debug_drawer.cpp
     src/input.cpp
-    src/script.cpp
     src/scene.cpp
+    src/action.cpp
+    src/action_manager.cpp
+    src/animator_2d.cpp
     src/asset_manager.cpp
+    src/font_manager.cpp
     src/job_system.cpp
     src/bullet_task_scheduler.cpp
     src/particle_server.cpp
@@ -105,6 +122,8 @@ set(SOURCES
     src/render_texture.cpp
     src/mesh_builder.cpp
     src/shape_renderer_component.cpp
+    src/scene_loader.cpp
+    ${FLATBUFFERS_GENERATED_DIR}/Scene_generated.h
 )
 if(AE_USE_AUDIO)
     list(APPEND SOURCES src/audio_manager.cpp)
@@ -141,6 +160,7 @@ target_include_directories(AtmosphericEngine
         ${LUA_INCLUDE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}/external/stb
         ${CMAKE_CURRENT_SOURCE_DIR}/include/Atmospheric
+        ${FLATBUFFERS_GENERATED_DIR}
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui
         ${CMAKE_CURRENT_SOURCE_DIR}/include
@@ -148,7 +168,7 @@ target_include_directories(AtmosphericEngine
 target_precompile_headers(AtmosphericEngine PRIVATE src/pch.hpp)
 target_link_libraries(AtmosphericEngine
     PUBLIC
-        glm::glm fmt::fmt BulletSoftBody BulletDynamics BulletCollision LinearMath ${LUA_LIBRARIES} sol2 raudio RmlUi::RmlUi box2d::box2d
+        glm::glm fmt::fmt BulletSoftBody BulletDynamics BulletCollision LinearMath ${LUA_LIBRARIES} sol2 raudio RmlUi::RmlUi box2d::box2d flatbuffers::flatbuffers
 )
 if (AE_USE_AUDIO)
     target_link_libraries(AtmosphericEngine

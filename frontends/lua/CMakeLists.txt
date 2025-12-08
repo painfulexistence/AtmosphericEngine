@@ -12,7 +12,6 @@ set(LUA_FRONTEND_SOURCES
     main.cpp
     lua_application.cpp
     scriptable_component.cpp
-    font_manager.cpp
     bindings/bind_core.cpp
     bindings/bind_input.cpp
     bindings/bind_world.cpp

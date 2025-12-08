@@ -1,4 +1,5 @@
 #include "graphics_server.hpp"
+#include "Atmospheric/window.hpp"
 #include "application.hpp"
 #include "asset_manager.hpp"
 #include "camera_component.hpp"
@@ -12,7 +13,9 @@
 #include "renderer.hpp"
 #include "sprite_component.hpp"
 #include "stb_image.h"
-#include "window.hpp"
+#include <fstream>
+#include <glm/gtc/matrix_transform.hpp>
+#include <sstream>
 #include <tracy/Tracy.hpp>
 
 #include <cstddef>
@@ -530,4 +533,195 @@ RenderMesh* GraphicsServer::GetRenderMesh(RenderMeshHandle handle) {
         return it->second.get();
     }
     return nullptr;
+}
+
+// ===== 2D Rendering (Queued for UI) =====
+
+static void CreateQuad(
+  std::vector<BatchVertex>& vertices,
+  std::vector<uint32_t>& indices,
+  const glm::mat4& transform,
+  const glm::vec4& color,
+  const glm::vec2* uvs = nullptr
+) {
+    uint32_t startIndex = vertices.size();
+
+    glm::vec2 defaultUVs[] = { { 0.0f, 0.0f }, { 1.0f, 0.0f }, { 1.0f, 1.0f }, { 0.0f, 1.0f } };
+    const glm::vec2* finalUVs = uvs ? uvs : defaultUVs;
+
+    glm::vec4 positions[] = { { -0.5f, -0.5f, 0.0f, 1.0f },
+                              { 0.5f, -0.5f, 0.0f, 1.0f },
+                              { 0.5f, 0.5f, 0.0f, 1.0f },
+                              { -0.5f, 0.5f, 0.0f, 1.0f } };
+
+    for (int i = 0; i < 4; i++) {
+        BatchVertex v;
+        v.position = glm::vec3(transform * positions[i]);
+        v.color = color;
+        v.uv = finalUVs[i];
+        v.texIndex = 0.0f;// Will be set by DrawGeometry based on textureID
+        v.entityID = -1.0f;
+        vertices.push_back(v);
+    }
+
+    indices.push_back(startIndex + 0);
+    indices.push_back(startIndex + 1);
+    indices.push_back(startIndex + 2);
+    indices.push_back(startIndex + 2);
+    indices.push_back(startIndex + 3);
+    indices.push_back(startIndex + 0);
+}
+
+void GraphicsServer::DrawQuad(float x, float y, float w, float h, float rotation, const glm::vec4& color) {
+    DrawTexturedQuad(x, y, w, h, rotation, 0, color);
+}
+
+void GraphicsServer::DrawTexturedQuad(
+  float x, float y, float w, float h, float rotation, uint32_t textureID, const glm::vec4& color
+) {
+    BatchDrawCommand cmd;
+    cmd.textureID = textureID;
+    cmd.transform = glm::mat4(1.0f);// Transform handled in vertices
+
+    glm::mat4 transform = glm::translate(glm::mat4(1.0f), glm::vec3(x, y, 0.0f));
+    transform = glm::rotate(transform, rotation, glm::vec3(0.0f, 0.0f, 1.0f));
+    transform = glm::scale(transform, glm::vec3(w, h, 1.0f));
+
+    CreateQuad(cmd.vertices, cmd.indices, transform, color);
+    renderer->SubmitCanvasCommand(cmd);
+}
+
+void GraphicsServer::DrawRect(float x, float y, float w, float h, const glm::vec4& color) {
+    // Draw 4 lines
+    DrawLine(x, y, x + w, y, color);// Top
+    DrawLine(x + w, y, x + w, y + h, color);// Right
+    DrawLine(x + w, y + h, x, y + h, color);// Bottom
+    DrawLine(x, y + h, x, y, color);// Left
+}
+
+void GraphicsServer::DrawLine(float x1, float y1, float x2, float y2, const glm::vec4& color) {
+    // Draw as a thin quad
+    glm::vec2 p0(x1, y1);
+    glm::vec2 p1(x2, y2);
+    glm::vec2 dir = p1 - p0;
+    float len = glm::length(dir);
+    if (len < 0.001f) return;
+
+    float angle = std::atan2(dir.y, dir.x);
+    float cx = (x1 + x2) * 0.5f;
+    float cy = (y1 + y2) * 0.5f;
+
+    DrawQuad(cx, cy, len, 1.0f, angle, color);
+}
+
+void GraphicsServer::DrawCircle(float x, float y, float radius, const glm::vec4& color) {
+    const int segments = 32;
+    float angleStep = 6.28318f / segments;
+    for (int i = 0; i < segments; i++) {
+        float a0 = i * angleStep;
+        float a1 = (i + 1) * angleStep;
+        DrawLine(
+          x + std::cos(a0) * radius,
+          y + std::sin(a0) * radius,
+          x + std::cos(a1) * radius,
+          y + std::sin(a1) * radius,
+          color
+        );
+    }
+}
+
+// ===== Text Rendering Implementation =====
+
+FontID GraphicsServer::LoadFont(const std::string& path, float baseSize) {
+    return _fontManager.LoadFont(path, baseSize);
+}
+
+void GraphicsServer::UnloadFont(FontID id) {
+    _fontManager.UnloadFont(id);
+}
+
+void GraphicsServer::DrawText(
+  FontID fontID, const std::string& text, float x, float y, float scale, const glm::vec4& color
+) {
+    _textCommands.push_back({ fontID, text, x, y, scale, color });
+}
+
+void GraphicsServer::RenderBufferedText(BatchRenderer2D* batch) {
+    if (_textCommands.empty()) return;
+
+    for (const auto& cmd : _textCommands) {
+        Font* font = _fontManager.GetFont(cmd.fontID);
+        if (!font) continue;
+
+        float cursorX = cmd.x;
+
+        for (char c : cmd.text) {
+            const Glyph* glyph = _fontManager.GetGlyph(cmd.fontID, static_cast<int>(c));
+            if (!glyph) continue;
+
+            float drawX = cursorX + glyph->xOffset * cmd.scale;
+            float drawY = cmd.y + glyph->yOffset * cmd.scale + font->ascent * cmd.scale;
+            float drawW = glyph->width * cmd.scale;
+            float drawH = glyph->height * cmd.scale;
+
+            if (drawW > 0 && drawH > 0) {
+                // Adjust for centered quad rendering
+                float finalX = drawX + drawW * 0.5f;
+                float finalY = drawY + drawH * 0.5f;
+
+                // Create UV coordinates for this glyph
+                glm::vec2 uvs[4] = {
+                    { glyph->u0, glyph->v0 },// top-left
+                    { glyph->u1, glyph->v0 },// top-right
+                    { glyph->u1, glyph->v1 },// bottom-right
+                    { glyph->u0, glyph->v1 }// bottom-left
+                };
+
+                glm::mat4 transform = glm::translate(glm::mat4(1.0f), glm::vec3(finalX, finalY, 0.0f));
+                transform = glm::scale(transform, glm::vec3(drawW, drawH, 1.0f));
+                batch->DrawQuad(transform, font->textureID, uvs, cmd.color);
+            }
+
+            cursorX += glyph->advance * cmd.scale;
+        }
+    }
+    _textCommands.clear();
+}
+
+glm::vec2 GraphicsServer::MeasureText(FontID fontID, const std::string& text, float scale) {
+    return _fontManager.MeasureText(fontID, text, scale);
+}
+
+float GraphicsServer::GetFontLineHeight(FontID fontID, float scale) {
+    Font* font = _fontManager.GetFont(fontID);
+    return font ? font->lineHeight * scale : 0.0f;
+}
+
+// Draw text at 3D position
+void GraphicsServer::DrawText3D(
+  FontID fontID, const std::string& text, glm::vec3 position, float scale, const glm::vec4& color
+) {
+    auto* camera = GetMainCamera();
+    if (!camera) return;
+
+    glm::mat4 view = camera->GetViewMatrix();
+    glm::mat4 projection = camera->GetProjectionMatrix();
+    glm::mat4 viewProjection = projection * view;
+
+    glm::vec4 clipSpacePos = viewProjection * glm::vec4(position, 1.0f);
+
+    // Check if behind camera
+    if (clipSpacePos.w <= 0.0f) {
+        return;
+    }
+
+    // Perspective division
+    glm::vec3 ndc = glm::vec3(clipSpacePos) / clipSpacePos.w;
+
+    // Viewport transform
+    auto [width, height] = Window::Get()->GetFramebufferSize();
+    float x = (ndc.x + 1.0f) * 0.5f * width;
+    float y = (1.0f - ndc.y) * 0.5f * height;// Flip Y for screen coordinates
+
+    DrawText(fontID, text, x, y, scale, color);
 }

@@ -16,6 +16,13 @@ struct RenderCommand {
     glm::mat4 transform;
 };
 
+struct BatchDrawCommand {
+    std::vector<BatchVertex> vertices;
+    std::vector<uint32_t> indices;
+    uint32_t textureID;
+    glm::mat4 transform;
+};
+
 class RenderPass {
 public:
     virtual ~RenderPass() = default;
@@ -49,6 +56,11 @@ public:
 };
 
 class MSAAResolvePass : public RenderPass {
+public:
+    void Execute(GraphicsServer* ctx, Renderer& renderer) override;
+};
+
+class WorldCanvasPass : public RenderPass {
 public:
     void Execute(GraphicsServer* ctx, Renderer& renderer) override;
 };
@@ -140,6 +152,17 @@ public:
         return _transparentQueue;
     }
 
+    void SubmitUICommand(const BatchDrawCommand& cmd);
+
+    auto& GetUIQueue() {
+        return _hudQueue;
+    }
+
+    void SubmitCanvasCommand(const BatchDrawCommand& cmd);
+    auto& GetCanvasQueue() {
+        return _canvasQueue;
+    }
+
     glm::vec4 clearColor = glm::vec4(0.15f, 0.183f, 0.2f, 1.0f);
     bool postProcessEnabled = false;
     bool wireframeEnabled = false;
@@ -148,7 +171,7 @@ public:
     std::array<GLuint, MAX_OMNI_LIGHTS> omniShadowMaps;
     GLuint envMap, irradianceMap;
     GLuint sceneColorTexture, sceneDepthTexture, sceneStencilTexture;
-    GLuint msaaResolveTexture;
+    GLuint msaaResolveTexture, msaaResolveDepthTexture;
 
     struct GBuffer {
         GLuint id;
@@ -171,19 +194,6 @@ public:
         uint64_t sortKey;
     };
 
-    struct UICommand {
-        std::vector<BatchVertex> vertices;
-        std::vector<uint32_t> indices;
-        uint32_t textureID;
-        glm::mat4 transform;
-    };
-
-    void SubmitUICommand(const UICommand& cmd);
-
-    auto& GetUIQueue() {
-        return _hudQueue;
-    }
-
 private:
     std::vector<RenderCommand> _commandList;
 
@@ -192,7 +202,8 @@ private:
     std::vector<SortableCommand> _afterOpaqueQueue;// For raymarching voxel chunks, GPU particles
     std::vector<SortableCommand> _transparentQueue;// For particles, world UI
     std::vector<SortableCommand> _gizmoQueue;// For world debug UI
-    std::vector<UICommand> _hudQueue;// For HUD
+    std::vector<BatchDrawCommand> _hudQueue;// For HUD (RmlUi)
+    std::vector<BatchDrawCommand> _canvasQueue;// For immediate mode canvas (Lua)
 
     std::unique_ptr<RenderPipeline> _pipeline;// TODO: support forward and deferred
     RenderPath _currRenderPath = RenderPath::Forward;

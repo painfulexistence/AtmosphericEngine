@@ -69,7 +69,8 @@ void Renderer::Init(int width, int height) {
     _pipeline->AddPass(std::make_unique<ShadowPass>());
     _pipeline->AddPass(std::make_unique<ForwardOpaquePass>());
     _pipeline->AddPass(std::make_unique<MSAAResolvePass>());
-    _pipeline->AddPass(std::make_unique<CanvasPass>());
+    _pipeline->AddPass(std::make_unique<WorldCanvasPass>());// World sprites with depth testing
+    _pipeline->AddPass(std::make_unique<CanvasPass>());// 2D sprites, world space ortho, with no depth testing
     _pipeline->AddPass(std::make_unique<PostProcessPass>());
     _pipeline->AddPass(std::make_unique<UIPass>());
 }
@@ -207,6 +208,7 @@ void Renderer::RenderFrame(GraphicsServer* ctx, float dt) {
     _pipeline->Render(ctx, *this);
 
     _hudQueue.clear();
+    _canvasQueue.clear();
 }
 
 void Renderer::CheckFramebufferStatus(const std::string& prefix) {
@@ -407,8 +409,17 @@ void Renderer::CreateRTs(const RenderTargetProps& props) {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, props.width, props.height, 0, GL_RGBA, GL_FLOAT, NULL);
 
+    glGenTextures(1, &msaaResolveDepthTexture);
+    glBindTexture(GL_TEXTURE_2D, msaaResolveDepthTexture);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexImage2D(
+      GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, props.width, props.height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL
+    );
+
     glBindFramebuffer(GL_FRAMEBUFFER, msaaResolveFBO);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, msaaResolveTexture, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, msaaResolveDepthTexture, 0);
     CheckFramebufferStatus("MSAA framebuffer incomplete");
     CheckErrors("Create MSAA resolve RTs");
 
@@ -464,6 +475,7 @@ void Renderer::DestroyRTs() {
     glDeleteTextures(1, &sceneColorTexture);
     glDeleteTextures(1, &sceneDepthTexture);
     glDeleteTextures(1, &msaaResolveTexture);
+    glDeleteTextures(1, &msaaResolveDepthTexture);
 
     glDeleteTextures(1, &gBuffer.positionRT);
     glDeleteTextures(1, &gBuffer.normalRT);
@@ -1090,22 +1102,89 @@ void MSAAResolvePass::Execute(GraphicsServer* ctx, Renderer& renderer) {
     auto [width, height] = Window::Get()->GetFramebufferSize();
     glViewport(0, 0, width, height);
 
-    // Resolve MSAA
+    // Resolve MSAA (color + depth)
     glBindFramebuffer(GL_READ_FRAMEBUFFER, renderer.sceneFBO);
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, renderer.postProcessEnabled ? renderer.msaaResolveFBO : renderer.finalFBO);
-    glBlitFramebuffer(0, 0, width, height, 0, 0, width, height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+    glBlitFramebuffer(0, 0, width, height, 0, 0, width, height, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT, GL_NEAREST);
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     renderer.CheckErrors("MSAA resolve pass");
 }
 
-// Helper to reduce code duplication
-// Helper to reduce code duplication
-// void DrawSprite(SpriteComponent* sprite, BatchRenderer2D* batchRenderer);
+// WorldCanvasPass: World sprites with depth testing
+void WorldCanvasPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
+    ZoneScopedN("WorldCanvasPass");
 
+    // Filter all world-space drawables (3D layers only, below LAYER_WORLD_2D)
+    std::vector<CanvasDrawable*> worldDrawables;
+    for (auto* drawable : ctx->canvasDrawables) {
+        if (!drawable->gameObject->isActive) continue;
+        if ((int)drawable->GetLayer() < (int)CanvasLayer::LAYER_WORLD_2D) {
+            worldDrawables.push_back(drawable);
+        }
+    }
+
+    if (worldDrawables.empty()) return;
+
+    auto [width, height] = Window::Get()->GetFramebufferSize();
+    glViewport(0, 0, width, height);
+    glBindFramebuffer(GL_FRAMEBUFFER, renderer.postProcessEnabled ? renderer.msaaResolveFBO : renderer.finalFBO);
+
+    // Get camera for projection
+    CameraComponent* camera = ctx->GetMainCamera();
+    if (!camera) return;
+
+    glm::mat4 viewProj = camera->GetProjectionMatrix() * camera->GetViewMatrix();
+
+    // Enable depth test (read only, don't write) so sprites are occluded by 3D geometry
+    glEnable(GL_DEPTH_TEST);
+    glDepthMask(GL_FALSE);// Read depth but don't write
+    glDisable(GL_CULL_FACE);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+#ifndef __EMSCRIPTEN__
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+#endif
+
+    // Sort by layer first, then by distance (back to front for transparency)
+    glm::vec3 camPos = camera->GetEyePosition();
+    std::sort(worldDrawables.begin(), worldDrawables.end(), [&camPos](CanvasDrawable* a, CanvasDrawable* b) {
+        if (a->GetLayer() != b->GetLayer()) {
+            return a->GetLayer() < b->GetLayer();
+        }
+        float distA = glm::length(a->gameObject->GetPosition() - camPos);
+        float distB = glm::length(b->gameObject->GetPosition() - camPos);
+        return distA > distB;// Back to front
+    });
+
+    renderer.GetBatchRenderer()->BeginBatch(viewProj);
+    for (auto* drawable : worldDrawables) {
+        drawable->Draw(renderer.GetBatchRenderer());
+    }
+    renderer.GetBatchRenderer()->EndBatch();
+
+    // Restore depth mask
+    glDepthMask(GL_TRUE);
+    glDisable(GL_DEPTH_TEST);
+    glDisable(GL_BLEND);
+
+    renderer.CheckErrors("WorldCanvas pass");
+}
+
+// CanvasPass: Pure 2D sprites (no depth testing)
 void CanvasPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
     ZoneScopedN("CanvasPass");
+
+    std::vector<CanvasDrawable*> drawables2D;
+    for (auto* drawable : ctx->canvasDrawables) {
+        if (!drawable->gameObject->isActive) continue;
+        if (drawable->GetLayer() < CanvasLayer::LAYER_UI_BACK) {
+            drawables2D.push_back(drawable);
+        }
+    }
+
+    if (drawables2D.empty() && renderer.GetCanvasQueue().empty()) return;
 
     auto [width, height] = Window::Get()->GetFramebufferSize();
     glViewport(0, 0, width, height);
@@ -1119,10 +1198,10 @@ void CanvasPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 #endif
 
-    // 1. Calculate Projections
     glm::mat4 worldViewProj;
     CameraComponent* camera = ctx->GetMainCamera();
     if (camera && camera->IsOrthographic()) {
+        // NOTES: by default, 2D sprites are rendered with a world space orthographic camera
         worldViewProj = camera->GetProjectionMatrix() * camera->GetViewMatrix();
     } else {
         // Fallback or perspective camera handling for 2D?
@@ -1131,33 +1210,16 @@ void CanvasPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
         worldViewProj = glm::ortho(0.0f, (float)width, (float)height, 0.0f, -1.0f, 1.0f);
     }
 
-    glm::mat4 screenViewProj = glm::ortho(0.0f, (float)width, (float)height, 0.0f, -1.0f, 1.0f);
-
-    // 2. Sort Drawables
-    std::vector<CanvasDrawable*> sortedDrawables = ctx->canvasDrawables;
-    std::sort(sortedDrawables.begin(), sortedDrawables.end(), [](CanvasDrawable* a, CanvasDrawable* b) {
-        return a->GetLayer() < b->GetLayer();
-    });
-
-    // 3. Render World Sprites (Layer < LAYER_UI_BACK)
-    renderer.GetBatchRenderer()->BeginScene(worldViewProj);
-    for (auto drawable : sortedDrawables) {
+    renderer.GetBatchRenderer()->BeginBatch(worldViewProj);
+    for (auto drawable : drawables2D) {
         if (!drawable->gameObject->isActive) continue;
-        if ((int)drawable->GetLayer() >= (int)CanvasLayer::LAYER_UI_BACK) continue;// Skip UI sprites
-
         drawable->Draw(renderer.GetBatchRenderer());
     }
-    renderer.GetBatchRenderer()->EndScene();
-
-    // 4. Render UI Sprites (Layer >= LAYER_UI_BACK)
-    renderer.GetBatchRenderer()->BeginScene(screenViewProj);
-    for (auto drawable : sortedDrawables) {
-        if (!drawable->gameObject->isActive) continue;
-        if ((int)drawable->GetLayer() < (int)CanvasLayer::LAYER_UI_BACK) continue;// Skip World sprites
-
-        drawable->Draw(renderer.GetBatchRenderer());
+    for (const auto& cmd : renderer.GetCanvasQueue()) {
+        renderer.GetBatchRenderer()->DrawGeometry(cmd.vertices, cmd.indices, cmd.textureID, cmd.transform);
     }
-    renderer.GetBatchRenderer()->EndScene();
+    ctx->RenderBufferedText(renderer.GetBatchRenderer());
+    renderer.GetBatchRenderer()->EndBatch();
 
     glDisable(GL_BLEND);
     glEnable(GL_DEPTH_TEST);
@@ -1197,8 +1259,12 @@ void PostProcessPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
     renderer.CheckErrors("Post process pass");
 }
 
-void Renderer::SubmitUICommand(const UICommand& cmd) {
+void Renderer::SubmitUICommand(const BatchDrawCommand& cmd) {
     _hudQueue.push_back(cmd);
+}
+
+void Renderer::SubmitCanvasCommand(const BatchDrawCommand& cmd) {
+    _canvasQueue.push_back(cmd);
 }
 
 void UIPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
@@ -1222,13 +1288,13 @@ void UIPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
 
     glm::mat4 projection = glm::ortho(0.0f, width, height, 0.0f, -1.0f, 1.0f);
 
-    batchRenderer->BeginScene(projection);
+    batchRenderer->BeginBatch(projection);
 
     for (const auto& cmd : queue) {
         batchRenderer->DrawGeometry(cmd.vertices, cmd.indices, cmd.textureID, cmd.transform);
     }
 
-    batchRenderer->EndScene();
+    batchRenderer->EndBatch();
 
     // Restore state
     glEnable(GL_DEPTH_TEST);

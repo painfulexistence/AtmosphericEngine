@@ -14,6 +14,7 @@
 #include "Atmospheric/rigidbody_component.hpp"
 #include "Atmospheric/rmlui_manager.hpp"
 #include "Atmospheric/sprite_component.hpp"
+#include "Atmospheric/sprite_3d_component.hpp"
 #include "Atmospheric/terrain_component.hpp"
 #include "Atmospheric/window.hpp"
 #include "imgui.h"

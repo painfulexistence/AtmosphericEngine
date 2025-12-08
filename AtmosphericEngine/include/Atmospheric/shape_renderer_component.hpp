@@ -25,7 +25,7 @@ struct ShapeRendererProps {
 
     // Capsule/Segment (if needed)
 
-    CanvasLayer layer = CanvasLayer::LAYER_WORLD;
+    CanvasLayer layer = CanvasLayer::LAYER_WORLD_2D;
 };
 
 class ShapeRendererComponent : public CanvasDrawable {

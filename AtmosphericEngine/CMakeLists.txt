@@ -94,6 +94,7 @@ set(SOURCES
     src/frustum.cpp
     src/mesh_component.cpp
     src/sprite_component.cpp
+    src/sprite_3d_component.cpp
     src/terrain_component.cpp
     src/shader.cpp
     src/graphics_server.cpp
@@ -101,9 +102,9 @@ set(SOURCES
     src/physics_server.cpp
     src/physics_debug_drawer.cpp
     src/input.cpp
-    src/script.cpp
     src/scene.cpp
     src/asset_manager.cpp
+    src/font_manager.cpp
     src/job_system.cpp
     src/bullet_task_scheduler.cpp
     src/particle_server.cpp

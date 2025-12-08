@@ -30,7 +30,7 @@ void TextComponent::OnAttach() {
 
     // If fontPath is empty, use a default fallback
     if (_fontPath.empty()) {
-        _fontPath = "assets/fonts/Arial Black.ttf";
+        _fontPath = "assets/fonts/NotoSans-SemiBold.ttf";
         Console::Get()->Warn(fmt::format("TextComponent: No font specified, falling back to default '{}'", _fontPath));
     }
 

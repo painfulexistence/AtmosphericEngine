@@ -128,7 +128,7 @@ SceneLoadResult SceneLoader::LoadFromBuffer(const uint8_t* buffer, size_t size, 
 
     // Parse animations (csb->action())
     if (csb->action()) {
-        ParseAnimations(csb->action(), result, actualConfig);
+        ParseAnimations(csb->action(), result, config);
     }
 
     return result;

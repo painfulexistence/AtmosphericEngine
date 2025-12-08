@@ -45,7 +45,7 @@ struct SceneLoadConfig {
     glm::vec3 rootPosition = glm::vec3(0.0f);
 
     // Animation settings
-    float animationFrameRate = 60.0f;// Frame rate for CSB animations (Unity typically uses 30fps)
+    float animationFrameRate = 30.0f;// Frame rate for CSB animations (30fps is standard for 2D games and Unity)
     bool loopAnimations = true;// Whether to loop animations (default: true, like most game engines)
 };
 

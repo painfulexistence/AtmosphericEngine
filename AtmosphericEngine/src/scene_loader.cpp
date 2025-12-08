@@ -1,4 +1,6 @@
 #include "scene_loader.hpp"
+#include "action.hpp"
+#include "action_manager.hpp"
 #include "application.hpp"
 #include "asset_manager.hpp"
 #include "game_object.hpp"
@@ -125,9 +127,134 @@ SceneLoadResult SceneLoader::LoadFromBuffer(const uint8_t* buffer, size_t size, 
         spdlog::warn("SceneLoader: {}", result.error);
     }
 
-    // TODO: Parse animations (csb->action()) in future iteration
+    // Parse animations (csb->action())
+    if (csb->action()) {
+        ParseAnimations(csb->action(), result);
+    }
 
     return result;
+}
+
+// ... existing ParseNodeTree ...
+
+void SceneLoader::ParseAnimations(const flatbuffers::NodeAction* actions, SceneLoadResult& result) {
+    if (!actions) {
+        spdlog::debug("SceneLoader: No Action data in CSB.");
+        return;
+    }
+    if (!actions->timeLines()) {
+        spdlog::debug("SceneLoader: Action data present but no TimeLines.");
+        return;
+    }
+
+    // For demo: Auto-play the first animation found in timelines
+    float frameRate = 60.0f;// CSB standard
+    spdlog::info("SceneLoader: Parsing {} validation timelines...", actions->timeLines()->size());
+
+    for (auto timeline : *actions->timeLines()) {
+        if (!timeline || !timeline->frames() || timeline->frames()->size() == 0) {
+            spdlog::warn("SceneLoader: skipping empty timeline.");
+            continue;
+        }
+
+        int actionTag = timeline->actionTag();
+        spdlog::info(
+          "SceneLoader: Processing timeline for ActionTag {} Property {}", actionTag, timeline->property()->c_str()
+        );
+
+        auto it = result.nodesByActionTag.find(actionTag);
+        if (it == result.nodesByActionTag.end()) {
+            spdlog::warn(
+              "SceneLoader: ActionTag {} not found in scene nodes (Map size: {}).",
+              actionTag,
+              result.nodesByActionTag.size()
+            );
+            continue;
+        }
+
+        GameObject* target = it->second;
+        if (!target) continue;
+
+        // Ensure ActionManager exists
+        ActionManager* actionManager = target->GetComponent<ActionManager>();
+        if (!actionManager) {
+            actionManager = new ActionManager(target);
+            target->AddComponent(actionManager);
+            spdlog::debug("SceneLoader: Added ActionManager to node '{}'", target->GetName());
+        }
+
+        std::string property = timeline->property()->c_str();
+        std::vector<FiniteTimeAction*> sequenceActions;
+
+        int lastFrameIndex = 0;
+
+        // Dispatch based on property type to access correct frame data
+        if (property == "Position") {
+            for (auto frame : *timeline->frames()) {
+                if (frame->pointFrame() && frame->pointFrame()->position()) {
+                    int currentFrameIndex = frame->pointFrame()->frameIndex();
+                    float duration = (currentFrameIndex - lastFrameIndex) / frameRate;
+                    // Prevent negative duration if frames are unordered (shouldn't happen in CSB)
+                    if (duration < 0) duration = 0;
+
+                    lastFrameIndex = currentFrameIndex;
+                    auto pos = frame->pointFrame()->position();
+                    sequenceActions.push_back(new MoveTo(duration, glm::vec3(pos->x(), pos->y(), 0.0f)));
+                }
+            }
+        } else if (property == "Scale") {
+            for (auto frame : *timeline->frames()) {
+                if (frame->scaleFrame() && frame->scaleFrame()->scale()) {
+                    int currentFrameIndex = frame->scaleFrame()->frameIndex();
+                    float duration = (currentFrameIndex - lastFrameIndex) / frameRate;
+                    if (duration < 0) duration = 0;
+
+                    lastFrameIndex = currentFrameIndex;
+                    auto scale = frame->scaleFrame()->scale();
+                    sequenceActions.push_back(new ScaleTo(duration, glm::vec3(scale->scaleX(), scale->scaleY(), 1.0f)));
+                }
+            }
+        } else if (property == "RotationSkew") {
+            bool parsed = false;
+            for (auto frame : *timeline->frames()) {
+                int currentFrameIndex = 0;
+                if (frame->intFrame()) {
+                    currentFrameIndex = frame->intFrame()->frameIndex();
+                } else if (frame->pointFrame()) {
+                    currentFrameIndex = frame->pointFrame()->frameIndex();
+                } else if (frame->scaleFrame()) {
+                    currentFrameIndex = frame->scaleFrame()->frameIndex();
+                }
+
+                float duration = (currentFrameIndex - lastFrameIndex) / frameRate;
+                if (duration < 0) duration = 0;
+                lastFrameIndex = currentFrameIndex;
+
+                if (frame->intFrame()) {
+                    float rotation = static_cast<float>(frame->intFrame()->value());
+                    // Create RotateTo action (absolute rotation)
+                    // Note: RotateTo expects duration and vec3 rotation
+                    auto rotateTo = new RotateTo(duration, glm::vec3(0, 0, rotation));
+                    sequenceActions.push_back(rotateTo);
+                    parsed = true;
+                }
+            }
+
+            if (!parsed) {
+                Console::Get()->Warn(fmt::format(
+                  "SceneLoader: RotationSkew timeline found on '{}' but frames contain no IntFrame data.",
+                  target->GetName()
+                ));
+            }
+        } else if (property == "CColor") {
+            // Color logic pending FadeTo/TintTo implementation
+        }
+
+        if (!sequenceActions.empty()) {
+            Action* seq = new Sequence(sequenceActions);
+            actionManager->RunAction(seq);
+        }
+    }
 }
 
 GameObject* SceneLoader::ParseNodeTree(
@@ -437,9 +564,7 @@ std::vector<std::string> SceneLoader::GetSupportedNodeTypes() {
 }
 
 TextProps SceneLoader::CreateTextProps(
-  const flatbuffers::NodeTree* nodeTree,
-  const flatbuffers::WidgetOptions* widgetOptions,
-  const SceneLoadConfig& config
+  const flatbuffers::NodeTree* nodeTree, const flatbuffers::WidgetOptions* widgetOptions, const SceneLoadConfig& config
 ) {
     TextProps props;
 
@@ -472,10 +597,8 @@ TextProps SceneLoader::CreateTextProps(
 
         // Get area size if custom size is enabled
         if (textOptions->isCustomSize()) {
-            props.size = glm::vec2(
-              static_cast<float>(textOptions->areaWidth()),
-              static_cast<float>(textOptions->areaHeight())
-            );
+            props.size =
+              glm::vec2(static_cast<float>(textOptions->areaWidth()), static_cast<float>(textOptions->areaHeight()));
         }
 
         // Get widget options from TextOptions
@@ -485,7 +608,8 @@ TextProps SceneLoader::CreateTextProps(
                 props.size = glm::vec2(textWidgetOpts->size()->width(), textWidgetOpts->size()->height());
             }
             if (textWidgetOpts->anchorPoint()) {
-                props.pivot = glm::vec2(textWidgetOpts->anchorPoint()->scaleX(), textWidgetOpts->anchorPoint()->scaleY());
+                props.pivot =
+                  glm::vec2(textWidgetOpts->anchorPoint()->scaleX(), textWidgetOpts->anchorPoint()->scaleY());
             }
             if (textWidgetOpts->color()) {
                 props.color = glm::vec4(

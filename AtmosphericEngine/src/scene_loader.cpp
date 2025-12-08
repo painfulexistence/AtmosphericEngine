@@ -3,6 +3,7 @@
 #include "asset_manager.hpp"
 #include "game_object.hpp"
 #include "sprite_component.hpp"
+#include "text_component.hpp"
 
 #include "Scene_generated.h"
 
@@ -212,39 +213,13 @@ GameObject* SceneLoader::ParseNodeTree(
             go->AddComponent<SpriteComponent>(props);
         }
     } else if (classname == "Text") {
-        spdlog::warn(
-          "SceneLoader: Text node '{}' not fully supported, visualizing as placeholder sprite",
-          widgetOptions && widgetOptions->name() ? widgetOptions->name()->c_str() : "Text"
-        );
-
         go = CreateNode(widgetOptions, config);
-        if (widgetOptions && go) {
-            SpriteProps props;
-            if (widgetOptions->size()) {
-                props.size = glm::vec2(widgetOptions->size()->width(), widgetOptions->size()->height());
-            }
-            if (widgetOptions->anchorPoint()) {
-                props.pivot = glm::vec2(widgetOptions->anchorPoint()->scaleX(), widgetOptions->anchorPoint()->scaleY());
-            }
-            if (widgetOptions->color()) {
-                props.color = glm::vec4(
-                  widgetOptions->color()->r() / 255.0f,
-                  widgetOptions->color()->g() / 255.0f,
-                  widgetOptions->color()->b() / 255.0f,
-                  widgetOptions->alpha() / 255.0f * 0.5f// Semi-transparent
-                );
-            } else {
-                props.color = glm::vec4(1.0f, 1.0f, 1.0f, 0.5f);
-            }
-
-            props.layer = config.defaultLayer;
-            props.flipX = widgetOptions->flipX();
-            props.flipY = widgetOptions->flipY();
-            props.zOrder = widgetOptions->zOrder();
-
-            // Allow textureID to be 0 (no texture)
-
-            go->AddComponent<SpriteComponent>(props);
+        if (go) {
+            go->AddComponent<TextComponent>(CreateTextProps(nodeTree, widgetOptions, config));
+            spdlog::debug(
+              "SceneLoader: Created Text node '{}'",
+              widgetOptions && widgetOptions->name() ? widgetOptions->name()->c_str() : "Text"
+            );
         }
     } else if (classname == "Node" || classname == "SingleNode") {
         go = CreateNode(widgetOptions, config);
@@ -458,5 +433,50 @@ int SceneLoader::ResolveTexture(
 }
 
 std::vector<std::string> SceneLoader::GetSupportedNodeTypes() {
-    return { "Node", "SingleNode", "Sprite", "ImageView" };
+    return { "Node", "SingleNode", "Sprite", "ImageView", "Text" };
+}
+
+TextProps SceneLoader::CreateTextProps(
+  const flatbuffers::NodeTree* nodeTree,
+  const flatbuffers::WidgetOptions* widgetOptions,
+  const SceneLoadConfig& config
+) {
+    TextProps props;
+
+    // Apply widget options (size, pivot, color, etc.)
+    if (widgetOptions) {
+        if (widgetOptions->size()) {
+            props.size = glm::vec2(widgetOptions->size()->width(), widgetOptions->size()->height());
+        }
+        if (widgetOptions->anchorPoint()) {
+            props.pivot = glm::vec2(widgetOptions->anchorPoint()->scaleX(), widgetOptions->anchorPoint()->scaleY());
+        }
+        if (widgetOptions->color()) {
+            props.color = glm::vec4(
+              widgetOptions->color()->r() / 255.0f,
+              widgetOptions->color()->g() / 255.0f,
+              widgetOptions->color()->b() / 255.0f,
+              widgetOptions->alpha() / 255.0f
+            );
+        }
+        props.zOrder = widgetOptions->zOrder();
+
+        // Try to get text from customProperty if available
+        if (widgetOptions->customProperty()) {
+            props.text = widgetOptions->customProperty()->c_str();
+        }
+    }
+
+    props.layer = config.defaultLayer;
+
+    // Default font settings - user should set fontPath or fontID after loading
+    props.fontSize = 24.0f;
+    props.hAlign = TextHAlignment::Left;
+    props.vAlign = TextVAlignment::Top;
+
+    // Note: Full CSB TextOptions parsing would require accessing the type-specific
+    // options buffer. For demo purposes, basic widget options are sufficient.
+    // The text content, font, and alignment can be set programmatically after loading.
+
+    return props;
 }

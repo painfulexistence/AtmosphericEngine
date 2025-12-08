@@ -16,6 +16,8 @@ using System.Linq;
 using FlatBuffers;
 using flatbuffers; // Generated namespace from CSParseBinary.fbs
 
+// Requires CSBNodeData.cs for user data and project node support
+
 public class CSBExporter : EditorWindow
 {
     private string exportPath = "Assets/ExportedCSB";
@@ -244,6 +246,9 @@ public class CSBExporter : EditorWindow
         string className;
         Offset<Options> optionsOffset;
 
+        // Get CSBNodeData for forced type and project node detection
+        var csbNodeData = go.GetComponent<CSBNodeData>();
+
         var spriteRenderer = go.GetComponent<SpriteRenderer>();
         var image = go.GetComponent<Image>();
         var rawImage = go.GetComponent<RawImage>();
@@ -253,8 +258,94 @@ public class CSBExporter : EditorWindow
         var inputField = go.GetComponent<InputField>();
         var slider = go.GetComponent<Slider>();
         var scrollRect = go.GetComponent<ScrollRect>();
+        var verticalLayoutGroup = go.GetComponent<VerticalLayoutGroup>();
+        var horizontalLayoutGroup = go.GetComponent<HorizontalLayoutGroup>();
+        var gridLayoutGroup = go.GetComponent<GridLayoutGroup>();
 
-        if (button != null)
+        // Check for forced node type from CSBNodeData first
+        if (csbNodeData != null && csbNodeData.forceNodeType != CSBNodeType.Auto)
+        {
+            switch (csbNodeData.forceNodeType)
+            {
+                case CSBNodeType.ProjectNode:
+                    className = "ProjectNode";
+                    optionsOffset = BuildProjectNodeOptions(builder, go, csbNodeData, context);
+                    break;
+                case CSBNodeType.ListView:
+                    className = "ListView";
+                    optionsOffset = BuildListViewOptions(builder, go, scrollRect, context);
+                    break;
+                case CSBNodeType.PageView:
+                    className = "PageView";
+                    optionsOffset = BuildPageViewOptions(builder, go, scrollRect, context);
+                    break;
+                case CSBNodeType.LoadingBar:
+                    className = "LoadingBar";
+                    optionsOffset = BuildLoadingBarOptions(builder, go, context);
+                    break;
+                case CSBNodeType.Sprite:
+                    className = "Sprite";
+                    optionsOffset = BuildSpriteOptions(builder, go, spriteRenderer, context);
+                    break;
+                case CSBNodeType.ImageView:
+                    className = "ImageView";
+                    optionsOffset = BuildImageViewOptions(builder, go, image, context);
+                    break;
+                case CSBNodeType.Text:
+                    className = "Text";
+                    optionsOffset = BuildTextOptions(builder, go, text, context);
+                    break;
+                case CSBNodeType.Button:
+                    className = "Button";
+                    optionsOffset = BuildButtonOptions(builder, go, button, context);
+                    break;
+                case CSBNodeType.CheckBox:
+                    className = "CheckBox";
+                    optionsOffset = BuildCheckBoxOptions(builder, go, toggle, context);
+                    break;
+                case CSBNodeType.TextField:
+                    className = "TextField";
+                    optionsOffset = BuildTextFieldOptions(builder, go, inputField, context);
+                    break;
+                case CSBNodeType.Slider:
+                    className = "Slider";
+                    optionsOffset = BuildSliderOptions(builder, go, slider, context);
+                    break;
+                case CSBNodeType.ScrollView:
+                    className = "ScrollView";
+                    optionsOffset = BuildScrollViewOptions(builder, go, scrollRect, context);
+                    break;
+                case CSBNodeType.Panel:
+                    className = "Panel";
+                    optionsOffset = BuildPanelOptions(builder, go, context);
+                    break;
+                default:
+                    className = "Node";
+                    optionsOffset = BuildSingleNodeOptions(builder, go, context);
+                    break;
+            }
+        }
+        // Check if this is a ProjectNode (CSBNodeData with projectNodePath set)
+        else if (csbNodeData != null && csbNodeData.IsProjectNode)
+        {
+            className = "ProjectNode";
+            optionsOffset = BuildProjectNodeOptions(builder, go, csbNodeData, context);
+        }
+        // ListView: ScrollRect + VerticalLayoutGroup (or GridLayoutGroup with vertical constraint)
+        else if (scrollRect != null && (verticalLayoutGroup != null ||
+                (gridLayoutGroup != null && gridLayoutGroup.constraint == GridLayoutGroup.Constraint.FixedColumnCount)))
+        {
+            className = "ListView";
+            optionsOffset = BuildListViewOptions(builder, go, scrollRect, context);
+        }
+        // PageView: ScrollRect + HorizontalLayoutGroup with page-snapping behavior
+        else if (scrollRect != null && horizontalLayoutGroup != null &&
+                scrollRect.horizontal && !scrollRect.vertical)
+        {
+            className = "PageView";
+            optionsOffset = BuildPageViewOptions(builder, go, scrollRect, context);
+        }
+        else if (button != null)
         {
             className = "Button";
             optionsOffset = BuildButtonOptions(builder, go, button, context);
@@ -350,9 +441,12 @@ public class CSBExporter : EditorWindow
     {
         var nameOffset = builder.CreateString(go.name);
         var frameEventOffset = builder.CreateString("");
-        var customPropertyOffset = builder.CreateString("");
-        var callBackTypeOffset = builder.CreateString("");
-        var callBackNameOffset = builder.CreateString("");
+
+        // Read custom data from CSBNodeData component if present
+        var csbNodeData = go.GetComponent<CSBNodeData>();
+        var customPropertyOffset = builder.CreateString(csbNodeData?.customProperty ?? "");
+        var callBackTypeOffset = builder.CreateString(csbNodeData != null ? csbNodeData.callbackType.ToString() : "");
+        var callBackNameOffset = builder.CreateString(csbNodeData?.callbackName ?? "");
 
         // Transform data
         Vector3 position = go.transform.localPosition;
@@ -394,8 +488,10 @@ public class CSBExporter : EditorWindow
         bool flipX = spriteRenderer?.flipX ?? false;
         bool flipY = spriteRenderer?.flipY ?? false;
 
-        // Action tag
-        int actionTag = go.GetInstanceID();
+        // Action tag - use CSBNodeData if specified, otherwise use instance ID
+        int actionTag = (csbNodeData != null && csbNodeData.actionTag >= 0)
+            ? csbNodeData.actionTag
+            : go.GetInstanceID();
         context.actionTagMap[go] = actionTag;
 
         // Layout component
@@ -431,9 +527,12 @@ public class CSBExporter : EditorWindow
         WidgetOptions.AddFlipX(builder, flipX);
         WidgetOptions.AddFlipY(builder, flipY);
         WidgetOptions.AddIgnoreSize(builder, ignoreSize);
-        WidgetOptions.AddTouchEnabled(builder, go.GetComponent<Button>() != null ||
-                                               go.GetComponent<Toggle>() != null ||
-                                               go.GetComponent<Slider>() != null);
+        // Use CSBNodeData touchEnabled if set, otherwise auto-detect from interactive components
+        bool touchEnabled = csbNodeData?.touchEnabled ?? (go.GetComponent<Button>() != null ||
+                                                          go.GetComponent<Toggle>() != null ||
+                                                          go.GetComponent<Slider>() != null ||
+                                                          go.GetComponent<InputField>() != null);
+        WidgetOptions.AddTouchEnabled(builder, touchEnabled);
         WidgetOptions.AddFrameEvent(builder, frameEventOffset);
         WidgetOptions.AddCustomProperty(builder, customPropertyOffset);
         WidgetOptions.AddCallBackType(builder, callBackTypeOffset);
@@ -859,6 +958,160 @@ public class CSBExporter : EditorWindow
         PanelOptions.AddScale9Size(builder, scale9Size);
         PanelOptions.AddBackGroundScale9Enabled(builder, image?.type == Image.Type.Sliced);
         var panelOffset = PanelOptions.EndPanelOptions(builder);
+
+        Options.StartOptions(builder);
+        Options.AddData(builder, widgetOffset);
+        return Options.EndOptions(builder);
+    }
+
+    private Offset<Options> BuildListViewOptions(FlatBufferBuilder builder, GameObject go,
+        ScrollRect scrollRect, ExportContext context)
+    {
+        var widgetOffset = BuildWidgetOptions(builder, go, context);
+
+        var bgImage = go.GetComponent<Image>();
+        var bgDataOffset = BuildResourceData(builder, bgImage?.sprite?.texture, context);
+
+        var bgColor = flatbuffers.Color.CreateColor(builder, 255, 255, 255, 255);
+        var bgStartColor = flatbuffers.Color.CreateColor(builder, 255, 255, 255, 255);
+        var bgEndColor = flatbuffers.Color.CreateColor(builder, 255, 255, 255, 255);
+        var colorVector = ColorVector.CreateColorVector(builder, 0, -0.5f);
+        var capInsets = CapInsets.CreateCapInsets(builder, 0, 0, 0, 0);
+        var scale9Size = FlatSize.CreateFlatSize(builder, 100, 100);
+        var innerSize = FlatSize.CreateFlatSize(builder,
+            scrollRect?.content?.sizeDelta.x ?? 100,
+            scrollRect?.content?.sizeDelta.y ?? 100);
+
+        // Calculate direction from layout groups
+        int direction = 0; // 0=none, 1=horizontal, 2=vertical, 3=both
+        int itemMargin = 0;
+
+        var vertLayout = go.GetComponent<VerticalLayoutGroup>();
+        var horizLayout = go.GetComponent<HorizontalLayoutGroup>();
+        var gridLayout = go.GetComponent<GridLayoutGroup>();
+
+        if (vertLayout != null || scrollRect?.vertical == true)
+        {
+            direction = 2; // vertical
+            if (vertLayout != null)
+            {
+                itemMargin = (int)vertLayout.spacing;
+            }
+        }
+        else if (horizLayout != null || scrollRect?.horizontal == true)
+        {
+            direction = 1; // horizontal
+            if (horizLayout != null)
+            {
+                itemMargin = (int)horizLayout.spacing;
+            }
+        }
+
+        // Direction type strings
+        var directionTypeOffset = builder.CreateString(direction == 1 ? "Horizontal" : "Vertical");
+        var horizontalTypeOffset = builder.CreateString("");
+        var verticalTypeOffset = builder.CreateString("");
+
+        ListViewOptions.StartListViewOptions(builder);
+        ListViewOptions.AddWidgetOptions(builder, widgetOffset);
+        ListViewOptions.AddBackGroundImageData(builder, bgDataOffset);
+        ListViewOptions.AddClipEnabled(builder, scrollRect?.viewport != null);
+        ListViewOptions.AddBgColor(builder, bgColor);
+        ListViewOptions.AddBgStartColor(builder, bgStartColor);
+        ListViewOptions.AddBgEndColor(builder, bgEndColor);
+        ListViewOptions.AddColorType(builder, 0);
+        ListViewOptions.AddBgColorOpacity(builder, 255);
+        ListViewOptions.AddColorVector(builder, colorVector);
+        ListViewOptions.AddCapInsets(builder, capInsets);
+        ListViewOptions.AddScale9Size(builder, scale9Size);
+        ListViewOptions.AddBackGroundScale9Enabled(builder, false);
+        ListViewOptions.AddInnerSize(builder, innerSize);
+        ListViewOptions.AddDirection(builder, direction);
+        ListViewOptions.AddBounceEnabled(builder, scrollRect?.movementType == ScrollRect.MovementType.Elastic);
+        ListViewOptions.AddItemMargin(builder, itemMargin);
+        ListViewOptions.AddDirectionType(builder, directionTypeOffset);
+        ListViewOptions.AddHorizontalType(builder, horizontalTypeOffset);
+        ListViewOptions.AddVerticalType(builder, verticalTypeOffset);
+        var listViewOffset = ListViewOptions.EndListViewOptions(builder);
+
+        Options.StartOptions(builder);
+        Options.AddData(builder, widgetOffset);
+        return Options.EndOptions(builder);
+    }
+
+    private Offset<Options> BuildPageViewOptions(FlatBufferBuilder builder, GameObject go,
+        ScrollRect scrollRect, ExportContext context)
+    {
+        var widgetOffset = BuildWidgetOptions(builder, go, context);
+
+        var bgImage = go.GetComponent<Image>();
+        var bgDataOffset = BuildResourceData(builder, bgImage?.sprite?.texture, context);
+
+        var bgColor = flatbuffers.Color.CreateColor(builder, 255, 255, 255, 255);
+        var bgStartColor = flatbuffers.Color.CreateColor(builder, 255, 255, 255, 255);
+        var bgEndColor = flatbuffers.Color.CreateColor(builder, 255, 255, 255, 255);
+        var colorVector = ColorVector.CreateColorVector(builder, 0, -0.5f);
+        var capInsets = CapInsets.CreateCapInsets(builder, 0, 0, 0, 0);
+        var scale9Size = FlatSize.CreateFlatSize(builder, 100, 100);
+
+        PageViewOptions.StartPageViewOptions(builder);
+        PageViewOptions.AddWidgetOptions(builder, widgetOffset);
+        PageViewOptions.AddBackGroundImageData(builder, bgDataOffset);
+        PageViewOptions.AddClipEnabled(builder, scrollRect?.viewport != null);
+        PageViewOptions.AddBgColor(builder, bgColor);
+        PageViewOptions.AddBgStartColor(builder, bgStartColor);
+        PageViewOptions.AddBgEndColor(builder, bgEndColor);
+        PageViewOptions.AddColorType(builder, 0);
+        PageViewOptions.AddBgColorOpacity(builder, 255);
+        PageViewOptions.AddColorVector(builder, colorVector);
+        PageViewOptions.AddCapInsets(builder, capInsets);
+        PageViewOptions.AddScale9Size(builder, scale9Size);
+        PageViewOptions.AddBackGroundScale9Enabled(builder, false);
+        var pageViewOffset = PageViewOptions.EndPageViewOptions(builder);
+
+        Options.StartOptions(builder);
+        Options.AddData(builder, widgetOffset);
+        return Options.EndOptions(builder);
+    }
+
+    private Offset<Options> BuildProjectNodeOptions(FlatBufferBuilder builder, GameObject go,
+        CSBNodeData csbNodeData, ExportContext context)
+    {
+        var widgetOffset = BuildWidgetOptions(builder, go, context);
+
+        // Get the CSB file path from CSBNodeData
+        string csbPath = csbNodeData?.GetProjectNodeResourcePath() ?? "";
+        var fileNameOffset = builder.CreateString(csbPath);
+
+        ProjectNodeOptions.StartProjectNodeOptions(builder);
+        ProjectNodeOptions.AddNodeOptions(builder, widgetOffset);
+        ProjectNodeOptions.AddFileName(builder, fileNameOffset);
+        ProjectNodeOptions.AddInnerActionSpeed(builder, 1.0f);
+        var projectNodeOffset = ProjectNodeOptions.EndProjectNodeOptions(builder);
+
+        Options.StartOptions(builder);
+        Options.AddData(builder, widgetOffset);
+        return Options.EndOptions(builder);
+    }
+
+    private Offset<Options> BuildLoadingBarOptions(FlatBufferBuilder builder, GameObject go, ExportContext context)
+    {
+        var widgetOffset = BuildWidgetOptions(builder, go, context);
+
+        var slider = go.GetComponent<Slider>();
+        var image = go.GetComponent<Image>();
+
+        var textureDataOffset = BuildResourceData(builder, image?.sprite?.texture, context);
+
+        int percent = slider != null ? (int)(slider.normalizedValue * 100) : 80;
+        int direction = 0; // 0 = left to right
+
+        LoadingBarOptions.StartLoadingBarOptions(builder);
+        LoadingBarOptions.AddWidgetOptions(builder, widgetOffset);
+        LoadingBarOptions.AddTextureData(builder, textureDataOffset);
+        LoadingBarOptions.AddPercent(builder, percent);
+        LoadingBarOptions.AddDirection(builder, direction);
+        var loadingBarOffset = LoadingBarOptions.EndLoadingBarOptions(builder);
 
         Options.StartOptions(builder);
         Options.AddData(builder, widgetOffset);

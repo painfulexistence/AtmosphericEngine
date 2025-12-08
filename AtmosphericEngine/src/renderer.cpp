@@ -1207,7 +1207,8 @@ void CanvasPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
         // Fallback or perspective camera handling for 2D?
         // For now, if perspective, we might just use screen space or a default ortho.
         // Let's assume default ortho for safety if no 2D camera is set.
-        worldViewProj = glm::ortho(0.0f, (float)width, (float)height, 0.0f, -1.0f, 1.0f);
+        // Use standard OpenGL/Physics coordinates (Bottom-Left origin, Y-Up)
+        worldViewProj = glm::ortho(0.0f, (float)width, 0.0f, (float)height, -1.0f, 1.0f);
     }
 
     renderer.GetBatchRenderer()->BeginBatch(worldViewProj);

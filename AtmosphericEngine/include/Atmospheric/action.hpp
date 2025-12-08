@@ -132,6 +132,7 @@ public:
     void StartWithTarget(GameObject* target) override;
     void Update(float t) override;
     void Step(float dt) override;
+    bool IsDone() const override;
 
 private:
     std::vector<FiniteTimeAction*> _actions;

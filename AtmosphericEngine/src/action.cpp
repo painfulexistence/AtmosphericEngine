@@ -168,6 +168,11 @@ void Sequence::Update(float t) {
     // Not used for Sequence
 }
 
+bool Sequence::IsDone() const {
+    // Sequence is done when all actions have completed
+    return _currentActionIndex >= static_cast<int>(_actions.size());
+}
+
 // --- CallFunc ---
 
 CallFunc::CallFunc(std::function<void()> func) : FiniteTimeAction(0), _function(func) {

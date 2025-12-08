@@ -57,6 +57,19 @@ find_package(fmt REQUIRED)
 find_package(spdlog REQUIRED)
 find_package(lua REQUIRED)
 find_package(RmlUi REQUIRED)
+find_package(flatbuffers CONFIG REQUIRED)
+
+# Generate FlatBuffers headers from schema
+set(FLATBUFFERS_SCHEMA_DIR ${CMAKE_CURRENT_SOURCE_DIR}/schemas)
+set(FLATBUFFERS_GENERATED_DIR ${CMAKE_CURRENT_BINARY_DIR}/generated)
+file(MAKE_DIRECTORY ${FLATBUFFERS_GENERATED_DIR})
+
+add_custom_command(
+    OUTPUT ${FLATBUFFERS_GENERATED_DIR}/CSParseBinary_generated.h
+    COMMAND flatbuffers::flatc --cpp -o ${FLATBUFFERS_GENERATED_DIR} ${FLATBUFFERS_SCHEMA_DIR}/CSParseBinary.fbs
+    DEPENDS ${FLATBUFFERS_SCHEMA_DIR}/CSParseBinary.fbs
+    COMMENT "Generating FlatBuffers headers for CSParseBinary"
+)
 
 add_subdirectory(external/sol2)
 if(AE_USE_AUDIO)
@@ -105,6 +118,8 @@ set(SOURCES
     src/render_texture.cpp
     src/mesh_builder.cpp
     src/shape_renderer_component.cpp
+    src/csb_loader.cpp
+    ${FLATBUFFERS_GENERATED_DIR}/CSParseBinary_generated.h
 )
 if(AE_USE_AUDIO)
     list(APPEND SOURCES src/audio_manager.cpp)
@@ -141,6 +156,7 @@ target_include_directories(AtmosphericEngine
         ${LUA_INCLUDE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}/external/stb
         ${CMAKE_CURRENT_SOURCE_DIR}/include/Atmospheric
+        ${FLATBUFFERS_GENERATED_DIR}
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui
         ${CMAKE_CURRENT_SOURCE_DIR}/include
@@ -148,7 +164,7 @@ target_include_directories(AtmosphericEngine
 target_precompile_headers(AtmosphericEngine PRIVATE src/pch.hpp)
 target_link_libraries(AtmosphericEngine
     PUBLIC
-        glm::glm fmt::fmt BulletSoftBody BulletDynamics BulletCollision LinearMath ${LUA_LIBRARIES} sol2 raudio RmlUi::RmlUi box2d::box2d
+        glm::glm fmt::fmt BulletSoftBody BulletDynamics BulletCollision LinearMath ${LUA_LIBRARIES} sol2 raudio RmlUi::RmlUi box2d::box2d flatbuffers::flatbuffers
 )
 if (AE_USE_AUDIO)
     target_link_libraries(AtmosphericEngine

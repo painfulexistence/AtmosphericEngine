@@ -155,6 +155,9 @@ GameObject* CSBLoader::ParseNodeTree(
                 );
             }
             props.layer = config.defaultLayer;
+            props.flipX = widgetOptions->flipX();
+            props.flipY = widgetOptions->flipY();
+            props.zOrder = widgetOptions->zOrder();
 
             // Apply sprite component
             if (go) {
@@ -180,6 +183,9 @@ GameObject* CSBLoader::ParseNodeTree(
                 );
             }
             props.layer = config.defaultLayer;
+            props.flipX = widgetOptions->flipX();
+            props.flipY = widgetOptions->flipY();
+            props.zOrder = widgetOptions->zOrder();
             go->AddComponent<SpriteComponent>(props);
         }
     } else if (classname == "Node" || classname == "SingleNode") {

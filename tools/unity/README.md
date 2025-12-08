@@ -311,7 +311,7 @@ TestScene (Node)
 ```
 AtmosphericEngine/
 ├── schemas/
-│   └── CSParseBinary.fbs          # FlatBuffers schema
+│   └── Scene.fbs                  # FlatBuffers schema (Cocos Studio Binary 格式)
 ├── tools/unity/
 │   ├── CSBExporter.cs             # Unity Editor 腳本
 │   ├── CSBNodeData.cs             # 輔助 MonoBehaviour

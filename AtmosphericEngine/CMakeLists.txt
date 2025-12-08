@@ -65,10 +65,10 @@ set(FLATBUFFERS_GENERATED_DIR ${CMAKE_CURRENT_BINARY_DIR}/generated)
 file(MAKE_DIRECTORY ${FLATBUFFERS_GENERATED_DIR})
 
 add_custom_command(
-    OUTPUT ${FLATBUFFERS_GENERATED_DIR}/CSParseBinary_generated.h
-    COMMAND flatbuffers::flatc --cpp -o ${FLATBUFFERS_GENERATED_DIR} ${FLATBUFFERS_SCHEMA_DIR}/CSParseBinary.fbs
-    DEPENDS ${FLATBUFFERS_SCHEMA_DIR}/CSParseBinary.fbs
-    COMMENT "Generating FlatBuffers headers for CSParseBinary"
+    OUTPUT ${FLATBUFFERS_GENERATED_DIR}/Scene_generated.h
+    COMMAND flatbuffers::flatc --cpp -o ${FLATBUFFERS_GENERATED_DIR} ${FLATBUFFERS_SCHEMA_DIR}/Scene.fbs
+    DEPENDS ${FLATBUFFERS_SCHEMA_DIR}/Scene.fbs
+    COMMENT "Generating FlatBuffers headers for Scene"
 )
 
 add_subdirectory(external/sol2)
@@ -118,8 +118,8 @@ set(SOURCES
     src/render_texture.cpp
     src/mesh_builder.cpp
     src/shape_renderer_component.cpp
-    src/csb_loader.cpp
-    ${FLATBUFFERS_GENERATED_DIR}/CSParseBinary_generated.h
+    src/scene_loader.cpp
+    ${FLATBUFFERS_GENERATED_DIR}/Scene_generated.h
 )
 if(AE_USE_AUDIO)
     list(APPEND SOURCES src/audio_manager.cpp)

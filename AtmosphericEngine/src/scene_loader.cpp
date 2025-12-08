@@ -1,25 +1,25 @@
-#include "csb_loader.hpp"
+#include "scene_loader.hpp"
 #include "application.hpp"
 #include "asset_manager.hpp"
 #include "game_object.hpp"
 #include "sprite_component.hpp"
 
-#include "CSParseBinary_generated.h"
+#include "Scene_generated.h"
 
 #include <fstream>
 #include <spdlog/spdlog.h>
 
-CSBLoader::CSBLoader(Application* app) : _app(app) {
+SceneLoader::SceneLoader(Application* app) : _app(app) {
 }
 
-CSBLoadResult CSBLoader::Load(const std::string& path, const CSBLoadConfig& config) {
-    CSBLoadResult result;
+SceneLoadResult SceneLoader::Load(const std::string& path, const SceneLoadConfig& config) {
+    SceneLoadResult result;
 
     // Read file
     std::ifstream file(path, std::ios::binary | std::ios::ate);
     if (!file.is_open()) {
         result.error = "Failed to open file: " + path;
-        spdlog::error("CSBLoader: {}", result.error);
+        spdlog::error("SceneLoader: {}", result.error);
         return result;
     }
 
@@ -29,12 +29,12 @@ CSBLoadResult CSBLoader::Load(const std::string& path, const CSBLoadConfig& conf
     std::vector<uint8_t> buffer(size);
     if (!file.read(reinterpret_cast<char*>(buffer.data()), size)) {
         result.error = "Failed to read file: " + path;
-        spdlog::error("CSBLoader: {}", result.error);
+        spdlog::error("SceneLoader: {}", result.error);
         return result;
     }
 
     // Derive base path from file path if not specified
-    CSBLoadConfig actualConfig = config;
+    SceneLoadConfig actualConfig = config;
     if (actualConfig.basePath.empty()) {
         size_t lastSlash = path.find_last_of("/\\");
         if (lastSlash != std::string::npos) {
@@ -45,14 +45,14 @@ CSBLoadResult CSBLoader::Load(const std::string& path, const CSBLoadConfig& conf
     return LoadFromBuffer(buffer.data(), buffer.size(), actualConfig);
 }
 
-CSBLoadResult CSBLoader::LoadFromBuffer(const uint8_t* buffer, size_t size, const CSBLoadConfig& config) {
-    CSBLoadResult result;
+SceneLoadResult SceneLoader::LoadFromBuffer(const uint8_t* buffer, size_t size, const SceneLoadConfig& config) {
+    SceneLoadResult result;
 
     // Verify the buffer
     flatbuffers::Verifier verifier(buffer, size);
     if (!flatbuffers::VerifyCSParseBinaryBuffer(verifier)) {
         result.error = "Invalid CSB buffer - verification failed";
-        spdlog::error("CSBLoader: {}", result.error);
+        spdlog::error("SceneLoader: {}", result.error);
         return result;
     }
 
@@ -60,13 +60,13 @@ CSBLoadResult CSBLoader::LoadFromBuffer(const uint8_t* buffer, size_t size, cons
     auto csb = flatbuffers::GetCSParseBinary(buffer);
     if (!csb) {
         result.error = "Failed to parse CSB buffer";
-        spdlog::error("CSBLoader: {}", result.error);
+        spdlog::error("SceneLoader: {}", result.error);
         return result;
     }
 
     // Log version
     if (csb->version()) {
-        spdlog::info("CSBLoader: Loading CSB version {}", csb->version()->c_str());
+        spdlog::info("SceneLoader: Loading CSB version {}", csb->version()->c_str());
     }
 
     // Load textures if requested
@@ -75,7 +75,7 @@ CSBLoadResult CSBLoader::LoadFromBuffer(const uint8_t* buffer, size_t size, cons
             if (tex) {
                 std::string texPath = config.basePath + tex->c_str();
                 AssetManager::Get().CreateTexture(texPath);
-                spdlog::debug("CSBLoader: Loaded texture {}", texPath);
+                spdlog::debug("SceneLoader: Loaded texture {}", texPath);
             }
         }
     }
@@ -86,7 +86,7 @@ CSBLoadResult CSBLoader::LoadFromBuffer(const uint8_t* buffer, size_t size, cons
             if (tex) {
                 std::string texPath = config.basePath + tex->c_str();
                 AssetManager::Get().CreateTexture(texPath);
-                spdlog::debug("CSBLoader: Loaded PNG texture {}", texPath);
+                spdlog::debug("SceneLoader: Loaded PNG texture {}", texPath);
             }
         }
     }
@@ -97,7 +97,7 @@ CSBLoadResult CSBLoader::LoadFromBuffer(const uint8_t* buffer, size_t size, cons
         result.success = (result.root != nullptr);
     } else {
         result.error = "CSB has no node tree";
-        spdlog::warn("CSBLoader: {}", result.error);
+        spdlog::warn("SceneLoader: {}", result.error);
     }
 
     // TODO: Parse animations (csb->action()) in future iteration
@@ -105,8 +105,8 @@ CSBLoadResult CSBLoader::LoadFromBuffer(const uint8_t* buffer, size_t size, cons
     return result;
 }
 
-GameObject* CSBLoader::ParseNodeTree(
-  const flatbuffers::NodeTree* nodeTree, const CSBLoadConfig& config, CSBLoadResult& result, GameObject* parent
+GameObject* SceneLoader::ParseNodeTree(
+  const flatbuffers::NodeTree* nodeTree, const SceneLoadConfig& config, SceneLoadResult& result, GameObject* parent
 ) {
     if (!nodeTree)
         return nullptr;
@@ -118,7 +118,7 @@ GameObject* CSBLoader::ParseNodeTree(
     if (config.customNodeHandler && config.customNodeHandler(nullptr, classname, nodeTree)) {
         // Custom handler will create and return the GameObject
         // For now, we don't support this pattern - custom handler should return via result
-        spdlog::debug("CSBLoader: Custom handler used for {}", classname);
+        spdlog::debug("SceneLoader: Custom handler used for {}", classname);
     }
 
     // Get the options
@@ -192,12 +192,12 @@ GameObject* CSBLoader::ParseNodeTree(
         go = CreateNode(widgetOptions, config);
     } else {
         // Unknown type - create as basic node and log warning
-        spdlog::warn("CSBLoader: Unsupported node type '{}', creating as basic node", classname);
+        spdlog::warn("SceneLoader: Unsupported node type '{}', creating as basic node", classname);
         go = CreateNode(widgetOptions, config);
     }
 
     if (!go) {
-        spdlog::error("CSBLoader: Failed to create GameObject for {}", classname);
+        spdlog::error("SceneLoader: Failed to create GameObject for {}", classname);
         return nullptr;
     }
 
@@ -232,7 +232,7 @@ GameObject* CSBLoader::ParseNodeTree(
     return go;
 }
 
-GameObject* CSBLoader::CreateNode(const flatbuffers::WidgetOptions* options, const CSBLoadConfig& config) {
+GameObject* SceneLoader::CreateNode(const flatbuffers::WidgetOptions* options, const SceneLoadConfig& config) {
     glm::vec3 position(0.0f);
     glm::vec3 rotation(0.0f);
     glm::vec3 scale(1.0f);
@@ -253,7 +253,7 @@ GameObject* CSBLoader::CreateNode(const flatbuffers::WidgetOptions* options, con
     return _app->CreateGameObject(position, rotation, scale);
 }
 
-GameObject* CSBLoader::CreateSprite(const flatbuffers::SpriteOptions* options, const CSBLoadConfig& config) {
+GameObject* SceneLoader::CreateSprite(const flatbuffers::SpriteOptions* options, const SceneLoadConfig& config) {
     auto go = _app->CreateGameObject();
     if (!go || !options)
         return go;
@@ -295,7 +295,7 @@ GameObject* CSBLoader::CreateSprite(const flatbuffers::SpriteOptions* options, c
     return go;
 }
 
-GameObject* CSBLoader::CreateImageView(const flatbuffers::ImageViewOptions* options, const CSBLoadConfig& config) {
+GameObject* SceneLoader::CreateImageView(const flatbuffers::ImageViewOptions* options, const SceneLoadConfig& config) {
     auto go = _app->CreateGameObject();
     if (!go || !options)
         return go;
@@ -336,12 +336,12 @@ GameObject* CSBLoader::CreateImageView(const flatbuffers::ImageViewOptions* opti
     return go;
 }
 
-GameObject* CSBLoader::CreateSingleNode(const flatbuffers::SingleNodeOptions* options, const CSBLoadConfig& config) {
+GameObject* SceneLoader::CreateSingleNode(const flatbuffers::SingleNodeOptions* options, const SceneLoadConfig& config) {
     return CreateNode(options ? options->nodeOptions() : nullptr, config);
 }
 
-void CSBLoader::ApplyWidgetOptions(
-  GameObject* go, const flatbuffers::WidgetOptions* options, const CSBLoadConfig& config
+void SceneLoader::ApplyWidgetOptions(
+  GameObject* go, const flatbuffers::WidgetOptions* options, const SceneLoadConfig& config
 ) {
     if (!go || !options)
         return;
@@ -368,8 +368,8 @@ void CSBLoader::ApplyWidgetOptions(
     }
 }
 
-int CSBLoader::ResolveTexture(
-  const std::string& path, const std::string& plistFile, int resourceType, const CSBLoadConfig& config
+int SceneLoader::ResolveTexture(
+  const std::string& path, const std::string& plistFile, int resourceType, const SceneLoadConfig& config
 ) {
     // Resource types in CSB:
     // 0 = Normal file
@@ -385,7 +385,7 @@ int CSBLoader::ResolveTexture(
     // For now, only handle normal files (type 0)
     // TODO: Add plist/sprite sheet support
     if (resourceType == 1 && !plistFile.empty()) {
-        spdlog::warn("CSBLoader: Plist sprite sheets not yet supported, loading as regular texture: {}", path);
+        spdlog::warn("SceneLoader: Plist sprite sheets not yet supported, loading as regular texture: {}", path);
     }
 
     // Try to get existing texture or create new one
@@ -397,6 +397,6 @@ int CSBLoader::ResolveTexture(
     return static_cast<int>(texID);
 }
 
-std::vector<std::string> CSBLoader::GetSupportedNodeTypes() {
+std::vector<std::string> SceneLoader::GetSupportedNodeTypes() {
     return {"Node", "SingleNode", "Sprite", "ImageView"};
 }

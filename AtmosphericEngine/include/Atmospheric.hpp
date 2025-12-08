@@ -2,7 +2,7 @@
 #include "Atmospheric/application.hpp"
 #include "Atmospheric/asset_manager.hpp"
 #include "Atmospheric/console.hpp"
-#include "Atmospheric/csb_loader.hpp"
+#include "Atmospheric/scene_loader.hpp"
 #include "Atmospheric/game_object.hpp"
 #include "Atmospheric/graphics_server.hpp"
 #include "Atmospheric/input.hpp"

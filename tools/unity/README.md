@@ -318,9 +318,9 @@ AtmosphericEngine/
 │   └── README.md                  # 本文件
 ├── AtmosphericEngine/
 │   ├── include/Atmospheric/
-│   │   └── csb_loader.hpp         # CSBLoader 介面
+│   │   └── scene_loader.hpp       # SceneLoader 介面
 │   └── src/
-│       └── csb_loader.cpp         # CSBLoader 實作
+│       └── scene_loader.cpp       # SceneLoader 實作
 └── Example_CSB/
     ├── main.cpp                   # 測試範例（含除錯功能）
     └── assets/

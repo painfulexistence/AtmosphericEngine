@@ -4,8 +4,8 @@
 class CSBDemo : public Application {
     using Application::Application;
 
-    CSBLoader* csbLoader = nullptr;
-    CSBLoadResult loadedScene;
+    SceneLoader* sceneLoader = nullptr;
+    SceneLoadResult loadedScene;
     bool showDebugGrid = false;
     bool showNodeInfo = false;
 
@@ -13,8 +13,8 @@ class CSBDemo : public Application {
     std::vector<GameObject*> testSprites;
 
     void OnLoad() override {
-        // Initialize CSB loader
-        csbLoader = new CSBLoader(this);
+        // Initialize scene loader
+        sceneLoader = new SceneLoader(this);
 
         // Set up orthographic camera for 2D view
         mainCamera = graphics.GetMainCamera();
@@ -24,12 +24,12 @@ class CSBDemo : public Application {
             mainCamera->Yaw(-glm::half_pi<float>());
         }
 
-        // Try to load a CSB file
-        CSBLoadConfig config;
+        // Try to load a scene file
+        SceneLoadConfig config;
         config.basePath = "assets/";
         config.defaultLayer = CanvasLayer::LAYER_WORLD;
 
-        loadedScene = csbLoader->Load("assets/test_scene.csb", config);
+        loadedScene = sceneLoader->Load("assets/test_scene.csb", config);
 
         if (loadedScene.success) {
             console.Info(fmt::format("CSB loaded successfully! {} nodes created", loadedScene.allNodes.size()));

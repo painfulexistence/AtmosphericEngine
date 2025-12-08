@@ -17,8 +17,8 @@ struct ImageViewOptions;
 struct SingleNodeOptions;
 }// namespace flatbuffers
 
-// Result of loading a CSB file
-struct CSBLoadResult {
+// Result of loading a scene file
+struct SceneLoadResult {
     GameObject* root = nullptr;
     std::vector<GameObject*> allNodes;
     std::unordered_map<int, GameObject*> nodesByActionTag;
@@ -27,8 +27,8 @@ struct CSBLoadResult {
     std::string error;
 };
 
-// Configuration for CSB loading
-struct CSBLoadConfig {
+// Configuration for scene loading
+struct SceneLoadConfig {
     std::string basePath = "";// Base path for resolving texture paths
     bool loadTextures = true;
     bool applyTransforms = true;
@@ -40,16 +40,16 @@ struct CSBLoadConfig {
       nullptr;
 };
 
-class CSBLoader {
+class SceneLoader {
 public:
-    explicit CSBLoader(Application* app);
-    ~CSBLoader() = default;
+    explicit SceneLoader(Application* app);
+    ~SceneLoader() = default;
 
-    // Load a CSB file and create GameObjects
-    CSBLoadResult Load(const std::string& path, const CSBLoadConfig& config = {});
+    // Load a scene file (.csb format) and create GameObjects
+    SceneLoadResult Load(const std::string& path, const SceneLoadConfig& config = {});
 
     // Load from memory buffer
-    CSBLoadResult LoadFromBuffer(const uint8_t* buffer, size_t size, const CSBLoadConfig& config = {});
+    SceneLoadResult LoadFromBuffer(const uint8_t* buffer, size_t size, const SceneLoadConfig& config = {});
 
     // Get supported node types
     static std::vector<std::string> GetSupportedNodeTypes();
@@ -57,20 +57,20 @@ public:
 private:
     Application* _app;
 
-    // Parse the CSB binary and create node hierarchy
+    // Parse the binary and create node hierarchy
     GameObject* ParseNodeTree(
-      const flatbuffers::NodeTree* nodeTree, const CSBLoadConfig& config, CSBLoadResult& result, GameObject* parent
+      const flatbuffers::NodeTree* nodeTree, const SceneLoadConfig& config, SceneLoadResult& result, GameObject* parent
     );
 
     // Node type handlers
-    GameObject* CreateNode(const flatbuffers::WidgetOptions* options, const CSBLoadConfig& config);
-    GameObject* CreateSprite(const flatbuffers::SpriteOptions* options, const CSBLoadConfig& config);
-    GameObject* CreateImageView(const flatbuffers::ImageViewOptions* options, const CSBLoadConfig& config);
-    GameObject* CreateSingleNode(const flatbuffers::SingleNodeOptions* options, const CSBLoadConfig& config);
+    GameObject* CreateNode(const flatbuffers::WidgetOptions* options, const SceneLoadConfig& config);
+    GameObject* CreateSprite(const flatbuffers::SpriteOptions* options, const SceneLoadConfig& config);
+    GameObject* CreateImageView(const flatbuffers::ImageViewOptions* options, const SceneLoadConfig& config);
+    GameObject* CreateSingleNode(const flatbuffers::SingleNodeOptions* options, const SceneLoadConfig& config);
 
     // Apply common widget options to a GameObject
-    void ApplyWidgetOptions(GameObject* go, const flatbuffers::WidgetOptions* options, const CSBLoadConfig& config);
+    void ApplyWidgetOptions(GameObject* go, const flatbuffers::WidgetOptions* options, const SceneLoadConfig& config);
 
     // Resolve texture path
-    int ResolveTexture(const std::string& path, const std::string& plistFile, int resourceType, const CSBLoadConfig& config);
+    int ResolveTexture(const std::string& path, const std::string& plistFile, int resourceType, const SceneLoadConfig& config);
 };

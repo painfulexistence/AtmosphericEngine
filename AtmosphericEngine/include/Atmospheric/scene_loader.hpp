@@ -46,7 +46,7 @@ struct SceneLoadConfig {
 
     // Animation settings
     float animationFrameRate = 60.0f;// Frame rate for CSB animations (Unity typically uses 30fps)
-    bool loopAnimations = false;// Whether to loop animations by default
+    bool loopAnimations = true;// Whether to loop animations (default: true, like most game engines)
 };
 
 class SceneLoader {

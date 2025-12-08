@@ -43,6 +43,10 @@ struct SceneLoadConfig {
     // Optional: Override the root node's position
     bool overrideRootPosition = false;
     glm::vec3 rootPosition = glm::vec3(0.0f);
+
+    // Animation settings
+    float animationFrameRate = 60.0f;// Frame rate for CSB animations (Unity typically uses 30fps)
+    bool loopAnimations = false;// Whether to loop animations by default
 };
 
 class SceneLoader {
@@ -82,7 +86,7 @@ private:
     void ApplyWidgetOptions(GameObject* go, const flatbuffers::WidgetOptions* options, const SceneLoadConfig& config);
 
     // Parse animations from CSB
-    void ParseAnimations(const flatbuffers::NodeAction* actions, SceneLoadResult& result);
+    void ParseAnimations(const flatbuffers::NodeAction* actions, SceneLoadResult& result, const SceneLoadConfig& config);
 
     // Resolve texture path
     int ResolveTexture(

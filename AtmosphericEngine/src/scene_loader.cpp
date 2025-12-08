@@ -128,7 +128,7 @@ SceneLoadResult SceneLoader::LoadFromBuffer(const uint8_t* buffer, size_t size, 
 
     // Parse animations (csb->action())
     if (csb->action()) {
-        ParseAnimations(csb->action(), result);
+        ParseAnimations(csb->action(), result, actualConfig);
     }
 
     return result;
@@ -136,7 +136,7 @@ SceneLoadResult SceneLoader::LoadFromBuffer(const uint8_t* buffer, size_t size, 
 
 // ... existing ParseNodeTree ...
 
-void SceneLoader::ParseAnimations(const flatbuffers::NodeAction* actions, SceneLoadResult& result) {
+void SceneLoader::ParseAnimations(const flatbuffers::NodeAction* actions, SceneLoadResult& result, const SceneLoadConfig& config) {
     if (!actions) {
         spdlog::debug("SceneLoader: No Action data in CSB.");
         return;
@@ -146,9 +146,10 @@ void SceneLoader::ParseAnimations(const flatbuffers::NodeAction* actions, SceneL
         return;
     }
 
-    // For demo: Auto-play the first animation found in timelines
-    float frameRate = 60.0f;// CSB standard
-    spdlog::info("SceneLoader: Parsing {} validation timelines...", actions->timeLines()->size());
+    // Use configured frame rate (Unity typically uses 30fps, Cocos uses 60fps)
+    float frameRate = config.animationFrameRate;
+    spdlog::info("SceneLoader: Parsing {} timelines at {}fps (loop={})...",
+                 actions->timeLines()->size(), frameRate, config.loopAnimations);
 
     for (auto timeline : *actions->timeLines()) {
         if (!timeline || !timeline->frames() || timeline->frames()->size() == 0) {
@@ -250,8 +251,14 @@ void SceneLoader::ParseAnimations(const flatbuffers::NodeAction* actions, SceneL
         }
 
         if (!sequenceActions.empty()) {
-            Action* seq = new Sequence(sequenceActions);
-            actionManager->RunAction(seq);
+            Sequence* seq = new Sequence(sequenceActions);
+            if (config.loopAnimations) {
+                // Wrap in RepeatForever for looping animations
+                Action* loopedAction = new RepeatForever(seq);
+                actionManager->RunAction(loopedAction);
+            } else {
+                actionManager->RunAction(seq);
+            }
         }
     }
 }

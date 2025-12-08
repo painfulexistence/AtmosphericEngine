@@ -13,7 +13,6 @@
 #include "renderer.hpp"
 #include "sprite_component.hpp"
 #include "stb_image.h"
-#include "texture.hpp"// Corrected path for texture.hpp
 #include <fstream>
 #include <glm/gtc/matrix_transform.hpp>
 #include <sstream>

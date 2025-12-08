@@ -14,7 +14,7 @@ class HelloWorld : public Application {
 
     void OnLoad() override {
         // Load font
-        fontID = GraphicsServer::Get()->LoadFont("assets/fonts/Arial Black.ttf", 32.0f);
+        fontID = GraphicsServer::Get()->LoadFont("assets/fonts/NotoSans-SemiBold.ttf", 32.0f);
 
         SceneDef scene = {
             .materials = { { .baseMap = 0,

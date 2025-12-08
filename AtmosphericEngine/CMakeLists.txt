@@ -106,6 +106,7 @@ set(SOURCES
     src/scene.cpp
     src/action.cpp
     src/action_manager.cpp
+    src/animator_2d.cpp
     src/asset_manager.cpp
     src/font_manager.cpp
     src/job_system.cpp

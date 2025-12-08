@@ -14,8 +14,6 @@ EditorLayer::EditorLayer(Application* app) : Layer("EditorLayer"), _app(app) {
 }
 
 void EditorLayer::OnRender(float dt) {
-    _app->GetWindow()->BeginImGuiFrame();
-
     if (ImGui::BeginMainMenuBar()) {
         // if (ImGui::BeginMenu("Scene")) {
         //     ImGui::MenuItem("New Scene");
@@ -43,8 +41,6 @@ void EditorLayer::OnRender(float dt) {
     if (_showEngineView) {
         DrawEngineView();
     }
-
-    _app->GetWindow()->EndImGuiFrame();
 }
 
 void EditorLayer::DrawSystemInfo() {

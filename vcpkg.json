@@ -17,6 +17,7 @@
     "tinygltf",
     "tracy",
     "rmlui",
-    "box2d"
+    "box2d",
+    "flatbuffers"
   ]
 }

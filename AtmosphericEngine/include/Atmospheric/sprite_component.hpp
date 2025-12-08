@@ -11,7 +11,10 @@ struct SpriteProps {
     glm::vec2 pivot = glm::vec2(0.5f, 0.5f);
     glm::vec4 color = glm::vec4(1.0f);
     int textureID = -1;
-    CanvasLayer layer = CanvasLayer::LAYER_WORLD_2D;// Default to 2D screen-space
+    CanvasLayer layer = CanvasLayer::LAYER_WORLD;// Default to main game layer
+    bool flipX = false;
+    bool flipY = false;
+    int zOrder = 0;// Fine-grained ordering within same layer
 };
 
 
@@ -75,6 +78,26 @@ public:
         _uvMax = max;
     }
 
+    bool GetFlipX() const {
+        return _flipX;
+    }
+    bool GetFlipY() const {
+        return _flipY;
+    }
+    void SetFlipX(bool flip) {
+        _flipX = flip;
+    }
+    void SetFlipY(bool flip) {
+        _flipY = flip;
+    }
+
+    int GetZOrder() const {
+        return _zOrder;
+    }
+    void SetZOrder(int zOrder) {
+        _zOrder = zOrder;
+    }
+
 private:
     glm::vec2 _size;// Base size in pixels
     glm::vec2 _pivot;// Pivot point (0,0 = top-left, 1,1 = bottom-right)
@@ -83,4 +106,7 @@ private:
     CanvasLayer _layer;
     glm::vec2 _uvMin = glm::vec2(0.0f, 0.0f);
     glm::vec2 _uvMax = glm::vec2(1.0f, 1.0f);
+    bool _flipX = false;
+    bool _flipY = false;
+    int _zOrder = 0;
 };

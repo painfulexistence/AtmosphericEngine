@@ -31,20 +31,16 @@ void SpriteComponent::OnDetach() {
 }
 
 void SpriteComponent::Draw(BatchRenderer2D* renderer) {
-    glm::vec3 pos = gameObject->GetPosition();
-    glm::vec3 rot = gameObject->GetRotation();
-    glm::vec3 scale = gameObject->GetScale();
+    // Use world transform to support hierarchy
+    glm::mat4 worldTransform = gameObject->GetTransform();
 
-    glm::vec2 size = _size * glm::vec2(scale.x, scale.y);
+    // Calculate pivot offset in local space (unscaled)
+    glm::vec2 pivotOffset = (glm::vec2(0.5f, 0.5f) - _pivot) * _size;
 
-    // Transform
-    glm::mat4 transform = glm::translate(glm::mat4(1.0f), pos);
-    transform = glm::rotate(transform, rot.z, glm::vec3(0.0f, 0.0f, 1.0f));
-
-    glm::vec2 pivotOffset = (glm::vec2(0.5f, 0.5f) - _pivot) * size;
-    transform = glm::translate(transform, glm::vec3(pivotOffset, 0.0f));
-
-    transform = glm::scale(transform, glm::vec3(size.x, size.y, 1.0f));
+    // Apply pivot and size
+    // Note: World transform already includes node position, rotation, and scale
+    glm::mat4 transform = glm::translate(worldTransform, glm::vec3(pivotOffset, 0.0f));
+    transform = glm::scale(transform, glm::vec3(_size.x, _size.y, 1.0f));
 
     // Apply flip by swapping UV coordinates
     float uMin = _flipX ? _uvMax.x : _uvMin.x;

@@ -29,7 +29,7 @@ class CSBDemo : public Application {
         config.basePath = "assets/";
         config.defaultLayer = CanvasLayer::LAYER_WORLD;
 
-        loadedScene = sceneLoader->Load("assets/test_scene.csb", config);
+        loadedScene = sceneLoader->Load("assets/scenes/test_scene.csb", config);
 
         if (loadedScene.success) {
             console.Info(fmt::format("CSB loaded successfully! {} nodes created", loadedScene.allNodes.size()));
@@ -55,7 +55,7 @@ class CSBDemo : public Application {
         SpriteProps originProps;
         originProps.size = glm::vec2(20.0f, 20.0f);
         originProps.pivot = glm::vec2(0.5f, 0.5f);
-        originProps.color = glm::vec4(1.0f, 0.0f, 0.0f, 1.0f); // Red
+        originProps.color = glm::vec4(1.0f, 0.0f, 0.0f, 1.0f);// Red
         originProps.layer = CanvasLayer::LAYER_OVERLAY;
         origin->AddComponent<SpriteComponent>(originProps);
         origin->SetName("Origin (0,0)");
@@ -70,8 +70,8 @@ class CSBDemo : public Application {
         auto pivotBL = CreateGameObject(glm::vec2(testX, testY));
         SpriteProps blProps;
         blProps.size = glm::vec2(80.0f, 60.0f);
-        blProps.pivot = glm::vec2(0.0f, 0.0f); // Bottom-left
-        blProps.color = glm::vec4(1.0f, 0.5f, 0.0f, 0.7f); // Orange
+        blProps.pivot = glm::vec2(0.0f, 0.0f);// Bottom-left
+        blProps.color = glm::vec4(1.0f, 0.5f, 0.0f, 0.7f);// Orange
         blProps.layer = CanvasLayer::LAYER_WORLD;
         blProps.zOrder = 1;
         pivotBL->AddComponent<SpriteComponent>(blProps);
@@ -82,8 +82,8 @@ class CSBDemo : public Application {
         auto pivotC = CreateGameObject(glm::vec2(testX, testY));
         SpriteProps cProps;
         cProps.size = glm::vec2(80.0f, 60.0f);
-        cProps.pivot = glm::vec2(0.5f, 0.5f); // Center
-        cProps.color = glm::vec4(0.0f, 1.0f, 0.5f, 0.7f); // Green
+        cProps.pivot = glm::vec2(0.5f, 0.5f);// Center
+        cProps.color = glm::vec4(0.0f, 1.0f, 0.5f, 0.7f);// Green
         cProps.layer = CanvasLayer::LAYER_WORLD;
         cProps.zOrder = 2;
         pivotC->AddComponent<SpriteComponent>(cProps);
@@ -94,8 +94,8 @@ class CSBDemo : public Application {
         auto pivotTR = CreateGameObject(glm::vec2(testX, testY));
         SpriteProps trProps;
         trProps.size = glm::vec2(80.0f, 60.0f);
-        trProps.pivot = glm::vec2(1.0f, 1.0f); // Top-right
-        trProps.color = glm::vec4(0.0f, 0.5f, 1.0f, 0.7f); // Blue
+        trProps.pivot = glm::vec2(1.0f, 1.0f);// Top-right
+        trProps.color = glm::vec4(0.0f, 0.5f, 1.0f, 0.7f);// Blue
         trProps.layer = CanvasLayer::LAYER_WORLD;
         trProps.zOrder = 3;
         pivotTR->AddComponent<SpriteComponent>(trProps);
@@ -104,11 +104,11 @@ class CSBDemo : public Application {
 
         // === Test 3: Scale test ===
         auto scaled = CreateGameObject(glm::vec2(400.0f, 300.0f));
-        scaled->SetScale(glm::vec3(2.0f, 1.5f, 1.0f)); // 2x width, 1.5x height
+        scaled->SetScale(glm::vec3(2.0f, 1.5f, 1.0f));// 2x width, 1.5x height
         SpriteProps scaledProps;
-        scaledProps.size = glm::vec2(50.0f, 50.0f); // Base size 50x50
+        scaledProps.size = glm::vec2(50.0f, 50.0f);// Base size 50x50
         scaledProps.pivot = glm::vec2(0.5f, 0.5f);
-        scaledProps.color = glm::vec4(1.0f, 1.0f, 0.0f, 0.8f); // Yellow
+        scaledProps.color = glm::vec4(1.0f, 1.0f, 0.0f, 0.8f);// Yellow
         scaledProps.layer = CanvasLayer::LAYER_WORLD;
         scaled->AddComponent<SpriteComponent>(scaledProps);
         scaled->SetName("Scaled 2x1.5 (100x75)");
@@ -116,11 +116,11 @@ class CSBDemo : public Application {
 
         // === Test 4: Rotation test ===
         auto rotated = CreateGameObject(glm::vec2(550.0f, 300.0f));
-        rotated->SetRotation(glm::vec3(0.0f, 0.0f, glm::radians(45.0f))); // 45 degrees
+        rotated->SetRotation(glm::vec3(0.0f, 0.0f, glm::radians(45.0f)));// 45 degrees
         SpriteProps rotProps;
         rotProps.size = glm::vec2(60.0f, 40.0f);
         rotProps.pivot = glm::vec2(0.5f, 0.5f);
-        rotProps.color = glm::vec4(1.0f, 0.0f, 1.0f, 0.8f); // Magenta
+        rotProps.color = glm::vec4(1.0f, 0.0f, 1.0f, 0.8f);// Magenta
         rotProps.layer = CanvasLayer::LAYER_WORLD;
         rotated->AddComponent<SpriteComponent>(rotProps);
         rotated->SetName("Rotated 45deg");
@@ -132,7 +132,7 @@ class CSBDemo : public Application {
         SpriteProps normalProps;
         normalProps.size = glm::vec2(60.0f, 40.0f);
         normalProps.pivot = glm::vec2(0.5f, 0.5f);
-        normalProps.color = glm::vec4(0.0f, 1.0f, 1.0f, 1.0f); // Cyan
+        normalProps.color = glm::vec4(0.0f, 1.0f, 1.0f, 1.0f);// Cyan
         normalProps.layer = CanvasLayer::LAYER_WORLD;
         normal->AddComponent<SpriteComponent>(normalProps);
         normal->SetName("Normal");
@@ -165,9 +165,9 @@ class CSBDemo : public Application {
         // === Test 6: Aspect ratio test (should be 16:9) ===
         auto aspect = CreateGameObject(glm::vec2(400.0f, 500.0f));
         SpriteProps aspectProps;
-        aspectProps.size = glm::vec2(160.0f, 90.0f); // 16:9 ratio
+        aspectProps.size = glm::vec2(160.0f, 90.0f);// 16:9 ratio
         aspectProps.pivot = glm::vec2(0.5f, 0.5f);
-        aspectProps.color = glm::vec4(0.8f, 0.8f, 0.8f, 1.0f); // Light gray
+        aspectProps.color = glm::vec4(0.8f, 0.8f, 0.8f, 1.0f);// Light gray
         aspectProps.layer = CanvasLayer::LAYER_WORLD_BACK;
         aspect->AddComponent<SpriteComponent>(aspectProps);
         aspect->SetName("16:9 Aspect (160x90)");
@@ -179,14 +179,9 @@ class CSBDemo : public Application {
             SpriteProps stackProps;
             stackProps.size = glm::vec2(50.0f, 50.0f);
             stackProps.pivot = glm::vec2(0.5f, 0.5f);
-            stackProps.color = glm::vec4(
-                i == 0 ? 1.0f : 0.3f,
-                i == 1 ? 1.0f : 0.3f,
-                i == 2 ? 1.0f : 0.3f,
-                0.9f
-            );
+            stackProps.color = glm::vec4(i == 0 ? 1.0f : 0.3f, i == 1 ? 1.0f : 0.3f, i == 2 ? 1.0f : 0.3f, 0.9f);
             stackProps.layer = CanvasLayer::LAYER_WORLD;
-            stackProps.zOrder = i; // 0, 1, 2
+            stackProps.zOrder = i;// 0, 1, 2
             stacked->AddComponent<SpriteComponent>(stackProps);
             stacked->SetName(fmt::format("zOrder={}", i));
             testSprites.push_back(stacked);
@@ -197,13 +192,13 @@ class CSBDemo : public Application {
 
     void OnUpdate(float dt, float time) override {
         // Toggle debug grid
-        if (input.IsKeyPressed(Key::NUM_1)) {
+        if (input.IsKeyPressed(Key::Num1)) {
             showDebugGrid = !showDebugGrid;
             console.Info(fmt::format("Debug grid: {}", showDebugGrid ? "ON" : "OFF"));
         }
 
         // Toggle node info
-        if (input.IsKeyPressed(Key::NUM_2)) {
+        if (input.IsKeyPressed(Key::Num2)) {
             showNodeInfo = !showNodeInfo;
             console.Info(fmt::format("Node info: {}", showNodeInfo ? "ON" : "OFF"));
         }
@@ -231,13 +226,12 @@ class CSBDemo : public Application {
         // Draw using ImGui overlay
         ImGui::SetNextWindowPos(ImVec2(0, 0));
         ImGui::SetNextWindowSize(ImVec2(800, 600));
-        ImGui::Begin("DebugOverlay", nullptr,
-            ImGuiWindowFlags_NoBackground |
-            ImGuiWindowFlags_NoTitleBar |
-            ImGuiWindowFlags_NoResize |
-            ImGuiWindowFlags_NoMove |
-            ImGuiWindowFlags_NoScrollbar |
-            ImGuiWindowFlags_NoInputs);
+        ImGui::Begin(
+          "DebugOverlay",
+          nullptr,
+          ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize
+            | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoInputs
+        );
 
         ImDrawList* drawList = ImGui::GetWindowDrawList();
 
@@ -260,7 +254,7 @@ class CSBDemo : public Application {
         }
 
         for (int y = 0; y <= 600; y += 100) {
-            int screenY = 600 - y; // Flip Y
+            int screenY = 600 - y;// Flip Y
             drawList->AddLine(ImVec2(0, screenY), ImVec2(800, screenY), gridColor);
             // Label
             char label[16];
@@ -269,7 +263,7 @@ class CSBDemo : public Application {
         }
 
         // Draw X axis (Y=0, red)
-        int y0Screen = 600; // Y=0 in world = bottom of screen
+        int y0Screen = 600;// Y=0 in world = bottom of screen
         drawList->AddLine(ImVec2(0, y0Screen), ImVec2(800, y0Screen), axisXColor, 2.0f);
         drawList->AddText(ImVec2(780, y0Screen - 15), axisXColor, "X");
 

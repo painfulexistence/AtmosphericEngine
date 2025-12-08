@@ -24,7 +24,7 @@ class CSBDemo : public Application {
             mainCamera->Yaw(-glm::half_pi<float>());
         }
 
-        loadedScene = sceneLoader->Load("assets/scenes/test.csb", glm::vec3(0.0f), CanvasLayer::LAYER_WORLD);
+        loadedScene = sceneLoader->Load("assets/scenes/Canvas.csb", glm::vec3(0.0f), CanvasLayer::LAYER_WORLD);
         if (loadedScene.success) {
             console.Info(fmt::format("CSB loaded successfully! {} nodes created", loadedScene.allNodes.size()));
         } else {

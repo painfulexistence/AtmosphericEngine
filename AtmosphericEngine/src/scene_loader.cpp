@@ -12,6 +12,18 @@
 #include <fstream>
 #include <spdlog/spdlog.h>
 
+// Convert CSB easing type to our EasingType enum
+static EasingType GetEasingType(int csbType) {
+    // CSB easing types (from Cocos Studio):
+    // -1 = None/Linear, 0 = Linear
+    // 1-3 = Sine (In, Out, InOut)
+    // 4-6 = Quad, 7-9 = Cubic, 10-12 = Quart, 13-15 = Quint
+    // 16-18 = Expo, 19-21 = Circ, 22-24 = Elastic, 25-27 = Back, 28-30 = Bounce
+    if (csbType <= 0) return EasingType::Linear;
+    if (csbType <= 30) return static_cast<EasingType>(csbType);
+    return EasingType::Linear;
+}
+
 SceneLoader::SceneLoader(Application* app) : _app(app) {
 }
 
@@ -199,12 +211,19 @@ void SceneLoader::ParseAnimations(const flatbuffers::NodeAction* actions, SceneL
                 if (frame->pointFrame() && frame->pointFrame()->position()) {
                     int currentFrameIndex = frame->pointFrame()->frameIndex();
                     float duration = (currentFrameIndex - lastFrameIndex) / frameRate / speed;
-                    // Prevent negative duration if frames are unordered (shouldn't happen in CSB)
                     if (duration < 0) duration = 0;
+
+                    // Get easing type from frame
+                    EasingType easing = EasingType::Linear;
+                    if (frame->pointFrame()->easingData()) {
+                        easing = GetEasingType(frame->pointFrame()->easingData()->type());
+                    }
 
                     lastFrameIndex = currentFrameIndex;
                     auto pos = frame->pointFrame()->position();
-                    sequenceActions.push_back(new MoveTo(duration, glm::vec3(pos->x(), pos->y(), 0.0f)));
+                    auto action = new MoveTo(duration, glm::vec3(pos->x(), pos->y(), 0.0f));
+                    action->SetEasing(easing);
+                    sequenceActions.push_back(action);
                 }
             }
         } else if (property == "Scale") {
@@ -214,17 +233,30 @@ void SceneLoader::ParseAnimations(const flatbuffers::NodeAction* actions, SceneL
                     float duration = (currentFrameIndex - lastFrameIndex) / frameRate / speed;
                     if (duration < 0) duration = 0;
 
+                    // Get easing type from frame
+                    EasingType easing = EasingType::Linear;
+                    if (frame->scaleFrame()->easingData()) {
+                        easing = GetEasingType(frame->scaleFrame()->easingData()->type());
+                    }
+
                     lastFrameIndex = currentFrameIndex;
                     auto scale = frame->scaleFrame()->scale();
-                    sequenceActions.push_back(new ScaleTo(duration, glm::vec3(scale->scaleX(), scale->scaleY(), 1.0f)));
+                    auto action = new ScaleTo(duration, glm::vec3(scale->scaleX(), scale->scaleY(), 1.0f));
+                    action->SetEasing(easing);
+                    sequenceActions.push_back(action);
                 }
             }
         } else if (property == "RotationSkew") {
             bool parsed = false;
             for (auto frame : *timeline->frames()) {
                 int currentFrameIndex = 0;
+                EasingType easing = EasingType::Linear;
+
                 if (frame->intFrame()) {
                     currentFrameIndex = frame->intFrame()->frameIndex();
+                    if (frame->intFrame()->easingData()) {
+                        easing = GetEasingType(frame->intFrame()->easingData()->type());
+                    }
                 } else if (frame->pointFrame()) {
                     currentFrameIndex = frame->pointFrame()->frameIndex();
                 } else if (frame->scaleFrame()) {
@@ -239,8 +271,9 @@ void SceneLoader::ParseAnimations(const flatbuffers::NodeAction* actions, SceneL
                     // CSB stores rotation in degrees, convert to radians for RotateTo
                     float rotDeg = static_cast<float>(frame->intFrame()->value());
                     float rotRad = glm::radians(rotDeg);
-                    auto rotateTo = new RotateTo(duration, glm::vec3(0, 0, rotRad));
-                    sequenceActions.push_back(rotateTo);
+                    auto action = new RotateTo(duration, glm::vec3(0, 0, rotRad));
+                    action->SetEasing(easing);
+                    sequenceActions.push_back(action);
                     parsed = true;
                 }
             }

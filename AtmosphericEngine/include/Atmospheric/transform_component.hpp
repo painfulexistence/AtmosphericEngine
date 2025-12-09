@@ -17,11 +17,15 @@ public:
     }
     void SetPosition(const glm::vec3& position);
 
-    // Rotation (Euler angles)
+    // Rotation (radians)
     inline glm::vec3 GetRotation() const {
         return _rotation;
     }
     void SetRotation(const glm::vec3& rotation);
+
+    // Rotation (degrees) - user-friendly API
+    glm::vec3 GetEulerAngles() const;
+    void SetEulerAngles(const glm::vec3& degrees);
 
     // Scale
     inline glm::vec3 GetScale() const {

@@ -236,10 +236,8 @@ void SceneLoader::ParseAnimations(const flatbuffers::NodeAction* actions, SceneL
                 lastFrameIndex = currentFrameIndex;
 
                 if (frame->intFrame()) {
-                    // CSB stores rotation in degrees, convert to radians for glm
-                    float rotationDeg = static_cast<float>(frame->intFrame()->value());
-                    float rotationRad = glm::radians(rotationDeg);
-                    auto rotateTo = new RotateTo(duration, glm::vec3(0, 0, rotationRad));
+                    float rotation = static_cast<float>(frame->intFrame()->value());
+                    auto rotateTo = new RotateTo(duration, glm::vec3(0, 0, rotation));
                     sequenceActions.push_back(rotateTo);
                     parsed = true;
                 }
@@ -439,8 +437,8 @@ GameObject* SceneLoader::CreateNode(const flatbuffers::WidgetOptions* options, c
             position = glm::vec3(options->position()->x(), options->position()->y(), 0.0f);
         }
         if (options->rotationSkew()) {
-            // CSB uses rotationSkewX for Z rotation in 2D (degrees -> radians)
-            rotation = glm::vec3(0.0f, 0.0f, glm::radians(options->rotationSkew()->rotationSkewX()));
+            // CSB uses rotationSkewX for Z rotation in 2D (degrees)
+            rotation = glm::vec3(0.0f, 0.0f, options->rotationSkew()->rotationSkewX());
         }
         if (options->scale()) {
             scale = glm::vec3(options->scale()->scaleX(), options->scale()->scaleY(), 1.0f);
@@ -555,8 +553,7 @@ void SceneLoader::ApplyWidgetOptions(
             go->SetPosition(glm::vec3(options->position()->x(), options->position()->y(), 0.0f));
         }
         if (options->rotationSkew()) {
-            // CSB stores rotation in degrees, convert to radians
-            go->SetRotation(glm::vec3(0.0f, 0.0f, glm::radians(options->rotationSkew()->rotationSkewX())));
+            go->SetRotation(glm::vec3(0.0f, 0.0f, options->rotationSkew()->rotationSkewX()));
         }
         if (options->scale()) {
             go->SetScale(glm::vec3(options->scale()->scaleX(), options->scale()->scaleY(), 1.0f));

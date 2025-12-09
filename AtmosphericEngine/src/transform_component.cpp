@@ -56,13 +56,16 @@ void TransformComponent::SyncWorldTransform(const glm::mat4& transform) {
 
 // Update local matrix from P/R/S
 void TransformComponent::UpdateTransform() {
-    _localToWorld = glm::translate(glm::mat4(1.0f), _position) * glm::mat4_cast(glm::quat(_rotation))
+    // _rotation is stored in degrees (user-friendly), convert to radians for glm::quat
+    glm::vec3 rotationRad = glm::radians(_rotation);
+    _localToWorld = glm::translate(glm::mat4(1.0f), _position) * glm::mat4_cast(glm::quat(rotationRad))
                     * glm::scale(glm::mat4(1.0f), _scale);
 }
 
 // Update P/R/S from local matrix
 void TransformComponent::UpdatePositionRotationScale() {
     _position = glm::vec3(_localToWorld[3]);
-    _rotation = glm::eulerAngles(glm::quat_cast(glm::mat3(_localToWorld)));
+    // glm::eulerAngles returns radians, convert to degrees for user-friendly storage
+    _rotation = glm::degrees(glm::eulerAngles(glm::quat_cast(glm::mat3(_localToWorld))));
     _scale = glm::vec3(glm::length(_localToWorld[0]), glm::length(_localToWorld[1]), glm::length(_localToWorld[2]));
 }

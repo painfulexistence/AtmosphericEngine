@@ -86,7 +86,8 @@ private:
     void ApplyWidgetOptions(GameObject* go, const flatbuffers::WidgetOptions* options, const SceneLoadConfig& config);
 
     // Parse animations from CSB
-    void ParseAnimations(const flatbuffers::NodeAction* actions, SceneLoadResult& result, const SceneLoadConfig& config);
+    void
+      ParseAnimations(const flatbuffers::NodeAction* actions, SceneLoadResult& result, const SceneLoadConfig& config);
 
     // Resolve texture path
     int ResolveTexture(

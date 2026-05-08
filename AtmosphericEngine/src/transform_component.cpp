@@ -56,7 +56,6 @@ void TransformComponent::SyncWorldTransform(const glm::mat4& transform) {
 
 // Update local matrix from P/R/S
 void TransformComponent::UpdateTransform() {
-    // _rotation is stored in radians
     _localToWorld = glm::translate(glm::mat4(1.0f), _position) * glm::mat4_cast(glm::quat(_rotation))
                     * glm::scale(glm::mat4(1.0f), _scale);
 }

@@ -148,7 +148,9 @@ SceneLoadResult SceneLoader::LoadFromBuffer(const uint8_t* buffer, size_t size, 
 
 // ... existing ParseNodeTree ...
 
-void SceneLoader::ParseAnimations(const flatbuffers::NodeAction* actions, SceneLoadResult& result, const SceneLoadConfig& config) {
+void SceneLoader::ParseAnimations(
+  const flatbuffers::NodeAction* actions, SceneLoadResult& result, const SceneLoadConfig& config
+) {
     if (!actions) {
         spdlog::debug("SceneLoader: No Action data in CSB.");
         return;
@@ -165,8 +167,13 @@ void SceneLoader::ParseAnimations(const flatbuffers::NodeAction* actions, SceneL
     float speed = actions->speed();
     if (speed <= 0.0f) speed = 1.0f;// Fallback to normal speed if invalid
 
-    spdlog::info("SceneLoader: Parsing {} timelines at {}fps, speed={}, loop={}",
-                 actions->timeLines()->size(), frameRate, speed, config.loopAnimations);
+    spdlog::info(
+      "SceneLoader: Parsing {} timelines at {}fps, speed={}, loop={}",
+      actions->timeLines()->size(),
+      frameRate,
+      speed,
+      config.loopAnimations
+    );
 
     for (auto timeline : *actions->timeLines()) {
         if (!timeline || !timeline->frames() || timeline->frames()->size() == 0) {

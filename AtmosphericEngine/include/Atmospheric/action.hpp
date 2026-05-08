@@ -94,8 +94,12 @@ public:
     void Step(float dt) override;
     void StartWithTarget(GameObject* target) override;
 
-    void SetEasing(EasingType easing) { _easing = easing; }
-    EasingType GetEasing() const { return _easing; }
+    void SetEasing(EasingType easing) {
+        _easing = easing;
+    }
+    EasingType GetEasing() const {
+        return _easing;
+    }
 
     virtual void Update(float t) = 0;// t is 0.0 to 1.0 (after easing applied)
 

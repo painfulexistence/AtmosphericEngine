@@ -16,7 +16,9 @@
 #include <fstream>
 #include <glm/gtc/matrix_transform.hpp>
 #include <sstream>
+#ifdef TRACY_ENABLE
 #include <tracy/Tracy.hpp>
+#endif
 
 #include <cstddef>
 

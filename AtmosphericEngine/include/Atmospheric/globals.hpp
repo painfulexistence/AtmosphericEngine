@@ -18,6 +18,13 @@
 #include <string>
 #include <vector>
 
+#ifndef TRACY_ENABLE
+#define ZoneScoped
+#define ZoneScopedN(name)
+#define FrameMark
+#define TracyNoop
+#endif
+
 #define CAMERA_ANGULAR_OFFSET 0.05
 #define CAMERA_SPEED 15
 #define CAMERA_VERTICAL_SPEED 8

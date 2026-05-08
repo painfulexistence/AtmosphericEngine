@@ -6,9 +6,12 @@
 #include "game_object.hpp"
 #include "graphics_server.hpp"
 #include "particle_server.hpp"
+#include "physics_server_2d.hpp"
 #include "window.hpp"
 #include <algorithm>
+#ifdef TRACY_ENABLE
 #include <tracy/Tracy.hpp>
+#endif
 
 struct RenderBatch {
     Mesh* mesh = nullptr;

@@ -13,6 +13,44 @@ class SpriteComponent;
 // Forward declaration of AnimationClip (we'll keep it in animator_2d.hpp or move it later)
 struct AnimationClip;
 
+// Easing types (compatible with Cocos Studio CSB format)
+enum class EasingType {
+    Linear = 0,
+    SineIn = 1,
+    SineOut = 2,
+    SineInOut = 3,
+    QuadIn = 4,
+    QuadOut = 5,
+    QuadInOut = 6,
+    CubicIn = 7,
+    CubicOut = 8,
+    CubicInOut = 9,
+    QuartIn = 10,
+    QuartOut = 11,
+    QuartInOut = 12,
+    QuintIn = 13,
+    QuintOut = 14,
+    QuintInOut = 15,
+    ExpoIn = 16,
+    ExpoOut = 17,
+    ExpoInOut = 18,
+    CircIn = 19,
+    CircOut = 20,
+    CircInOut = 21,
+    BackIn = 22,
+    BackOut = 23,
+    BackInOut = 24,
+    ElasticIn = 25,
+    ElasticOut = 26,
+    ElasticInOut = 27,
+    BounceIn = 28,
+    BounceOut = 29,
+    BounceInOut = 30,
+};
+
+// Apply easing function to t (0.0 to 1.0)
+float ApplyEasing(float t, EasingType type);
+
 class Action {
 public:
     virtual ~Action() = default;
@@ -50,17 +88,25 @@ protected:
 
 class ActionInterval : public FiniteTimeAction {
 public:
-    ActionInterval(float duration);
+    ActionInterval(float duration, EasingType easing = EasingType::Linear);
 
     bool IsDone() const override;
     void Step(float dt) override;
     void StartWithTarget(GameObject* target) override;
 
-    virtual void Update(float t) = 0;// t is 0.0 to 1.0
+    void SetEasing(EasingType easing) {
+        _easing = easing;
+    }
+    EasingType GetEasing() const {
+        return _easing;
+    }
+
+    virtual void Update(float t) = 0;// t is 0.0 to 1.0 (after easing applied)
 
 protected:
     float _elapsed;
     bool _firstTick;
+    EasingType _easing;
 };
 
 // --- Concrete Actions ---
@@ -132,6 +178,7 @@ public:
     void StartWithTarget(GameObject* target) override;
     void Update(float t) override;
     void Step(float dt) override;
+    bool IsDone() const override;
 
 private:
     std::vector<FiniteTimeAction*> _actions;

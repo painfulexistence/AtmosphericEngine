@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 # 顏色定義
 RED='\033[0;31m'
@@ -25,7 +26,13 @@ fi
 
 TAG="v$VERSION"
 
-# 3. 確認
+# 3. 檢查標籤是否已存在
+if git rev-parse "$TAG" >/dev/null 2>&1; then
+    echo -e "${RED}錯誤: 標籤 $TAG 已經存在了。請使用新版本號，或先手動刪除舊標籤。${NC}"
+    exit 1
+fi
+
+# 4. 確認
 echo -e "${YELLOW}即將建立標籤 $TAG 並推送到 GitHub，這將觸發 CI Release。確定嗎？ (y/n)${NC}"
 read CONFIRM
 
@@ -34,15 +41,14 @@ if [ "$CONFIRM" != "y" ]; then
     exit 0
 fi
 
-# 4. 執行 Tag 與 Push
+# 5. 執行 Tag 與 Push
 echo -e "${YELLOW}正在建立標籤 $TAG...${NC}"
 git tag -a "$TAG" -m "Release $TAG"
 
 echo -e "${YELLOW}正在推送到 GitHub...${NC}"
 git push origin "$TAG"
 
-# 5. 獲取 GitHub Actions 連結
-# 自動從 git remote 抓取 URL 並轉成網頁連結
+# 6. 獲取 GitHub Actions 連結
 REPO_URL=$(git remote get-url origin | sed 's/\.git$//' | sed 's/git@github.com:/https:\/\/github.com\//')
 ACTIONS_URL="${REPO_URL}/actions"
 

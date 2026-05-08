@@ -29,7 +29,6 @@ target_link_libraries(${GAME_NAME} PRIVATE
     BulletCollision
     LinearMath
     ${LUA_LIBRARIES}
-    sol2
     raudio
     glad::glad
     spdlog::spdlog

@@ -76,15 +76,11 @@ public:
     void SyncObjectTransform(glm::mat4 xform);
 
     glm::vec3 GetPosition() const;
-    glm::vec3 GetRotation() const;// radians
+    glm::vec3 GetRotation() const;
     glm::vec3 GetScale() const;
     void SetPosition(glm::vec3 value);
-    void SetRotation(glm::vec3 value);// radians
+    void SetRotation(glm::vec3 value);
     void SetScale(glm::vec3 value);
-
-    // User-friendly rotation API (degrees)
-    glm::vec3 GetEulerAngles() const;
-    void SetEulerAngles(glm::vec3 degrees);
 
     glm::mat4 GetTransform() const;// World space
 

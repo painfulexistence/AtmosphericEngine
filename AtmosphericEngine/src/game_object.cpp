@@ -171,17 +171,6 @@ void GameObject::SetRotation(glm::vec3 value) {
     if (rb) rb->SetWorldTransform(_transform->GetPosition(), _transform->GetRotation());
 }
 
-glm::vec3 GameObject::GetEulerAngles() const {
-    return _transform->GetEulerAngles();
-}
-
-void GameObject::SetEulerAngles(glm::vec3 degrees) {
-    _transform->SetEulerAngles(degrees);
-
-    RigidbodyComponent* rb = GetComponent<RigidbodyComponent>();
-    if (rb) rb->SetWorldTransform(_transform->GetPosition(), _transform->GetRotation());
-}
-
 glm::vec3 GameObject::GetScale() const {
     return _transform->GetScale();
 }

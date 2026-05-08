@@ -12,18 +12,6 @@
 #include <fstream>
 #include <spdlog/spdlog.h>
 
-// Convert CSB easing type to our EasingType enum
-static EasingType GetEasingType(int csbType) {
-    // CSB easing types (from Cocos Studio):
-    // -1 = None/Linear, 0 = Linear
-    // 1-3 = Sine (In, Out, InOut)
-    // 4-6 = Quad, 7-9 = Cubic, 10-12 = Quart, 13-15 = Quint
-    // 16-18 = Expo, 19-21 = Circ, 22-24 = Elastic, 25-27 = Back, 28-30 = Bounce
-    if (csbType <= 0) return EasingType::Linear;
-    if (csbType <= 30) return static_cast<EasingType>(csbType);
-    return EasingType::Linear;
-}
-
 SceneLoader::SceneLoader(Application* app) : _app(app) {
 }
 
@@ -140,7 +128,7 @@ SceneLoadResult SceneLoader::LoadFromBuffer(const uint8_t* buffer, size_t size, 
 
     // Parse animations (csb->action())
     if (csb->action()) {
-        ParseAnimations(csb->action(), result, config);
+        ParseAnimations(csb->action(), result);
     }
 
     return result;
@@ -148,9 +136,7 @@ SceneLoadResult SceneLoader::LoadFromBuffer(const uint8_t* buffer, size_t size, 
 
 // ... existing ParseNodeTree ...
 
-void SceneLoader::ParseAnimations(
-  const flatbuffers::NodeAction* actions, SceneLoadResult& result, const SceneLoadConfig& config
-) {
+void SceneLoader::ParseAnimations(const flatbuffers::NodeAction* actions, SceneLoadResult& result) {
     if (!actions) {
         spdlog::debug("SceneLoader: No Action data in CSB.");
         return;
@@ -160,20 +146,9 @@ void SceneLoader::ParseAnimations(
         return;
     }
 
-    // Use configured frame rate (Unity typically uses 30fps, Cocos uses 60fps)
-    float frameRate = config.animationFrameRate;
-
-    // Read speed from CSB (1.0 = normal speed, 2.0 = double speed)
-    float speed = actions->speed();
-    if (speed <= 0.0f) speed = 1.0f;// Fallback to normal speed if invalid
-
-    spdlog::info(
-      "SceneLoader: Parsing {} timelines at {}fps, speed={}, loop={}",
-      actions->timeLines()->size(),
-      frameRate,
-      speed,
-      config.loopAnimations
-    );
+    // For demo: Auto-play the first animation found in timelines
+    float frameRate = 60.0f;// CSB standard
+    spdlog::info("SceneLoader: Parsing {} validation timelines...", actions->timeLines()->size());
 
     for (auto timeline : *actions->timeLines()) {
         if (!timeline || !timeline->frames() || timeline->frames()->size() == 0) {
@@ -217,70 +192,49 @@ void SceneLoader::ParseAnimations(
             for (auto frame : *timeline->frames()) {
                 if (frame->pointFrame() && frame->pointFrame()->position()) {
                     int currentFrameIndex = frame->pointFrame()->frameIndex();
-                    float duration = (currentFrameIndex - lastFrameIndex) / frameRate / speed;
+                    float duration = (currentFrameIndex - lastFrameIndex) / frameRate;
+                    // Prevent negative duration if frames are unordered (shouldn't happen in CSB)
                     if (duration < 0) duration = 0;
-
-                    // Get easing type from frame
-                    EasingType easing = EasingType::Linear;
-                    if (frame->pointFrame()->easingData()) {
-                        easing = GetEasingType(frame->pointFrame()->easingData()->type());
-                    }
 
                     lastFrameIndex = currentFrameIndex;
                     auto pos = frame->pointFrame()->position();
-                    auto action = new MoveTo(duration, glm::vec3(pos->x(), pos->y(), 0.0f));
-                    action->SetEasing(easing);
-                    sequenceActions.push_back(action);
+                    sequenceActions.push_back(new MoveTo(duration, glm::vec3(pos->x(), pos->y(), 0.0f)));
                 }
             }
         } else if (property == "Scale") {
             for (auto frame : *timeline->frames()) {
                 if (frame->scaleFrame() && frame->scaleFrame()->scale()) {
                     int currentFrameIndex = frame->scaleFrame()->frameIndex();
-                    float duration = (currentFrameIndex - lastFrameIndex) / frameRate / speed;
+                    float duration = (currentFrameIndex - lastFrameIndex) / frameRate;
                     if (duration < 0) duration = 0;
-
-                    // Get easing type from frame
-                    EasingType easing = EasingType::Linear;
-                    if (frame->scaleFrame()->easingData()) {
-                        easing = GetEasingType(frame->scaleFrame()->easingData()->type());
-                    }
 
                     lastFrameIndex = currentFrameIndex;
                     auto scale = frame->scaleFrame()->scale();
-                    auto action = new ScaleTo(duration, glm::vec3(scale->scaleX(), scale->scaleY(), 1.0f));
-                    action->SetEasing(easing);
-                    sequenceActions.push_back(action);
+                    sequenceActions.push_back(new ScaleTo(duration, glm::vec3(scale->scaleX(), scale->scaleY(), 1.0f)));
                 }
             }
         } else if (property == "RotationSkew") {
             bool parsed = false;
             for (auto frame : *timeline->frames()) {
                 int currentFrameIndex = 0;
-                EasingType easing = EasingType::Linear;
-
                 if (frame->intFrame()) {
                     currentFrameIndex = frame->intFrame()->frameIndex();
-                    if (frame->intFrame()->easingData()) {
-                        easing = GetEasingType(frame->intFrame()->easingData()->type());
-                    }
                 } else if (frame->pointFrame()) {
                     currentFrameIndex = frame->pointFrame()->frameIndex();
                 } else if (frame->scaleFrame()) {
                     currentFrameIndex = frame->scaleFrame()->frameIndex();
                 }
 
-                float duration = (currentFrameIndex - lastFrameIndex) / frameRate / speed;
+                float duration = (currentFrameIndex - lastFrameIndex) / frameRate;
                 if (duration < 0) duration = 0;
                 lastFrameIndex = currentFrameIndex;
 
                 if (frame->intFrame()) {
-                    // CSB stores rotation in degrees, convert to radians for RotateTo
-                    float rotDeg = static_cast<float>(frame->intFrame()->value());
-                    float rotRad = glm::radians(rotDeg);
-                    auto action = new RotateTo(duration, glm::vec3(0, 0, rotRad));
-                    action->SetEasing(easing);
-                    sequenceActions.push_back(action);
+                    float rotation = static_cast<float>(frame->intFrame()->value());
+                    // Create RotateTo action (absolute rotation)
+                    // Note: RotateTo expects duration and vec3 rotation
+                    auto rotateTo = new RotateTo(duration, glm::vec3(0, 0, rotation));
+                    sequenceActions.push_back(rotateTo);
                     parsed = true;
                 }
             }
@@ -296,14 +250,8 @@ void SceneLoader::ParseAnimations(
         }
 
         if (!sequenceActions.empty()) {
-            Sequence* seq = new Sequence(sequenceActions);
-            if (config.loopAnimations) {
-                // Wrap in RepeatForever for looping animations
-                Action* loopedAction = new RepeatForever(seq);
-                actionManager->RunAction(loopedAction);
-            } else {
-                actionManager->RunAction(seq);
-            }
+            Action* seq = new Sequence(sequenceActions);
+            actionManager->RunAction(seq);
         }
     }
 }
@@ -479,9 +427,8 @@ GameObject* SceneLoader::CreateNode(const flatbuffers::WidgetOptions* options, c
             position = glm::vec3(options->position()->x(), options->position()->y(), 0.0f);
         }
         if (options->rotationSkew()) {
-            // CSB uses rotationSkewX for Z rotation in 2D (degrees -> radians for CreateGameObject)
-            float rotDeg = options->rotationSkew()->rotationSkewX();
-            rotation = glm::vec3(0.0f, 0.0f, glm::radians(rotDeg));
+            // CSB uses rotationSkewX for Z rotation in 2D
+            rotation = glm::vec3(0.0f, 0.0f, options->rotationSkew()->rotationSkewX());
         }
         if (options->scale()) {
             scale = glm::vec3(options->scale()->scaleX(), options->scale()->scaleY(), 1.0f);
@@ -596,7 +543,7 @@ void SceneLoader::ApplyWidgetOptions(
             go->SetPosition(glm::vec3(options->position()->x(), options->position()->y(), 0.0f));
         }
         if (options->rotationSkew()) {
-            go->SetEulerAngles(glm::vec3(0.0f, 0.0f, options->rotationSkew()->rotationSkewX()));
+            go->SetRotation(glm::vec3(0.0f, 0.0f, options->rotationSkew()->rotationSkewX()));
         }
         if (options->scale()) {
             go->SetScale(glm::vec3(options->scale()->scaleX(), options->scale()->scaleY(), 1.0f));

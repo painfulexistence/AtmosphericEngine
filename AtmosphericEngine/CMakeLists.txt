@@ -71,7 +71,7 @@ add_custom_command(
     COMMENT "Generating FlatBuffers headers for Scene"
 )
 
-add_subdirectory(external/sol2)
+find_package(sol2 CONFIG REQUIRED)
 if(AE_USE_AUDIO)
     add_subdirectory(external/raudio/projects/CMake)
 endif()
@@ -169,7 +169,7 @@ target_include_directories(AtmosphericEngine
 target_precompile_headers(AtmosphericEngine PRIVATE src/pch.hpp)
 target_link_libraries(AtmosphericEngine
     PUBLIC
-        glm::glm fmt::fmt BulletSoftBody BulletDynamics BulletCollision LinearMath ${LUA_LIBRARIES} sol2 raudio RmlUi::RmlUi box2d::box2d flatbuffers::flatbuffers
+        glm::glm fmt::fmt BulletSoftBody BulletDynamics BulletCollision LinearMath ${LUA_LIBRARIES} sol2::sol2 raudio RmlUi::RmlUi box2d::box2d flatbuffers::flatbuffers
 )
 if (AE_USE_AUDIO)
     target_link_libraries(AtmosphericEngine

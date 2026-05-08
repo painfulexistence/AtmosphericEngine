@@ -4,6 +4,7 @@ find_package(glm CONFIG REQUIRED)
 find_package(fmt CONFIG REQUIRED)
 find_package(spdlog CONFIG REQUIRED)
 find_package(lua REQUIRED)
+find_package(sol2 CONFIG REQUIRED)
 find_package(Bullet CONFIG REQUIRED)
 find_package(glad CONFIG REQUIRED)
 
@@ -32,7 +33,6 @@ set_target_properties(${TARGET_NAME} PROPERTIES
 target_include_directories(${TARGET_NAME}
     PRIVATE
         ${CMAKE_SOURCE_DIR}/AtmosphericEngine/include
-        ${CMAKE_SOURCE_DIR}/AtmosphericEngine/external/sol2/include
         ${CMAKE_SOURCE_DIR}/AtmosphericEngine/external/stb
         ${LUA_INCLUDE_DIR}
 )
@@ -48,7 +48,7 @@ target_link_libraries(${TARGET_NAME}
         BulletCollision
         LinearMath
         ${LUA_LIBRARIES}
-        sol2
+        sol2::sol2
         glad::glad
         spdlog::spdlog
 )

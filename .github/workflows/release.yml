@@ -8,7 +8,7 @@ on:
 
 jobs:
   release:
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     permissions:
       contents: write
     steps:
@@ -18,8 +18,7 @@ jobs:
 
       - name: Set up Environment
         run: |
-          sudo apt-get update
-          sudo apt-get install -y zip cmake ninja-build libxmu-dev libxi-dev libgl-dev libxinerama-dev libxcursor-dev xorg-dev libglu1-mesa-dev pkg-config
+          brew install cmake ninja
 
       - name: Install vcpkg
         uses: actions/checkout@v4
@@ -46,17 +45,15 @@ jobs:
           TAG_NAME=${{ github.ref_name }}
           PACKAGE_NAME="AtmosphericEngine-Starter-${TAG_NAME}"
           
-          # 打包原始碼，排除 .git、build 等雜物
           zip -r "${PACKAGE_NAME}.zip" . \
             -x "*.git*" \
             -x "build/*" \
             -x ".cache/*" \
+            -x ".devcontainer/*" \
             -x "*.DS_Store" \
             -x ".vscode/*" \
             -x "vcpkg/*" \
             -x "DEVLOG.md" \
-            -x "sweep.yaml" \
-            -x ".git-blame-ignore-revs.txt" \
             -x "AtmosphericEngine/build/*" \
             -x "AtmosphericEngine/CMakeFiles/*"
 

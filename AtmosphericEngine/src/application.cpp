@@ -10,7 +10,9 @@
 #include "scene.hpp"
 #include "sprite_component.hpp"
 #include "window.hpp"
+#ifdef TRACY_ENABLE
 #include <tracy/Tracy.hpp>
+#endif
 
 Application::Application(AppConfig config) : _config(config) {
     // setbuf(stdout, NULL); // Cancel output stream buffering so that output can be seen immediately

@@ -1,4 +1,7 @@
 #include "lua_application.hpp"
+
+// std::filesystem maps to Emscripten's MEMFS on web builds;
+// files written there by WebAssetFetcher::PreloadToMEMFS() are visible here.
 #include <filesystem>
 
 // Forward declarations for binding functions
@@ -53,7 +56,10 @@ void LuaApplication::OnUpdate(float dt, float time) {
 }
 
 void LuaApplication::InitializeLua() {
-    // Open standard Lua libraries
+    // Open standard Lua libraries.
+    // On Emscripten sol::lib::io and sol::lib::os map to MEMFS; files written
+    // there by WebAssetFetcher::PreloadToMEMFS() are accessible via io.open()
+    // and the Lua require() system.
     _lua.open_libraries(
       sol::lib::base,
       sol::lib::package,
@@ -65,7 +71,9 @@ void LuaApplication::InitializeLua() {
       sol::lib::debug
     );
 
-    // Set up package path for require()
+    // Set up package path for require().
+    // This makes require("components.player") find
+    // ./assets/scripts/components/player.lua in MEMFS (web) or on disk (native).
     std::string packagePath = _lua["package"]["path"];
     packagePath += ";./assets/scripts/?.lua";
     packagePath += ";./assets/scripts/?/init.lua";

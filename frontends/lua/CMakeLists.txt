@@ -2,11 +2,9 @@ set(TARGET_NAME AtmosLua)
 
 find_package(glm CONFIG REQUIRED)
 find_package(fmt CONFIG REQUIRED)
-find_package(spdlog CONFIG REQUIRED)
 find_package(lua REQUIRED)
 find_package(sol2 CONFIG REQUIRED)
 find_package(Bullet CONFIG REQUIRED)
-find_package(glad CONFIG REQUIRED)
 
 # Source files
 set(LUA_FRONTEND_SOURCES
@@ -21,23 +19,21 @@ set(LUA_FRONTEND_SOURCES
     bindings/bind_audio.cpp
 )
 
-# Create executable
 add_executable(${TARGET_NAME} ${LUA_FRONTEND_SOURCES})
 
-# Set output directory
 set_target_properties(${TARGET_NAME} PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${TARGET_NAME}
 )
 
-# Include directories
 target_include_directories(${TARGET_NAME}
     PRIVATE
         ${CMAKE_SOURCE_DIR}/AtmosphericEngine/include
+        ${CMAKE_SOURCE_DIR}/AtmosphericEngine/src   # web_asset_fetcher.hpp
         ${CMAKE_SOURCE_DIR}/AtmosphericEngine/external/stb
         ${LUA_INCLUDE_DIR}
 )
 
-# Link libraries
+# Base link libraries (all platforms)
 target_link_libraries(${TARGET_NAME}
     PRIVATE
         AtmosphericEngine
@@ -49,32 +45,93 @@ target_link_libraries(${TARGET_NAME}
         LinearMath
         ${LUA_LIBRARIES}
         sol2::sol2
-        glad::glad
-        spdlog::spdlog
 )
 
-# Platform-specific linking
-if(AE_USE_AUDIO)
-    target_link_libraries(${TARGET_NAME} PRIVATE raudio)
-endif()
+if(AE_USE_EMSCRIPTEN)
+    # ── Emscripten / WebAssembly build ──────────────────────────────────────
+    set(CMAKE_EXECUTABLE_SUFFIX ".html")
 
-if(AE_USE_SDL3)
-    target_link_libraries(${TARGET_NAME} PRIVATE SDL3::SDL3)
-elseif(AE_USE_SDL2)
-    target_link_libraries(${TARGET_NAME} PRIVATE SDL2::SDL2)
+    # Stage shaders BEFORE the link step (--preload-file requires the source
+    # path to exist at link time; POST_BUILD is too late).
+    # Scripts and textures are loaded dynamically via WebAssetFetcher.
+    set(EM_PRELOAD_STAGING_DIR ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${TARGET_NAME}/assets)
+
+    add_custom_target(stage_${TARGET_NAME}_em_preload
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${EM_PRELOAD_STAGING_DIR}
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+            ${CMAKE_SOURCE_DIR}/AtmosphericEngine/default_assets/shaders
+            ${EM_PRELOAD_STAGING_DIR}/shaders
+        COMMENT "Staging Emscripten preload assets (shaders) for ${TARGET_NAME}"
+    )
+    add_dependencies(${TARGET_NAME} stage_${TARGET_NAME}_em_preload)
+
+    # -sFETCH=1               : emscripten_fetch API (WebAssetFetcher)
+    # -sFORCE_FILESYSTEM=1    : ensure FS.writeFile / FS.mkdir are linked in
+    #                           even when Emscripten's dead-code elimination
+    #                           might otherwise strip them
+    # -sALLOW_MEMORY_GROWTH=1 : let the WASM heap grow; prevents OOM when
+    #                           multiple KTX2 textures are transcoded in sequence
+    if(AE_USE_SDL3)
+        target_link_options(${TARGET_NAME} PRIVATE
+            -sWASM=1 -O3
+            -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2 -sFULL_ES3=1
+            -sFETCH=1 -sFORCE_FILESYSTEM=1 -sALLOW_MEMORY_GROWTH=1
+            -sASSERTIONS=1
+            --preload-file ${EM_PRELOAD_STAGING_DIR}/shaders@assets/shaders
+        )
+    elseif(AE_USE_SDL2)
+        target_link_options(${TARGET_NAME} PRIVATE
+            -sWASM=1 -O3 -sUSE_SDL=2
+            -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2 -sFULL_ES3=1
+            -sFETCH=1 -sFORCE_FILESYSTEM=1 -sALLOW_MEMORY_GROWTH=1
+            -sASSERTIONS=1
+            --preload-file ${EM_PRELOAD_STAGING_DIR}/shaders@assets/shaders
+        )
+    else()
+        target_link_options(${TARGET_NAME} PRIVATE
+            -sWASM=1 -O3 -sUSE_GLFW=3
+            -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2 -sFULL_ES3=1
+            -sFETCH=1 -sFORCE_FILESYSTEM=1 -sALLOW_MEMORY_GROWTH=1
+            -sASSERTIONS=1
+            --preload-file ${EM_PRELOAD_STAGING_DIR}/shaders@assets/shaders
+        )
+    endif()
+
 else()
-    target_link_libraries(${TARGET_NAME} PRIVATE glfw)
+    # ── Native build ─────────────────────────────────────────────────────────
+    find_package(spdlog CONFIG REQUIRED)
+    find_package(glad CONFIG REQUIRED)
+
+    target_link_libraries(${TARGET_NAME}
+        PRIVATE
+            glad::glad
+            spdlog::spdlog
+    )
+    if(AE_USE_AUDIO)
+        target_link_libraries(${TARGET_NAME} PRIVATE raudio)
+    endif()
+    if(AE_USE_SDL3)
+        target_link_libraries(${TARGET_NAME} PRIVATE SDL3::SDL3)
+    elseif(AE_USE_SDL2)
+        target_link_libraries(${TARGET_NAME} PRIVATE SDL2::SDL2)
+    else()
+        target_link_libraries(${TARGET_NAME} PRIVATE glfw)
+    endif()
 endif()
 
-# Copy default assets
+# ── Post-build: copy all default assets (shaders, textures, fonts, ...) ─────
+# For native builds, copies everything into place.
+# For web builds, copies KTX2 textures so the dev-server can serve them;
+# scripts are copied separately (below) for the same reason.
 add_custom_command(
     TARGET ${TARGET_NAME} POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         ${CMAKE_SOURCE_DIR}/AtmosphericEngine/default_assets
         ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${TARGET_NAME}/assets
+    COMMENT "Copying default assets for ${TARGET_NAME}"
 )
 
-# Create scripts directory with example main.lua
+# Create scripts output directory and copy example scripts
 add_custom_command(
     TARGET ${TARGET_NAME} POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E make_directory
@@ -82,11 +139,10 @@ add_custom_command(
 )
 
 if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/assets)
-    add_custom_target(
-        "copy_assets_for_${TARGET_NAME}"
+    add_custom_target(copy_assets_for_${TARGET_NAME}
         COMMAND ${CMAKE_COMMAND} -E copy_directory
             ${CMAKE_CURRENT_SOURCE_DIR}/assets
             ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${TARGET_NAME}/assets
     )
-    add_dependencies(${TARGET_NAME} "copy_assets_for_${TARGET_NAME}")
+    add_dependencies(${TARGET_NAME} copy_assets_for_${TARGET_NAME})
 endif()

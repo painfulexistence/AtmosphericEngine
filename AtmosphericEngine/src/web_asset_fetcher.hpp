@@ -10,45 +10,38 @@
 // WebAssetFetcher
 //
 // Async asset loader for WebAssembly / WebGL2 builds.
+// Uses emscripten_fetch with EMSCRIPTEN_FETCH_PERSIST_FILE so every successful
+// download is written to the browser's IndexedDB. Subsequent page-loads (or
+// offline use) skip the network and read from the local cache instead.
 //
-// Design goals
-// ────────────
-//   • Eliminate the `--preload-file` `.data` bundle for large binary assets
-//     (primarily textures).  The `.data` bundle forces ALL asset bytes into
-//     WASM linear memory at startup — even files not yet needed.
+// Two loading strategies
+// ──────────────────────
 //
-//   • Use emscripten_fetch with EMSCRIPTEN_FETCH_PERSIST_FILE so that every
-//     successfully downloaded file is written to the browser's IndexedDB.
-//     Subsequent page-loads read from IndexedDB instead of the network, which
-//     gives near-instant loads after the first visit.
+//  Preload()          -> stores bytes in AssetManager::_webAssetCache
+//                       consumed by LoadKTX2Texture() -> glCompressedTexImage2D
+//                       Best for: binary GPU assets (KTX2 textures, audio, ...)
 //
-// Memory lifecycle (per KTX2 texture)
-// ────────────────────────────────────
-//   1. emscripten_fetch downloads KTX2 bytes  → in WASM heap (fetch buffer)
-//   2. OnSuccess copies them to AssetManager::_webAssetCache
-//   3. emscripten_fetch_close() frees the fetch buffer immediately
-//   4. AssetManager::LoadKTX2Texture() transcodes from _webAssetCache
-//      → ETC2 block buffer (4× smaller than RGBA)
-//   5. glCompressedTexImage2D uploads to GPU
-//   6. Both the _webAssetCache entry and the ETC2 buffer are freed
+//  PreloadToMEMFS()   -> writes bytes into Emscripten's in-process virtual FS
+//                       (MEMFS), making them accessible to standard fopen() /
+//                       std::filesystem::exists() calls made by C or Lua.
+//                       Best for: text assets that are read by third-party code
+//                       we cannot instrument (Lua scripts, JSON configs, ...).
 //
-//   Peak per-texture heap usage ≈ ktx2_file_size + etc2_blocks_size
-//   vs. the old approach ≈ ALL textures in .data + rgba_decoded_size
+// Typical usage in main() for a Lua web build:
 //
-// Typical usage (in main() before entering the game loop)
-// ────────────────────────────────────────────────────────
 //   WebAssetFetcher::Preload(
-//     { "assets/textures/foo.ktx2", "assets/textures/bar.ktx2" },
-//     []() {
-//         // All bytes are now in AssetManager's web cache.
-//         // Start the actual game loop here.
-//         static MyGame game({...});
-//         game.Run();
-//     });
-//   // main() returns immediately; browser event loop takes over.
+//     { "assets/textures/foo.ktx2" },          // -> AssetManager cache
+//     []() { ... });
+//
+//   WebAssetFetcher::PreloadToMEMFS(
+//     { "assets/scripts/main.lua",              // -> MEMFS (fopen-visible)
+//       "assets/scripts/components/player.lua" },
+//     []() { StartGame(); });
 // ─────────────────────────────────────────────────────────────────────────────
 class WebAssetFetcher {
 public:
+    // ── Single-file helper ────────────────────────────────────────────────────
+
     // Fetch one URL and deliver its raw bytes to onSuccess.
     // On failure the HTTP status is logged; onError (optional) receives the URL.
     static void Fetch(
@@ -56,11 +49,30 @@ public:
         std::function<void(const uint8_t*, size_t)> onSuccess,
         std::function<void(const std::string&)>     onError = nullptr);
 
-    // Fetch a list of URLs and store each in AssetManager's web cache via
-    // AssetManager::StorePreloadedAsset().
+    // ── Batch helpers (preferred for startup preloading) ──────────────────────
+
+    // Fetch a list of URLs and store each in AssetManager::_webAssetCache.
     // onAllComplete fires once every request has settled (success or error).
-    // Assets already cached in IndexedDB are returned without a network hop.
+    // Assets already in IndexedDB are returned without a network round-trip.
     static void Preload(
+        const std::vector<std::string>& urls,
+        std::function<void()> onAllComplete);
+
+    // Fetch a list of URLs and write each response directly into Emscripten's
+    // MEMFS (the in-process virtual filesystem).
+    //
+    // After this call completes, the files are readable by:
+    //   * std::filesystem::exists() / std::ifstream
+    //   * POSIX fopen() / fread()
+    //   * Lua's io library, require(), safe_script_file()
+    //
+    // Parent directories are created automatically (equivalent to mkdir -p).
+    // Files are also cached in IndexedDB so subsequent page-loads are instant.
+    //
+    // NOTE: MEMFS is in-process only -- it does not persist across page reloads.
+    //       The IndexedDB layer provides persistence; MEMFS is just the bridge
+    //       that makes files visible to C/Lua file APIs within the current run.
+    static void PreloadToMEMFS(
         const std::vector<std::string>& urls,
         std::function<void()> onAllComplete);
 };

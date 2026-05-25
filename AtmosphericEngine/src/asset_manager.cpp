@@ -17,6 +17,72 @@
 // #define TINYOBJLOADER_IMPLEMENTATION
 // #include "tiny_obj_loader.h"
 
+#ifdef AE_USE_BASIS_UNIVERSAL
+// Basis Universal transcoder — KTX2 / BasisLZ / UASTC → GPU compressed texture
+// Only the transcoder is compiled; no encoder dependency.
+#include "basisu_transcoder.h"
+
+// ── ETC2 constants (part of GLES3 core; defined in GLES3/gl3.h for Emscripten,
+//    and available on desktop via GL_ARB_ES3_compatibility / OpenGL 4.3+).
+#ifndef GL_COMPRESSED_RGB8_ETC2
+#define GL_COMPRESSED_RGB8_ETC2           0x9274
+#endif
+#ifndef GL_COMPRESSED_RGBA8_ETC2_EAC
+#define GL_COMPRESSED_RGBA8_ETC2_EAC      0x9278
+#endif
+// ── S3TC / DXT constants (desktop, via GL_EXT_texture_compression_s3tc)
+#ifndef GL_COMPRESSED_RGB_S3TC_DXT1_EXT
+#define GL_COMPRESSED_RGB_S3TC_DXT1_EXT   0x83F0
+#endif
+#ifndef GL_COMPRESSED_RGBA_S3TC_DXT5_EXT
+#define GL_COMPRESSED_RGBA_S3TC_DXT5_EXT  0x83F3
+#endif
+
+namespace {
+// Returns true if the named GL/WebGL extension is exposed by the current context.
+bool HasGLExtension(const char* name) {
+#ifdef __EMSCRIPTEN__
+    // In WebGL2 (GLES3) glGetString(GL_EXTENSIONS) is deprecated; use glGetStringi.
+    GLint numExt = 0;
+    glGetIntegerv(GL_NUM_EXTENSIONS, &numExt);
+    for (GLint i = 0; i < numExt; ++i) {
+        const char* ext = reinterpret_cast<const char*>(glGetStringi(GL_EXTENSIONS, i));
+        if (ext && strcmp(ext, name) == 0) return true;
+    }
+    return false;
+#else
+    const char* exts = reinterpret_cast<const char*>(glGetString(GL_EXTENSIONS));
+    return exts && (strstr(exts, name) != nullptr);
+#endif
+}
+
+// Returns bytes per block for the chosen basisu target format.
+uint32_t BasisBytesPerBlock(basist::transcoder_texture_format fmt) {
+    switch (fmt) {
+    case basist::transcoder_texture_format::cTFETC2_RGBA:
+    case basist::transcoder_texture_format::cTFBC3_RGBA:
+        return 16; // 128-bit blocks
+    case basist::transcoder_texture_format::cTFETC1_RGB:
+    case basist::transcoder_texture_format::cTFBC1_RGB:
+        return 8;  //  64-bit blocks
+    default:
+        return 16;
+    }
+}
+
+// Maps a basisu target format to the matching GL compressed internal format.
+GLenum BasisToGLFormat(basist::transcoder_texture_format fmt) {
+    switch (fmt) {
+    case basist::transcoder_texture_format::cTFETC2_RGBA: return GL_COMPRESSED_RGBA8_ETC2_EAC;
+    case basist::transcoder_texture_format::cTFETC1_RGB:  return GL_COMPRESSED_RGB8_ETC2; // ETC1 ⊂ ETC2
+    case basist::transcoder_texture_format::cTFBC3_RGBA:  return GL_COMPRESSED_RGBA_S3TC_DXT5_EXT;
+    case basist::transcoder_texture_format::cTFBC1_RGB:   return GL_COMPRESSED_RGB_S3TC_DXT1_EXT;
+    default:                                              return GL_COMPRESSED_RGBA8_ETC2_EAC;
+    }
+}
+} // anonymous namespace
+#endif // AE_USE_BASIS_UNIVERSAL
+
 
 AssetManager* AssetManager::instance = nullptr;
 
@@ -32,6 +98,13 @@ AssetManager::~AssetManager() {
 }
 
 void AssetManager::Init() {
+#ifdef AE_USE_BASIS_UNIVERSAL
+    if (!_basisuInitialized) {
+        basist::basisu_transcoder_init();
+        _basisuInitialized = true;
+        ENGINE_LOG("Basis Universal transcoder initialized (KTX2 support active)");
+    }
+#endif
     ENGINE_LOG("AssetManager initialized");
 }
 
@@ -255,11 +328,23 @@ Material* AssetManager::GetMaterialByID(uint32_t id) const {
 // ============================================================================
 
 void AssetManager::LoadDefaultTextures() {
+#if defined(AE_USE_BASIS_UNIVERSAL) && defined(__EMSCRIPTEN__)
+    // Web build: use pre-compressed KTX2 variants to avoid CPU-side JPEG decode
+    // and to store textures on the GPU in ETC2 format (~4× less VRAM than RGBA).
+    // These bytes must already be in _webAssetCache before this function is called
+    // — populate them with WebAssetFetcher::Preload() before Application::Run().
+    LoadTextures({ "assets/textures/default_diff.ktx2",
+                   "assets/textures/default_norm.ktx2",
+                   "assets/textures/default_ao.ktx2",
+                   "assets/textures/default_rough.ktx2",
+                   "assets/textures/default_metallic.ktx2" });
+#else
     LoadTextures({ "assets/textures/default_diff.jpg",
                    "assets/textures/default_norm.jpg",
                    "assets/textures/default_ao.jpg",
                    "assets/textures/default_rough.jpg",
                    "assets/textures/default_metallic.jpg" });
+#endif
 
     // Store as default textures
     defaultTextures = textures;
@@ -267,67 +352,106 @@ void AssetManager::LoadDefaultTextures() {
 }
 
 void AssetManager::LoadTextures(const std::vector<std::string>& paths) {
-    int oldCount = textures.size(), newCount = paths.size();
-    textures.resize(oldCount + newCount);
+    int oldCount = (int)textures.size();
+    int newCount = (int)paths.size();
 
-    // Load images in parallel using JobSystem
-    std::vector<std::shared_ptr<Image>> images(newCount);
+    // Reserve final slots so ordering matches input path ordering.
+    textures.resize(oldCount + newCount, 0u);
+
+    // ── Pass 1: KTX2 files (GPU-compressed; must be transcoded on the main
+    //           thread because we make GL calls inside LoadKTX2Texture).
+    // ── Pass 2: Regular images (parallel CPU load → batch GPU upload).
+    std::vector<int>         regularIndices;
+    std::vector<std::string> regularPaths;
+
     for (int i = 0; i < newCount; i++) {
-        auto path = paths[i];
-        auto image = &images[i];
-        JobSystem::Get()->Execute([this, path, image](int threadID) { *image = LoadImage(path); });
+        const auto& path = paths[i];
+        if (path.size() >= 5 && path.compare(path.size() - 5, 5, ".ktx2") == 0) {
+#ifdef AE_USE_BASIS_UNIVERSAL
+            GLuint texID = LoadKTX2Texture(path);
+            textures[oldCount + i] = texID;
+            _textureCache[path]    = texID;
+#else
+            throw std::runtime_error(
+                fmt::format("KTX2 texture requested but AE_USE_BASIS_UNIVERSAL is disabled: {}", path));
+#endif
+        } else {
+            regularIndices.push_back(i);
+            regularPaths.push_back(path);
+        }
+    }
+
+    if (regularPaths.empty()) return;
+
+    // ── Parallel CPU image decode for regular (non-KTX2) textures
+    std::vector<std::shared_ptr<Image>> images(regularPaths.size());
+    for (int j = 0; j < (int)regularPaths.size(); j++) {
+        auto path  = regularPaths[j];
+        auto image = &images[j];
+        JobSystem::Get()->Execute([this, path, image](int /*threadID*/) { *image = LoadImage(path); });
     }
     JobSystem::Get()->Wait();
 
-    // Upload to GPU
-    glGenTextures(newCount, &textures[oldCount]);
-    for (int i = 0; i < newCount; i++) {
-        auto img = images[i];
+    // ── Batch generate GL texture objects for regular images
+    std::vector<GLuint> regularTexIDs(regularPaths.size());
+    glGenTextures((GLsizei)regularPaths.size(), regularTexIDs.data());
+
+    for (int j = 0; j < (int)regularPaths.size(); j++) {
+        int i      = regularIndices[j];
+        auto& img  = images[j];
+        GLuint texID = regularTexIDs[j];
+
         if (!img) {
-            throw std::runtime_error(fmt::format("Failed to load texture at {}\n", paths[i]));
+            throw std::runtime_error(fmt::format("Failed to load texture at {}\n", regularPaths[j]));
         }
 
-        GLuint texID = textures[oldCount + i];
+        textures[oldCount + i]    = texID;
+        _textureCache[regularPaths[j]] = texID;
+
         glBindTexture(GL_TEXTURE_2D, texID);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S,       GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T,       GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,   GL_LINEAR_MIPMAP_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER,   GL_LINEAR);
 
         switch (img->channelCount) {
         case 1:
-            glTexImage2D(
-              GL_TEXTURE_2D, 0, GL_R8, img->width, img->height, 0, GL_RED, GL_UNSIGNED_BYTE, img->byteArray.data()
-            );
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_R8,   img->width, img->height, 0,
+                         GL_RED,  GL_UNSIGNED_BYTE, img->byteArray.data());
             break;
         case 3:
-            glTexImage2D(
-              GL_TEXTURE_2D, 0, GL_RGB, img->width, img->height, 0, GL_RGB, GL_UNSIGNED_BYTE, img->byteArray.data()
-            );
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB,  img->width, img->height, 0,
+                         GL_RGB,  GL_UNSIGNED_BYTE, img->byteArray.data());
             break;
         case 4:
-            glTexImage2D(
-              GL_TEXTURE_2D, 0, GL_RGBA, img->width, img->height, 0, GL_RGBA, GL_UNSIGNED_BYTE, img->byteArray.data()
-            );
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, img->width, img->height, 0,
+                         GL_RGBA, GL_UNSIGNED_BYTE, img->byteArray.data());
             break;
         default:
-            throw std::runtime_error(fmt::format("Unknown texture format at {}\n", paths[i]));
+            throw std::runtime_error(fmt::format("Unknown texture format at {}\n", regularPaths[j]));
         }
         glGenerateMipmap(GL_TEXTURE_2D);
-
-        // Store in map
-        _textureCache[paths[i]] = texID;
     }
 }
 
 GLuint AssetManager::CreateTexture(const std::string& path) {
-    // Check if already loaded
+    // Return cached texture (GLuint) if already uploaded.
     auto it = _textureCache.find(path);
     if (it != _textureCache.end()) {
-        return GetTextureByID(it->second);
+        return it->second; // stored as GL texture ID by both loaders
     }
 
-    // Load and create texture
+#ifdef AE_USE_BASIS_UNIVERSAL
+    // Route .ktx2 files to the GPU-compressed loader.
+    if (path.size() >= 5 && path.compare(path.size() - 5, 5, ".ktx2") == 0) {
+        GLuint texID = LoadKTX2Texture(path);
+        textures.push_back(texID);
+        _textureCache[path] = texID;
+        return texID;
+    }
+#endif
+
+    // Regular image (PNG / JPG / etc.) via stb_image.
     auto image = LoadImage(path);
     return CreateTextureFromImage(image);
 }
@@ -383,6 +507,174 @@ GLuint AssetManager::GetTextureByID(uint32_t id) const {
     }
     throw std::runtime_error(fmt::format("Texture ID {} out of range", id));
 }
+
+#ifdef AE_USE_BASIS_UNIVERSAL
+// ============================================================================
+// Web asset cache — populated by WebAssetFetcher, consumed by LoadKTX2Texture
+// ============================================================================
+
+void AssetManager::StorePreloadedAsset(const std::string& path, std::vector<uint8_t> data) {
+    _webAssetCache[path] = std::move(data);
+}
+
+// ============================================================================
+// KTX2 / Basis Universal GPU-compressed texture loader
+//
+// Target format selection:
+//   Emscripten/WebGL2 — ETC2 is a GLES3 required format (always available).
+//   Desktop OpenGL    — S3TC (DXT5/DXT1) preferred if the extension is present,
+//                       otherwise ETC2 (available on GL 4.3+ / ARB_ES3_compat).
+//
+// Mip-map handling:
+//   KTX2 files should be encoded with all mip levels pre-generated:
+//     basisu -ktx2 -mipmap texture.png
+//     toktx --t2 --encode etc1s --mipmap out.ktx2 input.png
+//   If the KTX2 has only one level, GL_LINEAR is used (no mip filtering).
+// ============================================================================
+GLuint AssetManager::LoadKTX2Texture(const std::string& path) {
+    // Ensure basisu is initialised (may already be done in Init()).
+    if (!_basisuInitialized) {
+        basist::basisu_transcoder_init();
+        _basisuInitialized = true;
+    }
+
+    // ── Obtain raw KTX2 bytes ─────────────────────────────────────────────────
+    //
+    // Web path  : bytes were fetched by WebAssetFetcher::Preload() and stored in
+    //             _webAssetCache.  We move them out here — no fopen, no extra copy.
+    // Native/fallback path: read from the regular filesystem via fopen.
+    //
+    std::vector<uint8_t> fileData;
+
+    // Check web pre-fetch cache first (populated by WebAssetFetcher).
+    {
+        auto cacheIt = _webAssetCache.find(path);
+        if (cacheIt != _webAssetCache.end()) {
+            // Move: zero-copy hand-off; cache entry is erased to free the memory
+            // immediately after the texture is uploaded to the GPU.
+            fileData = std::move(cacheIt->second);
+            _webAssetCache.erase(cacheIt);
+        }
+    }
+
+    // Fallback: read from disk / MEMFS (native builds, or uncached web assets).
+    if (fileData.empty()) {
+        FILE* f = fopen(path.c_str(), "rb");
+        if (!f) throw std::runtime_error(fmt::format("Failed to open KTX2 file: {}", path));
+
+        if (fseek(f, 0, SEEK_END) != 0) {
+            fclose(f);
+            throw std::runtime_error(fmt::format("Failed to seek KTX2 file: {}", path));
+        }
+        long fileLen = ftell(f);
+        rewind(f);
+        if (fileLen <= 0) {
+            fclose(f);
+            throw std::runtime_error(fmt::format("KTX2 file is empty: {}", path));
+        }
+
+        fileData.resize((size_t)fileLen);
+        if (fread(fileData.data(), 1, (size_t)fileLen, f) != (size_t)fileLen) {
+            fclose(f);
+            throw std::runtime_error(fmt::format("Failed to read KTX2 file: {}", path));
+        }
+        fclose(f);
+    }
+
+    // ── Parse KTX2 container ─────────────────────────────────────────────────
+    basist::ktx2_transcoder ktx2Dec;
+    if (!ktx2Dec.init(fileData.data(), (uint32_t)fileData.size()))
+        throw std::runtime_error(fmt::format("Failed to parse KTX2 header: {}", path));
+
+    // ── Choose transcoding target based on GL extension availability ─────────
+    //
+    //   WebGL2/GLES3: ETC2 is guaranteed (no extension check needed).
+    //   Desktop GL:   Prefer S3TC (ubiquitous on PC), fall back to ETC2.
+    //
+    bool hasAlpha = ktx2Dec.get_has_alpha();
+
+#ifdef __EMSCRIPTEN__
+    // ETC2 is part of the GLES3 core — always available in WebGL2.
+    basist::transcoder_texture_format basisFmt = hasAlpha
+        ? basist::transcoder_texture_format::cTFETC2_RGBA
+        : basist::transcoder_texture_format::cTFETC1_RGB;
+#else
+    // Desktop: S3TC first (ETC1S→DXT quality is excellent), ETC2 as fallback.
+    basist::transcoder_texture_format basisFmt;
+    if (HasGLExtension("GL_EXT_texture_compression_s3tc")) {
+        basisFmt = hasAlpha
+            ? basist::transcoder_texture_format::cTFBC3_RGBA
+            : basist::transcoder_texture_format::cTFBC1_RGB;
+    } else {
+        basisFmt = hasAlpha
+            ? basist::transcoder_texture_format::cTFETC2_RGBA
+            : basist::transcoder_texture_format::cTFETC1_RGB;
+    }
+#endif
+
+    GLenum   glFmt        = BasisToGLFormat(basisFmt);
+    uint32_t bytesPerBlk  = BasisBytesPerBlock(basisFmt);
+
+    // ── Start transcoding ────────────────────────────────────────────────────
+    if (!ktx2Dec.start_transcoding())
+        throw std::runtime_error(fmt::format("KTX2 start_transcoding failed: {}", path));
+
+    uint32_t baseWidth  = ktx2Dec.get_width();
+    uint32_t baseHeight = ktx2Dec.get_height();
+    uint32_t levels     = std::max(1u, ktx2Dec.get_levels());
+
+    // ── Create GL texture object ─────────────────────────────────────────────
+    GLuint texID = 0;
+    glGenTextures(1, &texID);
+    glBindTexture(GL_TEXTURE_2D, texID);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    if (levels > 1) {
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, (GLint)(levels - 1));
+    } else {
+        // Single level in the KTX2 — warn the user and use bilinear.
+        ENGINE_LOG("KTX2 '{}' has no pre-generated mips; encoding with -mipmap is recommended", path);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    }
+
+    // ── Transcode and upload each mip level ──────────────────────────────────
+    for (uint32_t level = 0; level < levels; ++level) {
+        basist::ktx2_image_level_info info;
+        if (!ktx2Dec.get_image_level_info(info, level, 0, 0)) {
+            glDeleteTextures(1, &texID);
+            throw std::runtime_error(
+                fmt::format("KTX2 get_image_level_info failed (level {}): {}", level, path));
+        }
+
+        uint32_t numBlocks  = info.m_total_blocks;
+        uint32_t bufferSize = numBlocks * bytesPerBlk;
+        std::vector<uint8_t> buf(bufferSize);
+
+        if (!ktx2Dec.transcode_image_level(level, 0, 0, buf.data(), numBlocks, basisFmt)) {
+            glDeleteTextures(1, &texID);
+            throw std::runtime_error(
+                fmt::format("KTX2 transcode_image_level failed (level {}): {}", level, path));
+        }
+
+        // Level dimensions (clamped to 1 for very small mips).
+        GLsizei w = (GLsizei)std::max(1u, baseWidth  >> level);
+        GLsizei h = (GLsizei)std::max(1u, baseHeight >> level);
+
+        glCompressedTexImage2D(GL_TEXTURE_2D, (GLint)level, glFmt,
+                               w, h, 0, (GLsizei)bufferSize, buf.data());
+    }
+
+    ENGINE_LOG("Loaded KTX2 texture '{}' ({}×{}, {} mips, {})",
+               path, baseWidth, baseHeight, levels,
+               hasAlpha ? "RGBA" : "RGB");
+
+    return texID;
+}
+#endif // AE_USE_BASIS_UNIVERSAL
 
 // ============================================================================
 // GPU Mesh Management

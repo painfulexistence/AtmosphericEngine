@@ -136,6 +136,11 @@ elseif(AE_USE_SDL2)
 else()
     list(APPEND SOURCES src/window_glfw.cpp)
 endif()
+if(AE_USE_EMSCRIPTEN)
+    # WebAssetFetcher: emscripten_fetch-based async loader with IndexedDB cache.
+    # Replaces --preload-file for large binary assets (textures).
+    list(APPEND SOURCES src/web_asset_fetcher.cpp)
+endif()
 
 set(SOURCES_EXT
     external/imgui/imgui.cpp
@@ -150,6 +155,57 @@ elseif(AE_USE_SDL2)
     list(APPEND SOURCES_EXT external/imgui/backends/imgui_impl_sdl2.cpp)
 else()
     list(APPEND SOURCES_EXT external/imgui/backends/imgui_impl_glfw.cpp)
+endif()
+
+# ============================================================================
+# Basis Universal transcoder (KTX2 GPU-compressed texture support)
+# Only the transcoder is compiled — the encoder is not needed at runtime.
+# Supported target formats for WebGL2:
+#   - ETC2  (GLES3 required, best for web/mobile)
+#   - S3TC  (desktop browsers, via extension check)
+# Developers convert source textures to KTX2 with:
+#   basisu -ktx2 -mipmap texture.png
+#   toktx --t2 --encode etc1s --mipmap out.ktx2 input.png
+# ============================================================================
+if(AE_USE_BASIS_UNIVERSAL)
+    FetchContent_Declare(
+        basis_universal
+        GIT_REPOSITORY https://github.com/BinomialLLC/basis_universal.git
+        GIT_TAG        900e40fb5d2502927360fe2f31762bdbb624455b  # v1_16_4 (2023-11)
+        GIT_SHALLOW    TRUE
+        UPDATE_DISCONNECTED TRUE
+    )
+    FetchContent_GetProperties(basis_universal)
+    if(NOT basis_universal_POPULATED)
+        # Do NOT process basisu's own CMakeLists.txt (it drags in encoder, etc.)
+        FetchContent_Populate(basis_universal)
+    endif()
+
+    add_library(basisu_transcoder STATIC
+        ${basis_universal_SOURCE_DIR}/transcoder/basisu_transcoder.cpp
+    )
+    target_include_directories(basisu_transcoder PUBLIC
+        ${basis_universal_SOURCE_DIR}
+        ${basis_universal_SOURCE_DIR}/transcoder
+    )
+    # Disable formats not needed for web (reduces transcoder binary size)
+    target_compile_definitions(basisu_transcoder PUBLIC
+        BASISD_SUPPORT_KTX2=1          # Enable KTX2 container
+        BASISD_SUPPORT_KTX2_ZSTD=0     # Zstandard supercompression not needed
+        BASISD_SUPPORT_PVRTC1=0        # PowerVR only (legacy mobile)
+        BASISD_SUPPORT_PVRTC2=0        # PowerVR2 only (legacy mobile)
+        BASISD_SUPPORT_FXT1=0          # Intel FXT1 (obsolete)
+        BASISD_SUPPORT_ATC=0           # ATI (obsolete)
+    )
+    if(MSVC)
+        target_compile_options(basisu_transcoder PRIVATE /W0)
+    else()
+        target_compile_options(basisu_transcoder PRIVATE
+            -Wno-unused-variable
+            -Wno-unused-function
+            -Wno-unused-but-set-variable
+        )
+    endif()
 endif()
 
 add_library(AtmosphericEngine STATIC ${SOURCES} ${SOURCES_EXT})
@@ -177,15 +233,30 @@ if (AE_USE_AUDIO)
             raudio
     )
 endif()
+if(AE_USE_BASIS_UNIVERSAL)
+    target_link_libraries(AtmosphericEngine PUBLIC basisu_transcoder)
+    target_compile_definitions(AtmosphericEngine PUBLIC AE_USE_BASIS_UNIVERSAL)
+endif()
 if(AE_USE_EMSCRIPTEN)
     target_compile_definitions(AtmosphericEngine PUBLIC BT_THREADSAFE=1)
     target_compile_options(AtmosphericEngine PRIVATE)
+    # -sFETCH=1  : enable emscripten_fetch (XHR + IndexedDB persistence)
+    #              required by WebAssetFetcher for dynamic texture loading
     if(AE_USE_SDL3)
-        target_link_options(AtmosphericEngine PRIVATE -sWASM=1 -O3 -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2 -sFULL_ES3=1)
+        target_link_options(AtmosphericEngine PRIVATE
+            -sWASM=1 -O3
+            -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2 -sFULL_ES3=1
+            -sFETCH=1)
     elseif(AE_USE_SDL2)
-        target_link_options(AtmosphericEngine PRIVATE -sWASM=1 -O3 -sUSE_SDL=1 -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2 -sFULL_ES3=1)
+        target_link_options(AtmosphericEngine PRIVATE
+            -sWASM=1 -O3 -sUSE_SDL=2
+            -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2 -sFULL_ES3=1
+            -sFETCH=1)
     else()
-        target_link_options(AtmosphericEngine PRIVATE -sWASM=1 -O3 -sUSE_GLFW=3 -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2 -sFULL_ES3=1)
+        target_link_options(AtmosphericEngine PRIVATE
+            -sWASM=1 -O3 -sUSE_GLFW=3
+            -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2 -sFULL_ES3=1
+            -sFETCH=1)
     endif()
 else()
     target_compile_definitions(AtmosphericEngine PUBLIC BT_THREADSAFE=1)

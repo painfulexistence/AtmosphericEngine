@@ -4,11 +4,19 @@ option(AE_USE_EMSCRIPTEN "Use Emscripten to build a WebAssembly module" OFF)
 option(AE_USE_SDL3 "Use SDL3" ON)
 option(AE_USE_SDL2 "Use SDL2" OFF)
 option(AE_USE_AUDIO "Use audio" ON)
+# Basis Universal / KTX2 GPU texture compression (auto-enabled for Emscripten builds)
+option(AE_USE_BASIS_UNIVERSAL "Enable Basis Universal transcoder for KTX2 GPU-compressed textures" OFF)
 
 if (AE_USE_EMSCRIPTEN)
     set(VCPKG_CHAINLOAD_TOOLCHAIN_FILE $ENV{EMSDK}/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake CACHE STRING "Emscripten toolchain file")
     set(VCPKG_TARGET_TRIPLET wasm32-emscripten)
+    # Automatically enable Basis Universal for web builds: KTX2 avoids CPU-side image decoding
+    set(AE_USE_BASIS_UNIVERSAL ON CACHE BOOL "Enabled automatically by Emscripten build" FORCE)
     message(STATUS "Built with Emscripten")
+endif()
+
+if(AE_USE_BASIS_UNIVERSAL)
+    message(STATUS "Basis Universal / KTX2 texture compression enabled")
 endif()
 
 

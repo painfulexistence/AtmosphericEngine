@@ -114,4 +114,27 @@ private:
     std::vector<Mesh*> meshes;
     std::unordered_map<std::string, Mesh*> _meshCache;
     uint32_t _nextMeshID = 0;
+
+#ifdef AE_USE_BASIS_UNIVERSAL
+    // KTX2 / Basis Universal GPU-compressed texture loader.
+    // Transcodes BasisLZ / UASTC data to:
+    //   - ETC2  on Emscripten/WebGL2 (guaranteed by GLES3 spec)
+    //   - S3TC  on desktop OpenGL (checked at runtime; falls back to ETC2)
+    // Returns the GL texture object ID.
+    GLuint LoadKTX2Texture(const std::string& path);
+
+    // Called by WebAssetFetcher (web builds only) once emscripten_fetch
+    // has downloaded or loaded from IndexedDB a KTX2 file.
+    // The bytes are consumed by the next LoadKTX2Texture() call for the same
+    // path and then erased, so peak heap usage is minimal.
+    void StorePreloadedAsset(const std::string& path, std::vector<uint8_t> data);
+
+    // True after basist::basisu_transcoder_init() has been called.
+    bool _basisuInitialized = false;
+
+    // Web-only cache: maps asset path → raw KTX2 bytes fetched via
+    // emscripten_fetch.  Entries are consumed (moved-out + erased) by
+    // LoadKTX2Texture, so the map stays small at steady state.
+    std::unordered_map<std::string, std::vector<uint8_t>> _webAssetCache;
+#endif
 };

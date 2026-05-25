@@ -28,7 +28,6 @@ set_target_properties(${TARGET_NAME} PROPERTIES
 target_include_directories(${TARGET_NAME}
     PRIVATE
         ${CMAKE_SOURCE_DIR}/AtmosphericEngine/include
-        ${CMAKE_SOURCE_DIR}/AtmosphericEngine/src   # web_asset_fetcher.hpp
         ${CMAKE_SOURCE_DIR}/AtmosphericEngine/external/stb
         ${LUA_INCLUDE_DIR}
 )
@@ -53,7 +52,7 @@ if(AE_USE_EMSCRIPTEN)
 
     # Stage shaders BEFORE the link step (--preload-file requires the source
     # path to exist at link time; POST_BUILD is too late).
-    # Scripts and textures are loaded dynamically via WebAssetFetcher.
+    # Textures and scripts are loaded dynamically via FileSystem::Prefetch.
     set(EM_PRELOAD_STAGING_DIR ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${TARGET_NAME}/assets)
 
     add_custom_target(stage_${TARGET_NAME}_em_preload
@@ -65,10 +64,11 @@ if(AE_USE_EMSCRIPTEN)
     )
     add_dependencies(${TARGET_NAME} stage_${TARGET_NAME}_em_preload)
 
-    # -sFETCH=1               : emscripten_fetch API (WebAssetFetcher)
+    # -sFETCH=1               : emscripten_fetch API (used by FileSystem on web)
     # -sFORCE_FILESYSTEM=1    : ensure FS.writeFile / FS.mkdir are linked in
     #                           even when Emscripten's dead-code elimination
-    #                           might otherwise strip them
+    #                           might otherwise strip them (needed by FileSystem
+    #                           MEMFS writes for .lua / .json / .glsl files)
     # -sALLOW_MEMORY_GROWTH=1 : let the WASM heap grow; prevents OOM when
     #                           multiple KTX2 textures are transcoded in sequence
     if(AE_USE_SDL3)

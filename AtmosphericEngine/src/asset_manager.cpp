@@ -1,5 +1,6 @@
 #include "asset_manager.hpp"
 #include "console.hpp"
+#include "file_system.hpp"
 #include "job_system.hpp"
 #include "material.hpp"
 #include "mesh.hpp"
@@ -331,8 +332,8 @@ void AssetManager::LoadDefaultTextures() {
 #if defined(AE_USE_BASIS_UNIVERSAL) && defined(__EMSCRIPTEN__)
     // Web build: use pre-compressed KTX2 variants to avoid CPU-side JPEG decode
     // and to store textures on the GPU in ETC2 format (~4× less VRAM than RGBA).
-    // These bytes must already be in _webAssetCache before this function is called
-    // — populate them with WebAssetFetcher::Preload() before Application::Run().
+    // These bytes must already be in FileSystem cache before this function is called
+    // — populate them with FileSystem::Get().Prefetch() before Application::Run().
     LoadTextures({ "assets/textures/default_diff.ktx2",
                    "assets/textures/default_norm.ktx2",
                    "assets/textures/default_ao.ktx2",
@@ -510,15 +511,12 @@ GLuint AssetManager::GetTextureByID(uint32_t id) const {
 
 #ifdef AE_USE_BASIS_UNIVERSAL
 // ============================================================================
-// Web asset cache — populated by WebAssetFetcher, consumed by LoadKTX2Texture
-// ============================================================================
-
-void AssetManager::StorePreloadedAsset(const std::string& path, std::vector<uint8_t> data) {
-    _webAssetCache[path] = std::move(data);
-}
-
-// ============================================================================
 // KTX2 / Basis Universal GPU-compressed texture loader
+//
+// Bytes are sourced from FileSystem::Get().ConsumeSync(path):
+//   Web    — cache was populated by FileSystem::Prefetch() before the app
+//            starts; ConsumeSync moves the bytes out (zero-copy hand-off).
+//   Native — ConsumeSync reads from disk on cache miss (no pre-fetch needed).
 //
 // Target format selection:
 //   Emscripten/WebGL2 — ETC2 is a GLES3 required format (always available).
@@ -538,48 +536,16 @@ GLuint AssetManager::LoadKTX2Texture(const std::string& path) {
         _basisuInitialized = true;
     }
 
-    // ── Obtain raw KTX2 bytes ─────────────────────────────────────────────────
+    // ── Obtain raw KTX2 bytes via FileSystem ─────────────────────────────────
     //
-    // Web path  : bytes were fetched by WebAssetFetcher::Preload() and stored in
-    //             _webAssetCache.  We move them out here — no fopen, no extra copy.
-    // Native/fallback path: read from the regular filesystem via fopen.
+    // ConsumeSync: moves bytes out of cache + erases the entry (zero-copy
+    // hand-off pattern).  On web the cache is pre-populated by Prefetch();
+    // on native it falls back to a synchronous disk read.
     //
-    std::vector<uint8_t> fileData;
+    std::vector<uint8_t> fileData = FileSystem::Get().ConsumeSync(path);
 
-    // Check web pre-fetch cache first (populated by WebAssetFetcher).
-    {
-        auto cacheIt = _webAssetCache.find(path);
-        if (cacheIt != _webAssetCache.end()) {
-            // Move: zero-copy hand-off; cache entry is erased to free the memory
-            // immediately after the texture is uploaded to the GPU.
-            fileData = std::move(cacheIt->second);
-            _webAssetCache.erase(cacheIt);
-        }
-    }
-
-    // Fallback: read from disk / MEMFS (native builds, or uncached web assets).
-    if (fileData.empty()) {
-        FILE* f = fopen(path.c_str(), "rb");
-        if (!f) throw std::runtime_error(fmt::format("Failed to open KTX2 file: {}", path));
-
-        if (fseek(f, 0, SEEK_END) != 0) {
-            fclose(f);
-            throw std::runtime_error(fmt::format("Failed to seek KTX2 file: {}", path));
-        }
-        long fileLen = ftell(f);
-        rewind(f);
-        if (fileLen <= 0) {
-            fclose(f);
-            throw std::runtime_error(fmt::format("KTX2 file is empty: {}", path));
-        }
-
-        fileData.resize((size_t)fileLen);
-        if (fread(fileData.data(), 1, (size_t)fileLen, f) != (size_t)fileLen) {
-            fclose(f);
-            throw std::runtime_error(fmt::format("Failed to read KTX2 file: {}", path));
-        }
-        fclose(f);
-    }
+    if (fileData.empty())
+        throw std::runtime_error(fmt::format("Failed to load KTX2 file: {}", path));
 
     // ── Parse KTX2 container ─────────────────────────────────────────────────
     basist::ktx2_transcoder ktx2Dec;

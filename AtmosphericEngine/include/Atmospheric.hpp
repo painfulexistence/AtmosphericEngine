@@ -1,5 +1,6 @@
 #pragma once
 #include "Atmospheric/application.hpp"
+#include "Atmospheric/file_system.hpp"
 #include "Atmospheric/ui_page.hpp"
 #include "Atmospheric/ui_page_manager.hpp"
 #include "Atmospheric/asset_manager.hpp"

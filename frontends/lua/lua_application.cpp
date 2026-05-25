@@ -1,7 +1,7 @@
 #include "lua_application.hpp"
 
 // std::filesystem maps to Emscripten's MEMFS on web builds;
-// files written there by WebAssetFetcher::PreloadToMEMFS() are visible here.
+// text files written there by FileSystem::Prefetch() are visible here.
 #include <filesystem>
 
 // Forward declarations for binding functions
@@ -57,8 +57,8 @@ void LuaApplication::OnUpdate(float dt, float time) {
 
 void LuaApplication::InitializeLua() {
     // Open standard Lua libraries.
-    // On Emscripten sol::lib::io and sol::lib::os map to MEMFS; files written
-    // there by WebAssetFetcher::PreloadToMEMFS() are accessible via io.open()
+    // On Emscripten sol::lib::io and sol::lib::os map to MEMFS; text files
+    // written there by FileSystem::Prefetch() are accessible via io.open()
     // and the Lua require() system.
     _lua.open_libraries(
       sol::lib::base,

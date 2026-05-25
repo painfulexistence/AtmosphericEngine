@@ -1,10 +1,5 @@
 #include "Atmospheric.hpp"
-
-#ifdef __EMSCRIPTEN__
-// WebAssetFetcher: async texture fetch with IndexedDB caching.
-// Include it only for Emscripten builds.
-#include "../AtmosphericEngine/src/web_asset_fetcher.hpp"
-#endif
+// FileSystem is included via Atmospheric.hpp (Atmospheric/file_system.hpp)
 
 class HelloWorld : public Application {
     using Application::Application;
@@ -140,31 +135,28 @@ class HelloWorld : public Application {
 //
 // Memory strategy
 // ───────────────
-// Textures are loaded dynamically via emscripten_fetch rather than bundled
-// in the --preload-file .data archive.  This has two benefits:
+// Textures are loaded dynamically via FileSystem::Prefetch (emscripten_fetch
+// under the hood) rather than bundled in the --preload-file .data archive.
 //
-//   1. Startup heap footprint is small — the .data bundle only contains
+//   1. Startup heap footprint is small: the .data bundle only contains
 //      shaders (a few hundred KB total), not all textures.
 //
 //   2. IndexedDB caching (EMSCRIPTEN_FETCH_PERSIST_FILE):
 //      After the first visit the browser serves textures from IndexedDB,
 //      so subsequent page-loads are near-instant and work offline.
 //
-// Peak WASM heap per KTX2 texture during load
-//   ktx2_file_bytes (moved from fetch buffer)
+// Peak WASM heap per KTX2 texture during load:
+//   ktx2_file_bytes (moved from FileSystem cache by ConsumeSync)
 //   + ETC2 block buffer (~4× smaller than uncompressed RGBA)
 //   → both freed immediately after glCompressedTexImage2D
 //
-// For comparison, the old stb_image + --preload-file approach kept ALL
-// textures in WASM memory simultaneously as uncompressed RGBA.
-// ─────────────────────────────────────────────────────────────────────────────
-
-// Default texture list — must match the .ktx2 paths in
-// AssetManager::LoadDefaultTextures() (see asset_manager.cpp).
-// Convert source images once with:
+// Convert source textures with:
 //   basisu -ktx2 -mipmap <src.jpg>
 //   toktx --t2 --encode etc1s --mipmap <out.ktx2> <src.jpg>
-static const std::vector<std::string> kDefaultTextureURLs = {
+// ─────────────────────────────────────────────────────────────────────────────
+
+// All assets to prefetch — must match paths used in LoadDefaultTextures().
+static const std::vector<std::string> kAssets = {
     "assets/textures/default_diff.ktx2",
     "assets/textures/default_norm.ktx2",
     "assets/textures/default_ao.ktx2",
@@ -172,24 +164,20 @@ static const std::vector<std::string> kDefaultTextureURLs = {
     "assets/textures/default_metallic.ktx2",
 };
 
-// Forward declaration — defined as a static local below to avoid a
-// global with indeterminate initialization order in WASM.
 static void StartGame();
 
 int main(int argc, char* argv[]) {
-    // Kick off async fetch for all textures before creating the Application.
-    // WebAssetFetcher stores the bytes in AssetManager::_webAssetCache.
-    // When all fetches complete, StartGame() is called by the browser event loop.
-    //
-    // main() returns immediately here; Emscripten's runtime keeps the page alive.
-    WebAssetFetcher::Preload(kDefaultTextureURLs, StartGame);
+    // Fetch all assets into the FileSystem cache + IndexedDB.
+    // main() returns immediately; Emscripten's event loop keeps the page alive.
+    // StartGame() is invoked by the browser event loop once all fetches settle.
+    FileSystem::Get().Prefetch(kAssets, StartGame);
     return 0;
 }
 
 static void StartGame() {
-    // At this point all KTX2 bytes are in AssetManager::_webAssetCache.
-    // Application::Run() → OnLoad() → LoadDefaultTextures() will find them
-    // there and call LoadKTX2Texture() without an extra fopen()/fread().
+    // All KTX2 bytes are now in the FileSystem cache.
+    // LoadDefaultTextures() → LoadKTX2Texture() → FileSystem::ConsumeSync()
+    // pulls them out without any extra fopen() / fread().
     static HelloWorld game({
         .useDefaultTextures = true,
         .useDefaultShaders  = true,

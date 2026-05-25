@@ -24,99 +24,71 @@
 ///   end
 
 #include "lua_application.hpp"
+#include "Atmospheric/file_system.hpp"
 
 #ifdef __EMSCRIPTEN__
-// WebAssetFetcher: emscripten_fetch-based loader with IndexedDB persistence.
-// Two strategies are used at startup:
-//
-//   Preload()        -> AssetManager::_webAssetCache
-//                       consumed by LoadKTX2Texture (GPU-compressed textures)
-//
-//   PreloadToMEMFS() -> Emscripten MEMFS (in-process virtual filesystem)
-//                       makes files visible to fopen() and Lua's io / require()
-//
-// The two-stage init below runs them in sequence so that by the time
-// LuaApplication::OnInit() is called, both the texture cache and MEMFS are
-// fully populated.
-#include "web_asset_fetcher.hpp"
-#include <vector>
-#include <string>
-
 // ─────────────────────────────────────────────────────────────────────────────
-// Asset manifests
+// Web / WebAssembly entry point
 //
+// FileSystem::Prefetch handles everything in a single call:
+//
+//   KTX2 textures   → in-process cache, consumed by LoadKTX2Texture()
+//   Lua scripts     → in-process cache + Emscripten MEMFS
+//                     (FileSystem auto-detects .lua extension)
+//                     makes files visible to fopen() and Lua's io/require()
+//
+// All files are also persisted in IndexedDB so subsequent page-loads skip
+// the network entirely.
+//
+// Asset manifests
+// ───────────────
 // IMPORTANT: every .lua file that can be require()'d at runtime must appear
-// in kScriptURLs.  Lua's require() searches package.path (fopen) at runtime,
-// so any missing file will cause a "module not found" error mid-game.
+// in kAssets.  Lua's require() searches package.path (fopen) at runtime, so
+// any missing file will cause a "module not found" error mid-game.
 //
 // Texture files must be KTX2 format; convert with:
 //   basisu -ktx2 -mipmap source.jpg
 //   toktx --t2 --encode etc1s --mipmap out.ktx2 source.jpg
 // ─────────────────────────────────────────────────────────────────────────────
 
-// KTX2 textures -> loaded into AssetManager::_webAssetCache (Preload)
-static const std::vector<std::string> kTextureURLs = {
+static const std::vector<std::string> kAssets = {
+    // KTX2 textures (binary → cache only, consumed by LoadKTX2Texture)
     "assets/textures/default_diff.ktx2",
     "assets/textures/default_norm.ktx2",
     "assets/textures/default_ao.ktx2",
     "assets/textures/default_rough.ktx2",
     "assets/textures/default_metallic.ktx2",
-};
 
-// Lua scripts -> written to MEMFS (PreloadToMEMFS) so fopen/require work
-// Add every .lua file your game uses (including those loaded via require()).
-static const std::vector<std::string> kScriptURLs = {
+    // Lua scripts (text → cache + MEMFS, so fopen/require work)
+    // Add every .lua file your game uses, including require()'d modules:
     "assets/scripts/main.lua",
-    // Add further modules here, e.g.:
     // "assets/scripts/components/player.lua",
     // "assets/scripts/utils/helpers.lua",
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Two-stage async preload:
-//
-//   Stage 1  Preload(kTextureURLs)      -> _webAssetCache (KTX2 bytes)
-//   Stage 2  PreloadToMEMFS(kScriptURLs) -> MEMFS files  (Lua-visible)
-//   Stage 3  StartGame()
-//
-// Memory note
-// -----------
-// During Stage 1 each fetch buffer holds KTX2 bytes in WASM heap; after
-// StorePreloadedAsset() the buffer is freed by emscripten_fetch_close().
-//
-// During Stage 2 each script is written to MEMFS via HEAPU8.subarray (JS
-// view, no extra copy).  Script bytes are immediately freed after the FS
-// write; MEMFS keeps its own copy (text files are tiny).
-// ─────────────────────────────────────────────────────────────────────────────
-static void StartGame();  // forward declaration
-
-static void OnScriptsFetched() {
-    // Stage 3: everything is ready -- start the engine.
-    StartGame();
-}
-
-static void OnTexturesFetched() {
-    // Stage 2: fetch Lua scripts into MEMFS.
-    WebAssetFetcher::PreloadToMEMFS(kScriptURLs, OnScriptsFetched);
-}
+static void StartGame();
 
 int main(int argc, char* argv[]) {
-    // Stage 1: fetch KTX2 textures into AssetManager cache.
+    // Prefetch all assets in one call.
+    //   • KTX2 files are stored in the FileSystem cache.
+    //   • .lua files are stored in the cache AND written to MEMFS.
+    //   • All files are persisted to IndexedDB for offline / fast reload.
     // main() returns immediately; Emscripten's event loop keeps the page alive.
-    WebAssetFetcher::Preload(kTextureURLs, OnTexturesFetched);
+    // StartGame() fires asynchronously once all fetches settle.
+    FileSystem::Get().Prefetch(kAssets, StartGame);
     return 0;
 }
 
 static void StartGame() {
     // At this point:
-    //   _webAssetCache has all KTX2 bytes  -> LoadDefaultTextures() uses them
-    //   MEMFS has all .lua files            -> LoadUserScripts() can fopen them
+    //   FileSystem cache has all KTX2 bytes  → LoadDefaultTextures() uses them
+    //   MEMFS has all .lua files              → LoadUserScripts() can fopen them
     static LuaApplication app({
-        .windowTitle       = "AtmosLua",
-        .windowWidth       = 1280,
-        .windowHeight      = 720,
-        .windowResizable   = true,
-        .vsync             = true,
+        .windowTitle        = "AtmosLua",
+        .windowWidth        = 1280,
+        .windowHeight       = 720,
+        .windowResizable    = true,
+        .vsync              = true,
         .useDefaultTextures = true,
         .useDefaultShaders  = true,
     });
@@ -130,11 +102,11 @@ static void StartGame() {
 int main(int argc, char* argv[])
 {
     LuaApplication app({
-        .windowTitle       = "AtmosLua",
-        .windowWidth       = 1280,
-        .windowHeight      = 720,
-        .windowResizable   = true,
-        .vsync             = true,
+        .windowTitle        = "AtmosLua",
+        .windowWidth        = 1280,
+        .windowHeight       = 720,
+        .windowResizable    = true,
+        .vsync              = true,
         .useDefaultTextures = true,
         .useDefaultShaders  = true,
     });

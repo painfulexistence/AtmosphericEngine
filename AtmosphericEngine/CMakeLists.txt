@@ -136,11 +136,11 @@ elseif(AE_USE_SDL2)
 else()
     list(APPEND SOURCES src/window_glfw.cpp)
 endif()
-if(AE_USE_EMSCRIPTEN)
-    # WebAssetFetcher: emscripten_fetch-based async loader with IndexedDB cache.
-    # Replaces --preload-file for large binary assets (textures).
-    list(APPEND SOURCES src/web_asset_fetcher.cpp)
-endif()
+# FileSystem: platform-agnostic async I/O with in-process cache.
+#   Web    : emscripten_fetch + IndexedDB + MEMFS writes for text assets.
+#   Native : synchronous fread + JobSystem-parallel Prefetch.
+# Compiled on all platforms (not just Emscripten).
+list(APPEND SOURCES src/file_system.cpp)
 
 set(SOURCES_EXT
     external/imgui/imgui.cpp
@@ -241,7 +241,7 @@ if(AE_USE_EMSCRIPTEN)
     target_compile_definitions(AtmosphericEngine PUBLIC BT_THREADSAFE=1)
     target_compile_options(AtmosphericEngine PRIVATE)
     # -sFETCH=1  : enable emscripten_fetch (XHR + IndexedDB persistence)
-    #              required by WebAssetFetcher for dynamic texture loading
+    #              used by FileSystem (web platform implementation)
     if(AE_USE_SDL3)
         target_link_options(AtmosphericEngine PRIVATE
             -sWASM=1 -O3

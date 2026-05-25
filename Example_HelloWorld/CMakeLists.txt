@@ -36,8 +36,8 @@ if(AE_USE_EMSCRIPTEN)
     # POST_BUILD is too late; we use a PRE_LINK target instead.
     #
     # Textures are intentionally NOT included here — they are loaded at runtime
-    # via WebAssetFetcher (emscripten_fetch + IndexedDB), which avoids bloating
-    # the .data bundle and reduces peak WASM heap usage.
+    # via FileSystem::Prefetch (emscripten_fetch + IndexedDB), which avoids
+    # bloating the .data bundle and reduces peak WASM heap usage.
     set(EM_PRELOAD_STAGING_DIR ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${GAME_NAME}/assets)
 
     add_custom_target(stage_${GAME_NAME}_em_preload
@@ -54,9 +54,9 @@ if(AE_USE_EMSCRIPTEN)
 
     # ── Emscripten link options ──────────────────────────────────────────────
     # --preload-file  shaders + fonts only (small, needed synchronously).
-    # Textures: fetched asynchronously in main.cpp via WebAssetFetcher.
+    # Textures: fetched asynchronously via FileSystem::Prefetch in main.cpp.
     # -sFETCH=1       : inherited from AtmosphericEngine but repeated here for
-    #                   the executable's link step.
+    #                   the executable's link step (FileSystem web implementation).
     # -sALLOW_MEMORY_GROWTH=1 : allows WASM heap to grow dynamically; avoids
     #                   OOM when loading multiple large textures in sequence.
     if(AE_USE_SDL3)

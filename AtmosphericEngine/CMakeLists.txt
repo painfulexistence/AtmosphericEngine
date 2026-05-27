@@ -350,11 +350,15 @@ else()
             PUBLIC
                 SDL3::SDL3
         )
+        # Propagate so C++ code can guard SDL3-specific includes with #ifdef AE_USE_SDL3
+        target_compile_definitions(AtmosphericEngine PUBLIC AE_USE_SDL3)
     elseif(AE_USE_SDL2)
         target_link_libraries(AtmosphericEngine
             PUBLIC
                 SDL2::SDL2
         )
+        # Propagate so C++ code can guard SDL2-specific includes with #ifdef AE_USE_SDL2
+        target_compile_definitions(AtmosphericEngine PUBLIC AE_USE_SDL2)
     else()
         target_link_libraries(AtmosphericEngine
             PUBLIC

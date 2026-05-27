@@ -112,6 +112,11 @@ endif()
 # sol2 is header-only; create a minimal INTERFACE target manually.
 add_library(sol2_iface INTERFACE)
 target_include_directories(sol2_iface INTERFACE "${sol2_src_SOURCE_DIR}/include")
+# Link lua_static as INTERFACE so that:
+#   1. sol2 headers resolve <lua.h> / <lua.hpp> from our Lua 5.4 source,
+#      not from any system/vcpkg installation.
+#   2. Include order is guaranteed: our lua_static dir comes first.
+target_link_libraries(sol2_iface INTERFACE lua_static)
 # Alias matches the target name produced by find_package(sol2 CONFIG REQUIRED),
 # so existing target_link_libraries(... sol2::sol2) lines continue to work.
 add_library(sol2::sol2 ALIAS sol2_iface)

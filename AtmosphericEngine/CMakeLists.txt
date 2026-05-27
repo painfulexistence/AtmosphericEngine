@@ -235,9 +235,8 @@ if(AE_USE_BASIS_UNIVERSAL)
     FetchContent_Declare(
         basis_universal
         GIT_REPOSITORY https://github.com/BinomialLLC/basis_universal.git
-        GIT_TAG        900e40fb5d2502927360fe2f31762bdbb624455b  # v1_16_4 (2023-11)
-        # GIT_SHALLOW is intentionally omitted: shallow clone cannot fetch a bare
-        # commit SHA — it requires a branch or tag name.  Full clone is needed here.
+        GIT_TAG        1.16.4          # named release tag — allows GIT_SHALLOW
+        GIT_SHALLOW    TRUE
         UPDATE_DISCONNECTED TRUE
     )
     FetchContent_GetProperties(basis_universal)

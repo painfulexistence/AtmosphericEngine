@@ -3,8 +3,8 @@ set(GAME_ASSETS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/assets)
 
 find_package(glm CONFIG REQUIRED)
 find_package(fmt CONFIG REQUIRED)
-find_package(lua REQUIRED)
 find_package(Bullet CONFIG REQUIRED)
+# lua_static is a PUBLIC dep of AtmosphericEngine — no find_package needed
 
 add_executable(${GAME_NAME}
     main.cpp
@@ -17,14 +17,13 @@ target_include_directories(${GAME_NAME} PUBLIC ${CMAKE_SOURCE_DIR}/AtmosphericEn
 
 # Base dependencies (available on all platforms)
 target_link_libraries(${GAME_NAME} PRIVATE
-    AtmosphericEngine
+    AtmosphericEngine   # pulls in lua_static transitively
     glm::glm
     fmt::fmt
     BulletSoftBody
     BulletDynamics
     BulletCollision
     LinearMath
-    ${LUA_LIBRARIES}
 )
 
 if(AE_USE_EMSCRIPTEN)

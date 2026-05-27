@@ -55,9 +55,66 @@ find_package(box2d CONFIG REQUIRED)
 
 find_package(fmt REQUIRED)
 find_package(spdlog REQUIRED)
-find_package(lua REQUIRED)
 find_package(RmlUi REQUIRED)
 find_package(flatbuffers CONFIG REQUIRED)
+
+# ── Lua 5.4 (built from source) ───────────────────────────────────────────────
+# Building from source rather than find_package(lua) because:
+#   1. Emscripten must compile Lua to WASM — system lua.a is host-arch only.
+#   2. Avoids architecture mismatch on Apple Silicon (arm64 vs x86_64).
+#   3. Version is pinned — no dependency on whatever vcpkg/Homebrew installed.
+FetchContent_Declare(lua_src
+    GIT_REPOSITORY https://github.com/lua/lua.git
+    GIT_TAG        v5.4.7
+    GIT_SHALLOW    TRUE
+    UPDATE_DISCONNECTED TRUE
+)
+FetchContent_GetProperties(lua_src)
+if(NOT lua_src_POPULATED)
+    FetchContent_Populate(lua_src)
+endif()
+
+# Lua's repo has all .c files in the root (no src/ subdir).
+# Exclude the standalone interpreter (lua.c) and compiler (luac.c).
+file(GLOB LUA_CORE_SOURCES "${lua_src_SOURCE_DIR}/*.c")
+list(FILTER LUA_CORE_SOURCES EXCLUDE REGEX ".*(lua|luac)\\.c$")
+
+add_library(lua_static STATIC ${LUA_CORE_SOURCES})
+target_include_directories(lua_static PUBLIC "${lua_src_SOURCE_DIR}")
+if(UNIX AND NOT EMSCRIPTEN)
+    # Enable POSIX APIs (better file I/O, signals, etc.) on Linux / macOS.
+    # Not needed on Windows or Emscripten.
+    target_compile_definitions(lua_static PRIVATE LUA_USE_POSIX)
+endif()
+# Suppress warnings from Lua's C code (not our code, not our problem)
+if(MSVC)
+    target_compile_options(lua_static PRIVATE /W0)
+else()
+    target_compile_options(lua_static PRIVATE -w)
+endif()
+
+# ── sol2 v3.3.0 (header-only) ─────────────────────────────────────────────────
+# Previously a git submodule (external/sol2); switched to FetchContent so there
+# is no .gitmodules entry and no submodule init step required.
+# We use FetchContent_Populate (not MakeAvailable) to avoid running sol2's own
+# CMakeLists.txt, which would call find_package(Lua) and conflict with lua_static.
+FetchContent_Declare(sol2_src
+    GIT_REPOSITORY https://github.com/ThePhD/sol2.git
+    GIT_TAG        v3.3.0
+    GIT_SHALLOW    TRUE
+    UPDATE_DISCONNECTED TRUE
+)
+FetchContent_GetProperties(sol2_src)
+if(NOT sol2_src_POPULATED)
+    FetchContent_Populate(sol2_src)
+endif()
+
+# sol2 is header-only; create a minimal INTERFACE target manually.
+add_library(sol2_iface INTERFACE)
+target_include_directories(sol2_iface INTERFACE "${sol2_src_SOURCE_DIR}/include")
+# Alias matches the target name produced by find_package(sol2 CONFIG REQUIRED),
+# so existing target_link_libraries(... sol2::sol2) lines continue to work.
+add_library(sol2::sol2 ALIAS sol2_iface)
 
 # Generate FlatBuffers headers from schema
 set(FLATBUFFERS_SCHEMA_DIR ${CMAKE_CURRENT_SOURCE_DIR}/schemas)
@@ -71,7 +128,6 @@ add_custom_command(
     COMMENT "Generating FlatBuffers headers for Scene"
 )
 
-find_package(sol2 CONFIG REQUIRED)
 if(AE_USE_AUDIO)
     add_subdirectory(external/raudio/projects/CMake)
 endif()
@@ -214,7 +270,7 @@ target_include_directories(AtmosphericEngine
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src
         ${BULLET_INCLUDE_DIR}
-        ${LUA_INCLUDE_DIR}
+        # lua_static has PUBLIC include dirs → Lua headers propagate automatically
         ${CMAKE_CURRENT_SOURCE_DIR}/external/stb
         ${CMAKE_CURRENT_SOURCE_DIR}/include/Atmospheric
         ${FLATBUFFERS_GENERATED_DIR}
@@ -225,7 +281,9 @@ target_include_directories(AtmosphericEngine
 target_precompile_headers(AtmosphericEngine PRIVATE src/pch.hpp)
 target_link_libraries(AtmosphericEngine
     PUBLIC
-        glm::glm fmt::fmt BulletSoftBody BulletDynamics BulletCollision LinearMath ${LUA_LIBRARIES} sol2::sol2 raudio RmlUi::RmlUi box2d::box2d flatbuffers::flatbuffers
+        glm::glm fmt::fmt BulletSoftBody BulletDynamics BulletCollision LinearMath
+        lua_static sol2::sol2
+        RmlUi::RmlUi box2d::box2d flatbuffers::flatbuffers
 )
 if (AE_USE_AUDIO)
     target_link_libraries(AtmosphericEngine

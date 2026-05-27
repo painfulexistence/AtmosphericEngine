@@ -2,9 +2,8 @@ set(TARGET_NAME AtmosLua)
 
 find_package(glm CONFIG REQUIRED)
 find_package(fmt CONFIG REQUIRED)
-find_package(lua REQUIRED)
-find_package(sol2 CONFIG REQUIRED)
 find_package(Bullet CONFIG REQUIRED)
+# lua_static and sol2::sol2 are PUBLIC deps of AtmosphericEngine — no find_package needed
 
 # Source files
 set(LUA_FRONTEND_SOURCES
@@ -29,21 +28,19 @@ target_include_directories(${TARGET_NAME}
     PRIVATE
         ${CMAKE_SOURCE_DIR}/AtmosphericEngine/include
         ${CMAKE_SOURCE_DIR}/AtmosphericEngine/external/stb
-        ${LUA_INCLUDE_DIR}
+        # LUA_INCLUDE_DIR removed: Lua headers propagate from AtmosphericEngine → lua_static
 )
 
 # Base link libraries (all platforms)
 target_link_libraries(${TARGET_NAME}
     PRIVATE
-        AtmosphericEngine
+        AtmosphericEngine   # pulls in lua_static + sol2::sol2 transitively
         glm::glm
         fmt::fmt
         BulletSoftBody
         BulletDynamics
         BulletCollision
         LinearMath
-        ${LUA_LIBRARIES}
-        sol2::sol2
 )
 
 if(AE_USE_EMSCRIPTEN)

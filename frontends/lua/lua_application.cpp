@@ -10,7 +10,9 @@ void BindInputAPI(sol::state& lua, Input* input);
 void BindWorldAPI(sol::state& lua, LuaApplication* app);
 void BindGraphicsAPI(sol::state& lua, GraphicsServer* graphics);
 void BindPhysicsAPI(sol::state& lua, LuaApplication* app);
+#ifdef AE_USE_AUDIO
 void BindAudioAPI(sol::state& lua, AudioManager* audio);
+#endif
 
 LuaApplication::LuaApplication(AppConfig config) : Application(config) {
 }
@@ -102,7 +104,9 @@ void LuaApplication::BindEngineAPIs() {
     BindPhysicsAPI(_lua, this);
 
     // Bind Audio API
+#ifdef AE_USE_AUDIO
     BindAudioAPI(_lua, GetAudioManager());
+#endif
 
     // Bind application-level functions
     atmos["quit"] = [this]() { Quit(); };

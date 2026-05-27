@@ -76,7 +76,8 @@ void Application::Run() {
 #ifdef TRACY_ENABLE
         FrameMark;
 #endif
-#if SINGLE_THREAD
+#if SINGLE_THREAD || defined(__EMSCRIPTEN__)
+        // Emscripten: no pthreads in this build — update and render serially.
         Update(currFrame);
         Render(currFrame);
 #else

@@ -5,6 +5,7 @@
 #include "render_mesh.hpp"
 #include "shader.hpp"
 #include "vertex.hpp"
+#include <array>
 #include <cstdint>
 #include <glm/gtc/quaternion.hpp>
 #include <vector>

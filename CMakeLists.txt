@@ -37,6 +37,9 @@ include(FetchContent)
 
 add_subdirectory(AtmosphericEngine)
 add_subdirectory(Example_HelloWorld)
-add_subdirectory(Example_Physics2D)
-add_subdirectory(Example_CSB)
+if(NOT AE_USE_EMSCRIPTEN)
+    # These demos require glad/spdlog/SDL3 which are desktop-only; skip for web builds
+    add_subdirectory(Example_Physics2D)
+    add_subdirectory(Example_CSB)
+endif()
 add_subdirectory(frontends/lua)

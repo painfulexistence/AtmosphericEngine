@@ -305,6 +305,14 @@ if(AE_USE_BASIS_UNIVERSAL)
 endif()
 if(AE_USE_EMSCRIPTEN)
     target_compile_definitions(AtmosphericEngine PUBLIC BT_THREADSAFE=1)
+    # IMGUI_IMPL_OPENGL_ES3 : tell Dear ImGui's OpenGL3 backend to use GLES3
+    #   headers (GLES3/gl3.h) instead of the default desktop GL3 loader
+    #   (imgui_impl_opengl3_loader.h) which tries to dlopen("libGL.so").
+    #   Without this, imgui_impl_opengl3.cpp fails to work on WebGL 2.0.
+    # spdlog::spdlog : console.cpp and scene_loader.cpp call spdlog directly;
+    #   Emscripten maps stdout → browser console so spdlog works fine on web.
+    target_compile_definitions(AtmosphericEngine PRIVATE IMGUI_IMPL_OPENGL_ES3)
+    target_link_libraries(AtmosphericEngine PUBLIC spdlog::spdlog)
     target_compile_options(AtmosphericEngine PRIVATE)
     # -sFETCH=1  : enable emscripten_fetch (XHR + IndexedDB persistence)
     #              used by FileSystem (web platform implementation)

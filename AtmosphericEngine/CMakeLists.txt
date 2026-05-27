@@ -298,6 +298,8 @@ if (AE_USE_AUDIO)
         PUBLIC
             raudio
     )
+    # Propagate flag so C++ headers can guard raudio includes with #ifdef AE_USE_AUDIO
+    target_compile_definitions(AtmosphericEngine PUBLIC AE_USE_AUDIO)
 endif()
 if(AE_USE_BASIS_UNIVERSAL)
     target_link_libraries(AtmosphericEngine PUBLIC basisu_transcoder)

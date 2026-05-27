@@ -1,5 +1,5 @@
 #pragma once
-#include "audio_manager.hpp"
+#include "audio_manager.hpp" // guarded internally by #ifdef AE_USE_AUDIO
 #include "config.hpp"
 #include "console.hpp"
 #include "game_object.hpp"
@@ -93,9 +93,11 @@ public:
     inline CameraComponent* GetMainCamera() {
         return mainCamera;
     }
+#ifdef AE_USE_AUDIO
     inline AudioManager* GetAudioManager() {
         return &audio;
     }
+#endif
 
     std::shared_ptr<Window> GetWindow();
     void LoadScene(const SceneDef& scene);
@@ -109,7 +111,9 @@ public:
 
 protected:
     // These subsystems will be game accessible
+#ifdef AE_USE_AUDIO
     AudioManager audio;
+#endif
     PhysicsServer physics;
     Physics2DServer physics2D;
     Console console;

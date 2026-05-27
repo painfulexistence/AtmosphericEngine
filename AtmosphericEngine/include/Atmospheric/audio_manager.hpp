@@ -1,10 +1,12 @@
 #pragma once
-#include "raudio.h"
 #include "server.hpp"
 #include <unordered_map>
 
 using SoundID = uint32_t;
 using MusicID = uint32_t;
+
+#ifdef AE_USE_AUDIO
+#include "raudio.h"
 
 class AudioManager : public Server {
 public:
@@ -50,3 +52,4 @@ private:
     SoundID nextSoundId = 1;
     MusicID nextMusicId = 1;
 };
+#endif // AE_USE_AUDIO

@@ -53,7 +53,9 @@ void Application::Run() {
 #endif
     console.Init(this);
     input.Init(this);
+#ifdef AE_USE_AUDIO
     audio.Init(this);
+#endif
     graphics.Init(this);
     physics.Init(this);// Note that physics debug drawer is dependent on graphics server
     physics2D.Init(this);
@@ -136,8 +138,9 @@ void Application::ReloadScene() {
     graphics.directionalLights.clear();
     graphics.pointLights.clear();
 
+#ifdef AE_USE_AUDIO
     audio.StopAll();
-
+#endif
     physics.Reset();
 
     for (auto e : _entities) {
@@ -168,7 +171,9 @@ void Application::Update(const FrameData& props) {
     // ecs.Process(dt); // Note that most of the entity manipulation logic should be put there
     console.Process(dt);
     input.Process(dt);
+#ifdef AE_USE_AUDIO
     audio.Process(dt);
+#endif
     physics.Process(dt);// TODO: Update only every entity's physics transform
     physics2D.Process(dt);
     graphics.Process(dt);

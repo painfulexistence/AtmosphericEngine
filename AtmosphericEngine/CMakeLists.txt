@@ -93,14 +93,17 @@ else()
     target_compile_options(lua_static PRIVATE -w)
 endif()
 
-# ── sol2 v3.3.0 (header-only) ─────────────────────────────────────────────────
-# Previously a git submodule (external/sol2); switched to FetchContent so there
-# is no .gitmodules entry and no submodule init step required.
+# ── sol2 (develop branch, header-only) ────────────────────────────────────────
+# v3.3.0 had a bug in optional_implementation.hpp where tl::optional's CRTP
+# base 'construct' method is not visible in the reference-type specialisation
+# (optional<T&>).  Apple Clang 15+ (Xcode 15 / macOS 14) enforces this more
+# strictly and rejects the code.  The fix is in sol2's develop branch.
+#
 # We use FetchContent_Populate (not MakeAvailable) to avoid running sol2's own
 # CMakeLists.txt, which would call find_package(Lua) and conflict with lua_static.
 FetchContent_Declare(sol2_src
     GIT_REPOSITORY https://github.com/ThePhD/sol2.git
-    GIT_TAG        v3.3.0
+    GIT_TAG        develop
     GIT_SHALLOW    TRUE
     UPDATE_DISCONNECTED TRUE
 )

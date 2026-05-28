@@ -12,6 +12,10 @@ if (AE_USE_EMSCRIPTEN)
     set(VCPKG_TARGET_TRIPLET wasm32-emscripten)
     # Automatically enable Basis Universal for web builds: KTX2 avoids CPU-side image decoding
     set(AE_USE_BASIS_UNIVERSAL ON CACHE BOOL "Enabled automatically by Emscripten build" FORCE)
+    # raudio/miniaudio's Emscripten backend requires -sASYNCIFY and -sAUDIO_WORKLET=1
+    # which are not yet configured; disable audio automatically so callers don't need
+    # to remember to pass -DAE_USE_AUDIO=OFF when using the Emscripten toolchain.
+    set(AE_USE_AUDIO OFF CACHE BOOL "Disabled automatically for Emscripten builds" FORCE)
     message(STATUS "Built with Emscripten")
 endif()
 

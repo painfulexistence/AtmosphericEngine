@@ -45,7 +45,7 @@ if(EMSCRIPTEN)
             ${CMAKE_SOURCE_DIR}/AtmosphericEngine/default_assets/shaders
             ${EM_PRELOAD_STAGING_DIR}/shaders
         COMMAND ${CMAKE_COMMAND} -E copy_directory
-            ${CMAKE_SOURCE_DIR}/AtmosphericEngine/default_assets/fonts
+            ${CMAKE_CURRENT_SOURCE_DIR}/assets/fonts
             ${EM_PRELOAD_STAGING_DIR}/fonts
         COMMENT "Staging Emscripten preload assets (shaders, fonts) for ${GAME_NAME}"
     )

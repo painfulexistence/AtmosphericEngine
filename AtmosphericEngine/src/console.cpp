@@ -67,7 +67,9 @@ void Console::DrawImGui(float dt) {
 void Console::Info(const std::string& message) {
 #if RUNTIME_LOG_ON
 #ifdef __EMSCRIPTEN__
-    EM_ASM(console.info(message));
+    EM_ASM({
+        console.info(UTF8ToString($0));
+    }, message.c_str());
 #else
     spdlog::info(message);
 #endif
@@ -77,7 +79,9 @@ void Console::Info(const std::string& message) {
 void Console::Warn(const std::string& message) {
 #if RUNTIME_LOG_ON
 #ifdef __EMSCRIPTEN__
-    EM_ASM(console.warn(message));
+    EM_ASM({
+        console.warn(UTF8ToString($0));
+    }, message.c_str());
 #else
     spdlog::warn(message);
 #endif
@@ -87,7 +91,9 @@ void Console::Warn(const std::string& message) {
 void Console::Error(const std::string& message) {
 #if RUNTIME_LOG_ON
 #ifdef __EMSCRIPTEN__
-    EM_ASM(console.error(message));
+    EM_ASM({
+        console.error(UTF8ToString($0));
+    }, message.c_str());
 #else
     spdlog::error(message);
 #endif

@@ -6,6 +6,19 @@ option(AE_USE_AUDIO "Use audio" ON)
 # Basis Universal / KTX2 GPU texture compression (auto-enabled for Emscripten builds)
 option(AE_USE_BASIS_UNIVERSAL "Enable Basis Universal transcoder for KTX2 GPU-compressed textures" OFF)
 
+# Must be set before project() so the toolchain is loaded correctly.
+# The vcpkg wasm32-emscripten community triplet sets VCPKG_CHAINLOAD_TOOLCHAIN_FILE
+# automatically, but only when it can locate emcc via EMSCRIPTEN_ROOT or PATH.
+# setup-emsdk sets EMSDK but not always EMSCRIPTEN_ROOT, so we provide an explicit
+# fallback using EMSDK to ensure the Emscripten toolchain is always found in CI.
+if(VCPKG_TARGET_TRIPLET STREQUAL "wasm32-emscripten" AND NOT VCPKG_CHAINLOAD_TOOLCHAIN_FILE)
+    if(DEFINED ENV{EMSDK})
+        set(VCPKG_CHAINLOAD_TOOLCHAIN_FILE
+            "$ENV{EMSDK}/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake"
+            CACHE STRING "Emscripten toolchain (auto-detected from EMSDK)" FORCE)
+    endif()
+endif()
+
 project(AtmosphericEngine VERSION 0.1)
 
 # Emscripten-specific overrides (EMSCRIPTEN is set automatically by the toolchain)

@@ -136,7 +136,7 @@ add_custom_command(
     COMMENT "Generating FlatBuffers headers for Scene"
 )
 
-if(AE_USE_AUDIO)
+if(NOT EMSCRIPTEN)
     add_subdirectory(external/raudio/projects/CMake)
 endif()
 
@@ -190,7 +190,7 @@ set(SOURCES
     src/scene_loader.cpp
     ${FLATBUFFERS_GENERATED_DIR}/Scene_generated.h
 )
-if(AE_USE_AUDIO)
+if(NOT EMSCRIPTEN)
     list(APPEND SOURCES src/audio_manager.cpp)
 endif()
 if(AE_USE_SDL3)
@@ -293,13 +293,8 @@ target_link_libraries(AtmosphericEngine
         lua_static sol2::sol2
         RmlUi::RmlUi box2d::box2d flatbuffers::flatbuffers
 )
-if (AE_USE_AUDIO)
-    target_link_libraries(AtmosphericEngine
-        PUBLIC
-            raudio
-    )
-    # Propagate flag so C++ headers can guard raudio includes with #ifdef AE_USE_AUDIO
-    target_compile_definitions(AtmosphericEngine PUBLIC AE_USE_AUDIO)
+if(NOT EMSCRIPTEN)
+    target_link_libraries(AtmosphericEngine PUBLIC raudio)
 endif()
 if(AE_USE_BASIS_UNIVERSAL)
     target_link_libraries(AtmosphericEngine PUBLIC basisu_transcoder)

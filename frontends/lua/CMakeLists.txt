@@ -16,7 +16,7 @@ set(LUA_FRONTEND_SOURCES
     bindings/bind_graphics.cpp
     bindings/bind_physics.cpp
 )
-if(AE_USE_AUDIO)
+if(NOT EMSCRIPTEN)
     list(APPEND LUA_FRONTEND_SOURCES bindings/bind_audio.cpp)
 endif()
 
@@ -106,9 +106,7 @@ else()
             glad::glad
             spdlog::spdlog
     )
-    if(AE_USE_AUDIO)
-        target_link_libraries(${TARGET_NAME} PRIVATE raudio)
-    endif()
+    target_link_libraries(${TARGET_NAME} PRIVATE raudio)
     if(AE_USE_SDL3)
         target_link_libraries(${TARGET_NAME} PRIVATE SDL3::SDL3)
     elseif(AE_USE_SDL2)

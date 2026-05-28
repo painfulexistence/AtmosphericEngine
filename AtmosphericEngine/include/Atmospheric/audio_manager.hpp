@@ -5,7 +5,7 @@
 using SoundID = uint32_t;
 using MusicID = uint32_t;
 
-#ifdef AE_USE_AUDIO
+#ifndef __EMSCRIPTEN__
 #include "raudio.h"
 
 class AudioManager : public Server {
@@ -52,4 +52,4 @@ private:
     SoundID nextSoundId = 1;
     MusicID nextMusicId = 1;
 };
-#endif // AE_USE_AUDIO
+#endif // !__EMSCRIPTEN__

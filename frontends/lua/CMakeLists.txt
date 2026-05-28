@@ -70,31 +70,13 @@ if(EMSCRIPTEN)
     #                           MEMFS writes for .lua / .json / .glsl files)
     # -sALLOW_MEMORY_GROWTH=1 : let the WASM heap grow; prevents OOM when
     #                           multiple KTX2 textures are transcoded in sequence
-    if(AE_USE_SDL3)
-        target_link_options(${TARGET_NAME} PRIVATE
-            -sWASM=1 -O3
-            -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2 -sFULL_ES3=1
-            -sFETCH=1 -sFORCE_FILESYSTEM=1 -sALLOW_MEMORY_GROWTH=1
-            -sASSERTIONS=1
-            --preload-file ${EM_PRELOAD_STAGING_DIR}/shaders@assets/shaders
-        )
-    elseif(AE_USE_SDL2)
-        target_link_options(${TARGET_NAME} PRIVATE
-            -sWASM=1 -O3 -sUSE_SDL=2
-            -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2 -sFULL_ES3=1
-            -sFETCH=1 -sFORCE_FILESYSTEM=1 -sALLOW_MEMORY_GROWTH=1
-            -sASSERTIONS=1
-            --preload-file ${EM_PRELOAD_STAGING_DIR}/shaders@assets/shaders
-        )
-    else()
-        target_link_options(${TARGET_NAME} PRIVATE
-            -sWASM=1 -O3 -sUSE_GLFW=3
-            -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2 -sFULL_ES3=1
-            -sFETCH=1 -sFORCE_FILESYSTEM=1 -sALLOW_MEMORY_GROWTH=1
-            -sASSERTIONS=1
-            --preload-file ${EM_PRELOAD_STAGING_DIR}/shaders@assets/shaders
-        )
-    endif()
+    target_link_options(${TARGET_NAME} PRIVATE
+        -sWASM=1 -O3 -sUSE_GLFW=3
+        -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2 -sFULL_ES3=1
+        -sFETCH=1 -sFORCE_FILESYSTEM=1 -sALLOW_MEMORY_GROWTH=1
+        -sASSERTIONS=1
+        --preload-file ${EM_PRELOAD_STAGING_DIR}/shaders@assets/shaders
+    )
 
 else()
     # ── Native build ─────────────────────────────────────────────────────────
@@ -106,14 +88,7 @@ else()
             glad::glad
             spdlog::spdlog
     )
-    target_link_libraries(${TARGET_NAME} PRIVATE raudio)
-    if(AE_USE_SDL3)
-        target_link_libraries(${TARGET_NAME} PRIVATE SDL3::SDL3)
-    elseif(AE_USE_SDL2)
-        target_link_libraries(${TARGET_NAME} PRIVATE SDL2::SDL2)
-    else()
-        target_link_libraries(${TARGET_NAME} PRIVATE glfw)
-    endif()
+    target_link_libraries(${TARGET_NAME} PRIVATE raudio SDL3::SDL3)
 endif()
 
 # ── Post-build: copy all default assets (shaders, textures, fonts, ...) ─────

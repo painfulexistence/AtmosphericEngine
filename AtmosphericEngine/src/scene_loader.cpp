@@ -8,7 +8,7 @@
 
 #include "Scene_generated.h"
 
-#ifdef AE_USE_SDL3
+#ifndef __EMSCRIPTEN__
 #include <SDL3/SDL_filesystem.h>
 #endif
 #include <fstream>
@@ -40,10 +40,9 @@ SceneLoadResult SceneLoader::Load(const std::string& filename, const glm::vec3& 
 }
 
 SceneLoadResult SceneLoader::Load(const std::string& filename, const SceneLoadConfig& config) {
-#ifdef AE_USE_SDL3
+#ifndef __EMSCRIPTEN__
     const std::string path = SDL_GetBasePath() + filename;
 #else
-    // No SDL available (GLFW / Emscripten): resolve relative to CWD
     const std::string path = filename;
 #endif
 

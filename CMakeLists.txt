@@ -1,7 +1,5 @@
 cmake_minimum_required(VERSION 3.19)
 
-option(AE_USE_SDL3 "Use SDL3" ON)
-option(AE_USE_SDL2 "Use SDL2" OFF)
 # Basis Universal / KTX2 GPU texture compression (auto-enabled for Emscripten builds)
 option(AE_USE_BASIS_UNIVERSAL "Enable Basis Universal transcoder for KTX2 GPU-compressed textures" OFF)
 

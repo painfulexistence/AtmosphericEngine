@@ -1,39 +1,16 @@
 option(BUILD_SHARED_LIBS OFF)
 if(NOT EMSCRIPTEN)
-    if(AE_USE_SDL3)
-        FetchContent_Declare(
-            SDL3
-            GIT_REPOSITORY https://github.com/libsdl-org/SDL.git
-            GIT_TAG release-3.2.12 # TODO: update to 3.2.14 after upgrading imgui
-        )
-        set(SDL_SHARED OFF CACHE BOOL "" FORCE)
-        set(SDL_STATIC ON CACHE BOOL "" FORCE)
-        set(SDL_TESTS OFF CACHE BOOL "" FORCE)
-        set(SDL_EXAMPLES OFF CACHE BOOL "" FORCE)
-        set(SDL_TESTS_LIBRARY OFF CACHE BOOL "" FORCE)
-        FetchContent_MakeAvailable(SDL3)
-    elseif(AE_USE_SDL2)
-        FetchContent_Declare(
-            SDL2
-            GIT_REPOSITORY https://github.com/libsdl-org/SDL.git
-            GIT_TAG release-2.32.6
-        )
-        set(SDL_SHARED OFF CACHE BOOL "" FORCE)
-        set(SDL_STATIC ON CACHE BOOL "" FORCE)
-        set(SDL_TEST OFF CACHE BOOL "" FORCE)
-        set(SDL_EXAMPLES OFF CACHE BOOL "" FORCE)
-        set(SDL_TEST_LIBRARY OFF CACHE BOOL "" FORCE)
-        FetchContent_MakeAvailable(SDL2)
-    else()
-        FetchContent_Declare(glfw
-            GIT_REPOSITORY https://github.com/glfw/glfw.git
-            GIT_TAG 3.4
-        )
-        set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
-        set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
-        set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
-        FetchContent_MakeAvailable(glfw)
-    endif()
+    FetchContent_Declare(
+        SDL3
+        GIT_REPOSITORY https://github.com/libsdl-org/SDL.git
+        GIT_TAG release-3.2.12 # TODO: update to 3.2.14 after upgrading imgui
+    )
+    set(SDL_SHARED OFF CACHE BOOL "" FORCE)
+    set(SDL_STATIC ON CACHE BOOL "" FORCE)
+    set(SDL_TESTS OFF CACHE BOOL "" FORCE)
+    set(SDL_EXAMPLES OFF CACHE BOOL "" FORCE)
+    set(SDL_TESTS_LIBRARY OFF CACHE BOOL "" FORCE)
+    FetchContent_MakeAvailable(SDL3)
     find_package(glad CONFIG REQUIRED)
 endif()
 find_package(glm CONFIG REQUIRED)
@@ -192,11 +169,7 @@ set(SOURCES
 )
 if(NOT EMSCRIPTEN)
     list(APPEND SOURCES src/audio_manager.cpp)
-endif()
-if(AE_USE_SDL3)
     list(APPEND SOURCES src/window_sdl3.cpp)
-elseif(AE_USE_SDL2)
-    list(APPEND SOURCES src/window_sdl2.cpp)
 else()
     list(APPEND SOURCES src/window_glfw.cpp)
 endif()
@@ -213,12 +186,10 @@ set(SOURCES_EXT
     external/imgui/imgui_widgets.cpp
     external/imgui/backends/imgui_impl_opengl3.cpp
 )
-if(AE_USE_SDL3)
-    list(APPEND SOURCES_EXT external/imgui/backends/imgui_impl_sdl3.cpp)
-elseif(AE_USE_SDL2)
-    list(APPEND SOURCES_EXT external/imgui/backends/imgui_impl_sdl2.cpp)
-else()
+if(EMSCRIPTEN)
     list(APPEND SOURCES_EXT external/imgui/backends/imgui_impl_glfw.cpp)
+else()
+    list(APPEND SOURCES_EXT external/imgui/backends/imgui_impl_sdl3.cpp)
 endif()
 
 # ============================================================================
@@ -313,22 +284,10 @@ if(EMSCRIPTEN)
     target_compile_options(AtmosphericEngine PRIVATE)
     # -sFETCH=1  : enable emscripten_fetch (XHR + IndexedDB persistence)
     #              used by FileSystem (web platform implementation)
-    if(AE_USE_SDL3)
-        target_link_options(AtmosphericEngine PRIVATE
-            -sWASM=1 -O3
-            -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2 -sFULL_ES3=1
-            -sFETCH=1)
-    elseif(AE_USE_SDL2)
-        target_link_options(AtmosphericEngine PRIVATE
-            -sWASM=1 -O3 -sUSE_SDL=2
-            -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2 -sFULL_ES3=1
-            -sFETCH=1)
-    else()
-        target_link_options(AtmosphericEngine PRIVATE
-            -sWASM=1 -O3 -sUSE_GLFW=3
-            -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2 -sFULL_ES3=1
-            -sFETCH=1)
-    endif()
+    target_link_options(AtmosphericEngine PRIVATE
+        -sWASM=1 -O3 -sUSE_GLFW=3
+        -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2 -sFULL_ES3=1
+        -sFETCH=1)
 else()
     target_compile_definitions(AtmosphericEngine PUBLIC BT_THREADSAFE=1)
     target_link_libraries(AtmosphericEngine
@@ -340,24 +299,5 @@ else()
         target_link_libraries(AtmosphericEngine PUBLIC Tracy::TracyClient)
         target_compile_definitions(AtmosphericEngine PUBLIC TRACY_ENABLE TRACY_VERBOSE TRACY_ON_DEMAND)
     endif()
-    if(AE_USE_SDL3)
-        target_link_libraries(AtmosphericEngine
-            PUBLIC
-                SDL3::SDL3
-        )
-        # Propagate so C++ code can guard SDL3-specific includes with #ifdef AE_USE_SDL3
-        target_compile_definitions(AtmosphericEngine PUBLIC AE_USE_SDL3)
-    elseif(AE_USE_SDL2)
-        target_link_libraries(AtmosphericEngine
-            PUBLIC
-                SDL2::SDL2
-        )
-        # Propagate so C++ code can guard SDL2-specific includes with #ifdef AE_USE_SDL2
-        target_compile_definitions(AtmosphericEngine PUBLIC AE_USE_SDL2)
-    else()
-        target_link_libraries(AtmosphericEngine
-            PUBLIC
-                glfw
-        )
-    endif()
+    target_link_libraries(AtmosphericEngine PUBLIC SDL3::SDL3)
 endif()

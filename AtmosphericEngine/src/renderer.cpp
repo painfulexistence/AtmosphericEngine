@@ -303,7 +303,7 @@ void Renderer::CreateRTs(const RenderTargetProps& props) {
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, SHADOW_W, SHADOW_H, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32F, SHADOW_W, SHADOW_H, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
         uniShadowMaps[i] = map;
     }
     for (int i = 0; i < MAX_OMNI_LIGHTS; ++i) {
@@ -319,7 +319,7 @@ void Renderer::CreateRTs(const RenderTargetProps& props) {
             glTexImage2D(
               GL_TEXTURE_CUBE_MAP_POSITIVE_X + f,
               0,
-              GL_DEPTH_COMPONENT,
+              GL_DEPTH_COMPONENT32F,
               SHADOW_W,
               SHADOW_H,
               0,
@@ -350,7 +350,7 @@ void Renderer::CreateRTs(const RenderTargetProps& props) {
     glGenTextures(1, &sceneColorTexture);
 #ifdef __EMSCRIPTEN__
     glBindTexture(GL_TEXTURE_2D, sceneColorTexture);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, props.width, props.height, 0, GL_RGBA, GL_FLOAT, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, props.width, props.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
 #else
     if (_currRenderPath == RenderPath::Forward) {
         glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, sceneColorTexture);
@@ -370,18 +370,18 @@ void Renderer::CreateRTs(const RenderTargetProps& props) {
 #ifdef __EMSCRIPTEN__
     glBindTexture(GL_TEXTURE_2D, sceneDepthTexture);
     glTexImage2D(
-      GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, props.width, props.height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL
+      GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32F, props.width, props.height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL
     );
 #else
     if (_currRenderPath == RenderPath::Forward) {
         glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, sceneDepthTexture);
         glTexImage2DMultisample(
-          GL_TEXTURE_2D_MULTISAMPLE, props.numSamples, GL_DEPTH_COMPONENT, props.width, props.height, GL_TRUE
+          GL_TEXTURE_2D_MULTISAMPLE, props.numSamples, GL_DEPTH_COMPONENT32F, props.width, props.height, GL_TRUE
         );
     } else {
         glBindTexture(GL_TEXTURE_2D, sceneDepthTexture);
         glTexImage2D(
-          GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, props.width, props.height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL
+          GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32F, props.width, props.height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL
         );
     }
 #endif
@@ -410,14 +410,18 @@ void Renderer::CreateRTs(const RenderTargetProps& props) {
     glBindTexture(GL_TEXTURE_2D, msaaResolveTexture);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+#ifdef __EMSCRIPTEN__
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, props.width, props.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+#else
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, props.width, props.height, 0, GL_RGBA, GL_FLOAT, NULL);
+#endif
 
     glGenTextures(1, &msaaResolveDepthTexture);
     glBindTexture(GL_TEXTURE_2D, msaaResolveDepthTexture);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexImage2D(
-      GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, props.width, props.height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL
+      GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32F, props.width, props.height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL
     );
 
     glBindFramebuffer(GL_FRAMEBUFFER, msaaResolveFBO);
@@ -429,13 +433,13 @@ void Renderer::CreateRTs(const RenderTargetProps& props) {
     // 4. Create and set geometry pass attachments
     glGenTextures(1, &gBuffer.positionRT);
     glBindTexture(GL_TEXTURE_2D, gBuffer.positionRT);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, props.width, props.height, 0, GL_RGB, GL_FLOAT, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, props.width, props.height, 0, GL_RGBA, GL_FLOAT, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
     glGenTextures(1, &gBuffer.normalRT);
     glBindTexture(GL_TEXTURE_2D, gBuffer.normalRT);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, props.width, props.height, 0, GL_RGB, GL_FLOAT, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, props.width, props.height, 0, GL_RGBA, GL_FLOAT, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
@@ -447,14 +451,14 @@ void Renderer::CreateRTs(const RenderTargetProps& props) {
 
     glGenTextures(1, &gBuffer.materialRT);
     glBindTexture(GL_TEXTURE_2D, gBuffer.materialRT);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, props.width, props.height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, props.width, props.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
     glGenTextures(1, &gBuffer.depthRT);
     glBindTexture(GL_TEXTURE_2D, gBuffer.depthRT);
     glTexImage2D(
-      GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, props.width, props.height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL
+      GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32F, props.width, props.height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL
     );
 
     glGenFramebuffers(1, &gBuffer.id);
@@ -666,7 +670,7 @@ void ForwardOpaquePass::Execute(GraphicsServer* ctx, Renderer& renderer) {
     auto [width, height] = Window::Get()->GetFramebufferSize();
     glViewport(0, 0, width, height);
 
-    glBindFramebuffer(GL_FRAMEBUFFER, renderer.sceneFBO);
+    glBindFramebuffer(GL_FRAMEBUFFER, renderer.postProcessEnabled ? renderer.sceneFBO : renderer.finalFBO);
     // Bind textures
     auto& assetManager = AssetManager::Get();
     for (int i = 0; i < MAX_UNI_LIGHTS; ++i) {
@@ -1040,7 +1044,7 @@ void DeferredLightingPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
     ZoneScopedN("DeferredLightingPass");
     auto [width, height] = Window::Get()->GetFramebufferSize();
     glViewport(0, 0, width, height);
-    glBindFramebuffer(GL_FRAMEBUFFER, renderer.sceneFBO);
+    glBindFramebuffer(GL_FRAMEBUFFER, renderer.postProcessEnabled ? renderer.sceneFBO : renderer.finalFBO);
 
     glClearColor(renderer.clearColor.r, renderer.clearColor.g, renderer.clearColor.b, renderer.clearColor.a);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -1102,16 +1106,30 @@ void TransparentPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
 
 void MSAAResolvePass::Execute(GraphicsServer* ctx, Renderer& renderer) {
     ZoneScopedN("MSAAResolvePass");
+    if (!renderer.postProcessEnabled) {
+        return;
+    }
+    
     auto [width, height] = Window::Get()->GetFramebufferSize();
     glViewport(0, 0, width, height);
-
+ 
     // Resolve MSAA (color + depth)
     glBindFramebuffer(GL_READ_FRAMEBUFFER, renderer.sceneFBO);
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, renderer.postProcessEnabled ? renderer.msaaResolveFBO : renderer.finalFBO);
-    glBlitFramebuffer(0, 0, width, height, 0, 0, width, height, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT, GL_NEAREST);
-
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, renderer.msaaResolveFBO);
+    
+    GLbitfield mask = GL_COLOR_BUFFER_BIT;
+#ifdef __EMSCRIPTEN__
+    // WebGL 2.0 throws INVALID_OPERATION if blitting depth to the default framebuffer 0
+    if (renderer.postProcessEnabled) {
+        mask |= GL_DEPTH_BUFFER_BIT;
+    }
+#else
+    mask |= GL_DEPTH_BUFFER_BIT;
+#endif
+    glBlitFramebuffer(0, 0, width, height, 0, 0, width, height, mask, GL_NEAREST);
+ 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
+ 
     renderer.CheckErrors("MSAA resolve pass");
 }
 
@@ -1256,6 +1274,7 @@ void PostProcessPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
     auto postProcessShader = ctx->GetShader("hdr");
     postProcessShader->Activate();
     postProcessShader->SetUniform(std::string("color_map_unit"), (int)0);
+    postProcessShader->SetUniform(std::string("exposure"), 0.5f);
     glBindVertexArray(renderer.screenVAO);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 

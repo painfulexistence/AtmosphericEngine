@@ -75,6 +75,7 @@ if(EMSCRIPTEN)
         -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2 -sFULL_ES3=1
         -sFETCH=1 -sFORCE_FILESYSTEM=1 -sALLOW_MEMORY_GROWTH=1
         -sASSERTIONS=1
+        -sDISABLE_EXCEPTION_CATCHING=0
         --preload-file ${EM_PRELOAD_STAGING_DIR}/shaders@assets/shaders
     )
 

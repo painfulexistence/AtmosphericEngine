@@ -274,7 +274,9 @@ void Window::MainLoop(std::function<void(float, float)> callback)
         ctx.deltaTime = currTime - ctx.lastTime;
         ctx.lastTime = currTime;
 
+        ctx.window->BeginImGuiFrame();
         ctx.callback(currTime, ctx.deltaTime);
+        ctx.window->EndImGuiFrame();
 
         glfwSwapBuffers(static_cast<GLFWwindow*>(ctx.window->_internal));
     };
@@ -295,7 +297,9 @@ void Window::MainLoop(std::function<void(float, float)> callback)
         ctx.deltaTime = currTime - ctx.lastTime;
         ctx.lastTime = currTime;
 
+        ctx.window->BeginImGuiFrame();
         ctx.callback(currTime, ctx.deltaTime);
+        ctx.window->EndImGuiFrame();
 
         glfwSwapBuffers(static_cast<GLFWwindow*>(ctx.window->_internal));
     };

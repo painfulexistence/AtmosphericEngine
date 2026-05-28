@@ -89,7 +89,7 @@ vec3 CalculateDirectionalLight(DirLight light, vec3 norm, vec3 viewDir, Surface 
 
     vec4 lightSpaceFragPos = light.ProjectionView * vec4(frag_pos, 1.0);
     vec3 lightSpaceFragCoords = lightSpaceFragPos.xyz / lightSpaceFragPos.w;
-    float shadow = light.cast_shadow * DirectionalShadow(lightSpaceFragCoords * 0.5 + 0.5, ShadowBias(norm, lightDir));
+    float shadow = float(light.cast_shadow) * DirectionalShadow(lightSpaceFragCoords * 0.5 + 0.5, ShadowBias(norm, lightDir));
     vec3 radiance = light.diffuse * clamp(1.0 - shadow, 0.0, 1.0);
 
     return CookTorranceBRDF(norm, lightDir, viewDir, surf) * radiance * clamp(dot(norm, lightDir), 0.0, 1.0);
@@ -100,7 +100,7 @@ vec3 CalculatePointLight(PointLight light, vec3 norm, vec3 viewDir, Surface surf
 
     float dist = distance(light.position, frag_pos);
     float attenuation = 1.0 / (dist * dist);
-    float shadow = light.cast_shadow * PointShadow((frag_pos - light.position) / 400.0f, ShadowBias(norm, lightDir));
+    float shadow = float(light.cast_shadow) * PointShadow((frag_pos - light.position) / 400.0f, ShadowBias(norm, lightDir));
     vec3 radiance = attenuation * light.diffuse * clamp(1.0 - shadow, 0.0, 1.0);
 
     return CookTorranceBRDF(norm, lightDir, viewDir, surf) * radiance * clamp(dot(norm, lightDir), 0.0, 1.0);
@@ -141,7 +141,7 @@ float TrowbridgeReitzGGX(float nh, float r) {
     float r2 = r * r;
     float a2 = r2 * r2;
     float nh2 = nh * nh;
-    float nhr2 = (nh2 * (a2 - 1) + 1) * (nh2 * (a2 - 1) + 1);
+    float nhr2 = (nh2 * (a2 - 1.0) + 1.0) * (nh2 * (a2 - 1.0) + 1.0);
     return a2 / (PI * nhr2);
 }
 
@@ -184,7 +184,7 @@ float DirectionalShadow(vec3 shadowCoords, float bias) {
     if (depth <= 1.0)
     {
         int samples = 0;
-        float texelSize = 1.0 / textureSize(shadow_map_unit, 0).x;
+        float texelSize = 1.0 / float(textureSize(shadow_map_unit, 0).x);
         for(int dx = -SHADOW_KERNEL_LEVEL; dx <= SHADOW_KERNEL_LEVEL; ++dx)
         {
             for(int dy = -SHADOW_KERNEL_LEVEL; dy <= SHADOW_KERNEL_LEVEL; ++dy)
@@ -194,7 +194,7 @@ float DirectionalShadow(vec3 shadowCoords, float bias) {
                 ++samples;
             }
         }
-        shadow /= samples;
+        shadow /= float(samples);
     }
     return shadow;
 }
@@ -206,7 +206,7 @@ float PointShadow(vec3 shadowCoords, float bias) {
     if (depth <= 1.0)
     {
         int samples = 0;
-        float texelSize = 1.0 / textureSize(omni_shadow_map_unit, 0).x;
+        float texelSize = 1.0 / float(textureSize(omni_shadow_map_unit, 0).x);
         for(int dx = -SHADOW_KERNEL_LEVEL; dx <= SHADOW_KERNEL_LEVEL; ++dx)
         {
             for(int dy = -SHADOW_KERNEL_LEVEL; dy <= SHADOW_KERNEL_LEVEL; ++dy)
@@ -219,7 +219,7 @@ float PointShadow(vec3 shadowCoords, float bias) {
                 }
             }
         }
-        shadow /= samples;
+        shadow /= float(samples);
     }
     return shadow;
 }

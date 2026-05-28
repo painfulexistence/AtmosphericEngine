@@ -1,8 +1,43 @@
 #include "shader.hpp"
 #include "file.hpp"
 
+#ifdef __EMSCRIPTEN__
+#include <regex>
+
+static std::string PreprocessShaderForWebGL(std::string src, ShaderType type) {
+    // Replace '#version ...' with '#version 300 es'
+    std::regex versionRegex(R"(#version\s+[0-9]+(?:\s+core)?)");
+    src = std::regex_replace(src, versionRegex, "#version 300 es");
+
+    // Insert precision qualifiers for fragment shaders if not present
+    if (type == ShaderType::FRAGMENT) {
+        // Strip layout(location = ...) from fragment shader inputs (in)
+        std::regex fragInputLayoutRegex(R"(layout\s*\(\s*location\s*=\s*[0-9]+\s*\)\s*in\b)");
+        src = std::regex_replace(src, fragInputLayoutRegex, "in");
+
+        if (src.find("precision ") == std::string::npos) {
+            size_t pos = src.find("#version 300 es");
+            if (pos != std::string::npos) {
+                size_t lineEnd = src.find('\n', pos);
+                if (lineEnd != std::string::npos) {
+                    src.insert(lineEnd + 1, "\nprecision highp float;\nprecision highp int;\n");
+                } else {
+                    src += "\nprecision highp float;\nprecision highp int;\n";
+                }
+            } else {
+                src = "precision highp float;\nprecision highp int;\n" + src;
+            }
+        }
+    }
+    return src;
+}
+#endif
+
 Shader::Shader(const std::string& path, ShaderType type) {
-    const auto& shaderSrc = File(path).GetContent();
+    std::string shaderSrc = File(path).GetContent();
+#ifdef __EMSCRIPTEN__
+    shaderSrc = PreprocessShaderForWebGL(shaderSrc, type);
+#endif
     const char* src = shaderSrc.c_str();
     const int len = shaderSrc.size();
 

@@ -67,7 +67,9 @@ jobs:
       # GLFW is used instead of SDL3/SDL2 because:
       #   - Emscripten ships GLFW3 headers in its sysroot (-sUSE_GLFW=3)
       #   - SDL3 requires an Emscripten port not yet set up in vcpkg.json
-      # AE_USE_AUDIO=OFF: raudio hasn't been validated for wasm32-emscripten
+      # AE_USE_SDL3/SDL2=OFF: Emscripten uses its built-in GLFW3 (-sUSE_GLFW=3).
+      # AE_USE_AUDIO and AE_USE_BASIS_UNIVERSAL are set automatically by CMake
+      # when EMSCRIPTEN is detected (see root CMakeLists.txt).
       - name: CMake Configure
         run: >
           cmake -G Ninja
@@ -76,10 +78,8 @@ jobs:
           -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake
           -DVCPKG_TARGET_TRIPLET=wasm32-emscripten
           -DCMAKE_BUILD_TYPE=MinSizeRel
-          -DAE_USE_EMSCRIPTEN=ON
           -DAE_USE_SDL3=OFF
           -DAE_USE_SDL2=OFF
-          -DAE_USE_AUDIO=OFF
 
       # ── Build (AtmosLua only) ──────────────────────────────────────────────
       # Building only the Lua frontend keeps CI fast while still compiling the

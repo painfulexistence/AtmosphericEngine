@@ -26,7 +26,7 @@ target_link_libraries(${GAME_NAME} PRIVATE
     LinearMath
 )
 
-if(AE_USE_EMSCRIPTEN)
+if(EMSCRIPTEN)
     # ── Emscripten / WebAssembly build ──────────────────────────────────────
     set(CMAKE_EXECUTABLE_SUFFIX ".html")
 

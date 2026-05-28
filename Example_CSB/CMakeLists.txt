@@ -34,7 +34,7 @@ target_link_libraries(${GAME_NAME} PRIVATE
     box2d::box2d
     flatbuffers::flatbuffers
 )
-if(AE_USE_EMSCRIPTEN)
+if(EMSCRIPTEN)
     set(CMAKE_EXECUTABLE_SUFFIX ".html")
     target_compile_options(${GAME_NAME} PRIVATE)
     target_link_options(${GAME_NAME} PRIVATE -sWASM=1 -O3 -sUSE_GLFW=3 -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2 -sFULL_ES3=1 -sASSERTIONS=1)

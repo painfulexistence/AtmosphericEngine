@@ -1,5 +1,5 @@
 option(BUILD_SHARED_LIBS OFF)
-if(NOT AE_USE_EMSCRIPTEN)
+if(NOT EMSCRIPTEN)
     if(AE_USE_SDL3)
         FetchContent_Declare(
             SDL3
@@ -305,7 +305,7 @@ if(AE_USE_BASIS_UNIVERSAL)
     target_link_libraries(AtmosphericEngine PUBLIC basisu_transcoder)
     target_compile_definitions(AtmosphericEngine PUBLIC AE_USE_BASIS_UNIVERSAL)
 endif()
-if(AE_USE_EMSCRIPTEN)
+if(EMSCRIPTEN)
     target_compile_definitions(AtmosphericEngine PUBLIC BT_THREADSAFE=1)
     # IMGUI_IMPL_OPENGL_ES3 : tell Dear ImGui's OpenGL3 backend to use GLES3
     #   headers (GLES3/gl3.h) instead of the default desktop GL3 loader

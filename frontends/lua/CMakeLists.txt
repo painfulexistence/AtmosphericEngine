@@ -92,30 +92,28 @@ else()
     target_link_libraries(${TARGET_NAME} PRIVATE raudio SDL3::SDL3)
 endif()
 
-# ── Post-build: copy all default assets (shaders, textures, fonts, ...) ─────
-# For native builds, copies everything into place.
-# For web builds, copies KTX2 textures so the dev-server can serve them;
-# scripts are copied separately (below) for the same reason.
-add_custom_command(
-    TARGET ${TARGET_NAME} POST_BUILD
+# ── Asset sync ───────────────────────────────────────────────────────────────
+# ALL targets run on every cmake --build invocation, not only when the binary
+# relinks.  This means shader edits and new textures are reflected immediately.
+add_custom_target(sync_default_assets_${TARGET_NAME} ALL
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         ${CMAKE_SOURCE_DIR}/AtmosphericEngine/default_assets
         ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${TARGET_NAME}/assets
-    COMMENT "Copying default assets for ${TARGET_NAME}"
-)
-
-# Create scripts output directory and copy example scripts
-add_custom_command(
-    TARGET ${TARGET_NAME} POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E make_directory
         ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${TARGET_NAME}/assets/scripts
+    COMMENT "Syncing default assets for ${TARGET_NAME}"
 )
 
 if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/assets)
-    add_custom_target(copy_assets_for_${TARGET_NAME}
+    add_custom_target(sync_game_assets_${TARGET_NAME} ALL
         COMMAND ${CMAKE_COMMAND} -E copy_directory
             ${CMAKE_CURRENT_SOURCE_DIR}/assets
             ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${TARGET_NAME}/assets
+        COMMENT "Syncing game assets for ${TARGET_NAME}"
     )
-    add_dependencies(${TARGET_NAME} copy_assets_for_${TARGET_NAME})
+    # Auto-convert PNG/JPG textures to KTX2 for Emscripten builds
+    ae_auto_convert_textures(${TARGET_NAME}
+        ${CMAKE_CURRENT_SOURCE_DIR}/assets/textures
+        ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${TARGET_NAME}/assets/textures
+    )
 endif()

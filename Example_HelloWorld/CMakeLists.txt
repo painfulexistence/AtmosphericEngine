@@ -84,22 +84,23 @@ else()
     target_link_libraries(${GAME_NAME} PRIVATE SDL3::SDL3)
 endif()
 
-# ── Post-build: copy all default assets to output dir ───────────────────────
-# (For native builds this copies textures/shaders/fonts/etc. into place.
-#  For Emscripten, this copies KTX2 textures so the dev-server can serve them.)
-add_custom_command(
-    TARGET ${GAME_NAME} POST_BUILD
+# ── Asset sync ───────────────────────────────────────────────────────────────
+add_custom_target(sync_default_assets_${GAME_NAME} ALL
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         ${CMAKE_SOURCE_DIR}/AtmosphericEngine/default_assets
         ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${GAME_NAME}/assets
-    COMMENT "Copying default assets for ${GAME_NAME}"
+    COMMENT "Syncing default assets for ${GAME_NAME}"
 )
 
 if(EXISTS ${GAME_ASSETS_DIR})
-    add_custom_target(copy_${GAME_NAME}_assets
+    add_custom_target(sync_game_assets_${GAME_NAME} ALL
         COMMAND ${CMAKE_COMMAND} -E copy_directory
             ${GAME_ASSETS_DIR}
             ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${GAME_NAME}/assets
+        COMMENT "Syncing game assets for ${GAME_NAME}"
     )
-    add_dependencies(${GAME_NAME} copy_${GAME_NAME}_assets)
+    ae_auto_convert_textures(${GAME_NAME}
+        ${GAME_ASSETS_DIR}/textures
+        ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${GAME_NAME}/assets/textures
+    )
 endif()

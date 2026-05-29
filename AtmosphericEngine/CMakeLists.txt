@@ -216,6 +216,36 @@ if(AE_USE_BASIS_UNIVERSAL)
         FetchContent_Populate(basis_universal)
     endif()
 
+    # ── basisu host encoder (for PNG→KTX2 auto-conversion at build time) ─────
+    # The transcoder below is compiled with em++ for WASM; we also need the
+    # basisu CLI as a HOST tool to convert project textures during the build.
+    # Try a system install first; fall back to building from the fetched source
+    # using the default (host) compiler — no Emscripten toolchain involved.
+    if(EMSCRIPTEN)
+        find_program(_BASISU_SYSTEM basisu)
+        if(_BASISU_SYSTEM)
+            set(BASISU_EXECUTABLE "${_BASISU_SYSTEM}" CACHE INTERNAL "basisu encoder")
+            add_custom_target(basisu_host_tool)
+        else()
+            set(_BASISU_HOST_DIR ${CMAKE_BINARY_DIR}/_basisu_host)
+            set(BASISU_EXECUTABLE "${_BASISU_HOST_DIR}/basisu"
+                CACHE INTERNAL "basisu encoder")
+            add_custom_command(
+                OUTPUT "${BASISU_EXECUTABLE}"
+                COMMAND "${CMAKE_COMMAND}"
+                    -B "${_BASISU_HOST_DIR}"
+                    -S "${basis_universal_SOURCE_DIR}"
+                    -DCMAKE_BUILD_TYPE=Release
+                COMMAND "${CMAKE_COMMAND}"
+                    --build "${_BASISU_HOST_DIR}" --target basisu --parallel
+                COMMENT "Building basisu host encoder"
+                VERBATIM
+            )
+            add_custom_target(basisu_host_tool DEPENDS "${BASISU_EXECUTABLE}")
+        endif()
+        message(STATUS "basisu encoder: ${BASISU_EXECUTABLE}")
+    endif()
+
     add_library(basisu_transcoder STATIC
         ${basis_universal_SOURCE_DIR}/transcoder/basisu_transcoder.cpp
     )
@@ -242,6 +272,52 @@ if(AE_USE_BASIS_UNIVERSAL)
         )
     endif()
 endif()
+
+# ── ae_auto_convert_textures(<target> <src_dir> <dst_dir>) ───────────────────
+# Emscripten-only: converts every PNG/JPG under <src_dir> to KTX2 in the
+# corresponding path under <dst_dir>.  Each file is its own custom command so
+# only changed images are re-converted.  Adds CMAKE_CONFIGURE_DEPENDS on
+# <src_dir> so new files are picked up on the next configure.
+# No-op on native builds or when AE_USE_BASIS_UNIVERSAL is off.
+function(ae_auto_convert_textures TARGET SRC_DIR DST_DIR)
+    if(NOT EMSCRIPTEN OR NOT AE_USE_BASIS_UNIVERSAL)
+        return()
+    endif()
+    if(NOT EXISTS "${SRC_DIR}")
+        return()
+    endif()
+    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${SRC_DIR}")
+
+    file(GLOB_RECURSE _IMGS
+        LIST_DIRECTORIES false
+        "${SRC_DIR}/*.png" "${SRC_DIR}/*.jpg" "${SRC_DIR}/*.jpeg"
+    )
+    if(NOT _IMGS)
+        return()
+    endif()
+
+    set(_OUTPUTS)
+    foreach(_IMG ${_IMGS})
+        file(RELATIVE_PATH _REL "${SRC_DIR}" "${_IMG}")
+        get_filename_component(_STEM    "${_REL}" NAME_WE)
+        get_filename_component(_SUBDIR  "${_REL}" DIRECTORY)
+        set(_OUT_DIR "${DST_DIR}/${_SUBDIR}")
+        set(_KTX2    "${_OUT_DIR}/${_STEM}.ktx2")
+        list(APPEND _OUTPUTS "${_KTX2}")
+
+        add_custom_command(
+            OUTPUT "${_KTX2}"
+            COMMAND "${CMAKE_COMMAND}" -E make_directory "${_OUT_DIR}"
+            COMMAND "${BASISU_EXECUTABLE}" -ktx2 -mipmap "${_IMG}" -output_path "${_OUT_DIR}"
+            DEPENDS "${_IMG}" basisu_host_tool
+            COMMENT "Converting ${_STEM} → KTX2"
+            VERBATIM
+        )
+    endforeach()
+
+    add_custom_target(${TARGET}_convert_textures ALL DEPENDS ${_OUTPUTS})
+    add_dependencies(${TARGET} ${TARGET}_convert_textures)
+endfunction()
 
 add_library(AtmosphericEngine STATIC ${SOURCES} ${SOURCES_EXT})
 

@@ -1,4 +1,5 @@
 #include "asset_manager.hpp"
+#include <spdlog/spdlog.h>
 #include "console.hpp"
 #include "file_system.hpp"
 #include "job_system.hpp"
@@ -165,9 +166,17 @@ std::shared_ptr<Image> AssetManager::LoadImage(const std::string& path) {
         return it->second;
     }
 
+    // Read raw bytes via FileSystem to support transparent web prefetching
+    FileSystem::Bytes fileData = FileSystem::Get().ReadSync(path);
+    if (fileData.empty()) {
+        spdlog::warn("AssetManager::LoadImage: Failed to read file bytes via FileSystem at '{}'", path);
+        return nullptr;
+    }
+
     int width, height, numChannels;
-    if (!stbi_info(path.c_str(), &width, &height, &numChannels)) {
-        throw std::runtime_error(fmt::format("Failed to load image at {}!\n", path));
+    if (!stbi_info_from_memory(fileData.data(), (int)fileData.size(), &width, &height, &numChannels)) {
+        spdlog::warn("stbi_info_from_memory: Failed to read image metadata at '{}'", path);
+        return nullptr;
     }
 
     int desiredChannels = 0;
@@ -186,14 +195,13 @@ std::shared_ptr<Image> AssetManager::LoadImage(const std::string& path) {
         break;
     }
 
-    uint8_t* data = stbi_load(path.c_str(), &width, &height, &numChannels, desiredChannels);
+    uint8_t* data = stbi_load_from_memory(fileData.data(), (int)fileData.size(), &width, &height, &numChannels, desiredChannels);
     if (data) {
         auto image = std::make_shared<Image>(width, height, desiredChannels, data);
         stbi_image_free(data);
         _imageCache[path] = image;
         return image;
     } else {
-        stbi_image_free(data);
         return nullptr;
     }
 }
@@ -224,6 +232,13 @@ void AssetManager::LoadDefaultShaders() {
                     "hdr",
                     { .vert = "assets/shaders/hdr.vert", .frag = "assets/shaders/hdr_ca.frag" },
                   },
+#ifdef __EMSCRIPTEN__
+                  {
+                    "terrain",
+                    { .vert = "assets/shaders/simple.vert",
+                      .frag = "assets/shaders/flat.frag" },
+                  },
+#else
                   {
                     "terrain",
                     { .vert = "assets/shaders/terrain.vert",
@@ -231,6 +246,7 @@ void AssetManager::LoadDefaultShaders() {
                       .tesc = "assets/shaders/terrain.tesc",
                       .tese = "assets/shaders/terrain.tese" },
                   },
+#endif
                   { "canvas", { .vert = "assets/shaders/canvas.vert", .frag = "assets/shaders/canvas.frag" } },
                   { "geometry", { .vert = "assets/shaders/geometry.vert", .frag = "assets/shaders/geometry.frag" } },
                   { "lighting", { .vert = "assets/shaders/lighting.vert", .frag = "assets/shaders/lighting.frag" } } });
@@ -352,6 +368,23 @@ void AssetManager::LoadDefaultTextures() {
     textures.clear();
 }
 
+#if defined(AE_USE_BASIS_UNIVERSAL) && defined(__EMSCRIPTEN__)
+// Helper to swap standard image extensions to .ktx2 under WebAssembly
+static std::string RedirectToKTX2(const std::string& path) {
+    if (path.find("aim.png") != std::string::npos || path.find("heightmap") != std::string::npos) {
+        return path; // Keep UI aim.png as PNG and heightmaps as JPG
+    }
+    size_t extPos = path.find_last_of('.');
+    if (extPos != std::string::npos) {
+        std::string ext = path.substr(extPos);
+        if (ext == ".jpg" || ext == ".jpeg" || ext == ".png") {
+            return path.substr(0, extPos) + ".ktx2";
+        }
+    }
+    return path;
+}
+#endif
+
 void AssetManager::LoadTextures(const std::vector<std::string>& paths) {
     int oldCount = (int)textures.size();
     int newCount = (int)paths.size();
@@ -366,7 +399,10 @@ void AssetManager::LoadTextures(const std::vector<std::string>& paths) {
     std::vector<std::string> regularPaths;
 
     for (int i = 0; i < newCount; i++) {
-        const auto& path = paths[i];
+        std::string path = paths[i];
+#if defined(AE_USE_BASIS_UNIVERSAL) && defined(__EMSCRIPTEN__)
+        path = RedirectToKTX2(path);
+#endif
         if (path.size() >= 5 && path.compare(path.size() - 5, 5, ".ktx2") == 0) {
 #ifdef AE_USE_BASIS_UNIVERSAL
             GLuint texID = LoadKTX2Texture(path);
@@ -403,7 +439,11 @@ void AssetManager::LoadTextures(const std::vector<std::string>& paths) {
         GLuint texID = regularTexIDs[j];
 
         if (!img) {
-            throw std::runtime_error(fmt::format("Failed to load texture at {}\n", regularPaths[j]));
+            spdlog::warn("Failed to load texture at '{}', using default fallback texture.", regularPaths[j]);
+            // Re-use the default texture (defaultTextures[0]) as a safe fallback
+            textures[oldCount + i] = defaultTextures.empty() ? 0u : defaultTextures[0];
+            _textureCache[regularPaths[j]] = textures[oldCount + i];
+            continue;
         }
 
         textures[oldCount + i]    = texID;
@@ -436,24 +476,29 @@ void AssetManager::LoadTextures(const std::vector<std::string>& paths) {
 }
 
 GLuint AssetManager::CreateTexture(const std::string& path) {
+    std::string redirectedPath = path;
+#if defined(AE_USE_BASIS_UNIVERSAL) && defined(__EMSCRIPTEN__)
+    redirectedPath = RedirectToKTX2(redirectedPath);
+#endif
+
     // Return cached texture (GLuint) if already uploaded.
-    auto it = _textureCache.find(path);
+    auto it = _textureCache.find(redirectedPath);
     if (it != _textureCache.end()) {
         return it->second; // stored as GL texture ID by both loaders
     }
 
 #ifdef AE_USE_BASIS_UNIVERSAL
     // Route .ktx2 files to the GPU-compressed loader.
-    if (path.size() >= 5 && path.compare(path.size() - 5, 5, ".ktx2") == 0) {
-        GLuint texID = LoadKTX2Texture(path);
+    if (redirectedPath.size() >= 5 && redirectedPath.compare(redirectedPath.size() - 5, 5, ".ktx2") == 0) {
+        GLuint texID = LoadKTX2Texture(redirectedPath);
         textures.push_back(texID);
-        _textureCache[path] = texID;
+        _textureCache[redirectedPath] = texID;
         return texID;
     }
 #endif
 
     // Regular image (PNG / JPG / etc.) via stb_image.
-    auto image = LoadImage(path);
+    auto image = LoadImage(redirectedPath);
     return CreateTextureFromImage(image);
 }
 
@@ -542,7 +587,7 @@ GLuint AssetManager::LoadKTX2Texture(const std::string& path) {
     // hand-off pattern).  On web the cache is pre-populated by Prefetch();
     // on native it falls back to a synchronous disk read.
     //
-    std::vector<uint8_t> fileData = FileSystem::Get().ConsumeSync(path);
+    std::vector<uint8_t> fileData = FileSystem::Get().ReadSync(path);
 
     if (fileData.empty())
         throw std::runtime_error(fmt::format("Failed to load KTX2 file: {}", path));
@@ -559,13 +604,7 @@ GLuint AssetManager::LoadKTX2Texture(const std::string& path) {
     //
     bool hasAlpha = ktx2Dec.get_has_alpha();
 
-#ifdef __EMSCRIPTEN__
-    // ETC2 is part of the GLES3 core — always available in WebGL2.
-    basist::transcoder_texture_format basisFmt = hasAlpha
-        ? basist::transcoder_texture_format::cTFETC2_RGBA
-        : basist::transcoder_texture_format::cTFETC1_RGB;
-#else
-    // Desktop: S3TC first (ETC1S→DXT quality is excellent), ETC2 as fallback.
+    // Unified format check: prefer S3TC (DXT) on both native and web, falling back to ETC2
     basist::transcoder_texture_format basisFmt;
     if (HasGLExtension("GL_EXT_texture_compression_s3tc")) {
         basisFmt = hasAlpha
@@ -576,7 +615,6 @@ GLuint AssetManager::LoadKTX2Texture(const std::string& path) {
             ? basist::transcoder_texture_format::cTFETC2_RGBA
             : basist::transcoder_texture_format::cTFETC1_RGB;
     }
-#endif
 
     GLenum   glFmt        = BasisToGLFormat(basisFmt);
     uint32_t bytesPerBlk  = BasisBytesPerBlock(basisFmt);

@@ -28,6 +28,10 @@ static std::string PreprocessShaderForWebGL(std::string src, ShaderType type) {
                 src = "precision highp float;\nprecision highp int;\n" + src;
             }
         }
+    } else if (type == ShaderType::VERTEX) {
+        // Transform instanced matrix attribute to uniform for non-instanced WebGL 2.0 fallback
+        std::regex worldAttrRegex(R"(layout\s*\(\s*location\s*=\s*5\s*\)\s*in\s+mat4\s+World\s*;)");
+        src = std::regex_replace(src, worldAttrRegex, "uniform mat4 World;");
     }
     return src;
 }
@@ -81,19 +85,19 @@ ShaderProgram::ShaderProgram(const ShaderProgramProps& props) : _program(glCreat
 
     glLinkProgram(_program);
 
-    // GLint isLinked;
-    // glGetProgramiv(_program, GL_LINK_STATUS, &isLinked);
-    // if (isLinked == GL_FALSE) {
-    //     GLint maxLength = 0;
-    //     glGetProgramiv(_program, GL_INFO_LOG_LENGTH, &maxLength);
+    GLint isLinked;
+    glGetProgramiv(_program, GL_LINK_STATUS, &isLinked);
+    if (isLinked == GL_FALSE) {
+        GLint maxLength = 0;
+        glGetProgramiv(_program, GL_INFO_LOG_LENGTH, &maxLength);
 
-    //     std::vector<GLchar> infoLog(maxLength);
-    //     glGetProgramInfoLog(_program, maxLength, &maxLength, &infoLog[0]);
+        std::vector<GLchar> infoLog(maxLength);
+        glGetProgramInfoLog(_program, maxLength, &maxLength, &infoLog[0]);
 
-    //     glDeleteProgram(_program);
+        glDeleteProgram(_program);
 
-    //     throw std::runtime_error(fmt::format("Shader link error: {}", infoLog.data()));
-    // }
+        throw std::runtime_error(fmt::format("Shader link error: {}", infoLog.data()));
+    }
 }
 
 ShaderProgram::ShaderProgram(

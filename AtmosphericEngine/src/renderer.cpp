@@ -331,7 +331,11 @@ void Renderer::CreateRTs(const RenderTargetProps& props) {
         omniShadowMaps[i] = map;
     }
 
-#ifndef __EMSCRIPTEN__
+#ifdef __EMSCRIPTEN__
+    glBindFramebuffer(GL_FRAMEBUFFER, shadowFBO);
+    GLenum drawBuffers[] = { GL_NONE };
+    glDrawBuffers(1, drawBuffers);
+#else
     glBindFramebuffer(GL_FRAMEBUFFER, shadowFBO);
     for (int i = 0; i < (int)uniShadowMaps.size(); ++i) {
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, uniShadowMaps[i], 0);
@@ -568,6 +572,10 @@ void ShadowPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
     auto mainLight = ctx->GetMainLight();
 
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, renderer.uniShadowMaps[0], 0);
+#ifdef __EMSCRIPTEN__
+    GLenum drawBuffers[] = { GL_NONE };
+    glDrawBuffers(1, drawBuffers);
+#endif
     glClear(GL_DEPTH_BUFFER_BIT);
     auto depthShader = ctx->GetShader("depth");
     depthShader->Activate();
@@ -593,6 +601,15 @@ void ShadowPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
         if (mesh->type == MeshType::PRIM) {
             glBindVertexArray(mesh->vao);
 
+#ifdef __EMSCRIPTEN__
+            // WebGL 2.0 Fallback: Non-instanced draw calls using World uniform
+            for (const auto& inst : instances) {
+                depthShader->SetUniform(std::string("World"), inst.modelMatrix);
+                glDrawElements(
+                  mesh->GetMaterial()->primitiveType, mesh->triCount * 3, GL_UNSIGNED_SHORT, 0
+                );
+            }
+#else
             // Upload ALL instances for this batch once
             glBindBuffer(GL_ARRAY_BUFFER, mesh->ibo);
             glBufferData(GL_ARRAY_BUFFER, instances.size() * sizeof(InstanceData), instances.data(), GL_DYNAMIC_DRAW);
@@ -601,6 +618,7 @@ void ShadowPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
             glDrawElementsInstanced(
               mesh->GetMaterial()->primitiveType, mesh->triCount * 3, GL_UNSIGNED_SHORT, 0, instances.size()
             );
+#endif
         }
         glBindVertexArray(0);
     }
@@ -623,6 +641,10 @@ void ShadowPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
         for (int f = 0; f < 6; ++f) {
             GLenum face = GL_TEXTURE_CUBE_MAP_POSITIVE_X + f;
             glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, face, renderer.omniShadowMaps[i], 0);
+#ifdef __EMSCRIPTEN__
+            GLenum drawBuffers[] = { GL_NONE };
+            glDrawBuffers(1, drawBuffers);
+#endif
             glClear(GL_DEPTH_BUFFER_BIT);
             depthCubemapShader->SetUniform(std::string("LightPosition"), l->GetPosition());
             depthCubemapShader->SetUniform(
@@ -646,6 +668,15 @@ void ShadowPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
                 if (mesh->type == MeshType::PRIM) {
                     glBindVertexArray(mesh->vao);
 
+#ifdef __EMSCRIPTEN__
+                    // WebGL 2.0 Fallback: Non-instanced draw calls using World uniform
+                    for (const auto& inst : instances) {
+                        depthCubemapShader->SetUniform(std::string("World"), inst.modelMatrix);
+                        glDrawElements(
+                          mesh->GetMaterial()->primitiveType, mesh->triCount * 3, GL_UNSIGNED_SHORT, 0
+                        );
+                    }
+#else
                     // Upload ALL instances for this batch once
                     glBindBuffer(GL_ARRAY_BUFFER, mesh->ibo);
                     glBufferData(
@@ -656,6 +687,7 @@ void ShadowPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
                     glDrawElementsInstanced(
                       mesh->GetMaterial()->primitiveType, mesh->triCount * 3, GL_UNSIGNED_SHORT, 0, instances.size()
                     );
+#endif
                 }
                 glBindVertexArray(0);
             }
@@ -681,14 +713,7 @@ void ForwardOpaquePass::Execute(GraphicsServer* ctx, Renderer& renderer) {
         glActiveTexture(GL_TEXTURE0 + UNI_SHADOW_MAP_COUNT + i);
         glBindTexture(GL_TEXTURE_CUBE_MAP, renderer.omniShadowMaps[i]);
     }
-    for (int i = 0; i < assetManager.GetDefaultTextures().size(); ++i) {
-        glActiveTexture(GL_TEXTURE0 + DEFAULT_TEXTURE_BASE_INDEX + i);
-        glBindTexture(GL_TEXTURE_2D, assetManager.GetDefaultTextures()[i]);
-    }
-    for (int i = 0; i < assetManager.GetTextures().size(); ++i) {
-        glActiveTexture(GL_TEXTURE0 + SCENE_TEXTURE_BASE_INDEX + i);
-        glBindTexture(GL_TEXTURE_2D, assetManager.GetTextures()[i]);
-    }
+    // Global static binding removed; textures are now dynamically bound per draw call
 
     auto mainLight = ctx->GetMainLight();
     glm::vec3 eyePos = ctx->GetMainCamera()->GetEyePosition();
@@ -755,7 +780,7 @@ void ForwardOpaquePass::Execute(GraphicsServer* ctx, Renderer& renderer) {
 
         switch (mesh->type) {
 
-        case MeshType::TERRAIN:
+        case MeshType::TERRAIN: {
             terrainShader->Activate();
             terrainShader->SetUniform(std::string("cam_pos"), eyePos);
             terrainShader->SetUniform(std::string("main_light.direction"), mainLight->direction);
@@ -773,9 +798,14 @@ void ForwardOpaquePass::Execute(GraphicsServer* ctx, Renderer& renderer) {
 
             terrainShader->SetUniform(std::string("tessellation_factor"), (float)16.0);
             terrainShader->SetUniform(std::string("height_scale"), (float)32.0);
-            terrainShader->SetUniform(
-              std::string("height_map_unit"), SCENE_TEXTURE_BASE_INDEX + mesh->GetMaterial()->heightMap
-            );
+            glActiveTexture(GL_TEXTURE7);
+            int heightMap = mesh->GetMaterial()->heightMap;
+            if (heightMap >= 0 && (size_t)heightMap < assetManager.GetTextures().size()) {
+                glBindTexture(GL_TEXTURE_2D, assetManager.GetTextures()[heightMap]);
+            } else {
+                glBindTexture(GL_TEXTURE_2D, 0);
+            }
+            terrainShader->SetUniform(std::string("height_map_unit"), 7);
             terrainShader->SetUniform(std::string("ProjectionView"), projectionView);
 
             // Terrain is usually a single instance, but we handle it in the batch loop
@@ -790,6 +820,7 @@ void ForwardOpaquePass::Execute(GraphicsServer* ctx, Renderer& renderer) {
 #endif
             glBindVertexArray(0);
             break;
+        }
 
         case MeshType::SKY:
             // TODO: implement skybox rendering
@@ -849,46 +880,79 @@ void ForwardOpaquePass::Execute(GraphicsServer* ctx, Renderer& renderer) {
             colorShader->SetUniform(std::string("surf_params.ambient"), mesh->GetMaterial()->ambient);
             colorShader->SetUniform(std::string("surf_params.shininess"), mesh->GetMaterial()->shininess);
 
-            // Material textures
-            if (mesh->GetMaterial()->baseMap >= 0) {
-                colorShader->SetUniform(
-                  std::string("base_map_unit"), SCENE_TEXTURE_BASE_INDEX + mesh->GetMaterial()->baseMap
-                );
+            // Material textures - dynamically bound to Units 2-6
+            // Base Map (Unit 2)
+            glActiveTexture(GL_TEXTURE2);
+            int baseMap = mesh->GetMaterial()->baseMap;
+            if (baseMap >= 0 && (size_t)baseMap < assetManager.GetTextures().size()) {
+                glBindTexture(GL_TEXTURE_2D, assetManager.GetTextures()[baseMap]);
+            } else if (assetManager.GetDefaultTextures().size() > 0) {
+                glBindTexture(GL_TEXTURE_2D, assetManager.GetDefaultTextures()[0]);
             } else {
-                colorShader->SetUniform(std::string("base_map_unit"), DEFAULT_TEXTURE_BASE_INDEX + 0);
+                glBindTexture(GL_TEXTURE_2D, 0);
             }
-            if (mesh->GetMaterial()->normalMap >= 0) {
-                colorShader->SetUniform(
-                  std::string("normal_map_unit"), SCENE_TEXTURE_BASE_INDEX + mesh->GetMaterial()->normalMap
-                );
+            colorShader->SetUniform(std::string("base_map_unit"), 2);
+
+            // Normal Map (Unit 3)
+            glActiveTexture(GL_TEXTURE3);
+            int normalMap = mesh->GetMaterial()->normalMap;
+            if (normalMap >= 0 && (size_t)normalMap < assetManager.GetTextures().size()) {
+                glBindTexture(GL_TEXTURE_2D, assetManager.GetTextures()[normalMap]);
+            } else if (assetManager.GetDefaultTextures().size() > 1) {
+                glBindTexture(GL_TEXTURE_2D, assetManager.GetDefaultTextures()[1]);
             } else {
-                colorShader->SetUniform(std::string("normal_map_unit"), DEFAULT_TEXTURE_BASE_INDEX + 1);
+                glBindTexture(GL_TEXTURE_2D, 0);
             }
-            if (mesh->GetMaterial()->aoMap >= 0) {
-                colorShader->SetUniform(
-                  std::string("ao_map_unit"), SCENE_TEXTURE_BASE_INDEX + mesh->GetMaterial()->aoMap
-                );
+            colorShader->SetUniform(std::string("normal_map_unit"), 3);
+
+            // AO Map (Unit 4)
+            glActiveTexture(GL_TEXTURE4);
+            int aoMap = mesh->GetMaterial()->aoMap;
+            if (aoMap >= 0 && (size_t)aoMap < assetManager.GetTextures().size()) {
+                glBindTexture(GL_TEXTURE_2D, assetManager.GetTextures()[aoMap]);
+            } else if (assetManager.GetDefaultTextures().size() > 2) {
+                glBindTexture(GL_TEXTURE_2D, assetManager.GetDefaultTextures()[2]);
             } else {
-                colorShader->SetUniform(std::string("ao_map_unit"), DEFAULT_TEXTURE_BASE_INDEX + 2);
+                glBindTexture(GL_TEXTURE_2D, 0);
             }
-            if (mesh->GetMaterial()->roughnessMap >= 0) {
-                colorShader->SetUniform(
-                  std::string("roughness_map_unit"), SCENE_TEXTURE_BASE_INDEX + mesh->GetMaterial()->roughnessMap
-                );
+            colorShader->SetUniform(std::string("ao_map_unit"), 4);
+
+            // Roughness Map (Unit 5)
+            glActiveTexture(GL_TEXTURE5);
+            int roughnessMap = mesh->GetMaterial()->roughnessMap;
+            if (roughnessMap >= 0 && (size_t)roughnessMap < assetManager.GetTextures().size()) {
+                glBindTexture(GL_TEXTURE_2D, assetManager.GetTextures()[roughnessMap]);
+            } else if (assetManager.GetDefaultTextures().size() > 3) {
+                glBindTexture(GL_TEXTURE_2D, assetManager.GetDefaultTextures()[3]);
             } else {
-                colorShader->SetUniform(std::string("roughness_map_unit"), DEFAULT_TEXTURE_BASE_INDEX + 3);
+                glBindTexture(GL_TEXTURE_2D, 0);
             }
-            if (mesh->GetMaterial()->metallicMap >= 0) {
-                colorShader->SetUniform(
-                  std::string("metallic_map_unit"), SCENE_TEXTURE_BASE_INDEX + mesh->GetMaterial()->metallicMap
-                );
+            colorShader->SetUniform(std::string("roughness_map_unit"), 5);
+
+            // Metallic Map (Unit 6)
+            glActiveTexture(GL_TEXTURE6);
+            int metallicMap = mesh->GetMaterial()->metallicMap;
+            if (metallicMap >= 0 && (size_t)metallicMap < assetManager.GetTextures().size()) {
+                glBindTexture(GL_TEXTURE_2D, assetManager.GetTextures()[metallicMap]);
+            } else if (assetManager.GetDefaultTextures().size() > 4) {
+                glBindTexture(GL_TEXTURE_2D, assetManager.GetDefaultTextures()[4]);
             } else {
-                colorShader->SetUniform(std::string("metallic_map_unit"), DEFAULT_TEXTURE_BASE_INDEX + 4);
+                glBindTexture(GL_TEXTURE_2D, 0);
             }
+            colorShader->SetUniform(std::string("metallic_map_unit"), 6);
 
             glBindVertexArray(mesh->vao);
             glBindBuffer(GL_ARRAY_BUFFER, mesh->ibo);
 
+#ifdef __EMSCRIPTEN__
+            // WebGL 2.0 Fallback: Non-instanced draw calls using World uniform
+            for (const auto& inst : instances) {
+                colorShader->SetUniform(std::string("World"), inst.modelMatrix);
+                glDrawElements(
+                  mesh->GetMaterial()->primitiveType, mesh->triCount * 3, GL_UNSIGNED_SHORT, 0
+                );
+            }
+#else
             // Upload batched instance data
             if (!instances.empty()) {
                 glBufferData(
@@ -898,6 +962,7 @@ void ForwardOpaquePass::Execute(GraphicsServer* ctx, Renderer& renderer) {
                   mesh->GetMaterial()->primitiveType, mesh->triCount * 3, GL_UNSIGNED_SHORT, 0, instances.size()
                 );
             }
+#endif
 
             glBindVertexArray(0);
             break;
@@ -947,14 +1012,7 @@ void DeferredGeometryPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
     //     glBindTexture(GL_TEXTURE_CUBE_MAP, omniShadowMaps[i]);
     // }
     auto& assetManager = AssetManager::Get();
-    for (int i = 0; i < assetManager.GetDefaultTextures().size(); ++i) {
-        glActiveTexture(GL_TEXTURE0 + DEFAULT_TEXTURE_BASE_INDEX + i);
-        glBindTexture(GL_TEXTURE_2D, assetManager.GetDefaultTextures()[i]);
-    }
-    for (int i = 0; i < assetManager.GetTextures().size(); ++i) {
-        glActiveTexture(GL_TEXTURE0 + SCENE_TEXTURE_BASE_INDEX + i);
-        glBindTexture(GL_TEXTURE_2D, assetManager.GetTextures()[i]);
-    }
+    // Global static binding removed; textures are now dynamically bound per draw call
 
     glClearColor(renderer.clearColor.r, renderer.clearColor.g, renderer.clearColor.b, renderer.clearColor.a);
     glClearDepthf(1.0f);
@@ -995,33 +1053,66 @@ void DeferredGeometryPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
             break;
         case MeshType::PRIM:
         default:
-            if (mesh->GetMaterial()->baseMap >= 0) {
-                geometryShader->SetUniform("baseMap", SCENE_TEXTURE_BASE_INDEX + mesh->GetMaterial()->baseMap);
+            // Material textures - dynamically bound to Units 2-6
+            // Base Map (Unit 2)
+            glActiveTexture(GL_TEXTURE2);
+            int baseMap = mesh->GetMaterial()->baseMap;
+            if (baseMap >= 0 && (size_t)baseMap < assetManager.GetTextures().size()) {
+                glBindTexture(GL_TEXTURE_2D, assetManager.GetTextures()[baseMap]);
+            } else if (assetManager.GetDefaultTextures().size() > 0) {
+                glBindTexture(GL_TEXTURE_2D, assetManager.GetDefaultTextures()[0]);
             } else {
-                geometryShader->SetUniform("baseMap", DEFAULT_TEXTURE_BASE_INDEX + 0);
+                glBindTexture(GL_TEXTURE_2D, 0);
             }
-            if (mesh->GetMaterial()->normalMap >= 0) {
-                geometryShader->SetUniform("normalMap", SCENE_TEXTURE_BASE_INDEX + mesh->GetMaterial()->normalMap);
+            geometryShader->SetUniform("baseMap", 2);
+
+            // Normal Map (Unit 3)
+            glActiveTexture(GL_TEXTURE3);
+            int normalMap = mesh->GetMaterial()->normalMap;
+            if (normalMap >= 0 && (size_t)normalMap < assetManager.GetTextures().size()) {
+                glBindTexture(GL_TEXTURE_2D, assetManager.GetTextures()[normalMap]);
+            } else if (assetManager.GetDefaultTextures().size() > 1) {
+                glBindTexture(GL_TEXTURE_2D, assetManager.GetDefaultTextures()[1]);
             } else {
-                geometryShader->SetUniform("normalMap", DEFAULT_TEXTURE_BASE_INDEX + 1);
+                glBindTexture(GL_TEXTURE_2D, 0);
             }
-            if (mesh->GetMaterial()->aoMap >= 0) {
-                geometryShader->SetUniform("aoMap", SCENE_TEXTURE_BASE_INDEX + mesh->GetMaterial()->aoMap);
+            geometryShader->SetUniform("normalMap", 3);
+
+            // AO Map (Unit 4)
+            glActiveTexture(GL_TEXTURE4);
+            int aoMap = mesh->GetMaterial()->aoMap;
+            if (aoMap >= 0 && (size_t)aoMap < assetManager.GetTextures().size()) {
+                glBindTexture(GL_TEXTURE_2D, assetManager.GetTextures()[aoMap]);
+            } else if (assetManager.GetDefaultTextures().size() > 2) {
+                glBindTexture(GL_TEXTURE_2D, assetManager.GetDefaultTextures()[2]);
             } else {
-                geometryShader->SetUniform("aoMap", DEFAULT_TEXTURE_BASE_INDEX + 2);
+                glBindTexture(GL_TEXTURE_2D, 0);
             }
-            if (mesh->GetMaterial()->roughnessMap >= 0) {
-                geometryShader->SetUniform(
-                  "roughnessMap", SCENE_TEXTURE_BASE_INDEX + mesh->GetMaterial()->roughnessMap
-                );
+            geometryShader->SetUniform("aoMap", 4);
+
+            // Roughness Map (Unit 5)
+            glActiveTexture(GL_TEXTURE5);
+            int roughnessMap = mesh->GetMaterial()->roughnessMap;
+            if (roughnessMap >= 0 && (size_t)roughnessMap < assetManager.GetTextures().size()) {
+                glBindTexture(GL_TEXTURE_2D, assetManager.GetTextures()[roughnessMap]);
+            } else if (assetManager.GetDefaultTextures().size() > 3) {
+                glBindTexture(GL_TEXTURE_2D, assetManager.GetDefaultTextures()[3]);
             } else {
-                geometryShader->SetUniform("roughnessMap", DEFAULT_TEXTURE_BASE_INDEX + 3);
+                glBindTexture(GL_TEXTURE_2D, 0);
             }
-            if (mesh->GetMaterial()->metallicMap >= 0) {
-                geometryShader->SetUniform("metallicMap", SCENE_TEXTURE_BASE_INDEX + mesh->GetMaterial()->metallicMap);
+            geometryShader->SetUniform("roughnessMap", 5);
+
+            // Metallic Map (Unit 6)
+            glActiveTexture(GL_TEXTURE6);
+            int metallicMap = mesh->GetMaterial()->metallicMap;
+            if (metallicMap >= 0 && (size_t)metallicMap < assetManager.GetTextures().size()) {
+                glBindTexture(GL_TEXTURE_2D, assetManager.GetTextures()[metallicMap]);
+            } else if (assetManager.GetDefaultTextures().size() > 4) {
+                glBindTexture(GL_TEXTURE_2D, assetManager.GetDefaultTextures()[4]);
             } else {
-                geometryShader->SetUniform("metallicMap", DEFAULT_TEXTURE_BASE_INDEX + 4);
+                glBindTexture(GL_TEXTURE_2D, 0);
             }
+            geometryShader->SetUniform("metallicMap", 6);
 
             glBindVertexArray(mesh->vao);
             glBindBuffer(GL_ARRAY_BUFFER, mesh->ibo);

@@ -198,6 +198,7 @@ void GraphicsServer::DrawImGui(float dt) {
         if (ImGui::Button("Post-processing")) {
             renderer->EnablePostProcess(!renderer->postProcessEnabled);
         }
+        ImGui::Text("Opaque Queue Size: %d", (int)renderer->GetOpaqueQueue().size());
 
         ImGui::Separator();
 

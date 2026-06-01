@@ -39,7 +39,14 @@ void Script::Init(Application* app)
 
 void Script::Process(float dt)
 {
-    Run(fmt::format("update({})", dt));
+    sol::protected_function updateFunc = _env["update"];
+    if (updateFunc.valid()) {
+        auto result = updateFunc(dt);
+        if (!result.valid()) {
+            sol::error err = result;
+            fmt::print(stderr, "[Script] Error in Lua update callback: {}\n", err.what());
+        }
+    }
 }
 
 // TODO: an extra argument is needed here
@@ -106,7 +113,7 @@ SceneDef Script::GetScene(const sol::table& sceneData)
             .baseMap = (int)materialData.get_or("baseMapId", -1),
             .normalMap = (int)materialData.get_or("normalMapId", -1),
             .aoMap = (int)materialData.get_or("aoMapId", -1),
-            .roughnessMap = (int)materialData.get_or("roughtnessMapId", -1),
+            .roughnessMap = (int)materialData.get_or("roughnessMapId", (int)materialData.get_or("roughtnessMapId", -1)),
             .metallicMap = (int)materialData.get_or("metallicMapId", -1),
             .heightMap = (int)materialData.get_or("heightMapId", -1),
             .diffuse = glm::vec3(materialData["diffuse"][1], materialData["diffuse"][2], materialData["diffuse"][3]),
@@ -141,25 +148,23 @@ SceneDef Script::GetScene(const sol::table& sceneData)
             std::string componentType = cKey.as<std::string>();
             sol::table componentData = cVal;
             if (componentType == "camera") {
-                def.camera = {
-                    .isOrthographic = false,
-                    .perspective = {
-                        .fieldOfView = (float)componentData.get_or("field_of_view", glm::radians(60.f)),
-                        .aspectRatio = (float)componentData.get_or("aspect_ratio", 4.f / 3.f),
-                        .nearClip = (float)componentData.get_or("near_clip_plane", 0.1f),
-                        .farClip = (float)componentData.get_or("far_clip_plane", 1000.0f),
-                    },
-                    .verticalAngle = (float)componentData.get_or("vertical_angle", 0),
-                    .horizontalAngle = (float)componentData.get_or("horizontal_angle", 0),
-                    .eyeOffset = glm::vec3(
-                        (float)componentData.get_or("eye_offset.x", 0),
-                        (float)componentData.get_or("eye_offset.y", 0),
-                        (float)componentData.get_or("eye_offset.z", 0)
-                    )
-                };
+                CameraProps cameraProps;
+                cameraProps.isOrthographic = false;
+                cameraProps.perspective.fieldOfView = (float)componentData.get_or("field_of_view", glm::radians(60.f));
+                cameraProps.perspective.aspectRatio = (float)componentData.get_or("aspect_ratio", 4.f / 3.f);
+                cameraProps.perspective.nearClip = (float)componentData.get_or("near_clip_plane", 0.1f);
+                cameraProps.perspective.farClip = (float)componentData.get_or("far_clip_plane", 1000.0f);
+                cameraProps.verticalAngle = (float)componentData.get_or("vertical_angle", 0);
+                cameraProps.horizontalAngle = (float)componentData.get_or("horizontal_angle", 0);
+                cameraProps.eyeOffset = glm::vec3(
+                    (float)componentData.get_or("eye_offset.x", 0),
+                    (float)componentData.get_or("eye_offset.y", 0),
+                    (float)componentData.get_or("eye_offset.z", 0)
+                );
+                def.camera = cameraProps;
             } else if (componentType == "light") {
                 auto lightType = static_cast<LightType>(componentData.get_or("type", 1));
-                def.light = {
+                def.light = LightProps{
                     .type = lightType,
                     .ambient = glm::vec3(
                         componentData["ambient"][1],

@@ -281,7 +281,7 @@ void Window::MainLoop(std::function<void(float, float)> callback)
         glfwSwapBuffers(static_cast<GLFWwindow*>(ctx.window->_internal));
     };
 
-    LoopContext ctx = {
+    static LoopContext ctx = {
         callback,
         GetTime(),
         0,
@@ -290,7 +290,7 @@ void Window::MainLoop(std::function<void(float, float)> callback)
 #ifdef __EMSCRIPTEN__
     static LoopContext* ctxPtr = &ctx;
     auto em_callback = [](void* arg) {
-        auto ctx = *static_cast<LoopContext*>(arg);
+        auto& ctx = *static_cast<LoopContext*>(arg);
         glfwPollEvents();
 
         float currTime = ctx.window->GetTime();

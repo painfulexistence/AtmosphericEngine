@@ -61,17 +61,26 @@ static FileSystem::Bytes ReadFromDisk(const std::string& path) {
     return buf;
 }
 
+static std::string NormalizePath(const std::string& path) {
+    if (path.size() >= 2 && path[0] == '.' && path[1] == '/') {
+        return path.substr(2);
+    }
+    return path;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Cache helpers — identical on all platforms
 // ─────────────────────────────────────────────────────────────────────────────
 bool FileSystem::IsCached(const std::string& path) const {
+    std::string normPath = NormalizePath(path);
     std::lock_guard<std::mutex> lk(g_cacheMutex);
-    return g_cache.count(path) != 0;
+    return g_cache.count(normPath) != 0;
 }
 
 void FileSystem::EvictCache(const std::string& path) {
+    std::string normPath = NormalizePath(path);
     std::lock_guard<std::mutex> lk(g_cacheMutex);
-    g_cache.erase(path);
+    g_cache.erase(normPath);
 }
 
 void FileSystem::ClearCache() {
@@ -80,32 +89,35 @@ void FileSystem::ClearCache() {
 }
 
 bool FileSystem::Exists(const std::string& path) const {
-    if (IsCached(path)) return true;
-    return std::filesystem::exists(path);
+    std::string normPath = NormalizePath(path);
+    if (IsCached(normPath)) return true;
+    return std::filesystem::exists(normPath);
 }
 
 FileSystem::Bytes FileSystem::ReadSync(const std::string& path) {
+    std::string normPath = NormalizePath(path);
     {
         std::lock_guard<std::mutex> lk(g_cacheMutex);
-        auto it = g_cache.find(path);
+        auto it = g_cache.find(normPath);
         if (it != g_cache.end()) return it->second; // copy from cache
     }
 #ifdef __EMSCRIPTEN__
     // On web a cache-miss means Prefetch was not called — log and fail.
-    ENGINE_LOG("[FileSystem] ReadSync cache miss on web: '{}' — call Prefetch first", path);
+    ENGINE_LOG("[FileSystem] ReadSync cache miss on web: '{}' — call Prefetch first", normPath);
     return {};
 #else
-    auto bytes = ReadFromDisk(path);
+    auto bytes = ReadFromDisk(normPath);
     if (bytes.empty())
-        ENGINE_LOG("[FileSystem] ReadSync: failed to read '{}'", path);
+        ENGINE_LOG("[FileSystem] ReadSync: failed to read '{}'", normPath);
     return bytes;
 #endif
 }
 
 FileSystem::Bytes FileSystem::ConsumeSync(const std::string& path) {
+    std::string normPath = NormalizePath(path);
     {
         std::lock_guard<std::mutex> lk(g_cacheMutex);
-        auto it = g_cache.find(path);
+        auto it = g_cache.find(normPath);
         if (it != g_cache.end()) {
             FileSystem::Bytes result = std::move(it->second);
             g_cache.erase(it);
@@ -114,9 +126,9 @@ FileSystem::Bytes FileSystem::ConsumeSync(const std::string& path) {
     }
 #ifndef __EMSCRIPTEN__
     // Native: fall back to disk read on cache miss.
-    return ReadFromDisk(path);
+    return ReadFromDisk(normPath);
 #else
-    ENGINE_LOG("[FileSystem] ConsumeSync cache miss on web: '{}' — call Prefetch first", path);
+    ENGINE_LOG("[FileSystem] ConsumeSync cache miss on web: '{}' — call Prefetch first", normPath);
     return {};
 #endif
 }
@@ -247,15 +259,16 @@ void LaunchFetch(const std::string& path, FetchCtx* ctx) {
 // ── Public API (web) ──────────────────────────────────────────────────────────
 
 void FileSystem::ReadAsync(const std::string& path, ReadCallback cb) {
+    std::string normPath = NormalizePath(path);
     // Cache hit → immediate
     {
         std::lock_guard<std::mutex> lk(g_cacheMutex);
-        auto it = g_cache.find(path);
+        auto it = g_cache.find(normPath);
         if (it != g_cache.end()) { cb(it->second, true); return; }
     }
     // Cache miss → fetch asynchronously; callback fires in the browser event loop
-    auto* ctx = new FetchCtx{path, NeedsMemFS(path), std::move(cb), nullptr};
-    LaunchFetch(path, ctx);
+    auto* ctx = new FetchCtx{normPath, NeedsMemFS(normPath), std::move(cb), nullptr};
+    LaunchFetch(normPath, ctx);
 }
 
 void FileSystem::Prefetch(const std::vector<std::string>& paths,
@@ -266,8 +279,10 @@ void FileSystem::Prefetch(const std::vector<std::string>& paths,
     std::vector<std::string> pending;
     {
         std::lock_guard<std::mutex> lk(g_cacheMutex);
-        for (const auto& p : paths)
-            if (!g_cache.count(p)) pending.push_back(p);
+        for (const auto& p : paths) {
+            std::string normPath = NormalizePath(p);
+            if (!g_cache.count(normPath)) pending.push_back(normPath);
+        }
     }
     if (pending.empty()) { if (onDone) onDone(); return; }
 
@@ -289,20 +304,21 @@ void FileSystem::Prefetch(const std::vector<std::string>& paths,
 #include "job_system.hpp"
 
 void FileSystem::ReadAsync(const std::string& path, ReadCallback cb) {
+    std::string normPath = NormalizePath(path);
     // Cache hit → immediate
     {
         std::lock_guard<std::mutex> lk(g_cacheMutex);
-        auto it = g_cache.find(path);
+        auto it = g_cache.find(normPath);
         if (it != g_cache.end()) { cb(it->second, true); return; }
     }
     // Native: synchronous disk read; callback fires before ReadAsync returns
-    auto bytes = ReadFromDisk(path);
+    auto bytes = ReadFromDisk(normPath);
     bool ok    = !bytes.empty();
     if (ok) {
         std::lock_guard<std::mutex> lk(g_cacheMutex);
-        g_cache[path] = bytes;
+        g_cache[normPath] = bytes;
     } else {
-        ENGINE_LOG("[FileSystem] ReadAsync: failed to read '{}'", path);
+        ENGINE_LOG("[FileSystem] ReadAsync: failed to read '{}'", normPath);
     }
     cb(std::move(bytes), ok);
 }
@@ -313,8 +329,9 @@ void FileSystem::Prefetch(const std::vector<std::string>& paths,
 
     // Parallel disk reads via JobSystem worker threads
     for (const auto& p : paths) {
-        if (IsCached(p)) continue; // already cached, skip
-        auto pathCopy = p;
+        std::string normPath = NormalizePath(p);
+        if (IsCached(normPath)) continue; // already cached, skip
+        auto pathCopy = normPath;
         JobSystem::Get()->Execute([pathCopy](int /*threadID*/) {
             auto bytes = ReadFromDisk(pathCopy);
             if (!bytes.empty()) {

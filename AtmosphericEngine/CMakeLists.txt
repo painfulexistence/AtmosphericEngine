@@ -165,6 +165,11 @@ set(SOURCES
     src/mesh_builder.cpp
     src/shape_renderer_component.cpp
     src/scene_loader.cpp
+    src/script.cpp
+    src/character_controller_component.cpp
+    src/draw.cpp
+    src/hud_component.cpp
+    src/weapon_component.cpp
     ${FLATBUFFERS_GENERATED_DIR}/Scene_generated.h
 )
 if(NOT EMSCRIPTEN)
@@ -298,6 +303,9 @@ function(ae_auto_convert_textures TARGET SRC_DIR DST_DIR)
 
     set(_OUTPUTS)
     foreach(_IMG ${_IMGS})
+        if(_IMG MATCHES "heightmap")
+            continue()
+        endif()
         file(RELATIVE_PATH _REL "${SRC_DIR}" "${_IMG}")
         get_filename_component(_STEM    "${_REL}" NAME_WE)
         get_filename_component(_SUBDIR  "${_REL}" DIRECTORY)

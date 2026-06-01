@@ -104,6 +104,9 @@ void JobSystem::Init() {
 }
 
 void JobSystem::Execute(const Job& job) {
+#ifdef __EMSCRIPTEN__
+    job(0);
+#else
 #ifdef TRACY_ENABLE
     ZoneScoped;// Profile job submission
 #endif
@@ -122,16 +125,24 @@ void JobSystem::Execute(const Job& job) {
 
     // Notify potentially waiting worker threads?
     // Currently workers are busy-looping/yielding, so no notification needed unless we change to condition variables
+#endif
 }
 
 bool JobSystem::IsBusy() {
+#ifdef __EMSCRIPTEN__
+    return false;
+#else
 #ifdef TRACY_ENABLE
     ZoneScoped;
 #endif
     return finishedLabel.load() < currentLabel.load();
+#endif
 }
 
 void JobSystem::Wait() {
+#ifdef __EMSCRIPTEN__
+    return;
+#else
 #ifdef TRACY_ENABLE
     ZoneScoped;
 #endif
@@ -142,5 +153,6 @@ void JobSystem::Wait() {
     }
 #ifdef TRACY_ENABLE
     FrameMark;// Explicitly mark frame boundary if waiting for jobs concludes a logical frame
+#endif
 #endif
 }

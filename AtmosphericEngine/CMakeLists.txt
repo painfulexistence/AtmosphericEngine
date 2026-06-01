@@ -166,10 +166,6 @@ set(SOURCES
     src/shape_renderer_component.cpp
     src/scene_loader.cpp
     src/script.cpp
-    src/character_controller_component.cpp
-    src/draw.cpp
-    src/hud_component.cpp
-    src/weapon_component.cpp
     ${FLATBUFFERS_GENERATED_DIR}/Scene_generated.h
 )
 if(NOT EMSCRIPTEN)

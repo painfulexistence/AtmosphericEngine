@@ -53,7 +53,9 @@ void Application::Run() {
 #endif
     console.Init(this);
     input.Init(this);
+#ifndef __EMSCRIPTEN__
     audio.Init(this);
+#endif
     graphics.Init(this);
     physics.Init(this);// Note that physics debug drawer is dependent on graphics server
     physics2D.Init(this);
@@ -74,7 +76,8 @@ void Application::Run() {
 #ifdef TRACY_ENABLE
         FrameMark;
 #endif
-#if SINGLE_THREAD
+#if SINGLE_THREAD || defined(__EMSCRIPTEN__)
+        // Emscripten: no pthreads in this build — update and render serially.
         Update(currFrame);
         Render(currFrame);
 #else
@@ -136,8 +139,9 @@ void Application::ReloadScene() {
     graphics.directionalLights.clear();
     graphics.pointLights.clear();
 
+#ifndef __EMSCRIPTEN__
     audio.StopAll();
-
+#endif
     physics.Reset();
 
     for (auto e : _entities) {
@@ -168,7 +172,9 @@ void Application::Update(const FrameData& props) {
     // ecs.Process(dt); // Note that most of the entity manipulation logic should be put there
     console.Process(dt);
     input.Process(dt);
+#ifndef __EMSCRIPTEN__
     audio.Process(dt);
+#endif
     physics.Process(dt);// TODO: Update only every entity's physics transform
     physics2D.Process(dt);
     graphics.Process(dt);

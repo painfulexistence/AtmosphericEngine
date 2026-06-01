@@ -13,8 +13,6 @@
     },
     "fmt",
     "spdlog",
-    "lua",
-    "sol2",
     "tinygltf",
     "tracy",
     "rmlui",

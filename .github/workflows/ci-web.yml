@@ -1,0 +1,94 @@
+name: Build (WebGL / Emscripten)
+
+# Validates that AtmosLua links successfully as a WebAssembly module.
+# A successful link catches the majority of WebGL-specific failures:
+#   - Missing -sUSE_GLFW / -sFETCH / -sFULL_ES3 flags
+#   - GLSL version mismatches discovered at shader-compile time (runtime)
+#   - WASM-incompatible dependencies (x86 archives, system glad, etc.)
+#   - Emscripten-incompatible C++ (non-portable intrinsics, POSIX-only APIs)
+#
+# The build artifact (.html + .wasm + .js + .data) is uploaded so that
+# manual smoke-testing in a browser is possible without a local emsdk install.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build-web:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      # ── Emscripten SDK ─────────────────────────────────────────────────────
+      # EMSDK env var is exported automatically and is read by CMakeLists.txt:
+      #   set(VCPKG_CHAINLOAD_TOOLCHAIN_FILE $ENV{EMSDK}/upstream/emscripten/cmake/…)
+      - name: Set up Emscripten SDK
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: latest
+          actions-cache-folder: emsdk-cache
+
+      # ── System tools ───────────────────────────────────────────────────────
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends cmake ninja-build pkg-config
+
+      # ── vcpkg ──────────────────────────────────────────────────────────────
+      - name: Check out vcpkg
+        uses: actions/checkout@v4
+        with:
+          repository: microsoft/vcpkg
+          path: vcpkg
+
+      - name: Bootstrap vcpkg
+        run: ${{ github.workspace }}/vcpkg/bootstrap-vcpkg.sh -disableMetrics
+
+      # Cache installed packages keyed on vcpkg.json so a lockfile change
+      # triggers a full rebuild, but unchanged deps reuse the cache.
+      - name: Cache vcpkg installed packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ github.workspace }}/vcpkg/installed
+            ${{ github.workspace }}/vcpkg/packages
+          key: vcpkg-wasm32-emscripten-${{ hashFiles('vcpkg.json') }}
+          restore-keys: |
+            vcpkg-wasm32-emscripten-
+
+      # ── Configure ──────────────────────────────────────────────────────────
+      # Emscripten builds use GLFW (-sUSE_GLFW=3) from the Emscripten sysroot;
+      # SDL3 is native-only. AE_USE_BASIS_UNIVERSAL is auto-enabled by CMake
+      # when EMSCRIPTEN is detected (see root CMakeLists.txt).
+      - name: CMake Configure
+        run: >
+          cmake -G Ninja
+          -B ${{ github.workspace }}/build
+          -S ${{ github.workspace }}
+          -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake
+          -DVCPKG_TARGET_TRIPLET=wasm32-emscripten
+          -DCMAKE_BUILD_TYPE=MinSizeRel
+
+      # ── Build (AtmosLua only) ──────────────────────────────────────────────
+      # Building only the Lua frontend keeps CI fast while still compiling the
+      # full engine (AtmosphericEngine is a dependency of AtmosLua).
+      - name: CMake Build (AtmosLua)
+        run: cmake --build ${{ github.workspace }}/build --target AtmosLua --parallel
+
+      # ── Artifact upload ────────────────────────────────────────────────────
+      # Uploads the complete output directory so reviewers can drag-and-drop
+      # AtmosLua.html into a local browser for manual smoke-testing.
+      - name: Upload WebAssembly artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: atmoslua-wasm
+          path: ${{ github.workspace }}/build/AtmosLua/
+          if-no-files-found: error
+          retention-days: 14

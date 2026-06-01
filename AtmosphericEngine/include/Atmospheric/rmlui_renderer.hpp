@@ -2,7 +2,11 @@
 #include "batch_renderer_2d.hpp"
 #include <RmlUi/Core/RenderInterface.h>
 #include <RmlUi/Core/Types.h>
+#ifndef __EMSCRIPTEN__
 #include <glad/glad.h>
+#else
+#include <GLES3/gl3.h>
+#endif
 #include <glm/glm.hpp>
 #include <unordered_map>
 #include <vector>

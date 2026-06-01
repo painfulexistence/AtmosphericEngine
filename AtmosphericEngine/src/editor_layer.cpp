@@ -225,7 +225,9 @@ void EditorLayer::DrawEngineView() {
         _app->GetInput()->DrawImGui(dt);
         _app->GetGraphicsServer()->DrawImGui(dt);
         _app->GetPhysicsServer()->DrawImGui(dt);
+#ifndef __EMSCRIPTEN__
         _app->GetAudioManager()->DrawImGui(dt);
+#endif
     }
     ImGui::End();
 }

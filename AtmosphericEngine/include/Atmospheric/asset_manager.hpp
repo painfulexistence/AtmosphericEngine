@@ -114,4 +114,19 @@ private:
     std::vector<Mesh*> meshes;
     std::unordered_map<std::string, Mesh*> _meshCache;
     uint32_t _nextMeshID = 0;
+
+#ifdef AE_USE_BASIS_UNIVERSAL
+    // KTX2 / Basis Universal GPU-compressed texture loader.
+    // Transcodes BasisLZ / UASTC data to:
+    //   - ETC2  on Emscripten/WebGL2 (guaranteed by GLES3 spec)
+    //   - S3TC  on desktop OpenGL (checked at runtime; falls back to ETC2)
+    // On web: bytes are sourced from FileSystem::Get().ConsumeSync(path),
+    //         which consumes the in-process cache populated by Prefetch().
+    // On native: bytes are read directly from disk if not cached.
+    // Returns the GL texture object ID.
+    GLuint LoadKTX2Texture(const std::string& path);
+
+    // True after basist::basisu_transcoder_init() has been called.
+    bool _basisuInitialized = false;
+#endif
 };

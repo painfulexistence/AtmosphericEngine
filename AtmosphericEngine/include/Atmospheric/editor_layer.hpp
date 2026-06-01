@@ -1,6 +1,8 @@
 #pragma once
 #include "layer.hpp"
+#ifndef __EMSCRIPTEN__
 #include <glad/glad.h>
+#endif
 
 // Forward declarations
 class Application;

@@ -1,8 +1,47 @@
 #include "shader.hpp"
 #include "file.hpp"
 
+#ifdef __EMSCRIPTEN__
+#include <regex>
+
+static std::string PreprocessShaderForWebGL(std::string src, ShaderType type) {
+    // Replace '#version ...' with '#version 300 es'
+    std::regex versionRegex(R"(#version\s+[0-9]+(?:\s+core)?)");
+    src = std::regex_replace(src, versionRegex, "#version 300 es");
+
+    // Insert precision qualifiers for fragment shaders if not present
+    if (type == ShaderType::FRAGMENT) {
+        // Strip layout(location = ...) from fragment shader inputs (in)
+        std::regex fragInputLayoutRegex(R"(layout\s*\(\s*location\s*=\s*[0-9]+\s*\)\s*in\b)");
+        src = std::regex_replace(src, fragInputLayoutRegex, "in");
+
+        if (src.find("precision ") == std::string::npos) {
+            size_t pos = src.find("#version 300 es");
+            if (pos != std::string::npos) {
+                size_t lineEnd = src.find('\n', pos);
+                if (lineEnd != std::string::npos) {
+                    src.insert(lineEnd + 1, "\nprecision highp float;\nprecision highp int;\n");
+                } else {
+                    src += "\nprecision highp float;\nprecision highp int;\n";
+                }
+            } else {
+                src = "precision highp float;\nprecision highp int;\n" + src;
+            }
+        }
+    } else if (type == ShaderType::VERTEX) {
+        // Transform instanced matrix attribute to uniform for non-instanced WebGL 2.0 fallback
+        std::regex worldAttrRegex(R"(layout\s*\(\s*location\s*=\s*5\s*\)\s*in\s+mat4\s+World\s*;)");
+        src = std::regex_replace(src, worldAttrRegex, "uniform mat4 World;");
+    }
+    return src;
+}
+#endif
+
 Shader::Shader(const std::string& path, ShaderType type) {
-    const auto& shaderSrc = File(path).GetContent();
+    std::string shaderSrc = File(path).GetContent();
+#ifdef __EMSCRIPTEN__
+    shaderSrc = PreprocessShaderForWebGL(shaderSrc, type);
+#endif
     const char* src = shaderSrc.c_str();
     const int len = shaderSrc.size();
 
@@ -46,19 +85,19 @@ ShaderProgram::ShaderProgram(const ShaderProgramProps& props) : _program(glCreat
 
     glLinkProgram(_program);
 
-    // GLint isLinked;
-    // glGetProgramiv(_program, GL_LINK_STATUS, &isLinked);
-    // if (isLinked == GL_FALSE) {
-    //     GLint maxLength = 0;
-    //     glGetProgramiv(_program, GL_INFO_LOG_LENGTH, &maxLength);
+    GLint isLinked;
+    glGetProgramiv(_program, GL_LINK_STATUS, &isLinked);
+    if (isLinked == GL_FALSE) {
+        GLint maxLength = 0;
+        glGetProgramiv(_program, GL_INFO_LOG_LENGTH, &maxLength);
 
-    //     std::vector<GLchar> infoLog(maxLength);
-    //     glGetProgramInfoLog(_program, maxLength, &maxLength, &infoLog[0]);
+        std::vector<GLchar> infoLog(maxLength);
+        glGetProgramInfoLog(_program, maxLength, &maxLength, &infoLog[0]);
 
-    //     glDeleteProgram(_program);
+        glDeleteProgram(_program);
 
-    //     throw std::runtime_error(fmt::format("Shader link error: {}", infoLog.data()));
-    // }
+        throw std::runtime_error(fmt::format("Shader link error: {}", infoLog.data()));
+    }
 }
 
 ShaderProgram::ShaderProgram(

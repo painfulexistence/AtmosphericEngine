@@ -274,12 +274,14 @@ void Window::MainLoop(std::function<void(float, float)> callback)
         ctx.deltaTime = currTime - ctx.lastTime;
         ctx.lastTime = currTime;
 
+        ctx.window->BeginImGuiFrame();
         ctx.callback(currTime, ctx.deltaTime);
+        ctx.window->EndImGuiFrame();
 
         glfwSwapBuffers(static_cast<GLFWwindow*>(ctx.window->_internal));
     };
 
-    LoopContext ctx = {
+    static LoopContext ctx = {
         callback,
         GetTime(),
         0,
@@ -288,14 +290,16 @@ void Window::MainLoop(std::function<void(float, float)> callback)
 #ifdef __EMSCRIPTEN__
     static LoopContext* ctxPtr = &ctx;
     auto em_callback = [](void* arg) {
-        auto ctx = *static_cast<LoopContext*>(arg);
+        auto& ctx = *static_cast<LoopContext*>(arg);
         glfwPollEvents();
 
         float currTime = ctx.window->GetTime();
         ctx.deltaTime = currTime - ctx.lastTime;
         ctx.lastTime = currTime;
 
+        ctx.window->BeginImGuiFrame();
         ctx.callback(currTime, ctx.deltaTime);
+        ctx.window->EndImGuiFrame();
 
         glfwSwapBuffers(static_cast<GLFWwindow*>(ctx.window->_internal));
     };
@@ -487,4 +491,33 @@ void Window::RemoveAllEventCallbacks() {
     _keyReleaseCallbacks.clear();
     _viewportResizeCallbacks.clear();
     _framebufferResizeCallbacks.clear();
+}
+void Window::SetClipboardText(const std::string& text) {
+    glfwSetClipboardString(static_cast<GLFWwindow*>(_internal), text.c_str());
+}
+
+std::string Window::GetClipboardText() {
+    const char* text = glfwGetClipboardString(static_cast<GLFWwindow*>(_internal));
+    return text ? text : "";
+}
+
+void Window::SetMouseCursor(const std::string& cursorName) {
+    int shape = GLFW_ARROW_CURSOR;
+    if (cursorName == "text")    shape = GLFW_IBEAM_CURSOR;
+    else if (cursorName == "cross")   shape = GLFW_CROSSHAIR_CURSOR;
+    else if (cursorName == "pointer") shape = GLFW_HAND_CURSOR;
+    else if (cursorName == "resize")  shape = GLFW_HRESIZE_CURSOR;
+    else if (cursorName == "move")    shape = GLFW_CROSSHAIR_CURSOR;
+
+    // Cache cursors to avoid re-creating them every frame
+    static std::unordered_map<int, GLFWcursor*> cursorCache;
+    auto it = cursorCache.find(shape);
+    if (it == cursorCache.end()) {
+        GLFWcursor* cursor = glfwCreateStandardCursor(shape);
+        cursorCache[shape] = cursor;
+        it = cursorCache.find(shape);
+    }
+    if (it != cursorCache.end() && it->second) {
+        glfwSetCursor(static_cast<GLFWwindow*>(_internal), it->second);
+    }
 }

@@ -1,4 +1,7 @@
 #include "lua_application.hpp"
+
+// std::filesystem maps to Emscripten's MEMFS on web builds;
+// text files written there by FileSystem::Prefetch() are visible here.
 #include <filesystem>
 
 // Forward declarations for binding functions
@@ -7,7 +10,9 @@ void BindInputAPI(sol::state& lua, Input* input);
 void BindWorldAPI(sol::state& lua, LuaApplication* app);
 void BindGraphicsAPI(sol::state& lua, GraphicsServer* graphics);
 void BindPhysicsAPI(sol::state& lua, LuaApplication* app);
+#ifndef __EMSCRIPTEN__
 void BindAudioAPI(sol::state& lua, AudioManager* audio);
+#endif
 
 LuaApplication::LuaApplication(AppConfig config) : Application(config) {
 }
@@ -53,7 +58,10 @@ void LuaApplication::OnUpdate(float dt, float time) {
 }
 
 void LuaApplication::InitializeLua() {
-    // Open standard Lua libraries
+    // Open standard Lua libraries.
+    // On Emscripten sol::lib::io and sol::lib::os map to MEMFS; text files
+    // written there by FileSystem::Prefetch() are accessible via io.open()
+    // and the Lua require() system.
     _lua.open_libraries(
       sol::lib::base,
       sol::lib::package,
@@ -65,7 +73,9 @@ void LuaApplication::InitializeLua() {
       sol::lib::debug
     );
 
-    // Set up package path for require()
+    // Set up package path for require().
+    // This makes require("components.player") find
+    // ./assets/scripts/components/player.lua in MEMFS (web) or on disk (native).
     std::string packagePath = _lua["package"]["path"];
     packagePath += ";./assets/scripts/?.lua";
     packagePath += ";./assets/scripts/?/init.lua";
@@ -94,7 +104,9 @@ void LuaApplication::BindEngineAPIs() {
     BindPhysicsAPI(_lua, this);
 
     // Bind Audio API
+#ifndef __EMSCRIPTEN__
     BindAudioAPI(_lua, GetAudioManager());
+#endif
 
     // Bind application-level functions
     atmos["quit"] = [this]() { Quit(); };

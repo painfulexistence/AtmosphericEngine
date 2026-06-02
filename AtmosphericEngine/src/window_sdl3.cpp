@@ -582,5 +582,7 @@ bool Window::IsWebGPUAvailable() {
 }
 
 GfxBackend Window::GetActiveBackend() {
-    return GfxBackend::SDLGPU;
+    // Target is WebGPU (via Dawn). Falls back to OpenGL inside GfxFactory::Init()
+    // until Dawn is integrated.
+    return GfxBackend::WebGPU;
 }

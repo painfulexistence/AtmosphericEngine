@@ -169,9 +169,9 @@ set(SOURCES
     ${FLATBUFFERS_GENERATED_DIR}/Scene_generated.h
 )
 # ── Graphics backend selection ────────────────────────────────────────────────
-# Native  : SDL3 GPU (Vulkan / Metal / D3D12) — always enabled.
-# Web     : WebGPU via Emscripten.  OFF by default so the WebGL2 build keeps
-#           working; set ON when ready to flip to the WebGPU target.
+# Native  : Dawn WebGPU (not yet integrated — falls back to OpenGL 4.1).
+# Web     : browser WebGPU via Emscripten (AE_WEB_BACKEND_WEBGPU=ON)
+#           or WebGL 2.0 fallback (AE_WEB_BACKEND_WEBGPU=OFF, default).
 #
 # When enabling on Emscripten, also update target_link_options below:
 #   Remove : -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2 -sFULL_ES3=1
@@ -182,8 +182,6 @@ list(APPEND SOURCES src/gfx_factory.cpp)
 if(NOT EMSCRIPTEN)
     list(APPEND SOURCES src/audio_manager.cpp)
     list(APPEND SOURCES src/window_sdl3.cpp)
-    list(APPEND SOURCES src/sdl_gpu_buffer.cpp)
-    list(APPEND SOURCES src/sdl_gpu_render_target.cpp)
 else()
     list(APPEND SOURCES src/window_glfw.cpp)
     if(AE_WEB_BACKEND_WEBGPU)

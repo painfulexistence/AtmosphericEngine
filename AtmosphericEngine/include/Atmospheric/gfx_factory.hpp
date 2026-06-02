@@ -4,10 +4,8 @@
 #include "window.hpp"
 #include <memory>
 
-// Platform-specific headers — kept behind feature guards.
 #ifndef __EMSCRIPTEN__
-struct SDL_Window;
-struct SDL_GPUDevice;
+struct SDL_Window;  // Needed for native window handle (Dawn surface creation)
 #endif
 #if defined(AE_WEB_BACKEND_WEBGPU) && defined(__EMSCRIPTEN__)
 #include <webgpu/webgpu.h>
@@ -16,32 +14,27 @@ struct SDL_GPUDevice;
 // Static factory — call Init() once after the window is ready, then use
 // CreateBuffer() / CreateRenderTarget() everywhere that needs a GPU resource.
 //
-// Backend assignment:
-//   Native  : SDL3 GPU  (Vulkan / Metal / D3D12 chosen automatically by SDL)
-//   Web     : WebGPU    (Emscripten + AE_WEB_BACKEND_WEBGPU=ON)
+// Backend selection:
+//   Native  : Dawn WebGPU (not yet integrated — currently falls back to OpenGL)
+//   Web     : browser WebGPU via Emscripten  (AE_WEB_BACKEND_WEBGPU=ON)
+//             or WebGL 2.0 fallback          (AE_WEB_BACKEND_WEBGPU=OFF)
 //
-// Calling Init() on native:
-//   GfxFactory::Init(sdlWindow);   // SDL_GPUDevice created and claims the window
-//
-// Calling Init() on web (device arrives asynchronously):
-//   GfxFactory::Init();
-//   // ... inside emscripten_webgpu_init_default_device() callback:
-//   GfxFactory::SetWebGPUDevice(device);
+// OpenGL is always the automatic fallback when the primary backend fails
+// to initialize (missing driver support, Dawn not yet linked, etc.).
 class GfxFactory {
 public:
 #ifdef __EMSCRIPTEN__
-    // Web: backend is always WebGPU. Device arrives via SetWebGPUDevice().
+    // Web: call once at startup. Device arrives async via SetWebGPUDevice().
     static void Init();
-    // Called from the emscripten_webgpu_init_default_device() callback once the
-    // async device request resolves.
+    // Called from the emscripten_webgpu_init_default_device() callback.
+    // Passing nullptr triggers an automatic fall back to WebGL 2.
     static void SetWebGPUDevice(WGPUDevice device);
     static WGPUDevice GetWebGPUDevice() { return _wgpuDevice; }
     static WGPUQueue  GetWebGPUQueue()  { return _wgpuQueue; }
 #else
-    // Native: backend is always SDL3 GPU. Optionally pass the SDL window so
-    // SDL_ClaimWindowForGPUDevice() is called immediately.
+    // Native: sdlWindow is stored for future Dawn surface creation.
+    // Currently falls back to OpenGL until Dawn is integrated.
     static void Init(SDL_Window* sdlWindow = nullptr);
-    static SDL_GPUDevice* GetSDLDevice() { return _sdlDevice; }
 #endif
 
     static void Shutdown();
@@ -52,12 +45,12 @@ public:
     static std::unique_ptr<IGPURenderTarget> CreateRenderTarget(const IGPURenderTarget::Props& props);
 
 private:
-    static GfxBackend _backend;
+    static GfxBackend  _backend;
 
 #ifdef __EMSCRIPTEN__
-    static WGPUDevice _wgpuDevice;
-    static WGPUQueue  _wgpuQueue;
+    static WGPUDevice  _wgpuDevice;
+    static WGPUQueue   _wgpuQueue;
 #else
-    static SDL_GPUDevice* _sdlDevice;
+    static SDL_Window* _sdlWindow;  // Retained for Dawn surface creation
 #endif
 };

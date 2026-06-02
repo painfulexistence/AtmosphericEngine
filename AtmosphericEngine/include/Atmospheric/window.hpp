@@ -22,9 +22,8 @@ struct WindowProps {
 
 // Active graphics backend.
 enum class GfxBackend {
-    SDLGPU,  // Native: Vulkan / Metal / D3D12, selected automatically by SDL3 GPU
-    WebGPU,  // Web (Emscripten): browser WebGPU API
-    OpenGL,  // Legacy: desktop OpenGL 4.1 — retained during gradual migration
+    WebGPU,  // Primary: Dawn on native / browser WebGPU on web
+    OpenGL,  // Fallback: OpenGL 4.1 (native) / WebGL 2.0 (Emscripten)
 };
 
 enum class KeyState { PRESSED, RELEASED, HELD, UNKNOWN };
@@ -107,8 +106,8 @@ public:
     // Always false on native platforms. Result is cached after the first call.
     static bool IsWebGPUAvailable();
 
-    // Returns the backend that this build targets.
-    // Native → SDLGPU.  Emscripten + AE_WEB_BACKEND_WEBGPU → WebGPU.
+    // Returns the intended backend for this build target.
+    // Actual backend may differ if GfxFactory::Init() falls back to OpenGL.
     static GfxBackend GetActiveBackend();
 
     Window(WindowProps props = {});

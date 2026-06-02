@@ -1,75 +1,60 @@
 #pragma once
-
 #include "globals.hpp"
+#include "gpu_render_target.hpp"
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <string>
 
-// RenderTexture - Offscreen render target for 2D and 3D rendering
-// Can be used as:
-// - Canvas for 2D drawing (minimap, UI caching)
-// - Render target for 3D (reflections, portals)
-// - Post-processing intermediate buffer
-class RenderTexture {
+// OpenGL implementation of IGPURenderTarget.
+// Wraps an FBO with a color texture attachment and optional depth/stencil attachment.
+//
+// Can serve as:
+//   - Canvas for 2D drawing (minimap, UI caching)
+//   - Render target for 3D (reflections, portals)
+//   - Intermediate buffer for multi-pass post-processing
+class RenderTexture : public IGPURenderTarget {
 public:
     struct Props {
         int width = 256;
         int height = 256;
         bool withDepth = false;
         bool withStencil = false;
-        bool hdr = false;  // Use RGBA16F instead of RGBA8
+        bool hdr = false;      // RGBA16F instead of RGBA8
         bool filtered = true;  // Linear vs Nearest filtering
     };
 
     RenderTexture(int width, int height, bool withDepth = false);
     RenderTexture(const Props& props);
-    ~RenderTexture();
+    ~RenderTexture() override;
 
-    // Non-copyable
     RenderTexture(const RenderTexture&) = delete;
     RenderTexture& operator=(const RenderTexture&) = delete;
-
-    // Movable
     RenderTexture(RenderTexture&& other) noexcept;
     RenderTexture& operator=(RenderTexture&& other) noexcept;
 
-    // Begin rendering to this texture
-    // Saves the previous framebuffer binding
-    void Begin();
+    // IGPURenderTarget interface
+    void Begin() override;
+    void End() override;
+    void Clear(const glm::vec4& color = glm::vec4(0.0f)) override;
 
-    // End rendering to this texture
-    // Restores the previous framebuffer binding
-    void End();
+    uint32_t GetTextureID() const override { return _colorTexture; }
+    uint32_t GetDepthTextureID() const override { return _depthTexture; }
 
-    // Clear the render texture
-    void Clear(const glm::vec4& color = glm::vec4(0.0f, 0.0f, 0.0f, 0.0f));
+    int GetWidth() const override { return _width; }
+    int GetHeight() const override { return _height; }
+    glm::vec2 GetSize() const override { return glm::vec2(_width, _height); }
 
-    // Get the color texture ID (can be used as a regular texture)
-    uint32_t GetTextureID() const { return _colorTexture; }
+    bool IsValid() const override { return _fbo != 0 && _colorTexture != 0; }
 
-    // Get the depth texture ID (if created with depth)
-    uint32_t GetDepthTextureID() const { return _depthTexture; }
+    void Resize(int width, int height) override;
 
-    // Get dimensions
-    int GetWidth() const { return _width; }
-    int GetHeight() const { return _height; }
-    glm::vec2 GetSize() const { return glm::vec2(_width, _height); }
-
-    // Get projection matrix for 2D rendering (origin at top-left)
+    // 2D projection helpers
     glm::mat4 GetProjectionMatrix() const {
         return glm::ortho(0.0f, (float)_width, (float)_height, 0.0f, -1.0f, 1.0f);
     }
-
-    // Get projection matrix for 2D rendering (origin at bottom-left, OpenGL style)
     glm::mat4 GetProjectionMatrixFlipped() const {
         return glm::ortho(0.0f, (float)_width, 0.0f, (float)_height, -1.0f, 1.0f);
     }
-
-    // Check if valid
-    bool IsValid() const { return _fbo != 0 && _colorTexture != 0; }
-
-    // Resize the render texture (recreates internal resources)
-    void Resize(int width, int height);
 
 private:
     void Create();

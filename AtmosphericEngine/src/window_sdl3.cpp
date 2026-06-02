@@ -576,3 +576,11 @@ void Window::RemoveAllEventCallbacks() {
     _viewportResizeCallbacks.clear();
     _framebufferResizeCallbacks.clear();
 }
+
+bool Window::IsWebGPUAvailable() {
+    return false;  // WebGPU is a browser-only API; always false on native platforms.
+}
+
+GfxBackend Window::GetActiveBackend() {
+    return GfxBackend::OpenGL;
+}

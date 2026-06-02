@@ -2,6 +2,17 @@
 #include "vertex.hpp"
 #include "graphics_server.hpp"
 
+static GLenum ToGLTopology(PrimitiveTopology topology) {
+    switch (topology) {
+        case PrimitiveTopology::TriangleStrip: return GL_TRIANGLE_STRIP;
+        case PrimitiveTopology::Lines:         return GL_LINES;
+        case PrimitiveTopology::LineStrip:     return GL_LINE_STRIP;
+        case PrimitiveTopology::Points:        return GL_POINTS;
+        case PrimitiveTopology::Triangles:
+        default:                               return GL_TRIANGLES;
+    }
+}
+
 RenderMesh::RenderMesh() {
     glGenVertexArrays(1, &_vao);
     glGenBuffers(1, &_vbo);
@@ -168,6 +179,10 @@ void RenderMesh::Upload(const void* vertexData, size_t vertexCount, size_t verte
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, indexCount * sizeof(uint16_t), indexData, GetGLUsage());
 
     glBindVertexArray(0);
+}
+
+void RenderMesh::Draw(PrimitiveTopology topology) const {
+    Draw(ToGLTopology(topology));
 }
 
 void RenderMesh::Draw(GLenum primitiveType) const {

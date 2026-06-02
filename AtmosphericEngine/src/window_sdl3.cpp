@@ -582,5 +582,5 @@ bool Window::IsWebGPUAvailable() {
 }
 
 GfxBackend Window::GetActiveBackend() {
-    return GfxBackend::OpenGL;
+    return GfxBackend::SDLGPU;
 }

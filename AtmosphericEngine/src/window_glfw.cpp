@@ -251,14 +251,9 @@ bool Window::IsWebGPUAvailable() {
 }
 
 GfxBackend Window::GetActiveBackend() {
-#ifdef __EMSCRIPTEN__
-    // WebGPU rendering path is not yet implemented; IsWebGPUAvailable() only
-    // signals capability. Switch this to GfxBackend::WebGPU once the backend
-    // is wired up.
-    return IsWebGPUAvailable() ? GfxBackend::WebGPU : GfxBackend::WebGL2;
-#else
-    return GfxBackend::OpenGL;
-#endif
+    // WebGPU is the target web backend.
+    // Requires AE_WEB_BACKEND_WEBGPU=ON in CMake + a browser that supports WebGPU.
+    return GfxBackend::WebGPU;
 }
 
 void Window::InitImGui() {

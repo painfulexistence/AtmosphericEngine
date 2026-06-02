@@ -168,6 +168,16 @@ set(SOURCES
     src/script.cpp
     ${FLATBUFFERS_GENERATED_DIR}/Scene_generated.h
 )
+# ── Graphics backend selection ────────────────────────────────────────────────
+# Native  : SDL3 GPU (Vulkan / Metal / D3D12) — always enabled.
+# Web     : WebGPU via Emscripten.  OFF by default so the WebGL2 build keeps
+#           working; set ON when ready to flip to the WebGPU target.
+#
+# When enabling on Emscripten, also update target_link_options below:
+#   Remove : -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2 -sFULL_ES3=1
+#   Add    : -sUSE_WEBGPU=1
+option(AE_WEB_BACKEND_WEBGPU "Target WebGPU on Emscripten builds (replaces WebGL2)" OFF)
+
 list(APPEND SOURCES src/gfx_factory.cpp)
 if(NOT EMSCRIPTEN)
     list(APPEND SOURCES src/audio_manager.cpp)
@@ -176,6 +186,10 @@ if(NOT EMSCRIPTEN)
     list(APPEND SOURCES src/sdl_gpu_render_target.cpp)
 else()
     list(APPEND SOURCES src/window_glfw.cpp)
+    if(AE_WEB_BACKEND_WEBGPU)
+        list(APPEND SOURCES src/webgpu_buffer.cpp)
+        list(APPEND SOURCES src/webgpu_render_target.cpp)
+    endif()
 endif()
 # FileSystem: platform-agnostic async I/O with in-process cache.
 #   Web    : emscripten_fetch + IndexedDB + MEMFS writes for text assets.
@@ -364,12 +378,22 @@ if(EMSCRIPTEN)
     target_compile_definitions(AtmosphericEngine PRIVATE IMGUI_IMPL_OPENGL_ES3)
     target_link_libraries(AtmosphericEngine PUBLIC spdlog::spdlog)
     target_compile_options(AtmosphericEngine PRIVATE)
-    # -sFETCH=1  : enable emscripten_fetch (XHR + IndexedDB persistence)
-    #              used by FileSystem (web platform implementation)
-    target_link_options(AtmosphericEngine PRIVATE
-        -sWASM=1 -O3 -sUSE_GLFW=3
-        -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2 -sFULL_ES3=1
-        -sFETCH=1)
+    if(AE_WEB_BACKEND_WEBGPU)
+        target_compile_definitions(AtmosphericEngine PUBLIC AE_WEB_BACKEND_WEBGPU)
+        # WebGPU replaces WebGL2 on Emscripten.
+        # TODO: ImGui backend also needs to switch from imgui_impl_opengl3 to
+        #       imgui_impl_wgpu when this flag is enabled.
+        target_link_options(AtmosphericEngine PRIVATE
+            -sWASM=1 -O3 -sUSE_GLFW=3
+            -sUSE_WEBGPU=1
+            -sFETCH=1)
+    else()
+        # Legacy WebGL2 path — default until AE_WEB_BACKEND_WEBGPU is turned on.
+        target_link_options(AtmosphericEngine PRIVATE
+            -sWASM=1 -O3 -sUSE_GLFW=3
+            -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2 -sFULL_ES3=1
+            -sFETCH=1)
+    endif()
 else()
     target_compile_definitions(AtmosphericEngine PUBLIC BT_THREADSAFE=1)
     target_link_libraries(AtmosphericEngine

@@ -1,6 +1,14 @@
 #pragma once
+
+// Native SDL3 GPU types
 #ifndef __EMSCRIPTEN__
 #include <SDL3/SDL_gpu.h>
+#endif
+
+// Browser WebGPU C API (available when compiled with Emscripten + USE_WEBGPU,
+// or with Dawn as a standalone library)
+#if defined(AE_WEB_BACKEND_WEBGPU) && defined(__EMSCRIPTEN__)
+#include <webgpu/webgpu.h>
 #endif
 
 // Per-frame GPU recording context threaded through Draw() and Begin() calls.
@@ -8,9 +16,8 @@
 // OpenGL is an implicit-state API — no explicit command recording.
 // GLCommandContext is therefore empty; pass nullptr or a default instance.
 //
-// SDL3 GPU uses explicit command buffers and render passes. Before issuing
-// any draw calls, populate SDLGPUCommandContext with the live handles for
-// the current frame.
+// For explicit-state APIs (SDL3 GPU, WebGPU) the context carries the live
+// command buffer / render pass handles for the current frame.
 class IGPUCommandContext {
 public:
     virtual ~IGPUCommandContext() = default;
@@ -19,13 +26,24 @@ public:
 // OpenGL: no recording state needed.
 class GLCommandContext : public IGPUCommandContext {};
 
-#ifndef __EMSCRIPTEN__
 // SDL3 GPU per-frame recording handles.
-// Fill these in before calling Begin() / Draw():
+// Populate before calling Begin() / Draw():
 //   sdlCtx.cmdBuf = SDL_AcquireGPUCommandBuffer(device);
-//   // Begin() will set sdlCtx.renderPass after SDL_BeginGPURenderPass.
+//   // Begin() sets sdlCtx.renderPass via SDL_BeginGPURenderPass.
+#ifndef __EMSCRIPTEN__
 struct SDLGPUCommandContext : public IGPUCommandContext {
     SDL_GPUCommandBuffer* cmdBuf    = nullptr;
     SDL_GPURenderPass*    renderPass = nullptr;
+};
+#endif
+
+// WebGPU per-frame recording handles (Emscripten + AE_WEB_BACKEND_WEBGPU).
+// Populate before calling Begin() / Draw():
+//   wgpuCtx.encoder = wgpuDeviceCreateCommandEncoder(device, nullptr);
+//   // Begin() sets wgpuCtx.pass via wgpuCommandEncoderBeginRenderPass.
+#if defined(AE_WEB_BACKEND_WEBGPU) && defined(__EMSCRIPTEN__)
+struct WebGPUCommandContext : public IGPUCommandContext {
+    WGPUCommandEncoder    encoder = nullptr;
+    WGPURenderPassEncoder pass    = nullptr;
 };
 #endif

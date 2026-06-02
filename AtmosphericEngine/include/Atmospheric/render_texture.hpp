@@ -3,25 +3,13 @@
 #include "gpu_render_target.hpp"
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
-#include <string>
 
 // OpenGL implementation of IGPURenderTarget.
 // Wraps an FBO with a color texture attachment and optional depth/stencil attachment.
-//
-// Can serve as:
-//   - Canvas for 2D drawing (minimap, UI caching)
-//   - Render target for 3D (reflections, portals)
-//   - Intermediate buffer for multi-pass post-processing
 class RenderTexture : public IGPURenderTarget {
 public:
-    struct Props {
-        int width = 256;
-        int height = 256;
-        bool withDepth = false;
-        bool withStencil = false;
-        bool hdr = false;      // RGBA16F instead of RGBA8
-        bool filtered = true;  // Linear vs Nearest filtering
-    };
+    // Backward-compatible alias — existing RenderTexture::Props{...} syntax still works.
+    using Props = IGPURenderTarget::Props;
 
     RenderTexture(int width, int height, bool withDepth = false);
     RenderTexture(const Props& props);
@@ -32,8 +20,8 @@ public:
     RenderTexture(RenderTexture&& other) noexcept;
     RenderTexture& operator=(RenderTexture&& other) noexcept;
 
-    // IGPURenderTarget interface
-    void Begin() override;
+    // IGPURenderTarget interface — ctx is unused for GL.
+    void Begin(IGPUCommandContext* ctx = nullptr) override;
     void End() override;
     void Clear(const glm::vec4& color = glm::vec4(0.0f)) override;
 
@@ -72,7 +60,6 @@ private:
     bool _hdr = false;
     bool _filtered = true;
 
-    // For nested Begin/End support
     GLint _prevFBO = 0;
     GLint _prevViewport[4] = {0, 0, 0, 0};
 };

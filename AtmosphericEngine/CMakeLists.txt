@@ -168,9 +168,12 @@ set(SOURCES
     src/script.cpp
     ${FLATBUFFERS_GENERATED_DIR}/Scene_generated.h
 )
+list(APPEND SOURCES src/gfx_factory.cpp)
 if(NOT EMSCRIPTEN)
     list(APPEND SOURCES src/audio_manager.cpp)
     list(APPEND SOURCES src/window_sdl3.cpp)
+    list(APPEND SOURCES src/sdl_gpu_buffer.cpp)
+    list(APPEND SOURCES src/sdl_gpu_render_target.cpp)
 else()
     list(APPEND SOURCES src/window_glfw.cpp)
 endif()

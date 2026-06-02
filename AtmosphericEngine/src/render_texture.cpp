@@ -136,8 +136,8 @@ void RenderTexture::Destroy() {
     }
 }
 
-void RenderTexture::Begin() {
-    // Save current state
+void RenderTexture::Begin(IGPUCommandContext* /*ctx*/) {
+    // ctx is unused — GL FBO state is implicit in the GL context.
     glGetIntegerv(GL_FRAMEBUFFER_BINDING, &_prevFBO);
     glGetIntegerv(GL_VIEWPORT, _prevViewport);
 

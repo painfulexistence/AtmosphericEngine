@@ -181,8 +181,8 @@ void RenderMesh::Upload(const void* vertexData, size_t vertexCount, size_t verte
     glBindVertexArray(0);
 }
 
-void RenderMesh::Draw(PrimitiveTopology topology) const {
-    Draw(ToGLTopology(topology));
+void RenderMesh::Draw(IGPUCommandContext* /*ctx*/, PrimitiveTopology topology) const {
+    Draw(ToGLTopology(topology));  // ctx is unused — GL state is implicit.
 }
 
 void RenderMesh::Draw(GLenum primitiveType) const {

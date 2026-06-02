@@ -25,7 +25,10 @@ public:
     void Upload(
         const void* vertexData, size_t vertexCount, size_t vertexSize,
         const uint16_t* indexData, size_t indexCount) override;
-    void Draw(PrimitiveTopology topology = PrimitiveTopology::Triangles) const override;
+    // ctx is unused for GL — pass nullptr.
+    void Draw(
+        IGPUCommandContext* ctx = nullptr,
+        PrimitiveTopology topology = PrimitiveTopology::Triangles) const override;
 
     bool IsInitialized() const override { return _initialized; }
     size_t GetVertexCount() const override { return _vertexCount; }

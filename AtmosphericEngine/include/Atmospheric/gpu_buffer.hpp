@@ -1,4 +1,5 @@
 #pragma once
+#include "gpu_command_context.hpp"
 #include <cstddef>
 #include <cstdint>
 
@@ -18,6 +19,8 @@ enum class BufferUsage {
 };
 
 // Backend-agnostic primitive assembly mode.
+// Note: for SDL3 GPU, topology is part of the pipeline descriptor, not the draw call.
+// The Draw() topology parameter is used by the GL backend and ignored by SDL3 GPU.
 enum class PrimitiveTopology {
     Triangles,
     TriangleStrip,
@@ -37,8 +40,9 @@ struct RenderMeshHandle {
 };
 
 // Abstract GPU vertex/index buffer.
-// Each graphics backend provides a concrete implementation (e.g. GLGPUBuffer for OpenGL,
-// future SDLGPUBuffer for SDL3 GPU, WebGPUBuffer for the browser WebGPU API).
+//
+// GL backend:   pass nullptr (or omit) for ctx — state is implicit.
+// SDL3 GPU:     pass an SDLGPUCommandContext with an active render pass set.
 class IGPUBuffer {
 public:
     virtual ~IGPUBuffer() = default;
@@ -53,7 +57,9 @@ public:
         const void* vertexData, size_t vertexCount, size_t vertexSize,
         const uint16_t* indexData, size_t indexCount) = 0;
 
-    virtual void Draw(PrimitiveTopology topology = PrimitiveTopology::Triangles) const = 0;
+    virtual void Draw(
+        IGPUCommandContext* ctx = nullptr,
+        PrimitiveTopology topology = PrimitiveTopology::Triangles) const = 0;
 
     virtual bool IsInitialized() const = 0;
     virtual size_t GetVertexCount() const = 0;

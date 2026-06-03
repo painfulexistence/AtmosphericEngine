@@ -93,11 +93,9 @@ public:
     inline CameraComponent* GetMainCamera() {
         return mainCamera;
     }
-#ifndef __EMSCRIPTEN__
     inline AudioManager* GetAudioManager() {
         return &audio;
     }
-#endif
 
     std::shared_ptr<Window> GetWindow();
     void LoadScene(const SceneDef& scene);
@@ -111,9 +109,7 @@ public:
 
 protected:
     // These subsystems will be game accessible
-#ifndef __EMSCRIPTEN__
     AudioManager audio;
-#endif
     PhysicsServer physics;
     Physics2DServer physics2D;
     Console console;

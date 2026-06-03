@@ -1,7 +1,34 @@
 #include "audio_manager.hpp"
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten/emscripten.h>
+#endif
+
 AudioManager::AudioManager(void) {
     ::InitAudioDevice();
+
+#ifdef __EMSCRIPTEN__
+    // Web Audio API requires AudioContext to be resumed from a user gesture.
+    // We register one-shot click/keydown listeners that resume miniaudio's
+    // internal AudioContext the first time the user interacts with the page.
+    EM_ASM({
+        function resumeAudio() {
+            // miniaudio exposes its AudioContext via the global audioContext set
+            // by the webaudio backend; fall back to any suspended AudioContext.
+            var ctx = Module['audioContext']
+                   || (window.AudioContext && new AudioContext());
+            if (ctx && ctx.state === 'suspended') {
+                ctx.resume();
+            }
+            document.removeEventListener('click',   resumeAudio);
+            document.removeEventListener('keydown', resumeAudio);
+            document.removeEventListener('touchend', resumeAudio);
+        }
+        document.addEventListener('click',   resumeAudio);
+        document.addEventListener('keydown', resumeAudio);
+        document.addEventListener('touchend', resumeAudio);
+    });
+#endif
 }
 
 AudioManager::~AudioManager(void) {

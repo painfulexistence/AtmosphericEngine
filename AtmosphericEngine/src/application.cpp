@@ -2,7 +2,6 @@
 #include "animator_2d.hpp"
 #include "asset_manager.hpp"
 #include "camera_component.hpp"
-#include "camera_controller_2d.hpp"
 #include "component_registry.hpp"
 #include "editor_layer.hpp"
 #include "game_layer.hpp"
@@ -91,11 +90,6 @@ void Application::RegisterComponents() {
     ComponentRegistry::Register("Animator2D",
       [](GameObject* o, const void* /*p*/) -> Component* {
           return new Animator2D(o);
-      });
-
-    ComponentRegistry::Register("CameraController2D",
-      [](GameObject* o, const void* /*p*/) -> Component* {
-          return new CameraController2D(o);
       });
 }
 

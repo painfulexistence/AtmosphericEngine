@@ -140,6 +140,8 @@ protected:
     }
 
 private:
+    void RegisterComponents();
+
     AppConfig _config;
 
     std::shared_ptr<Window> _window = nullptr;

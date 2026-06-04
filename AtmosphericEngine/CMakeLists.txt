@@ -113,7 +113,9 @@ add_custom_command(
     COMMENT "Generating FlatBuffers headers for Scene"
 )
 
-add_subdirectory(external/raudio/projects/CMake)
+if(NOT EMSCRIPTEN)
+    add_subdirectory(external/raudio/projects/CMake)
+endif()
 
 #file(GLOB SOURCES src/*.cpp RECURSIVE)
 set(SOURCES
@@ -342,7 +344,9 @@ target_link_libraries(AtmosphericEngine
         lua_static sol2::sol2
         RmlUi::RmlUi box2d::box2d flatbuffers::flatbuffers
 )
-target_link_libraries(AtmosphericEngine PUBLIC raudio)
+if(NOT EMSCRIPTEN)
+    target_link_libraries(AtmosphericEngine PUBLIC raudio)
+endif()
 if(AE_USE_BASIS_UNIVERSAL)
     target_link_libraries(AtmosphericEngine PUBLIC basisu_transcoder)
     target_compile_definitions(AtmosphericEngine PUBLIC AE_USE_BASIS_UNIVERSAL)

@@ -15,10 +15,8 @@ set(LUA_FRONTEND_SOURCES
     bindings/bind_world.cpp
     bindings/bind_graphics.cpp
     bindings/bind_physics.cpp
+    bindings/bind_audio.cpp
 )
-if(NOT EMSCRIPTEN)
-    list(APPEND LUA_FRONTEND_SOURCES bindings/bind_audio.cpp)
-endif()
 
 add_executable(${TARGET_NAME} ${LUA_FRONTEND_SOURCES})
 

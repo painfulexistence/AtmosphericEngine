@@ -169,6 +169,7 @@ static bool NeedsMemFS(const std::string& path) {
     static const char* kTextExts[] = {
         ".lua", ".json", ".glsl", ".vert", ".frag", ".tesc", ".tese",
         ".txt",  ".csv", ".xml",  ".yaml", ".toml",
+        ".ogg",  ".mp3", ".wav",
     };
     for (const char* ext : kTextExts) {
         size_t elen = strlen(ext);

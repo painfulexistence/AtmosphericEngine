@@ -210,6 +210,10 @@ function load()
     player = atmos.world.spawn(0, 1, -5)
     player.name = "Player"
 
+    -- Web Audio test sound
+    testSound = atmos.audio.loadSound("assets/target.ogg")
+    print("[Lua] Loaded test sound ID: " .. tostring(testSound))
+
     print("[Lua] Game loaded!")
     print("[Lua] Press WASD to move, ESC to quit")
     print("[Lua] The cube will rotate and bob using ScriptableComponents!")
@@ -255,6 +259,12 @@ function update(dt)
     if atmos.input.isKeyPressed(atmos.keys.R) then
         print("[Lua] Reloading shaders...")
         atmos.graphics.reloadShaders()
+    end
+
+    -- Play sound on SPACE
+    if atmos.input.isKeyPressed(atmos.keys.SPACE) then
+        print("[Lua] Playing test sound (Web Audio)...")
+        atmos.audio.playSoundVariation(testSound, 0.15, 0.1)
     end
 end
 

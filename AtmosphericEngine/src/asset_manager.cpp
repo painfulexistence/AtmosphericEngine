@@ -587,7 +587,7 @@ GLuint AssetManager::LoadKTX2Texture(const std::string& path) {
     // hand-off pattern).  On web the cache is pre-populated by Prefetch();
     // on native it falls back to a synchronous disk read.
     //
-    std::vector<uint8_t> fileData = FileSystem::Get().ReadSync(path);
+    std::vector<uint8_t> fileData = FileSystem::Get().ConsumeSync(path);
 
     if (fileData.empty())
         throw std::runtime_error(fmt::format("Failed to load KTX2 file: {}", path));

@@ -371,17 +371,19 @@ void AssetManager::LoadDefaultTextures() {
 #if defined(AE_USE_BASIS_UNIVERSAL) && defined(__EMSCRIPTEN__)
 // Helper to swap standard image extensions to .ktx2 under WebAssembly
 static std::string RedirectToKTX2(const std::string& path) {
-    if (path.find("aim.png") != std::string::npos || path.find("heightmap") != std::string::npos) {
-        return path; // Keep UI aim.png as PNG and heightmaps as JPG
+    // Normalize leading "./" so cache keys are consistent with FileSystem
+    std::string p = (path.size() >= 2 && path[0] == '.' && path[1] == '/') ? path.substr(2) : path;
+    if (p.find("aim.png") != std::string::npos || p.find("heightmap") != std::string::npos) {
+        return p;
     }
-    size_t extPos = path.find_last_of('.');
+    size_t extPos = p.find_last_of('.');
     if (extPos != std::string::npos) {
-        std::string ext = path.substr(extPos);
+        std::string ext = p.substr(extPos);
         if (ext == ".jpg" || ext == ".jpeg" || ext == ".png") {
-            return path.substr(0, extPos) + ".ktx2";
+            return p.substr(0, extPos) + ".ktx2";
         }
     }
-    return path;
+    return p;
 }
 #endif
 
@@ -400,12 +402,14 @@ void AssetManager::LoadTextures(const std::vector<std::string>& paths) {
 
     for (int i = 0; i < newCount; i++) {
         std::string path = paths[i];
+        if (path.size() >= 2 && path[0] == '.' && path[1] == '/') path = path.substr(2);
 #if defined(AE_USE_BASIS_UNIVERSAL) && defined(__EMSCRIPTEN__)
         path = RedirectToKTX2(path);
 #endif
         if (path.size() >= 5 && path.compare(path.size() - 5, 5, ".ktx2") == 0) {
 #ifdef AE_USE_BASIS_UNIVERSAL
-            GLuint texID = LoadKTX2Texture(path);
+            auto cached = _textureCache.find(path);
+            GLuint texID = (cached != _textureCache.end()) ? cached->second : LoadKTX2Texture(path);
             textures[oldCount + i] = texID;
             _textureCache[path]    = texID;
 #else
@@ -477,8 +481,10 @@ void AssetManager::LoadTextures(const std::vector<std::string>& paths) {
 
 GLuint AssetManager::CreateTexture(const std::string& path) {
     std::string redirectedPath = path;
+    if (redirectedPath.size() >= 2 && redirectedPath[0] == '.' && redirectedPath[1] == '/')
+        redirectedPath = redirectedPath.substr(2);
 #if defined(AE_USE_BASIS_UNIVERSAL) && defined(__EMSCRIPTEN__)
-    redirectedPath = RedirectToKTX2(redirectedPath);
+    redirectedPath = RedirectToKTX2(redirectedPath); // also normalizes "./" internally
 #endif
 
     // Return cached texture (GLuint) if already uploaded.

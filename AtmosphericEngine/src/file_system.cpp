@@ -4,6 +4,8 @@
 //   ReadAsync  : emscripten_fetch → IndexedDB → WASM heap → callback
 //   Prefetch   : batch fetch; text files also written to MEMFS so
 //                fopen() / Lua require() / std::filesystem::exists() work.
+//   Note: PERSIST_FILE causes onsuccess to fire twice (HTTP + IndexedDB store).
+//         FetchCtx::done guards against double-processing.
 //
 // Native (Linux / macOS / Windows)
 //   ReadAsync  : synchronous fread; callback fires before ReadAsync returns.
@@ -183,20 +185,60 @@ static bool NeedsMemFS(const std::string& path) {
 // ── Async batch state ─────────────────────────────────────────────────────────
 namespace {
 
+struct PrefetchQueue;
+
 struct BatchState {
     std::atomic<int>               remaining{0};
     FileSystem::CompletionCallback onComplete;
 };
 
-struct FetchCtx {
-    std::string                  path;
-    bool                         writeToMemFS;
-    FileSystem::ReadCallback     singleCB; // set for ReadAsync, null for Prefetch
-    std::shared_ptr<BatchState>  batch;    // set for Prefetch, null for ReadAsync
+struct PrefetchQueue {
+    std::vector<std::string>         pendingPaths;
+    size_t                           nextIndex{0};
+    std::mutex                       mutex;
 };
+
+struct FetchCtx {
+    std::string                      path;
+    bool                             writeToMemFS;
+    FileSystem::ReadCallback         singleCB; // set for ReadAsync, null for Prefetch
+    std::shared_ptr<BatchState>      batch;    // set for Prefetch, null for ReadAsync
+    std::shared_ptr<PrefetchQueue>   queue;    // set for Prefetch, null for ReadAsync
+    // PERSIST_FILE causes onsuccess to fire twice (HTTP fetch + IndexedDB store).
+    // Guard ensures we only process the first invocation.
+    bool                             done{false};
+};
+
+void LaunchFetch(const std::string& path, FetchCtx* ctx);
+
+void PumpQueue(const std::shared_ptr<PrefetchQueue>& queue, const std::shared_ptr<BatchState>& batch) {
+    if (!queue) return;
+    std::string nextPath;
+    {
+        std::lock_guard<std::mutex> lk(queue->mutex);
+        if (queue->nextIndex < queue->pendingPaths.size()) {
+            nextPath = queue->pendingPaths[queue->nextIndex++];
+        }
+    }
+    if (!nextPath.empty()) {
+        auto* ctx = new FetchCtx{nextPath, NeedsMemFS(nextPath), nullptr, batch, queue};
+        LaunchFetch(nextPath, ctx);
+    }
+}
 
 void EM_OnSuccess(emscripten_fetch_t* f) {
     auto* ctx = static_cast<FetchCtx*>(f->userData);
+
+    // PERSIST_FILE fires onsuccess twice: once on HTTP fetch, once on IndexedDB
+    // store completion. Only process the first invocation.
+    if (ctx->done) {
+        emscripten_fetch_close(f);
+        return;
+    }
+    ctx->done = true;
+
+    auto queue = ctx->queue;
+    auto batch = ctx->batch;
 
     // Build byte vector from the fetch buffer
     FileSystem::Bytes bytes;
@@ -216,7 +258,7 @@ void EM_OnSuccess(emscripten_fetch_t* f) {
         // Store in in-process cache
         {
             std::lock_guard<std::mutex> lk(g_cacheMutex);
-            g_cache[ctx->path] = bytes; // intentional copy; bytes also given to singleCB below
+            g_cache[ctx->path] = bytes;
         }
     }
 
@@ -224,22 +266,36 @@ void EM_OnSuccess(emscripten_fetch_t* f) {
     if (ctx->singleCB) ctx->singleCB(std::move(bytes), true);
 
     // Batch completion (Prefetch path)
-    if (ctx->batch && --ctx->batch->remaining == 0)
-        if (ctx->batch->onComplete) ctx->batch->onComplete();
+    if (batch && --batch->remaining == 0) {
+        if (batch->onComplete) batch->onComplete();
+    }
 
     emscripten_fetch_close(f);
     delete ctx;
+
+    // Pump next download in the queue
+    PumpQueue(queue, batch);
 }
 
 void EM_OnError(emscripten_fetch_t* f) {
     auto* ctx = static_cast<FetchCtx*>(f->userData);
     ENGINE_LOG("[FileSystem] HTTP {} — failed to fetch '{}'", f->status, f->url);
+    
+    auto queue = ctx->queue;
+    auto batch = ctx->batch;
+
     if (ctx->singleCB) ctx->singleCB({}, false);
+    
     // Batch errors are non-fatal; decrement so Prefetch can still complete.
-    if (ctx->batch && --ctx->batch->remaining == 0)
-        if (ctx->batch->onComplete) ctx->batch->onComplete();
+    if (batch && --batch->remaining == 0) {
+        if (batch->onComplete) batch->onComplete();
+    }
+    
     emscripten_fetch_close(f);
     delete ctx;
+
+    // Pump next download in the queue
+    PumpQueue(queue, batch);
 }
 
 void LaunchFetch(const std::string& path, FetchCtx* ctx) {
@@ -268,7 +324,7 @@ void FileSystem::ReadAsync(const std::string& path, ReadCallback cb) {
         if (it != g_cache.end()) { cb(it->second, true); return; }
     }
     // Cache miss → fetch asynchronously; callback fires in the browser event loop
-    auto* ctx = new FetchCtx{normPath, NeedsMemFS(normPath), std::move(cb), nullptr};
+    auto* ctx = new FetchCtx{normPath, NeedsMemFS(normPath), std::move(cb), nullptr, nullptr};
     LaunchFetch(normPath, ctx);
 }
 
@@ -291,8 +347,22 @@ void FileSystem::Prefetch(const std::vector<std::string>& paths,
     batch->remaining  = static_cast<int>(pending.size());
     batch->onComplete = std::move(onDone);
 
-    for (const auto& p : pending) {
-        auto* ctx = new FetchCtx{p, NeedsMemFS(p), nullptr, batch};
+    // Instantiate our thread-safe prefetch queue
+    auto queue         = std::make_shared<PrefetchQueue>();
+    queue->pendingPaths = std::move(pending);
+
+    // Capping concurrency at 400 to reproduce memory spike issue
+    constexpr size_t MAX_CONCURRENT_FETCHES = 400;
+    size_t initialFetches = std::min(queue->pendingPaths.size(), MAX_CONCURRENT_FETCHES);
+    
+    {
+        std::lock_guard<std::mutex> lk(queue->mutex);
+        queue->nextIndex = initialFetches;
+    }
+
+    for (size_t i = 0; i < initialFetches; ++i) {
+        const auto& p = queue->pendingPaths[i];
+        auto* ctx = new FetchCtx{p, NeedsMemFS(p), nullptr, batch, queue};
         LaunchFetch(p, ctx);
     }
     // Returns immediately; onDone fires asynchronously via the browser event loop

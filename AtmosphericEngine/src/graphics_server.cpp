@@ -434,19 +434,19 @@ LightComponent* GraphicsServer::RegisterLight(LightComponent* light) {
 }
 
 // ===== Render Target Management Implementation =====
-std::shared_ptr<RenderTexture> GraphicsServer::CreateRenderTexture(int width, int height, bool withDepth) {
-    auto rt = std::make_shared<RenderTexture>(width, height, withDepth);
-    _renderTextures.push_back(rt);
+std::shared_ptr<GLRenderTarget> GraphicsServer::CreateRenderTarget(int width, int height, bool withDepth) {
+    auto rt = std::make_shared<GLRenderTarget>(width, height, withDepth);
+    _renderTargets.push_back(rt);
     return rt;
 }
 
-std::shared_ptr<RenderTexture> GraphicsServer::CreateRenderTexture(const RenderTexture::Props& props) {
-    auto rt = std::make_shared<RenderTexture>(props);
-    _renderTextures.push_back(rt);
+std::shared_ptr<GLRenderTarget> GraphicsServer::CreateRenderTarget(const GLRenderTarget::Props& props) {
+    auto rt = std::make_shared<GLRenderTarget>(props);
+    _renderTargets.push_back(rt);
     return rt;
 }
 
-void GraphicsServer::PushRenderTarget(RenderTexture* target) {
+void GraphicsServer::PushRenderTarget(GLRenderTarget* target) {
     // Save current target to stack
     _renderTargetStack.push(_currentRenderTarget);
 
@@ -475,7 +475,7 @@ void GraphicsServer::PopRenderTarget() {
     }
 
     // Restore previous target
-    RenderTexture* prevTarget = _renderTargetStack.top();
+    GLRenderTarget* prevTarget = _renderTargetStack.top();
     _renderTargetStack.pop();
 
     if (prevTarget) {
@@ -485,7 +485,7 @@ void GraphicsServer::PopRenderTarget() {
     _currentRenderTarget = prevTarget;
 }
 
-void GraphicsServer::SetRenderTarget(RenderTexture* target) {
+void GraphicsServer::SetRenderTarget(GLRenderTarget* target) {
     // End current target if switching
     if (_currentRenderTarget && _currentRenderTarget != target) {
         _currentRenderTarget->End();
@@ -504,12 +504,12 @@ void GraphicsServer::SetRenderTarget(RenderTexture* target) {
     _currentRenderTarget = target;
 }
 
-RenderTexture* GraphicsServer::GetCurrentRenderTarget() const {
+GLRenderTarget* GraphicsServer::GetCurrentRenderTarget() const {
     return _currentRenderTarget;
 }
 
 RenderMeshHandle GraphicsServer::AllocateRenderMesh(VertexFormat format, BufferUsage usage) {
-    auto renderMesh = std::make_unique<RenderMesh>();
+    auto renderMesh = std::make_unique<GLBuffer>();
     renderMesh->Initialize(format, usage);
 
     RenderMeshHandle handle;
@@ -528,7 +528,7 @@ void GraphicsServer::FreeRenderMesh(RenderMeshHandle handle) {
     }
 }
 
-RenderMesh* GraphicsServer::GetRenderMesh(RenderMeshHandle handle) {
+GLBuffer* GraphicsServer::GetRenderMesh(RenderMeshHandle handle) {
     if (!handle.IsValid()) return nullptr;
 
     auto it = _renderMeshes.find(handle.id);

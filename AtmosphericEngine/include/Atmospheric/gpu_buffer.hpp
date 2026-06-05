@@ -1,68 +1,50 @@
 #pragma once
-#include "gpu_command_context.hpp"
-#include <cstddef>
-#include <cstdint>
+#if defined(AE_WEB_BACKEND_WEBGPU) && defined(__EMSCRIPTEN__)
+#include "buffer.hpp"
+#include "command_encoder.hpp"
+#include <webgpu/webgpu.h>
 
-// Vertex layout hint — tells the backend how to interpret interleaved vertex data.
-enum class VertexFormat {
-    Standard,  // Vertex: pos(vec3), uv(vec2), normal(vec3), tangent(vec3), bitangent(vec3)
-    Debug,     // DebugVertex: pos(vec3), color(vec3)
-    Canvas,    // CanvasVertex: pos2D(vec2), texCoord(vec2), color(vec4), texIndex(int), layer(int)
-    Voxel      // VoxelVertex: pos(3xu8), voxel_id(u8), face_id(u8)
-};
-
-// Upload frequency hint — maps to driver hints like GL_STATIC_DRAW.
-enum class BufferUsage {
-    Static,   // Rarely or never updated after upload
-    Dynamic,  // Updated occasionally
-    Stream    // Updated every frame
-};
-
-// Backend-agnostic primitive assembly mode.
-// Note: for SDL3 GPU, topology is part of the pipeline descriptor, not the draw call.
-// The Draw() topology parameter is used by the GL backend and ignored by SDL3 GPU.
-enum class PrimitiveTopology {
-    Triangles,
-    TriangleStrip,
-    Lines,
-    LineStrip,
-    Points,
-};
-
-// Opaque handle used to reference a buffer stored in a registry.
-struct RenderMeshHandle {
-    static constexpr uint32_t INVALID = UINT32_MAX;
-    uint32_t id = INVALID;
-
-    bool IsValid() const { return id != INVALID; }
-    bool operator==(const RenderMeshHandle& other) const { return id == other.id; }
-    bool operator!=(const RenderMeshHandle& other) const { return id != other.id; }
-};
-
-// Abstract GPU vertex/index buffer.
+// WebGPU implementation of Buffer (Emscripten + AE_WEB_BACKEND_WEBGPU).
 //
-// GL backend:   pass nullptr (or omit) for ctx — state is implicit.
-// SDL3 GPU:     pass an SDLGPUCommandContext with an active render pass set.
-class IGPUBuffer {
+// Upload path:  wgpuQueueWriteBuffer — synchronous write from JS side.
+// Draw path:    binds vertex / index buffers to the active WGPURenderPassEncoder
+//               via the GPUCommandEncoder supplied to Draw().
+//               Topology is encoded in the WGPURenderPipeline descriptor; the
+//               topology parameter here is ignored at draw time.
+class GPUBuffer : public Buffer {
 public:
-    virtual ~IGPUBuffer() = default;
+    GPUBuffer(WGPUDevice device, WGPUQueue queue);
+    ~GPUBuffer() override;
 
-    virtual void Initialize(VertexFormat format, BufferUsage usage = BufferUsage::Static) = 0;
+    GPUBuffer(const GPUBuffer&) = delete;
+    GPUBuffer& operator=(const GPUBuffer&) = delete;
 
-    // Upload vertex-only geometry.
-    virtual void Upload(const void* vertexData, size_t vertexCount, size_t vertexSize) = 0;
-
-    // Upload indexed geometry.
-    virtual void Upload(
+    void Initialize(VertexFormat format, BufferUsage usage = BufferUsage::Static) override;
+    void Upload(const void* vertexData, size_t vertexCount, size_t vertexSize) override;
+    void Upload(
         const void* vertexData, size_t vertexCount, size_t vertexSize,
-        const uint16_t* indexData, size_t indexCount) = 0;
+        const uint16_t* indexData, size_t indexCount) override;
+    void Draw(
+        CommandEncoder* enc = nullptr,
+        PrimitiveTopology topology = PrimitiveTopology::Triangles) const override;
 
-    virtual void Draw(
-        IGPUCommandContext* ctx = nullptr,
-        PrimitiveTopology topology = PrimitiveTopology::Triangles) const = 0;
+    bool IsInitialized() const override { return _initialized; }
+    size_t GetVertexCount() const override { return _vertexCount; }
+    size_t GetIndexCount() const override { return _indexCount; }
+    VertexFormat GetFormat() const override { return _format; }
 
-    virtual bool IsInitialized() const = 0;
-    virtual size_t GetVertexCount() const = 0;
-    virtual size_t GetIndexCount() const = 0;
-    virtual VertexFormat GetFormat() const = 0;
+private:
+    WGPUBuffer AllocAndUpload(const void* data, size_t bytes, WGPUBufferUsageFlags usage);
+
+    WGPUDevice _device       = nullptr;
+    WGPUQueue  _queue        = nullptr;
+    WGPUBuffer _vertexBuffer = nullptr;
+    WGPUBuffer _indexBuffer  = nullptr;
+
+    VertexFormat _format = VertexFormat::Standard;
+    size_t _vertexCount  = 0;
+    size_t _indexCount   = 0;
+    bool _initialized    = false;
+    bool _hasIndices     = false;
 };
+#endif // AE_WEB_BACKEND_WEBGPU && __EMSCRIPTEN__

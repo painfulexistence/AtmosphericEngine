@@ -47,11 +47,11 @@ static std::vector<RenderBatch> BuildBatches(const std::vector<Renderer::Sortabl
 
 static constexpr int MAX_CANVAS_TEXTURES = 32;
 
-void RenderPipeline::AddPass(std::unique_ptr<RenderPass> pass) {
+void RenderGraph::AddPass(std::unique_ptr<RenderPass> pass) {
     _passes.push_back(std::move(pass));
 }
 
-void RenderPipeline::Render(GraphicsServer* ctx, Renderer& renderer) {
+void RenderGraph::Render(GraphicsServer* ctx, Renderer& renderer) {
     // Execute all passes in order (sorting, batching, drawing)
     for (auto& pass : _passes) {
         pass->Execute(ctx, renderer);
@@ -68,14 +68,14 @@ void Renderer::Init(int width, int height) {
     m_BatchRenderer = std::make_unique<BatchRenderer2D>();
     m_BatchRenderer->Init();
 
-    _pipeline = std::make_unique<RenderPipeline>();
-    _pipeline->AddPass(std::make_unique<ShadowPass>());
-    _pipeline->AddPass(std::make_unique<ForwardOpaquePass>());
-    _pipeline->AddPass(std::make_unique<MSAAResolvePass>());
-    _pipeline->AddPass(std::make_unique<WorldCanvasPass>());// World sprites with depth testing
-    _pipeline->AddPass(std::make_unique<CanvasPass>());// 2D sprites, world space ortho, with no depth testing
-    _pipeline->AddPass(std::make_unique<PostProcessPass>());
-    _pipeline->AddPass(std::make_unique<UIPass>());
+    _renderGraph = std::make_unique<RenderGraph>();
+    _renderGraph->AddPass(std::make_unique<ShadowPass>());
+    _renderGraph->AddPass(std::make_unique<ForwardOpaquePass>());
+    _renderGraph->AddPass(std::make_unique<MSAAResolvePass>());
+    _renderGraph->AddPass(std::make_unique<WorldCanvasPass>());// World sprites with depth testing
+    _renderGraph->AddPass(std::make_unique<CanvasPass>());// 2D sprites, world space ortho, with no depth testing
+    _renderGraph->AddPass(std::make_unique<PostProcessPass>());
+    _renderGraph->AddPass(std::make_unique<UIPass>());
 }
 
 void Renderer::Cleanup() {
@@ -208,7 +208,7 @@ void Renderer::BucketCommands(const glm::vec3& cameraPos) {
 void Renderer::RenderFrame(GraphicsServer* ctx, float dt) {
     ZoneScopedN("Renderer::RenderFrame");
     SortAndBucket(ctx->GetMainCamera()->GetEyePosition());
-    _pipeline->Render(ctx, *this);
+    _renderGraph->Render(ctx, *this);
 
     _hudQueue.clear();
     _canvasQueue.clear();

@@ -1,43 +1,59 @@
 #pragma once
-#include "gpu_command_context.hpp"
-#include <cstdint>
+#if defined(AE_WEB_BACKEND_WEBGPU) && defined(__EMSCRIPTEN__)
+#include "render_target.hpp"
+#include "command_encoder.hpp"
+#include <webgpu/webgpu.h>
 #include <glm/glm.hpp>
 
-// Abstract offscreen render target (framebuffer + color/depth attachments).
+// WebGPU implementation of RenderTarget (Emscripten + AE_WEB_BACKEND_WEBGPU).
 //
-// GL backend:   pass nullptr (or omit) for ctx in Begin() — FBO state is implicit.
-// SDL3 GPU:     pass an SDLGPUCommandContext with cmdBuf set; Begin() will create
-//               the render pass and populate ctx->renderPass for subsequent draws.
-class IGPURenderTarget {
+// Begin(enc):  creates texture views, opens a WGPURenderPassEncoder, and
+//              sets enc->pass so subsequent Draw() calls can bind buffers.
+// End():       ends the render pass and releases transient views.
+// Clear():     stores the clear colour; applied via loadOp=Clear on next Begin().
+//
+// GetTextureID() returns the low 32 bits of the WGPUTexture pointer for
+// interface compatibility. Use GetNativeTexture() for shader binding.
+class GPURenderTarget : public RenderTarget {
 public:
-    struct Props {
-        int width = 256;
-        int height = 256;
-        bool withDepth = false;
-        bool withStencil = false;
-        bool hdr = false;      // RGBA16F instead of RGBA8
-        bool filtered = true;  // Linear vs Nearest sampling
-    };
+    GPURenderTarget(WGPUDevice device, const RenderTarget::Props& props);
+    ~GPURenderTarget() override;
 
-    virtual ~IGPURenderTarget() = default;
+    GPURenderTarget(const GPURenderTarget&) = delete;
+    GPURenderTarget& operator=(const GPURenderTarget&) = delete;
 
-    // Bind this target. GL: saves + restores previous FBO. SDL3 GPU: begins render pass.
-    virtual void Begin(IGPUCommandContext* ctx = nullptr) = 0;
-    // Unbind / end render pass and restore previous state.
-    virtual void End() = 0;
-    // Set clear colour for the next Begin(). For GL this clears immediately if already bound.
-    virtual void Clear(const glm::vec4& color = glm::vec4(0.0f)) = 0;
+    void Begin(CommandEncoder* enc = nullptr) override;
+    void End() override;
+    void Clear(const glm::vec4& color = glm::vec4(0.0f)) override;
 
-    // Color attachment handle (GLuint / low bits of SDL_GPUTexture*).
-    // Use the concrete type's GetNativeTexture() for the typed handle on SDL3 GPU.
-    virtual uint32_t GetTextureID() const = 0;
-    // Depth attachment handle, or 0 if not created with a depth attachment.
-    virtual uint32_t GetDepthTextureID() const = 0;
+    uint32_t GetTextureID() const override;
+    uint32_t GetDepthTextureID() const override;
 
-    virtual int GetWidth() const = 0;
-    virtual int GetHeight() const = 0;
-    virtual glm::vec2 GetSize() const = 0;
+    int GetWidth() const override { return _width; }
+    int GetHeight() const override { return _height; }
+    glm::vec2 GetSize() const override { return { (float)_width, (float)_height }; }
 
-    virtual bool IsValid() const = 0;
-    virtual void Resize(int width, int height) = 0;
+    bool IsValid() const override { return _colorTexture != nullptr; }
+    void Resize(int width, int height) override;
+
+    WGPUTexture GetNativeTexture() const { return _colorTexture; }
+    WGPUTexture GetNativeDepthTexture() const { return _depthTexture; }
+
+private:
+    void Create();
+    void Destroy();
+
+    WGPUDevice            _device       = nullptr;
+    WGPUTexture           _colorTexture = nullptr;
+    WGPUTexture           _depthTexture = nullptr;
+    WGPUTextureView       _colorView    = nullptr;
+    WGPUTextureView       _depthView    = nullptr;
+    WGPURenderPassEncoder _activePass   = nullptr;
+
+    int  _width     = 0;
+    int  _height    = 0;
+    bool _withDepth = false;
+    bool _hdr       = false;
+    glm::vec4 _clearColor = glm::vec4(0.0f);
 };
+#endif // AE_WEB_BACKEND_WEBGPU && __EMSCRIPTEN__

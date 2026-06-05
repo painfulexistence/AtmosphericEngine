@@ -1,8 +1,7 @@
 #if defined(AE_WEB_BACKEND_WEBGPU) && defined(__EMSCRIPTEN__)
-#include "webgpu_render_target.hpp"
+#include "gpu_render_target.hpp"
 
-WebGPURenderTarget::WebGPURenderTarget(WGPUDevice device,
-                                       const IGPURenderTarget::Props& props)
+GPURenderTarget::GPURenderTarget(WGPUDevice device, const RenderTarget::Props& props)
     : _device(device),
       _width(props.width),
       _height(props.height),
@@ -11,26 +10,23 @@ WebGPURenderTarget::WebGPURenderTarget(WGPUDevice device,
     Create();
 }
 
-WebGPURenderTarget::~WebGPURenderTarget() {
+GPURenderTarget::~GPURenderTarget() {
     Destroy();
 }
 
-void WebGPURenderTarget::Create() {
+void GPURenderTarget::Create() {
     WGPUTextureDescriptor colorDesc{};
-    colorDesc.usage          = WGPUTextureUsage_RenderAttachment |
-                               WGPUTextureUsage_TextureBinding;
-    colorDesc.dimension      = WGPUTextureDimension_2D;
-    colorDesc.size           = { (uint32_t)_width, (uint32_t)_height, 1 };
-    colorDesc.format         = _hdr ? WGPUTextureFormat_RGBA16Float
-                                    : WGPUTextureFormat_RGBA8Unorm;
-    colorDesc.mipLevelCount  = 1;
-    colorDesc.sampleCount    = 1;
+    colorDesc.usage         = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding;
+    colorDesc.dimension     = WGPUTextureDimension_2D;
+    colorDesc.size          = { (uint32_t)_width, (uint32_t)_height, 1 };
+    colorDesc.format        = _hdr ? WGPUTextureFormat_RGBA16Float : WGPUTextureFormat_RGBA8Unorm;
+    colorDesc.mipLevelCount = 1;
+    colorDesc.sampleCount   = 1;
     _colorTexture = wgpuDeviceCreateTexture(_device, &colorDesc);
 
     if (_withDepth) {
         WGPUTextureDescriptor depthDesc{};
-        depthDesc.usage         = WGPUTextureUsage_RenderAttachment |
-                                  WGPUTextureUsage_TextureBinding;
+        depthDesc.usage         = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding;
         depthDesc.dimension     = WGPUTextureDimension_2D;
         depthDesc.size          = { (uint32_t)_width, (uint32_t)_height, 1 };
         depthDesc.format        = WGPUTextureFormat_Depth32Float;
@@ -40,21 +36,20 @@ void WebGPURenderTarget::Create() {
     }
 }
 
-void WebGPURenderTarget::Destroy() {
-    // End any in-progress pass before releasing textures.
+void GPURenderTarget::Destroy() {
     if (_activePass) {
         wgpuRenderPassEncoderEnd(_activePass);
         wgpuRenderPassEncoderRelease(_activePass);
         _activePass = nullptr;
     }
-    if (_colorView) { wgpuTextureViewRelease(_colorView); _colorView = nullptr; }
-    if (_depthView) { wgpuTextureViewRelease(_depthView); _depthView = nullptr; }
-    if (_colorTexture) { wgpuTextureRelease(_colorTexture); _colorTexture = nullptr; }
-    if (_depthTexture) { wgpuTextureRelease(_depthTexture); _depthTexture = nullptr; }
+    if (_colorView)   { wgpuTextureViewRelease(_colorView);   _colorView   = nullptr; }
+    if (_depthView)   { wgpuTextureViewRelease(_depthView);   _depthView   = nullptr; }
+    if (_colorTexture){ wgpuTextureRelease(_colorTexture);    _colorTexture = nullptr; }
+    if (_depthTexture){ wgpuTextureRelease(_depthTexture);    _depthTexture = nullptr; }
 }
 
-void WebGPURenderTarget::Begin(IGPUCommandContext* ctx) {
-    auto* wgpuCtx = static_cast<WebGPUCommandContext*>(ctx);
+void GPURenderTarget::Begin(CommandEncoder* enc) {
+    auto* gpuEnc = static_cast<GPUCommandEncoder*>(enc);
 
     _colorView = wgpuTextureCreateView(_colorTexture, nullptr);
 
@@ -78,11 +73,11 @@ void WebGPURenderTarget::Begin(IGPUCommandContext* ctx) {
         passDesc.depthStencilAttachment = &depthAttach;
     }
 
-    _activePass = wgpuCommandEncoderBeginRenderPass(wgpuCtx->encoder, &passDesc);
-    wgpuCtx->pass = _activePass;
+    _activePass  = wgpuCommandEncoderBeginRenderPass(gpuEnc->encoder, &passDesc);
+    gpuEnc->pass = _activePass;
 }
 
-void WebGPURenderTarget::End() {
+void GPURenderTarget::End() {
     if (_activePass) {
         wgpuRenderPassEncoderEnd(_activePass);
         wgpuRenderPassEncoderRelease(_activePass);
@@ -92,21 +87,19 @@ void WebGPURenderTarget::End() {
     if (_depthView) { wgpuTextureViewRelease(_depthView); _depthView = nullptr; }
 }
 
-void WebGPURenderTarget::Clear(const glm::vec4& color) {
-    // Stored and applied as loadOp=Clear on the next Begin().
+void GPURenderTarget::Clear(const glm::vec4& color) {
     _clearColor = color;
 }
 
-uint32_t WebGPURenderTarget::GetTextureID() const {
-    // Pointer truncation shim — use GetNativeTexture() for real shader binding.
+uint32_t GPURenderTarget::GetTextureID() const {
     return static_cast<uint32_t>(reinterpret_cast<uintptr_t>(_colorTexture));
 }
 
-uint32_t WebGPURenderTarget::GetDepthTextureID() const {
+uint32_t GPURenderTarget::GetDepthTextureID() const {
     return static_cast<uint32_t>(reinterpret_cast<uintptr_t>(_depthTexture));
 }
 
-void WebGPURenderTarget::Resize(int width, int height) {
+void GPURenderTarget::Resize(int width, int height) {
     if (width == _width && height == _height) return;
     _width  = width;
     _height = height;

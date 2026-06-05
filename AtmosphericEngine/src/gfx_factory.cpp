@@ -1,12 +1,12 @@
 #include "gfx_factory.hpp"
-#include "render_mesh.hpp"
-#include "render_texture.hpp"
+#include "gl_buffer.hpp"
+#include "gl_render_target.hpp"
 
 #ifdef __EMSCRIPTEN__
 #if defined(AE_WEB_BACKEND_WEBGPU)
 #include <webgpu/webgpu.h>
-#include "webgpu_buffer.hpp"
-#include "webgpu_render_target.hpp"
+#include "gpu_buffer.hpp"
+#include "gpu_render_target.hpp"
 #endif
 #endif
 
@@ -26,7 +26,7 @@ SDL_Window* GfxFactory::_sdlWindow = nullptr;
 void GfxFactory::Init() {
     _backend = GfxBackend::WebGPU;
     // Device arrives async. Caller must invoke SetWebGPUDevice() once
-    // emscripten_webgpu_init_default_device() callback fires.
+    // emscripten_webgpu_get_device() callback fires.
 }
 
 void GfxFactory::SetWebGPUDevice(WGPUDevice device) {
@@ -52,18 +52,14 @@ void GfxFactory::Init(SDL_Window* sdlWindow) {
     //   WGPUInstanceDescriptor instDesc{};
     //   WGPUInstance instance = wgpuCreateInstance(&instDesc);
     //
-    //   // Get the native surface from the SDL window.
     //   WGPUSurface surface = CreateDawnSurface(instance, sdlWindow);
     //
-    //   // Request adapter + device (Dawn provides a synchronous helper).
-    //   // On failure → fall back to OpenGL below.
     //   WGPUDevice device = RequestDawnDevice(instance, surface);
     //   if (!device) { _backend = GfxBackend::OpenGL; return; }
     //
     //   _backend = GfxBackend::WebGPU;
     //   return;
 
-    // Until Dawn is integrated, always use the OpenGL fallback.
     _backend = GfxBackend::OpenGL;
 }
 
@@ -86,31 +82,29 @@ void GfxFactory::Shutdown() {
 }
 
 // ── Factory methods ──────────────────────────────────────────────────────────
-std::unique_ptr<IGPUBuffer> GfxFactory::CreateBuffer() {
+std::unique_ptr<Buffer> GfxFactory::CreateBuffer() {
 #ifdef __EMSCRIPTEN__
 #if defined(AE_WEB_BACKEND_WEBGPU)
     if (_backend == GfxBackend::WebGPU && _wgpuDevice)
-        return std::make_unique<WebGPUBuffer>(_wgpuDevice, _wgpuQueue);
+        return std::make_unique<GPUBuffer>(_wgpuDevice, _wgpuQueue);
 #endif
 #else
     // TODO: return DawnGPUBuffer(_dawnDevice) once Dawn is integrated.
     (void)_sdlWindow;
 #endif
-    // OpenGL / WebGL 2 fallback.
-    return std::make_unique<RenderMesh>();
+    return std::make_unique<GLBuffer>();
 }
 
-std::unique_ptr<IGPURenderTarget> GfxFactory::CreateRenderTarget(
-        const IGPURenderTarget::Props& props) {
+std::unique_ptr<RenderTarget> GfxFactory::CreateRenderTarget(
+        const RenderTarget::Props& props) {
 #ifdef __EMSCRIPTEN__
 #if defined(AE_WEB_BACKEND_WEBGPU)
     if (_backend == GfxBackend::WebGPU && _wgpuDevice)
-        return std::make_unique<WebGPURenderTarget>(_wgpuDevice, props);
+        return std::make_unique<GPURenderTarget>(_wgpuDevice, props);
 #endif
 #else
     // TODO: return DawnGPURenderTarget(_dawnDevice, props) once Dawn is integrated.
     (void)_sdlWindow;
 #endif
-    // OpenGL / WebGL 2 fallback.
-    return std::make_unique<RenderTexture>(props);
+    return std::make_unique<GLRenderTarget>(props);
 }

@@ -81,8 +81,7 @@ public:
     void Execute(GraphicsServer* ctx, Renderer& renderer) override;
 };
 
-class RenderPipeline {
-    // Also owns render targets
+class RenderGraph {
     std::vector<std::unique_ptr<RenderPass>> _passes;
 
 public:
@@ -205,7 +204,7 @@ private:
     std::vector<BatchDrawCommand> _hudQueue;// For HUD (RmlUi)
     std::vector<BatchDrawCommand> _canvasQueue;// For immediate mode canvas (Lua)
 
-    std::unique_ptr<RenderPipeline> _pipeline;// TODO: support forward and deferred
+    std::unique_ptr<RenderGraph> _renderGraph;
     RenderPath _currRenderPath = RenderPath::Forward;
 
     void CreateFBOs();

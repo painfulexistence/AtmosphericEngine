@@ -130,7 +130,9 @@ set(SOURCES
     src/light_component.cpp
     src/camera_component.cpp
     src/mesh.cpp
-    src/render_mesh.cpp
+    src/gl_buffer.cpp
+    src/gl_render_target.cpp
+    src/gl_pipeline.cpp
     src/csg.cpp
     src/frustum.cpp
     src/mesh_component.cpp
@@ -161,7 +163,6 @@ set(SOURCES
     src/batch_renderer_2d.cpp
     src/physics_server_2d.cpp
     src/rigidbody_2d_component.cpp
-    src/render_texture.cpp
     src/mesh_builder.cpp
     src/shape_renderer_component.cpp
     src/scene_loader.cpp
@@ -185,8 +186,8 @@ if(NOT EMSCRIPTEN)
 else()
     list(APPEND SOURCES src/window_glfw.cpp)
     if(AE_WEB_BACKEND_WEBGPU)
-        list(APPEND SOURCES src/webgpu_buffer.cpp)
-        list(APPEND SOURCES src/webgpu_render_target.cpp)
+        list(APPEND SOURCES src/gpu_buffer.cpp)
+        list(APPEND SOURCES src/gpu_render_target.cpp)
     endif()
 endif()
 # FileSystem: platform-agnostic async I/O with in-process cache.
@@ -381,9 +382,13 @@ if(EMSCRIPTEN)
         # WebGPU replaces WebGL2 on Emscripten.
         # TODO: ImGui backend also needs to switch from imgui_impl_opengl3 to
         #       imgui_impl_wgpu when this flag is enabled.
+        # emdawnwebgpu replaces the built-in -sUSE_WEBGPU=1 Emscripten binding.
+        # It provides an up-to-date webgpu.h and a complete JS implementation
+        # built from Dawn's source. --closure=1 is recommended in release builds
+        # to reduce JS size.
         target_link_options(AtmosphericEngine PRIVATE
             -sWASM=1 -O3 -sUSE_GLFW=3
-            -sUSE_WEBGPU=1
+            --use-port=emdawnwebgpu
             -sFETCH=1)
     else()
         # Legacy WebGL2 path — default until AE_WEB_BACKEND_WEBGPU is turned on.

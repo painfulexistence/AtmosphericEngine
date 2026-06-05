@@ -1,27 +1,26 @@
 #pragma once
+#include "render_target.hpp"
 #include "globals.hpp"
-#include "gpu_render_target.hpp"
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
-// OpenGL implementation of IGPURenderTarget.
+// OpenGL implementation of RenderTarget.
 // Wraps an FBO with a color texture attachment and optional depth/stencil attachment.
-class RenderTexture : public IGPURenderTarget {
+class GLRenderTarget : public RenderTarget {
 public:
-    // Backward-compatible alias — existing RenderTexture::Props{...} syntax still works.
-    using Props = IGPURenderTarget::Props;
+    using Props = RenderTarget::Props;
 
-    RenderTexture(int width, int height, bool withDepth = false);
-    RenderTexture(const Props& props);
-    ~RenderTexture() override;
+    GLRenderTarget(int width, int height, bool withDepth = false);
+    explicit GLRenderTarget(const Props& props);
+    ~GLRenderTarget() override;
 
-    RenderTexture(const RenderTexture&) = delete;
-    RenderTexture& operator=(const RenderTexture&) = delete;
-    RenderTexture(RenderTexture&& other) noexcept;
-    RenderTexture& operator=(RenderTexture&& other) noexcept;
+    GLRenderTarget(const GLRenderTarget&) = delete;
+    GLRenderTarget& operator=(const GLRenderTarget&) = delete;
+    GLRenderTarget(GLRenderTarget&& other) noexcept;
+    GLRenderTarget& operator=(GLRenderTarget&& other) noexcept;
 
-    // IGPURenderTarget interface — ctx is unused for GL.
-    void Begin(IGPUCommandContext* ctx = nullptr) override;
+    // enc is unused for GL.
+    void Begin(CommandEncoder* enc = nullptr) override;
     void End() override;
     void Clear(const glm::vec4& color = glm::vec4(0.0f)) override;
 
@@ -48,18 +47,18 @@ private:
     void Create();
     void Destroy();
 
-    GLuint _fbo = 0;
-    GLuint _colorTexture = 0;
-    GLuint _depthTexture = 0;
-    GLuint _depthStencilRBO = 0;
+    GLuint _fbo              = 0;
+    GLuint _colorTexture     = 0;
+    GLuint _depthTexture     = 0;
+    GLuint _depthStencilRBO  = 0;
 
-    int _width = 0;
-    int _height = 0;
-    bool _withDepth = false;
+    int  _width       = 0;
+    int  _height      = 0;
+    bool _withDepth   = false;
     bool _withStencil = false;
-    bool _hdr = false;
-    bool _filtered = true;
+    bool _hdr         = false;
+    bool _filtered    = true;
 
-    GLint _prevFBO = 0;
-    GLint _prevViewport[4] = {0, 0, 0, 0};
+    GLint _prevFBO          = 0;
+    GLint _prevViewport[4]  = {0, 0, 0, 0};
 };

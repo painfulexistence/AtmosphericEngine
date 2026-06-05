@@ -44,13 +44,23 @@ jobs:
       - name: Bootstrap vcpkg on Unix
         if: matrix.os == 'macos-latest' || matrix.os == 'ubuntu-latest'
         run: |
-          ${{ github.workspace }}/vcpkg/bootstrap-vcpkg.sh
+          ${{ github.workspace }}/vcpkg/bootstrap-vcpkg.sh -disableMetrics
 
       - name: Bootstrap vcpkg on Windows
         if: matrix.os == 'windows-latest'
         shell: cmd
         run: |
-          ${{ github.workspace }}/vcpkg/bootstrap-vcpkg.bat
+          ${{ github.workspace }}/vcpkg/bootstrap-vcpkg.bat -disableMetrics
+
+      - name: Cache vcpkg installed packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ github.workspace }}/vcpkg/installed
+            ${{ github.workspace }}/vcpkg/packages
+          key: vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json') }}
+          restore-keys: |
+            vcpkg-${{ runner.os }}-
 
       - name: Install CMake and other dependencies on Ubuntu
         if: matrix.os == 'ubuntu-latest'

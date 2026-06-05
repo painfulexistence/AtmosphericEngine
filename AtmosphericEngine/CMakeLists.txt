@@ -360,14 +360,23 @@ if(EMSCRIPTEN)
     # spdlog::spdlog : console.cpp and scene_loader.cpp call spdlog directly;
     #   Emscripten maps stdout → browser console so spdlog works fine on web.
     target_compile_definitions(AtmosphericEngine PRIVATE IMGUI_IMPL_OPENGL_ES3)
+    target_compile_definitions(AtmosphericEngine PUBLIC BT_THREADSAFE=1)
     target_link_libraries(AtmosphericEngine PUBLIC spdlog::spdlog)
-    target_compile_options(AtmosphericEngine PRIVATE)
-    # -sFETCH=1  : enable emscripten_fetch (XHR + IndexedDB persistence)
-    #              used by FileSystem (web platform implementation)
+    # -pthread        : enable WASM threads (SharedArrayBuffer + Atomics)
+    # -sFETCH=1       : enable emscripten_fetch (XHR + IndexedDB persistence)
+    #                   used by FileSystem (web platform implementation)
+    # -sUSE_PTHREADS=1              : compile with pthread support (Web Workers)
+    # -sPTHREAD_POOL_SIZE           : pre-spawn workers to avoid first-use latency
+    # -sPROXY_TO_PTHREAD=1          : run main() on a worker so blocking Wait()
+    #                                 calls do not freeze the browser main thread
+    target_compile_options(AtmosphericEngine PRIVATE -pthread)
     target_link_options(AtmosphericEngine PRIVATE
         -sWASM=1 -O3 -sUSE_GLFW=3
         -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2 -sFULL_ES3=1
-        -sFETCH=1)
+        -sFETCH=1
+        -sUSE_PTHREADS=1
+        "-sPTHREAD_POOL_SIZE=navigator.hardwareConcurrency"
+        -sPROXY_TO_PTHREAD=1)
 else()
     target_compile_definitions(AtmosphericEngine PUBLIC BT_THREADSAFE=1)
     target_link_libraries(AtmosphericEngine

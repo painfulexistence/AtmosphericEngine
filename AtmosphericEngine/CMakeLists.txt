@@ -380,19 +380,22 @@ if(EMSCRIPTEN)
     target_compile_options(AtmosphericEngine PRIVATE)
     if(AE_WEB_BACKEND_WEBGPU)
         target_compile_definitions(AtmosphericEngine PUBLIC AE_WEB_BACKEND_WEBGPU)
-        # WebGPU replaces WebGL2 on Emscripten.
-        # TODO: ImGui backend also needs to switch from imgui_impl_opengl3 to
-        #       imgui_impl_wgpu when this flag is enabled.
-        # emdawnwebgpu replaces the built-in -sUSE_WEBGPU=1 Emscripten binding.
-        # It provides an up-to-date webgpu.h and a complete JS implementation
-        # built from Dawn's source. --closure=1 is recommended in release builds
-        # to reduce JS size.
+        # AE_WEB_BACKEND_WEBGPU=ON compiles in WebGPU support (emdawnwebgpu).
+        # The actual backend is chosen at runtime by GfxFactory::Init():
+        #   - browser exposes navigator.gpu → attempts WebGPU
+        #   - WebGPU unavailable or device creation fails → falls back to WebGL 2
+        # WebGL 2 flags are therefore kept alongside emdawnwebgpu so the
+        # OpenGL fallback path and ImGui (still imgui_impl_opengl3) continue
+        # to work at runtime.
+        # --closure=1 is recommended in release builds to reduce emdawnwebgpu JS size.
+        # TODO: switch ImGui backend to imgui_impl_wgpu once WebGPU path is stable.
         target_link_options(AtmosphericEngine PRIVATE
             -sWASM=1 -O3 -sUSE_GLFW=3
             --use-port=emdawnwebgpu
+            -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2 -sFULL_ES3=1
             -sFETCH=1)
     else()
-        # Legacy WebGL2 path — default until AE_WEB_BACKEND_WEBGPU is turned on.
+        # WebGPU support not compiled in — always uses WebGL 2.
         target_link_options(AtmosphericEngine PRIVATE
             -sWASM=1 -O3 -sUSE_GLFW=3
             -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2 -sFULL_ES3=1

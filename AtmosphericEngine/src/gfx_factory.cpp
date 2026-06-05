@@ -2,21 +2,19 @@
 #include "gl_buffer.hpp"
 #include "gl_render_target.hpp"
 
-#ifdef __EMSCRIPTEN__
-#if defined(AE_WEB_BACKEND_WEBGPU)
+#if defined(AE_WEB_BACKEND_WEBGPU) && defined(__EMSCRIPTEN__)
 #include <webgpu/webgpu.h>
 #include "gpu_buffer.hpp"
 #include "gpu_render_target.hpp"
-#endif
 #endif
 
 // ── Static member definitions ────────────────────────────────────────────────
 GfxBackend GfxFactory::_backend = GfxBackend::OpenGL;
 
-#ifdef __EMSCRIPTEN__
+#if defined(__EMSCRIPTEN__) && defined(AE_WEB_BACKEND_WEBGPU)
 WGPUDevice GfxFactory::_wgpuDevice = nullptr;
 WGPUQueue  GfxFactory::_wgpuQueue  = nullptr;
-#else
+#elif !defined(__EMSCRIPTEN__)
 SDL_Window* GfxFactory::_sdlWindow = nullptr;
 #endif
 
@@ -24,21 +22,27 @@ SDL_Window* GfxFactory::_sdlWindow = nullptr;
 #ifdef __EMSCRIPTEN__
 
 void GfxFactory::Init() {
-    _backend = GfxBackend::WebGPU;
-    // Device arrives async. Caller must invoke SetWebGPUDevice() once
-    // emscripten_webgpu_get_device() callback fires.
+#if defined(AE_WEB_BACKEND_WEBGPU)
+    if (Window::IsWebGPUAvailable()) {
+        _backend = GfxBackend::WebGPU;
+        // Device arrives async — caller must invoke SetWebGPUDevice() once
+        // emscripten_webgpu_get_device() callback fires.
+        return;
+    }
+#endif
+    _backend = GfxBackend::OpenGL;  // No WebGPU support or unavailable → WebGL 2
 }
 
-void GfxFactory::SetWebGPUDevice(WGPUDevice device) {
 #if defined(AE_WEB_BACKEND_WEBGPU)
+void GfxFactory::SetWebGPUDevice(WGPUDevice device) {
     if (!device) {
-        _backend = GfxBackend::OpenGL;  // browser lacks WebGPU — fall back to WebGL 2
+        _backend = GfxBackend::OpenGL;  // device creation failed → WebGL 2
         return;
     }
     _wgpuDevice = device;
     _wgpuQueue  = wgpuDeviceGetQueue(device);
-#endif
 }
+#endif
 
 #else // native
 
@@ -67,15 +71,13 @@ void GfxFactory::Init(SDL_Window* sdlWindow) {
 
 // ── Shutdown ─────────────────────────────────────────────────────────────────
 void GfxFactory::Shutdown() {
-#ifdef __EMSCRIPTEN__
-#if defined(AE_WEB_BACKEND_WEBGPU)
+#if defined(__EMSCRIPTEN__) && defined(AE_WEB_BACKEND_WEBGPU)
     if (_wgpuDevice) {
         wgpuDeviceRelease(_wgpuDevice);
         _wgpuDevice = nullptr;
         _wgpuQueue  = nullptr;
     }
-#endif
-#else
+#elif !defined(__EMSCRIPTEN__)
     _sdlWindow = nullptr;
     // TODO: release Dawn instance / device / surface here.
 #endif
@@ -83,12 +85,10 @@ void GfxFactory::Shutdown() {
 
 // ── Factory methods ──────────────────────────────────────────────────────────
 std::unique_ptr<Buffer> GfxFactory::CreateBuffer() {
-#ifdef __EMSCRIPTEN__
-#if defined(AE_WEB_BACKEND_WEBGPU)
+#if defined(AE_WEB_BACKEND_WEBGPU) && defined(__EMSCRIPTEN__)
     if (_backend == GfxBackend::WebGPU && _wgpuDevice)
         return std::make_unique<GPUBuffer>(_wgpuDevice, _wgpuQueue);
-#endif
-#else
+#elif !defined(__EMSCRIPTEN__)
     // TODO: return DawnGPUBuffer(_dawnDevice) once Dawn is integrated.
     (void)_sdlWindow;
 #endif
@@ -97,12 +97,10 @@ std::unique_ptr<Buffer> GfxFactory::CreateBuffer() {
 
 std::unique_ptr<RenderTarget> GfxFactory::CreateRenderTarget(
         const RenderTarget::Props& props) {
-#ifdef __EMSCRIPTEN__
-#if defined(AE_WEB_BACKEND_WEBGPU)
+#if defined(AE_WEB_BACKEND_WEBGPU) && defined(__EMSCRIPTEN__)
     if (_backend == GfxBackend::WebGPU && _wgpuDevice)
         return std::make_unique<GPURenderTarget>(_wgpuDevice, props);
-#endif
-#else
+#elif !defined(__EMSCRIPTEN__)
     // TODO: return DawnGPURenderTarget(_dawnDevice, props) once Dawn is integrated.
     (void)_sdlWindow;
 #endif

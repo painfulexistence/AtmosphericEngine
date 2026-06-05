@@ -14,24 +14,28 @@ struct SDL_Window;
 // Static factory — call Init() once after the window is ready, then use
 // CreateBuffer() / CreateRenderTarget() everywhere that needs a GPU resource.
 //
-// Backend selection:
-//   Native  : Dawn WebGPU (not yet integrated — currently falls back to OpenGL)
-//   Web     : browser WebGPU via Emscripten  (AE_WEB_BACKEND_WEBGPU=ON)
-//             or WebGL 2.0 fallback          (AE_WEB_BACKEND_WEBGPU=OFF)
-//
-// OpenGL is always the automatic fallback when the primary backend fails
-// to initialize (missing driver support, Dawn not yet linked, etc.).
+// AE_WEB_BACKEND_WEBGPU (CMake option, default OFF):
+//   Controls whether WebGPU support is compiled in.
+//   The actual backend is chosen at runtime:
+//     - WebGPU support compiled in AND browser/device reports availability
+//       → attempts WebGPU; falls back to OpenGL/WebGL 2 on failure
+//     - WebGPU support not compiled in, OR unavailable at runtime
+//       → OpenGL 4.1 (native) / WebGL 2 (Emscripten)
 class GfxFactory {
 public:
 #ifdef __EMSCRIPTEN__
+    // Web: checks WebGPU availability at runtime; falls back to WebGL 2.
     static void Init();
+#if defined(AE_WEB_BACKEND_WEBGPU)
     // Called from the emscripten_webgpu_get_device() callback.
-    // Passing nullptr triggers an automatic fall back to WebGL 2.
+    // Passing nullptr falls back to WebGL 2.
     static void SetWebGPUDevice(WGPUDevice device);
     static WGPUDevice GetWebGPUDevice() { return _wgpuDevice; }
     static WGPUQueue  GetWebGPUQueue()  { return _wgpuQueue; }
+#endif
 #else
-    // sdlWindow is stored for future Dawn surface creation.
+    // Native: stores sdlWindow for future Dawn surface creation.
+    // Currently always falls back to OpenGL until Dawn is integrated.
     static void Init(SDL_Window* sdlWindow = nullptr);
 #endif
 
@@ -45,10 +49,10 @@ public:
 private:
     static GfxBackend _backend;
 
-#ifdef __EMSCRIPTEN__
+#if defined(__EMSCRIPTEN__) && defined(AE_WEB_BACKEND_WEBGPU)
     static WGPUDevice _wgpuDevice;
     static WGPUQueue  _wgpuQueue;
-#else
+#elif !defined(__EMSCRIPTEN__)
     static SDL_Window* _sdlWindow;
 #endif
 };

@@ -91,6 +91,7 @@ add_custom_target(sync_default_assets_${GAME_NAME} ALL
         ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${GAME_NAME}/assets
     COMMENT "Syncing default assets for ${GAME_NAME}"
 )
+add_dependencies(sync_default_assets_${GAME_NAME} ${GAME_NAME})
 
 if(EXISTS ${GAME_ASSETS_DIR})
     add_custom_target(sync_game_assets_${GAME_NAME} ALL
@@ -99,6 +100,8 @@ if(EXISTS ${GAME_ASSETS_DIR})
             ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${GAME_NAME}/assets
         COMMENT "Syncing game assets for ${GAME_NAME}"
     )
+    add_dependencies(sync_game_assets_${GAME_NAME} ${GAME_NAME})
+    
     ae_auto_convert_textures(${GAME_NAME}
         ${GAME_ASSETS_DIR}/textures
         ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${GAME_NAME}/assets/textures

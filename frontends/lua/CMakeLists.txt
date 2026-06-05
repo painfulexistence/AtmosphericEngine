@@ -101,6 +101,7 @@ add_custom_target(sync_default_assets_${TARGET_NAME} ALL
         ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${TARGET_NAME}/assets/scripts
     COMMENT "Syncing default assets for ${TARGET_NAME}"
 )
+add_dependencies(sync_default_assets_${TARGET_NAME} ${TARGET_NAME})
 
 if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/assets)
     add_custom_target(sync_game_assets_${TARGET_NAME} ALL
@@ -109,6 +110,8 @@ if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/assets)
             ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${TARGET_NAME}/assets
         COMMENT "Syncing game assets for ${TARGET_NAME}"
     )
+    add_dependencies(sync_game_assets_${TARGET_NAME} ${TARGET_NAME})
+    
     # Auto-convert PNG/JPG textures to KTX2 for Emscripten builds
     ae_auto_convert_textures(${TARGET_NAME}
         ${CMAKE_CURRENT_SOURCE_DIR}/assets/textures

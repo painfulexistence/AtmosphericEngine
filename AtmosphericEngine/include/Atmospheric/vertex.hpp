@@ -26,6 +26,11 @@ public:
     }
 };
 
+struct DebugVertex {
+    glm::vec3 position;
+    glm::vec3 color;
+};
+
 struct VoxelVertex {
     uint8_t x, y, z;// Local position within chunk (0-255)
     uint8_t voxel_id;// Voxel type

@@ -7,6 +7,7 @@
 #include "mesh_component.hpp"
 #include "gl_buffer.hpp"
 #include "gl_render_target.hpp"
+#include "vertex.hpp"
 #include "server.hpp"
 #include "shader.hpp"
 #include <glm/mat4x4.hpp>
@@ -32,11 +33,6 @@ struct CanvasVertex {
 struct ScreenVertex {
     glm::vec2 position;
     glm::vec2 texCoord;
-};
-
-struct DebugVertex {
-    glm::vec3 position;
-    glm::vec3 color;
 };
 
 struct CameraData {

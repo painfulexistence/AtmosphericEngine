@@ -1,12 +1,12 @@
 #pragma once
 #include "server.hpp"
+#ifndef __EMSCRIPTEN__
+#include "raudio.h"
+#endif
 #include <unordered_map>
 
 using SoundID = uint32_t;
 using MusicID = uint32_t;
-
-#ifndef __EMSCRIPTEN__
-#include "raudio.h"
 
 class AudioManager : public Server {
 public:
@@ -45,11 +45,18 @@ public:
     // General API
     void StopAll();
 
-private:
+#ifdef __EMSCRIPTEN__
+    std::unordered_map<SoundID, std::string> soundPaths;
+    std::unordered_map<MusicID, std::string> musicPaths;
+    std::unordered_map<SoundID, std::vector<int>> soundActiveJsIds;
+    std::unordered_map<MusicID, std::vector<int>> musicActiveJsIds;
+    std::unordered_map<SoundID, float> soundVolumes;
+    std::unordered_map<MusicID, float> musicVolumes;
+#else
     std::unordered_map<SoundID, Sound> sounds;
     std::unordered_map<MusicID, Music> musics;
+#endif
 
     SoundID nextSoundId = 1;
     MusicID nextMusicId = 1;
 };
-#endif // !__EMSCRIPTEN__

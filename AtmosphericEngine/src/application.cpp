@@ -1,14 +1,23 @@
 #include "application.hpp"
+#include "animator_2d.hpp"
 #include "asset_manager.hpp"
 #include "camera_component.hpp"
+#include "component_registry.hpp"
 #include "editor_layer.hpp"
 #include "game_layer.hpp"
 #include "game_object.hpp"
 #include "job_system.hpp"
+#include "light_component.hpp"
+#include "mesh_component.hpp"
+#include "rigidbody_2d_component.hpp"
 #include "rigidbody_component.hpp"
 #include "rmlui_manager.hpp"
 #include "scene.hpp"
+#include "shape_renderer_component.hpp"
+#include "sprite_3d_component.hpp"
 #include "sprite_component.hpp"
+#include "terrain_component.hpp"
+#include "transform_component.hpp"
 #include "window.hpp"
 #ifdef TRACY_ENABLE
 #include <tracy/Tracy.hpp>
@@ -31,6 +40,57 @@ Application::Application(AppConfig config) : _config(config) {
 
     PushLayer(new GameLayer(this));
     PushLayer(new EditorLayer(this));
+
+    RegisterComponents();
+}
+
+void Application::RegisterComponents() {
+    ComponentRegistry::Register("TransformComponent",
+      [](GameObject* o, const void* /*p*/) -> Component* {
+          return new TransformComponent(o, {0,0,0}, {0,0,0}, {1,1,1});
+      });
+
+    ComponentRegistry::Register("SpriteComponent",
+      [](GameObject* o, const void* p) -> Component* {
+          const SpriteProps defaults{};
+          return new SpriteComponent(o, p ? *static_cast<const SpriteProps*>(p) : defaults);
+      });
+
+    ComponentRegistry::Register("CameraComponent",
+      [](GameObject* o, const void* p) -> Component* {
+          const CameraProps defaults{};
+          return new CameraComponent(o, p ? *static_cast<const CameraProps*>(p) : defaults);
+      });
+
+    ComponentRegistry::Register("LightComponent",
+      [](GameObject* o, const void* p) -> Component* {
+          const LightProps defaults{LightType::Directional, {0.1f,0.1f,0.1f}, {1,1,1}, {1,1,1}, {0,-1,0}, {1,0,0}, 1.0f, false};
+          return new LightComponent(o, p ? *static_cast<const LightProps*>(p) : defaults);
+      });
+
+    ComponentRegistry::Register("RigidbodyComponent",
+      [](GameObject* o, const void* p) -> Component* {
+          const RigidbodyProps defaults{};
+          const auto& props = p ? *static_cast<const RigidbodyProps*>(p) : defaults;
+          return new RigidbodyComponent(o, props.shape, props.mass, props.linearFactor, props.angularFactor);
+      });
+
+    ComponentRegistry::Register("Rigidbody2DComponent",
+      [](GameObject* o, const void* p) -> Component* {
+          const Rigidbody2DProps defaults{};
+          return new Rigidbody2DComponent(o, p ? *static_cast<const Rigidbody2DProps*>(p) : defaults);
+      });
+
+    ComponentRegistry::Register("ShapeRendererComponent",
+      [](GameObject* o, const void* p) -> Component* {
+          const ShapeRendererProps defaults{};
+          return new ShapeRendererComponent(o, p ? *static_cast<const ShapeRendererProps*>(p) : defaults);
+      });
+
+    ComponentRegistry::Register("Animator2D",
+      [](GameObject* o, const void* /*p*/) -> Component* {
+          return new Animator2D(o);
+      });
 }
 
 Application::~Application() {
@@ -53,9 +113,7 @@ void Application::Run() {
 #endif
     console.Init(this);
     input.Init(this);
-#ifndef __EMSCRIPTEN__
     audio.Init(this);
-#endif
     graphics.Init(this);
     physics.Init(this);// Note that physics debug drawer is dependent on graphics server
     physics2D.Init(this);
@@ -139,9 +197,7 @@ void Application::ReloadScene() {
     graphics.directionalLights.clear();
     graphics.pointLights.clear();
 
-#ifndef __EMSCRIPTEN__
     audio.StopAll();
-#endif
     physics.Reset();
 
     for (auto e : _entities) {
@@ -172,9 +228,7 @@ void Application::Update(const FrameData& props) {
     // ecs.Process(dt); // Note that most of the entity manipulation logic should be put there
     console.Process(dt);
     input.Process(dt);
-#ifndef __EMSCRIPTEN__
     audio.Process(dt);
-#endif
     physics.Process(dt);// TODO: Update only every entity's physics transform
     physics2D.Process(dt);
     graphics.Process(dt);

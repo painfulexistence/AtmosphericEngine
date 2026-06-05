@@ -8,6 +8,8 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # 無顏色
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 echo -e "${BLUE}===================================================${NC}"
 echo -e "${YELLOW}🎮 Atmospheric Engine - WebAssembly 建置系統${NC}"
 echo -e "${BLUE}===================================================${NC}"
@@ -26,6 +28,7 @@ echo -e "建置類型: ${GREEN}${BUILD_TYPE}${NC}"
 echo -e ""
 
 # 1. 檢查是否已設定 Emscripten SDK 環境變數
+REQUIRED_VERSION=$("$SCRIPT_DIR/check-emscripten-version.sh" --print-primary-version)
 if [ -z "$EMSDK" ]; then
     echo -e "${RED}❌ 錯誤: 未偵測到 \$EMSDK 環境變數。${NC}"
     echo -e "要為 WebAssembly (Emscripten) 進行建置，您必須先安裝並啟用 Emscripten SDK (emsdk)。"
@@ -33,13 +36,16 @@ if [ -z "$EMSDK" ]; then
     echo -e "${YELLOW}💡 如何安裝與啟用 EMSDK:${NC}"
     echo -e "  1. 複製 emsdk 倉庫: ${GREEN}git clone https://github.com/emscripten-core/emsdk.git${NC}"
     echo -e "  2. 進入目錄: ${GREEN}cd emsdk${NC}"
-    echo -e "  3. 安裝最新版工具: ${GREEN}./emsdk install latest${NC}"
-    echo -e "  4. 啟用最新版工具: ${GREEN}./emsdk activate latest${NC}"
+    echo -e "  3. 安裝最新版工具: ${GREEN}./emsdk install ${REQUIRED_VERSION}${NC}"
+    echo -e "  4. 啟用最新版工具: ${GREEN}./emsdk activate ${REQUIRED_VERSION}${NC}"
     echo -e "  5. 載入環境變數: ${GREEN}source ./emsdk_env.sh${NC}"
     echo -e ""
     echo -e "載入環境變數後，請在${YELLOW}同一個終端機視窗${NC}中重新執行此指令碼。"
     exit 1
 fi
+
+source "$EMSDK/emsdk_env.sh" > /dev/null 2>&1
+"$SCRIPT_DIR/check-emscripten-version.sh"
 
 echo -e "${GREEN}✓ 找到 EMSDK 路徑: $EMSDK${NC}"
 echo -e "Emscripten 編譯器版本: $(emcc --version | head -n 1)"
@@ -104,11 +110,14 @@ if [ "$RUN_SERVER" = "y" ] || [ "$RUN_SERVER" = "Y" ]; then
     echo -e ""
     echo -e "按下 ${RED}Ctrl+C${NC} 可以停止伺服器。"
     echo -e ""
-    
+
     # 如果是 Mac，自動幫忙在瀏覽器中開啟 Maze 迷宮遊戲
     if [[ "$OSTYPE" == "darwin"* ]]; then
         sleep 1 && open "http://localhost:$PORT/Maze/Maze.html" &
     fi
-    
-    python3 -m http.server $PORT --directory "$BUILD_DIR"
+
+    # 使用 emrun 啟動伺服器（自動設定 COOP/COEP headers，支援 SharedArrayBuffer）
+    emrun --no_browser --port $PORT "$BUILD_DIR"
+    # 備案：若 emrun 不可用，改用以下指令（需要 Node.js）：
+    # npx serve "$BUILD_DIR" --listen $PORT --config "$SCRIPT_DIR/serve.json"
 fi

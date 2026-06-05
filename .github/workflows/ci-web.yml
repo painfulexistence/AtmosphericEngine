@@ -24,15 +24,28 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          submodules: true
+          submodules: false
+          sparse-checkout: |
+            AtmosphericEngine
+            frontends
+            Example_HelloWorld
+            CMakeLists.txt
+            CMakePresets.json
+            vcpkg.json
+            scripts/check-emscripten-version.sh
 
       # ── Emscripten SDK ─────────────────────────────────────────────────────
       # EMSDK env var is exported automatically and is read by CMakeLists.txt:
       #   set(VCPKG_CHAINLOAD_TOOLCHAIN_FILE $ENV{EMSDK}/upstream/emscripten/cmake/…)
+      - name: Read Emscripten version
+        id: emver
+        run: |
+          echo "version=$(bash scripts/check-emscripten-version.sh --print-primary-version)" >> "$GITHUB_OUTPUT"
+
       - name: Set up Emscripten SDK
         uses: mymindstorm/setup-emsdk@v14
         with:
-          version: latest
+          version: ${{ steps.emver.outputs.version }}
           actions-cache-folder: emsdk-cache
 
       # ── System tools ───────────────────────────────────────────────────────
@@ -76,19 +89,15 @@ jobs:
           -DVCPKG_TARGET_TRIPLET=wasm32-emscripten
           -DCMAKE_BUILD_TYPE=MinSizeRel
 
-      # ── Build (AtmosLua only) ──────────────────────────────────────────────
-      # Building only the Lua frontend keeps CI fast while still compiling the
-      # full engine (AtmosphericEngine is a dependency of AtmosLua).
-      - name: CMake Build (AtmosLua)
-        run: cmake --build ${{ github.workspace }}/build --target AtmosLua --parallel
+      # ── Build ──────────────────────────────────────────────────────────────
+      - name: CMake Build (HelloWorld)
+        run: cmake --build ${{ github.workspace }}/build --target HelloWorld --parallel
 
       # ── Artifact upload ────────────────────────────────────────────────────
-      # Uploads the complete output directory so reviewers can drag-and-drop
-      # AtmosLua.html into a local browser for manual smoke-testing.
       - name: Upload WebAssembly artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: atmoslua-wasm
-          path: ${{ github.workspace }}/build/AtmosLua/
+          name: helloworld-wasm-${{ github.sha }}
+          path: ${{ github.workspace }}/build/HelloWorld/
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 30

@@ -5,8 +5,8 @@
 #include "light_component.hpp"
 #include "mesh.hpp"
 #include "mesh_component.hpp"
-#include "gl_buffer.hpp"
-#include "gl_render_target.hpp"
+#include "buffer.hpp"
+#include "render_target.hpp"
 #include "vertex.hpp"
 #include "server.hpp"
 #include "shader.hpp"
@@ -28,11 +28,6 @@ struct CanvasVertex {
     glm::vec4 color;
     int texIndex;
     CanvasLayer layer;
-};
-
-struct ScreenVertex {
-    glm::vec2 position;
-    glm::vec2 texCoord;
 };
 
 struct CameraData {
@@ -112,13 +107,13 @@ public:
 
     // ===== Render Target Management =====
 
-    std::shared_ptr<GLRenderTarget> CreateRenderTarget(int width, int height, bool withDepth = false);
-    std::shared_ptr<GLRenderTarget> CreateRenderTarget(const GLRenderTarget::Props& props);
+    std::shared_ptr<RenderTarget> CreateRenderTarget(int width, int height, bool withDepth = false);
+    std::shared_ptr<RenderTarget> CreateRenderTarget(const RenderTarget::Props& props);
 
-    void PushRenderTarget(GLRenderTarget* target);
+    void PushRenderTarget(RenderTarget* target);
     void PopRenderTarget();
-    void SetRenderTarget(GLRenderTarget* target);
-    GLRenderTarget* GetCurrentRenderTarget() const;
+    void SetRenderTarget(RenderTarget* target);
+    RenderTarget* GetCurrentRenderTarget() const;
 
     size_t GetRenderTargetStackDepth() const {
         return _renderTargetStack.size();
@@ -127,7 +122,7 @@ public:
     // GLBuffer (vertex/index buffer) management
     RenderMeshHandle AllocateRenderMesh(VertexFormat format, BufferUsage usage = BufferUsage::Static);
     void FreeRenderMesh(RenderMeshHandle handle);
-    GLBuffer* GetRenderMesh(RenderMeshHandle handle);
+    Buffer* GetRenderMesh(RenderMeshHandle handle);
 
     // ===== 2D Rendering (Queued for UI) =====
     void DrawQuad(float x, float y, float w, float h, float rotation, const glm::vec4& color);
@@ -150,14 +145,14 @@ public:
     Renderer* renderer = nullptr;
 
 private:
-    std::stack<GLRenderTarget*> _renderTargetStack;
-    GLRenderTarget* _currentRenderTarget = nullptr;
+    std::stack<RenderTarget*> _renderTargetStack;
+    RenderTarget* _currentRenderTarget = nullptr;
 
-    std::vector<std::shared_ptr<GLRenderTarget>> _renderTargets;
+    std::vector<std::shared_ptr<RenderTarget>> _renderTargets;
     CameraComponent* defaultCamera = nullptr;
     LightComponent*  defaultLight  = nullptr;
 
-    std::unordered_map<uint32_t, std::unique_ptr<GLBuffer>> _renderMeshes;
+    std::unordered_map<uint32_t, std::unique_ptr<Buffer>> _renderMeshes;
     uint32_t _nextRenderMeshId = 0;
 
     FontManager _fontManager;

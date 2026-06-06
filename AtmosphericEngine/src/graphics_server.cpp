@@ -6,6 +6,8 @@
 #include "config.hpp"
 #include "frustum.hpp"
 #include "game_object.hpp"
+#include "gfx_factory.hpp"
+#include "gl_render_target.hpp"
 #include "light_component.hpp"
 #include "material.hpp"
 #include "mesh.hpp"
@@ -46,6 +48,9 @@ void GraphicsServer::Init(Application* app) {
     // Note that OpenGL extensions must NOT be initialzed before the window creation
     if (gladLoadGLLoader((GLADloadproc)Window::GetProcAddress()) <= 0)
         throw std::runtime_error("Failed to initialize OpenGL!");
+    GfxFactory::Init();
+#else
+    GfxFactory::Init();
 #endif
 
     // Ensure default shaders are loaded before initializing renderers that depend on them
@@ -259,15 +264,15 @@ void GraphicsServer::DrawImGui(float dt) {
             }
             ImGui::Separator();
             if (ImGui::TreeNode(fmt::format("Scene Color RT").c_str())) {
-                ImGui::Image((ImTextureID)(intptr_t)renderer->sceneColorTexture, ImVec2(64, 64));
+                ImGui::Image((ImTextureID)(intptr_t)(uint32_t)(renderer->sceneRT ? renderer->sceneRT->GetTextureID() : 0), ImVec2(64, 64));
                 ImGui::TreePop();
             }
             if (ImGui::TreeNode(fmt::format("Scene Depth RT").c_str())) {
-                ImGui::Image((ImTextureID)(intptr_t)renderer->sceneDepthTexture, ImVec2(64, 64));
+                ImGui::Image((ImTextureID)(intptr_t)(uint32_t)(renderer->sceneRT ? renderer->sceneRT->GetDepthTextureID() : 0), ImVec2(64, 64));
                 ImGui::TreePop();
             }
             if (ImGui::TreeNode(fmt::format("MSAA Resolve RT").c_str())) {
-                ImGui::Image((ImTextureID)(intptr_t)renderer->msaaResolveTexture, ImVec2(64, 64));
+                ImGui::Image((ImTextureID)(intptr_t)(uint32_t)(renderer->msaaResolveRT ? renderer->msaaResolveRT->GetTextureID() : 0), ImVec2(64, 64));
                 ImGui::TreePop();
             }
             if (ImGui::TreeNode(fmt::format("GBuffer Position RT").c_str())) {
@@ -434,19 +439,23 @@ LightComponent* GraphicsServer::RegisterLight(LightComponent* light) {
 }
 
 // ===== Render Target Management Implementation =====
-std::shared_ptr<GLRenderTarget> GraphicsServer::CreateRenderTarget(int width, int height, bool withDepth) {
-    auto rt = std::make_shared<GLRenderTarget>(width, height, withDepth);
+std::shared_ptr<RenderTarget> GraphicsServer::CreateRenderTarget(int width, int height, bool withDepth) {
+    RenderTarget::Props p;
+    p.width = width;
+    p.height = height;
+    p.withDepth = withDepth;
+    auto rt = std::shared_ptr<RenderTarget>(GfxFactory::CreateRenderTarget(p).release());
     _renderTargets.push_back(rt);
     return rt;
 }
 
-std::shared_ptr<GLRenderTarget> GraphicsServer::CreateRenderTarget(const GLRenderTarget::Props& props) {
-    auto rt = std::make_shared<GLRenderTarget>(props);
+std::shared_ptr<RenderTarget> GraphicsServer::CreateRenderTarget(const RenderTarget::Props& props) {
+    auto rt = std::shared_ptr<RenderTarget>(GfxFactory::CreateRenderTarget(props).release());
     _renderTargets.push_back(rt);
     return rt;
 }
 
-void GraphicsServer::PushRenderTarget(GLRenderTarget* target) {
+void GraphicsServer::PushRenderTarget(RenderTarget* target) {
     // Save current target to stack
     _renderTargetStack.push(_currentRenderTarget);
 
@@ -475,7 +484,7 @@ void GraphicsServer::PopRenderTarget() {
     }
 
     // Restore previous target
-    GLRenderTarget* prevTarget = _renderTargetStack.top();
+    RenderTarget* prevTarget = _renderTargetStack.top();
     _renderTargetStack.pop();
 
     if (prevTarget) {
@@ -485,7 +494,7 @@ void GraphicsServer::PopRenderTarget() {
     _currentRenderTarget = prevTarget;
 }
 
-void GraphicsServer::SetRenderTarget(GLRenderTarget* target) {
+void GraphicsServer::SetRenderTarget(RenderTarget* target) {
     // End current target if switching
     if (_currentRenderTarget && _currentRenderTarget != target) {
         _currentRenderTarget->End();
@@ -504,17 +513,17 @@ void GraphicsServer::SetRenderTarget(GLRenderTarget* target) {
     _currentRenderTarget = target;
 }
 
-GLRenderTarget* GraphicsServer::GetCurrentRenderTarget() const {
+RenderTarget* GraphicsServer::GetCurrentRenderTarget() const {
     return _currentRenderTarget;
 }
 
 RenderMeshHandle GraphicsServer::AllocateRenderMesh(VertexFormat format, BufferUsage usage) {
-    auto renderMesh = std::make_unique<GLBuffer>();
-    renderMesh->Initialize(format, usage);
+    auto buf = GfxFactory::CreateBuffer();
+    buf->Initialize(format, usage);
 
     RenderMeshHandle handle;
     handle.id = _nextRenderMeshId++;
-    _renderMeshes[handle.id] = std::move(renderMesh);
+    _renderMeshes[handle.id] = std::move(buf);
 
     return handle;
 }
@@ -528,7 +537,7 @@ void GraphicsServer::FreeRenderMesh(RenderMeshHandle handle) {
     }
 }
 
-GLBuffer* GraphicsServer::GetRenderMesh(RenderMeshHandle handle) {
+Buffer* GraphicsServer::GetRenderMesh(RenderMeshHandle handle) {
     if (!handle.IsValid()) return nullptr;
 
     auto it = _renderMeshes.find(handle.id);

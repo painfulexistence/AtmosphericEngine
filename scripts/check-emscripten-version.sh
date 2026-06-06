@@ -6,7 +6,7 @@
 
 set -euo pipefail
 
-REQUIRED_VERSIONS=("4.0.10") # <-- update when upgrading Emscripten
+REQUIRED_VERSIONS=("4.0.4") # <-- update when upgrading Emscripten
 
 if [ "${1:-}" = "--print-primary-version" ]; then
   echo "${REQUIRED_VERSIONS[0]}"

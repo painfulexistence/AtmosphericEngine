@@ -31,7 +31,7 @@ Mesh::Mesh(MeshType type) : type(type), _material(nullptr), _shape(nullptr) {
 }
 
 Mesh::~Mesh() {
-    // Free RenderMesh if using new system
+    // Free GLBuffer if using new system
     if (_renderMeshHandle.IsValid()) {
         GraphicsServer::Get()->FreeRenderMesh(_renderMeshHandle);
     }
@@ -122,15 +122,15 @@ void Mesh::AddCapsuleShape(float radius, float height) {
 }
 
 void Mesh::Update(const std::vector<VoxelVertex>& vertices) {
-    // Allocate RenderMesh on first use
+    // Allocate GLBuffer on first use
     if (!_renderMeshHandle.IsValid()) {
         _renderMeshHandle = GraphicsServer::Get()->AllocateRenderMesh(
           VertexFormat::Voxel, updateFreq == UpdateFrequency::Static ? BufferUsage::Static : BufferUsage::Dynamic
         );
     }
 
-    // Get RenderMesh and upload data
-    RenderMesh* renderMesh = GraphicsServer::Get()->GetRenderMesh(_renderMeshHandle);
+    // Get Buffer and upload data
+    Buffer* renderMesh = GraphicsServer::Get()->GetRenderMesh(_renderMeshHandle);
     if (renderMesh) {
         renderMesh->Upload(vertices.data(), vertices.size(), sizeof(VoxelVertex));
         vertCount = vertices.size();

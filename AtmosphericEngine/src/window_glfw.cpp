@@ -2,6 +2,7 @@
 #include <GLFW/glfw3.h>
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
+#include <emscripten/html5.h>
 #endif
 #include "backends/imgui_impl_glfw.h"
 #include "backends/imgui_impl_opengl3.h"
@@ -225,6 +226,34 @@ void Window::Init() {
 
 void* Window::GetProcAddress() {
     return (void*)glfwGetProcAddress;
+}
+
+bool Window::IsWebGPUAvailable() {
+#ifdef __EMSCRIPTEN__
+    // Cache the result — navigator.gpu is immutable after page load.
+    static int cached = -1;
+    if (cached == -1) {
+        cached = EM_ASM_INT({
+            return (typeof navigator !== 'undefined' &&
+                    typeof navigator.gpu !== 'undefined' &&
+                    navigator.gpu !== null) ? 1 : 0;
+        });
+        if (cached) {
+            EM_ASM({ console.log("[AtmosphericEngine] WebGPU detected: navigator.gpu is available."); });
+        } else {
+            EM_ASM({ console.log("[AtmosphericEngine] WebGPU not available — falling back to WebGL 2."); });
+        }
+    }
+    return cached != 0;
+#else
+    return false;
+#endif
+}
+
+GfxBackend Window::GetActiveBackend() {
+    // WebGPU is the target web backend.
+    // Requires AE_WEB_BACKEND_WEBGPU=ON in CMake + a browser that supports WebGPU.
+    return GfxBackend::WebGPU;
 }
 
 void Window::InitImGui() {

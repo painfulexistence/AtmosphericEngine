@@ -2,7 +2,7 @@
 #include "bullet_collision.hpp"
 #include "globals.hpp"
 #include "material.hpp"
-#include "render_mesh.hpp"
+#include "buffer.hpp"
 #include "shader.hpp"
 #include "vertex.hpp"
 #include <array>

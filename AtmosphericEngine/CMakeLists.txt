@@ -130,7 +130,9 @@ set(SOURCES
     src/light_component.cpp
     src/camera_component.cpp
     src/mesh.cpp
-    src/render_mesh.cpp
+    src/gl_buffer.cpp
+    src/gl_render_target.cpp
+    src/gl_pipeline.cpp
     src/csg.cpp
     src/frustum.cpp
     src/mesh_component.cpp
@@ -161,7 +163,6 @@ set(SOURCES
     src/batch_renderer_2d.cpp
     src/physics_server_2d.cpp
     src/rigidbody_2d_component.cpp
-    src/render_texture.cpp
     src/mesh_builder.cpp
     src/shape_renderer_component.cpp
     src/scene_loader.cpp
@@ -169,11 +170,26 @@ set(SOURCES
     src/component_registry.cpp
     ${FLATBUFFERS_GENERATED_DIR}/Scene_generated.h
 )
+# ── Graphics backend selection ────────────────────────────────────────────────
+# Native  : Dawn WebGPU (not yet integrated — falls back to OpenGL 4.1).
+# Web     : browser WebGPU via Emscripten (AE_WEB_BACKEND_WEBGPU=ON)
+#           or WebGL 2.0 fallback (AE_WEB_BACKEND_WEBGPU=OFF, default).
+#
+# When enabling on Emscripten, also update target_link_options below:
+#   Remove : -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2 -sFULL_ES3=1
+#   Add    : -sUSE_WEBGPU=1
+option(AE_WEB_BACKEND_WEBGPU "Target WebGPU on Emscripten builds (replaces WebGL2)" OFF)
+
+list(APPEND SOURCES src/gfx_factory.cpp)
 list(APPEND SOURCES src/audio_manager.cpp)
 if(NOT EMSCRIPTEN)
     list(APPEND SOURCES src/window_sdl3.cpp)
 else()
     list(APPEND SOURCES src/window_glfw.cpp)
+    if(AE_WEB_BACKEND_WEBGPU)
+        list(APPEND SOURCES src/gpu_buffer.cpp)
+        list(APPEND SOURCES src/gpu_render_target.cpp)
+    endif()
 endif()
 # FileSystem: platform-agnostic async I/O with in-process cache.
 #   Web    : emscripten_fetch + IndexedDB + MEMFS writes for text assets.
@@ -370,13 +386,35 @@ if(EMSCRIPTEN)
     # -sPROXY_TO_PTHREAD=1          : run main() on a worker so blocking Wait()
     #                                 calls do not freeze the browser main thread
     target_compile_options(AtmosphericEngine PRIVATE -pthread)
-    target_link_options(AtmosphericEngine PRIVATE
-        -sWASM=1 -O3 -sUSE_GLFW=3
-        -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2 -sFULL_ES3=1
-        -sFETCH=1
-        -sUSE_PTHREADS=1
-        "-sPTHREAD_POOL_SIZE=navigator.hardwareConcurrency"
-        -sPROXY_TO_PTHREAD=1)
+    if(AE_WEB_BACKEND_WEBGPU)
+        target_compile_definitions(AtmosphericEngine PUBLIC AE_WEB_BACKEND_WEBGPU)
+        # AE_WEB_BACKEND_WEBGPU=ON compiles in WebGPU support (emdawnwebgpu).
+        # The actual backend is chosen at runtime by GfxFactory::Init():
+        #   - browser exposes navigator.gpu → attempts WebGPU
+        #   - WebGPU unavailable or device creation fails → falls back to WebGL 2
+        # WebGL 2 flags are therefore kept alongside emdawnwebgpu so the
+        # OpenGL fallback path and ImGui (still imgui_impl_opengl3) continue
+        # to work at runtime.
+        # --closure=1 is recommended in release builds to reduce emdawnwebgpu JS size.
+        # TODO: switch ImGui backend to imgui_impl_wgpu once WebGPU path is stable.
+        target_link_options(AtmosphericEngine PUBLIC
+            -sWASM=1 -O3 -sUSE_GLFW=3
+            --use-port=emdawnwebgpu
+            -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2 -sFULL_ES3=1
+            -sFETCH=1
+            -sUSE_PTHREADS=1
+            "-sPTHREAD_POOL_SIZE=navigator.hardwareConcurrency"
+            -sPROXY_TO_PTHREAD=1)
+    else()
+        # WebGPU support not compiled in — always uses WebGL 2.
+        target_link_options(AtmosphericEngine PRIVATE
+            -sWASM=1 -O3 -sUSE_GLFW=3
+            -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2 -sFULL_ES3=1
+            -sFETCH=1
+            -sUSE_PTHREADS=1
+            "-sPTHREAD_POOL_SIZE=navigator.hardwareConcurrency"
+            -sPROXY_TO_PTHREAD=1)
+    endif()
 else()
     target_compile_definitions(AtmosphericEngine PUBLIC BT_THREADSAFE=1)
     target_link_libraries(AtmosphericEngine

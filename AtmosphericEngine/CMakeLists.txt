@@ -389,7 +389,7 @@ if(EMSCRIPTEN)
         # to work at runtime.
         # --closure=1 is recommended in release builds to reduce emdawnwebgpu JS size.
         # TODO: switch ImGui backend to imgui_impl_wgpu once WebGPU path is stable.
-        target_link_options(AtmosphericEngine PRIVATE
+        target_link_options(AtmosphericEngine PUBLIC
             -sWASM=1 -O3 -sUSE_GLFW=3
             --use-port=emdawnwebgpu
             -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2 -sFULL_ES3=1

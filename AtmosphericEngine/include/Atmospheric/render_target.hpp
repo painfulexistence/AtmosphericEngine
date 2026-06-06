@@ -13,6 +13,7 @@ public:
         bool withStencil = false;
         bool hdr = false;      // RGBA16F instead of RGBA8
         bool filtered = true;  // Linear vs Nearest sampling
+        int numSamples = 1;    // >1 enables MSAA (GL_TEXTURE_2D_MULTISAMPLE on desktop)
     };
 
     virtual ~RenderTarget() = default;

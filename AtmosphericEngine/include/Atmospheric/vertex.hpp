@@ -31,6 +31,11 @@ struct DebugVertex {
     glm::vec3 color;
 };
 
+struct ScreenVertex {
+    glm::vec2 position;
+    glm::vec2 texCoord;
+};
+
 struct VoxelVertex {
     uint8_t x, y, z;// Local position within chunk (0-255)
     uint8_t voxel_id;// Voxel type

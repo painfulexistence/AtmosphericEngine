@@ -8,6 +8,7 @@ enum class VertexFormat {
     Standard,  // Vertex: pos(vec3), uv(vec2), normal(vec3), tangent(vec3), bitangent(vec3)
     Debug,     // DebugVertex: pos(vec3), color(vec3)
     Canvas,    // CanvasVertex: pos2D(vec2), texCoord(vec2), color(vec4), texIndex(int), layer(int)
+    Screen,    // ScreenVertex: pos2D(vec2), texCoord(vec2)
     Voxel      // VoxelVertex: pos(3xu8), voxel_id(u8), face_id(u8)
 };
 

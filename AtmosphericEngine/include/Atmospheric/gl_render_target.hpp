@@ -35,6 +35,8 @@ public:
 
     void Resize(int width, int height) override;
 
+    GLuint GetNativeFBOID() const { return _fbo; }
+
     // 2D projection helpers
     glm::mat4 GetProjectionMatrix() const {
         return glm::ortho(0.0f, (float)_width, (float)_height, 0.0f, -1.0f, 1.0f);
@@ -58,6 +60,8 @@ private:
     bool _withStencil = false;
     bool _hdr         = false;
     bool _filtered    = true;
+    int  _numSamples  = 1;
+    bool _multisample = false;
 
     GLint _prevFBO          = 0;
     GLint _prevViewport[4]  = {0, 0, 0, 0};

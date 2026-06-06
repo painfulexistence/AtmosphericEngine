@@ -12,7 +12,9 @@ GLRenderTarget::GLRenderTarget(const Props& props)
       _withDepth(props.withDepth),
       _withStencil(props.withStencil),
       _hdr(props.hdr),
-      _filtered(props.filtered) {
+      _filtered(props.filtered),
+      _numSamples(props.numSamples),
+      _multisample(props.numSamples > 1) {
     Create();
 }
 
@@ -30,7 +32,9 @@ GLRenderTarget::GLRenderTarget(GLRenderTarget&& other) noexcept
       _withDepth(other._withDepth),
       _withStencil(other._withStencil),
       _hdr(other._hdr),
-      _filtered(other._filtered) {
+      _filtered(other._filtered),
+      _numSamples(other._numSamples),
+      _multisample(other._multisample) {
     other._fbo             = 0;
     other._colorTexture    = 0;
     other._depthTexture    = 0;
@@ -50,6 +54,8 @@ GLRenderTarget& GLRenderTarget::operator=(GLRenderTarget&& other) noexcept {
         _withStencil     = other._withStencil;
         _hdr             = other._hdr;
         _filtered        = other._filtered;
+        _numSamples      = other._numSamples;
+        _multisample     = other._multisample;
         other._fbo             = 0;
         other._colorTexture    = 0;
         other._depthTexture    = 0;
@@ -63,40 +69,59 @@ void GLRenderTarget::Create() {
     glBindFramebuffer(GL_FRAMEBUFFER, _fbo);
 
     glGenTextures(1, &_colorTexture);
-    glBindTexture(GL_TEXTURE_2D, _colorTexture);
 
-    GLenum internalFormat = _hdr ? GL_RGBA16F : GL_RGBA8;
-    GLenum format         = GL_RGBA;
-    GLenum type           = _hdr ? GL_FLOAT : GL_UNSIGNED_BYTE;
-    glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, _width, _height, 0, format, type, nullptr);
+#ifndef __EMSCRIPTEN__
+    if (_multisample) {
+        glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, _colorTexture);
+        GLenum internalFormat = _hdr ? GL_RGBA16F : GL_RGBA8;
+        glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, _numSamples, internalFormat, _width, _height, GL_TRUE);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D_MULTISAMPLE, _colorTexture, 0);
 
-    GLenum filterMode = _filtered ? GL_LINEAR : GL_NEAREST;
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filterMode);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filterMode);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, _colorTexture, 0);
-
-    if (_withDepth) {
-        if (_withStencil) {
-            glGenRenderbuffers(1, &_depthStencilRBO);
-            glBindRenderbuffer(GL_RENDERBUFFER, _depthStencilRBO);
-            glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, _width, _height);
-            glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT,
-                                      GL_RENDERBUFFER, _depthStencilRBO);
-        } else {
+        if (_withDepth) {
             glGenTextures(1, &_depthTexture);
-            glBindTexture(GL_TEXTURE_2D, _depthTexture);
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, _width, _height, 0,
-                         GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
-                                   GL_TEXTURE_2D, _depthTexture, 0);
+            glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, _depthTexture);
+            glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, _numSamples, GL_DEPTH_COMPONENT32F, _width, _height, GL_TRUE);
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D_MULTISAMPLE, _depthTexture, 0);
         }
+    } else {
+#endif
+        glBindTexture(GL_TEXTURE_2D, _colorTexture);
+
+        GLenum internalFormat = _hdr ? GL_RGBA16F : GL_RGBA8;
+        GLenum format         = GL_RGBA;
+        GLenum type           = _hdr ? GL_FLOAT : GL_UNSIGNED_BYTE;
+        glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, _width, _height, 0, format, type, nullptr);
+
+        GLenum filterMode = _filtered ? GL_LINEAR : GL_NEAREST;
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filterMode);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filterMode);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, _colorTexture, 0);
+
+        if (_withDepth) {
+            if (_withStencil) {
+                glGenRenderbuffers(1, &_depthStencilRBO);
+                glBindRenderbuffer(GL_RENDERBUFFER, _depthStencilRBO);
+                glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, _width, _height);
+                glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT,
+                                          GL_RENDERBUFFER, _depthStencilRBO);
+            } else {
+                glGenTextures(1, &_depthTexture);
+                glBindTexture(GL_TEXTURE_2D, _depthTexture);
+                glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, _width, _height, 0,
+                             GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+                glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
+                                       GL_TEXTURE_2D, _depthTexture, 0);
+            }
+        }
+#ifndef __EMSCRIPTEN__
     }
+#endif
 
     GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
     if (status != GL_FRAMEBUFFER_COMPLETE) {

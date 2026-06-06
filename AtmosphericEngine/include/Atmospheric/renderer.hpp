@@ -1,10 +1,13 @@
 #pragma once
 #include "asset_manager.hpp"
 #include "batch_renderer_2d.hpp"
+#include "buffer.hpp"
 #include "config.hpp"
 #include "glm/mat4x4.hpp"
 #include "globals.hpp"
 #include "mesh.hpp"
+#include "render_target.hpp"
+#include <memory>
 
 class GraphicsServer;
 class ShaderProgram;
@@ -26,59 +29,59 @@ struct BatchDrawCommand {
 class RenderPass {
 public:
     virtual ~RenderPass() = default;
-    virtual void Execute(GraphicsServer* ctx, Renderer& renderer) = 0;
+    virtual void Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder* enc = nullptr) = 0;
 };
 
 class ShadowPass : public RenderPass {
 public:
-    void Execute(GraphicsServer* ctx, Renderer& renderer) override;
+    void Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder* enc = nullptr) override;
 };
 
 class ForwardOpaquePass : public RenderPass {
 public:
-    void Execute(GraphicsServer* ctx, Renderer& renderer) override;
+    void Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder* enc = nullptr) override;
 };
 
 class DeferredGeometryPass : public RenderPass {
 public:
-    void Execute(GraphicsServer* ctx, Renderer& renderer) override;
+    void Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder* enc = nullptr) override;
 };
 
 class DeferredLightingPass : public RenderPass {
 public:
-    void Execute(GraphicsServer* ctx, Renderer& renderer) override;
+    void Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder* enc = nullptr) override;
 };
 
 // For particles, world UI
 class TransparentPass : public RenderPass {
 public:
-    void Execute(GraphicsServer* ctx, Renderer& renderer) override;
+    void Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder* enc = nullptr) override;
 };
 
 class MSAAResolvePass : public RenderPass {
 public:
-    void Execute(GraphicsServer* ctx, Renderer& renderer) override;
+    void Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder* enc = nullptr) override;
 };
 
 class WorldCanvasPass : public RenderPass {
 public:
-    void Execute(GraphicsServer* ctx, Renderer& renderer) override;
+    void Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder* enc = nullptr) override;
 };
 
 class CanvasPass : public RenderPass {
 public:
-    void Execute(GraphicsServer* ctx, Renderer& renderer) override;
+    void Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder* enc = nullptr) override;
 };
 
 class PostProcessPass : public RenderPass {
 public:
-    void Execute(GraphicsServer* ctx, Renderer& renderer) override;
+    void Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder* enc = nullptr) override;
 };
 
 // TODO: rename this
 class UIPass : public RenderPass {
 public:
-    void Execute(GraphicsServer* ctx, Renderer& renderer) override;
+    void Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder* enc = nullptr) override;
 };
 
 class RenderGraph {
@@ -86,7 +89,7 @@ class RenderGraph {
 
 public:
     void AddPass(std::unique_ptr<RenderPass> pass);
-    void Render(GraphicsServer* ctx, Renderer& renderer);
+    void Render(GraphicsServer* ctx, Renderer& renderer, CommandEncoder* enc = nullptr);
 };
 
 class Renderer {
@@ -166,12 +169,21 @@ public:
     bool postProcessEnabled = false;
     bool wireframeEnabled = false;
 
+    // Abstract render targets (backend-independent)
+    std::unique_ptr<RenderTarget> sceneRT;
+    std::unique_ptr<RenderTarget> msaaResolveRT;
+    GLuint finalFBO = 0;  // default framebuffer (always 0)
+
+    // Abstract buffers (backend-independent)
+    std::unique_ptr<Buffer> debugBuffer;
+    std::unique_ptr<Buffer> screenBuffer;
+
+    // GL-specific: shadow maps (depth-only array/cube textures, not covered by RenderTarget)
     std::array<GLuint, MAX_UNI_LIGHTS> uniShadowMaps;
     std::array<GLuint, MAX_OMNI_LIGHTS> omniShadowMaps;
     GLuint envMap, irradianceMap;
-    GLuint sceneColorTexture, sceneDepthTexture, sceneStencilTexture;
-    GLuint msaaResolveTexture, msaaResolveDepthTexture;
 
+    // GL-specific: GBuffer (MRT with 4 color attachments, not covered by RenderTarget interface)
     struct GBuffer {
         GLuint id;
         GLuint positionRT;
@@ -181,12 +193,8 @@ public:
         GLuint depthRT;
     } gBuffer;
 
-    GLuint shadowFBO, sceneFBO, msaaResolveFBO;
-    GLuint finalFBO = 0;
-
-    GLuint debugVAO, debugVBO;
-    GLuint canvasVAO, canvasVBO;
-    GLuint screenVAO, screenVBO;
+    GLuint shadowFBO;
+    GLuint canvasVAO, canvasVBO;  // GL-specific: legacy canvas geometry
 
     struct SortableCommand {
         RenderCommand cmd;
@@ -213,8 +221,8 @@ private:
     void DestroyRTs();
 
     void CreateCanvasVAO();
-    void CreateScreenVAO();
-    void CreateDebugVAO();
+    void CreateScreenBuffer();
+    void CreateDebugBuffer();
 
     void SortAndBucket(const glm::vec3& cameraPos);
     uint64_t CalculateSortKey(const RenderCommand& cmd, const glm::vec3& cameraPos);

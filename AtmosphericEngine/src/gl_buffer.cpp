@@ -109,6 +109,13 @@ void GLBuffer::SetupVertexAttributes() {
             glEnableVertexAttribArray(3);
             break;
 
+        case VertexFormat::Screen:
+            glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(ScreenVertex), (void*)0);
+            glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(ScreenVertex), (void*)offsetof(ScreenVertex, texCoord));
+            glEnableVertexAttribArray(0);
+            glEnableVertexAttribArray(1);
+            break;
+
         case VertexFormat::Voxel:
             glVertexAttribIPointer(0, 3, GL_UNSIGNED_BYTE, sizeof(VoxelVertex), (void*)0);
             glVertexAttribIPointer(1, 1, GL_UNSIGNED_BYTE, sizeof(VoxelVertex), (void*)(3 * sizeof(uint8_t)));

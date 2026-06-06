@@ -17,6 +17,10 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# Keep in sync with scripts/check-emscripten-version.sh
+env:
+  EMSDK_VERSION: "4.0.10"
+
 jobs:
   build-wasm-webgl:
     runs-on: ubuntu-latest
@@ -32,21 +36,15 @@ jobs:
             CMakeLists.txt
             CMakePresets.json
             vcpkg.json
-            scripts/check-emscripten-version.sh
 
       # ── Emscripten SDK ─────────────────────────────────────────────────────
       # EMSDK env var is exported automatically and is read by CMakeLists.txt:
       #   set(VCPKG_CHAINLOAD_TOOLCHAIN_FILE $ENV{EMSDK}/upstream/emscripten/cmake/…)
-      - name: Read Emscripten version
-        id: emver
-        run: |
-          echo "version=$(bash scripts/check-emscripten-version.sh --print-primary-version)" >> "$GITHUB_OUTPUT"
-
       - name: Set up Emscripten SDK
         uses: mymindstorm/setup-emsdk@v14
         with:
-          version: ${{ steps.emver.outputs.version }}
-          actions-cache-folder: emsdk-${{ steps.emver.outputs.version }}
+          version: ${{ env.EMSDK_VERSION }}
+          actions-cache-folder: emsdk-${{ env.EMSDK_VERSION }}
 
       # ── System tools ───────────────────────────────────────────────────────
       - name: Install system dependencies
@@ -120,18 +118,12 @@ jobs:
             CMakeLists.txt
             CMakePresets.json
             vcpkg.json
-            scripts/check-emscripten-version.sh
-
-      - name: Read Emscripten version
-        id: emver
-        run: |
-          echo "version=$(bash scripts/check-emscripten-version.sh --print-primary-version)" >> "$GITHUB_OUTPUT"
 
       - name: Set up Emscripten SDK
         uses: mymindstorm/setup-emsdk@v14
         with:
-          version: ${{ steps.emver.outputs.version }}
-          actions-cache-folder: emsdk-${{ steps.emver.outputs.version }}
+          version: ${{ env.EMSDK_VERSION }}
+          actions-cache-folder: emsdk-${{ env.EMSDK_VERSION }}
 
       - name: Install system dependencies
         run: |

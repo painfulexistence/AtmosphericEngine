@@ -4,6 +4,9 @@
 #include "canvas_drawable.hpp"
 #include "console.hpp"
 #include "game_object.hpp"
+#include "gfx_factory.hpp"
+#include "gl_buffer.hpp"
+#include "gl_render_target.hpp"
 #include "graphics_server.hpp"
 #include "particle_server.hpp"
 #include "physics_server_2d.hpp"
@@ -47,35 +50,35 @@ static std::vector<RenderBatch> BuildBatches(const std::vector<Renderer::Sortabl
 
 static constexpr int MAX_CANVAS_TEXTURES = 32;
 
-void RenderPipeline::AddPass(std::unique_ptr<RenderPass> pass) {
+void RenderGraph::AddPass(std::unique_ptr<RenderPass> pass) {
     _passes.push_back(std::move(pass));
 }
 
-void RenderPipeline::Render(GraphicsServer* ctx, Renderer& renderer) {
+void RenderGraph::Render(GraphicsServer* ctx, Renderer& renderer, CommandEncoder* enc) {
     // Execute all passes in order (sorting, batching, drawing)
     for (auto& pass : _passes) {
-        pass->Execute(ctx, renderer);
+        pass->Execute(ctx, renderer, enc);
     }
 }
 
 void Renderer::Init(int width, int height) {
     CreateFBOs();
     CreateRTs(RenderTargetProps{ width, height });
-    CreateDebugVAO();
+    CreateDebugBuffer();
     CreateCanvasVAO();
-    CreateScreenVAO();
+    CreateScreenBuffer();
 
     m_BatchRenderer = std::make_unique<BatchRenderer2D>();
     m_BatchRenderer->Init();
 
-    _pipeline = std::make_unique<RenderPipeline>();
-    _pipeline->AddPass(std::make_unique<ShadowPass>());
-    _pipeline->AddPass(std::make_unique<ForwardOpaquePass>());
-    _pipeline->AddPass(std::make_unique<MSAAResolvePass>());
-    _pipeline->AddPass(std::make_unique<WorldCanvasPass>());// World sprites with depth testing
-    _pipeline->AddPass(std::make_unique<CanvasPass>());// 2D sprites, world space ortho, with no depth testing
-    _pipeline->AddPass(std::make_unique<PostProcessPass>());
-    _pipeline->AddPass(std::make_unique<UIPass>());
+    _renderGraph = std::make_unique<RenderGraph>();
+    _renderGraph->AddPass(std::make_unique<ShadowPass>());
+    _renderGraph->AddPass(std::make_unique<ForwardOpaquePass>());
+    _renderGraph->AddPass(std::make_unique<MSAAResolvePass>());
+    _renderGraph->AddPass(std::make_unique<WorldCanvasPass>());// World sprites with depth testing
+    _renderGraph->AddPass(std::make_unique<CanvasPass>());// 2D sprites, world space ortho, with no depth testing
+    _renderGraph->AddPass(std::make_unique<PostProcessPass>());
+    _renderGraph->AddPass(std::make_unique<UIPass>());
 }
 
 void Renderer::Cleanup() {
@@ -86,12 +89,9 @@ void Renderer::Cleanup() {
     DestroyRTs();
     DestroyFBOs();
 
-    glDeleteVertexArrays(1, &debugVAO);
+    // debug and screen are now std::unique_ptr<Buffer> that auto-destruct
     glDeleteVertexArrays(1, &canvasVAO);
-    glDeleteVertexArrays(1, &screenVAO);
-    glDeleteBuffers(1, &debugVBO);
     glDeleteBuffers(1, &canvasVBO);
-    glDeleteBuffers(1, &screenVBO);
 }
 
 void Renderer::Resize(int width, int height) {
@@ -208,7 +208,7 @@ void Renderer::BucketCommands(const glm::vec3& cameraPos) {
 void Renderer::RenderFrame(GraphicsServer* ctx, float dt) {
     ZoneScopedN("Renderer::RenderFrame");
     SortAndBucket(ctx->GetMainCamera()->GetEyePosition());
-    _pipeline->Render(ctx, *this);
+    _renderGraph->Render(ctx, *this);
 
     _hudQueue.clear();
     _canvasQueue.clear();
@@ -281,15 +281,11 @@ void Renderer::CheckErrors(const std::string& prefix) {
 
 void Renderer::CreateFBOs() {
     glGenFramebuffers(1, &shadowFBO);
-    glGenFramebuffers(1, &sceneFBO);
-    glGenFramebuffers(1, &msaaResolveFBO);
     glGenFramebuffers(1, &gBuffer.id);
 }
 
 void Renderer::DestroyFBOs() {
     glDeleteFramebuffers(1, &shadowFBO);
-    glDeleteFramebuffers(1, &sceneFBO);
-    glDeleteFramebuffers(1, &msaaResolveFBO);
     glDeleteFramebuffers(1, &gBuffer.id);
 }
 
@@ -350,89 +346,30 @@ void Renderer::CreateRTs(const RenderTargetProps& props) {
 #endif
     CheckErrors("Create shadow RTs");
 
-    // 2. Create and set HDR pass attachments
-    glGenTextures(1, &sceneColorTexture);
-#ifdef __EMSCRIPTEN__
-    glBindTexture(GL_TEXTURE_2D, sceneColorTexture);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, props.width, props.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
-#else
-    if (_currRenderPath == RenderPath::Forward) {
-        glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, sceneColorTexture);
-        glTexImage2DMultisample(
-          GL_TEXTURE_2D_MULTISAMPLE, props.numSamples, GL_RGBA16F, props.width, props.height, GL_TRUE
-        );
-    } else {
-        glBindTexture(GL_TEXTURE_2D, sceneColorTexture);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, props.width, props.height, 0, GL_RGBA, GL_FLOAT, NULL);
-    }
+    // 2. Scene render target (MSAA on desktop forward path, standard otherwise)
+    {
+        RenderTarget::Props p;
+        p.width = props.width;
+        p.height = props.height;
+        p.withDepth = true;
+        p.hdr = true;
+#ifndef __EMSCRIPTEN__
+        if (_currRenderPath == RenderPath::Forward)
+            p.numSamples = props.numSamples;
 #endif
-    if (glIsTexture(sceneColorTexture) != GL_TRUE) {
-        throw std::runtime_error("Failed to create HDR color texture");
+        sceneRT = GfxFactory::CreateRenderTarget(p);
     }
 
-    glGenTextures(1, &sceneDepthTexture);
-#ifdef __EMSCRIPTEN__
-    glBindTexture(GL_TEXTURE_2D, sceneDepthTexture);
-    glTexImage2D(
-      GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32F, props.width, props.height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL
-    );
-#else
-    if (_currRenderPath == RenderPath::Forward) {
-        glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, sceneDepthTexture);
-        glTexImage2DMultisample(
-          GL_TEXTURE_2D_MULTISAMPLE, props.numSamples, GL_DEPTH_COMPONENT32F, props.width, props.height, GL_TRUE
-        );
-    } else {
-        glBindTexture(GL_TEXTURE_2D, sceneDepthTexture);
-        glTexImage2D(
-          GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32F, props.width, props.height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL
-        );
+    // 3. MSAA resolve render target (non-MSAA, for post-process input)
+    {
+        RenderTarget::Props p;
+        p.width = props.width;
+        p.height = props.height;
+        p.withDepth = true;
+        p.hdr = true;
+        p.filtered = true;
+        msaaResolveRT = GfxFactory::CreateRenderTarget(p);
     }
-#endif
-    if (glIsTexture(sceneDepthTexture) != GL_TRUE) {
-        throw std::runtime_error("Failed to create HDR depth texture");
-    }
-
-    glBindFramebuffer(GL_FRAMEBUFFER, sceneFBO);
-#ifdef __EMSCRIPTEN__
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, sceneColorTexture, 0);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, sceneDepthTexture, 0);
-#else
-    if (_currRenderPath == RenderPath::Forward) {
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D_MULTISAMPLE, sceneColorTexture, 0);
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D_MULTISAMPLE, sceneDepthTexture, 0);
-    } else {
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, sceneColorTexture, 0);
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, sceneDepthTexture, 0);
-    }
-#endif
-    CheckFramebufferStatus("HDR framebuffer incomplete");
-    CheckErrors("Create HDR RTs");
-
-    // 3. Create and set MSAA resolve pass attachments
-    glGenTextures(1, &msaaResolveTexture);
-    glBindTexture(GL_TEXTURE_2D, msaaResolveTexture);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-#ifdef __EMSCRIPTEN__
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, props.width, props.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
-#else
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, props.width, props.height, 0, GL_RGBA, GL_FLOAT, NULL);
-#endif
-
-    glGenTextures(1, &msaaResolveDepthTexture);
-    glBindTexture(GL_TEXTURE_2D, msaaResolveDepthTexture);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexImage2D(
-      GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32F, props.width, props.height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL
-    );
-
-    glBindFramebuffer(GL_FRAMEBUFFER, msaaResolveFBO);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, msaaResolveTexture, 0);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, msaaResolveDepthTexture, 0);
-    CheckFramebufferStatus("MSAA framebuffer incomplete");
-    CheckErrors("Create MSAA resolve RTs");
 
     // 4. Create and set geometry pass attachments
     glGenTextures(1, &gBuffer.positionRT);
@@ -483,10 +420,8 @@ void Renderer::CreateRTs(const RenderTargetProps& props) {
 }
 
 void Renderer::DestroyRTs() {
-    glDeleteTextures(1, &sceneColorTexture);
-    glDeleteTextures(1, &sceneDepthTexture);
-    glDeleteTextures(1, &msaaResolveTexture);
-    glDeleteTextures(1, &msaaResolveDepthTexture);
+    sceneRT.reset();
+    msaaResolveRT.reset();
 
     glDeleteTextures(1, &gBuffer.positionRT);
     glDeleteTextures(1, &gBuffer.normalRT);
@@ -512,40 +447,24 @@ void Renderer::CreateCanvasVAO() {
     glBindVertexArray(0);
 }
 
-void Renderer::CreateScreenVAO() {
+void Renderer::CreateScreenBuffer() {
     std::array<ScreenVertex, 4> verts = { {
-      { { -1.0f, 1.0f }, { 0.0f, 1.0f } },
-      { { -1.0f, -1.0f }, { 0.0f, 0.0f } },
-      { { 1.0f, 1.0f }, { 1.0f, 1.0f } },
-      { { 1.0f, -1.0f }, { 1.0f, 0.0f } },
+        { { -1.0f,  1.0f }, { 0.0f, 1.0f } },
+        { { -1.0f, -1.0f }, { 0.0f, 0.0f } },
+        { {  1.0f,  1.0f }, { 1.0f, 1.0f } },
+        { {  1.0f, -1.0f }, { 1.0f, 0.0f } },
     } };
-    glGenVertexArrays(1, &screenVAO);
-    glGenBuffers(1, &screenVBO);
-
-    glBindVertexArray(screenVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, screenVBO);
-    glBufferData(GL_ARRAY_BUFFER, verts.size() * sizeof(ScreenVertex), verts.data(), GL_STATIC_DRAW);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(ScreenVertex), (void*)0);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(ScreenVertex), (void*)(offsetof(ScreenVertex, texCoord)));
-    glEnableVertexAttribArray(0);
-    glEnableVertexAttribArray(1);
-    glBindVertexArray(0);
+    screenBuffer = GfxFactory::CreateBuffer();
+    screenBuffer->Initialize(VertexFormat::Screen, BufferUsage::Static);
+    screenBuffer->Upload(verts.data(), verts.size(), sizeof(ScreenVertex));
 }
 
-void Renderer::CreateDebugVAO() {
-    glGenVertexArrays(1, &debugVAO);
-    glGenBuffers(1, &debugVBO);
-
-    glBindVertexArray(debugVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, debugVBO);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(DebugVertex), (void*)0);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(DebugVertex), (void*)offsetof(DebugVertex, color));
-    glEnableVertexAttribArray(0);
-    glEnableVertexAttribArray(1);
-    glBindVertexArray(0);
+void Renderer::CreateDebugBuffer() {
+    debugBuffer = GfxFactory::CreateBuffer();
+    debugBuffer->Initialize(VertexFormat::Debug, BufferUsage::Stream);
 }
 
-void ShadowPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
+void ShadowPass::Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder* enc) {
     ZoneScopedN("ShadowPass");
     glViewport(0, 0, SHADOW_W, SHADOW_H);
 #ifndef __EMSCRIPTEN__
@@ -697,12 +616,15 @@ void ShadowPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
-void ForwardOpaquePass::Execute(GraphicsServer* ctx, Renderer& renderer) {
+void ForwardOpaquePass::Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder* enc) {
     ZoneScopedN("ForwardOpaquePass");
     auto [width, height] = Window::Get()->GetFramebufferSize();
     glViewport(0, 0, width, height);
 
-    glBindFramebuffer(GL_FRAMEBUFFER, renderer.postProcessEnabled ? renderer.sceneFBO : renderer.finalFBO);
+    GLuint targetFBO = renderer.postProcessEnabled
+        ? static_cast<GLRenderTarget*>(renderer.sceneRT.get())->GetNativeFBOID()
+        : renderer.finalFBO;
+    glBindFramebuffer(GL_FRAMEBUFFER, targetFBO);
     // Bind textures
     auto& assetManager = AssetManager::Get();
     for (int i = 0; i < MAX_UNI_LIGHTS; ++i) {
@@ -976,13 +898,8 @@ void ForwardOpaquePass::Execute(GraphicsServer* ctx, Renderer& renderer) {
         debugShader->Activate();
         debugShader->SetUniform(std::string("ProjectionView"), projectionView);
 
-        glBindVertexArray(renderer.debugVAO);
-        glBindBuffer(GL_ARRAY_BUFFER, renderer.debugVBO);
-        glBufferData(
-          GL_ARRAY_BUFFER, ctx->debugLines.size() * sizeof(DebugVertex), ctx->debugLines.data(), GL_DYNAMIC_DRAW
-        );
-        glDrawArrays(GL_LINES, 0, ctx->debugLines.size());
-        glBindVertexArray(0);
+        renderer.debugBuffer->Upload(ctx->debugLines.data(), ctx->debugLines.size(), sizeof(DebugVertex));
+        renderer.debugBuffer->Draw(enc, PrimitiveTopology::Lines);
 
         // glEnable(GL_DEPTH_TEST);
 
@@ -993,7 +910,7 @@ void ForwardOpaquePass::Execute(GraphicsServer* ctx, Renderer& renderer) {
     renderer.CheckErrors("Opaque pass");
 }
 
-void DeferredGeometryPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
+void DeferredGeometryPass::Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder* enc) {
     ZoneScopedN("DeferredGeometryPass");
     auto [width, height] = Window::Get()->GetFramebufferSize();
     glViewport(0, 0, width, height);
@@ -1131,11 +1048,16 @@ void DeferredGeometryPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
     renderer.CheckErrors("Geometry pass");
 }
 
-void DeferredLightingPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
+void DeferredLightingPass::Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder* enc) {
     ZoneScopedN("DeferredLightingPass");
     auto [width, height] = Window::Get()->GetFramebufferSize();
     glViewport(0, 0, width, height);
-    glBindFramebuffer(GL_FRAMEBUFFER, renderer.postProcessEnabled ? renderer.sceneFBO : renderer.finalFBO);
+    {
+        GLuint targetFBO = renderer.postProcessEnabled
+            ? static_cast<GLRenderTarget*>(renderer.sceneRT.get())->GetNativeFBOID()
+            : renderer.finalFBO;
+        glBindFramebuffer(GL_FRAMEBUFFER, targetFBO);
+    }
 
     glClearColor(renderer.clearColor.r, renderer.clearColor.g, renderer.clearColor.b, renderer.clearColor.a);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -1179,14 +1101,12 @@ void DeferredLightingPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
     }
     lightingShader->SetUniform("pointLightCount", (int)ctx->pointLights.size());
 
-    glBindVertexArray(renderer.screenVAO);
-    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-    glBindVertexArray(0);
+    renderer.screenBuffer->Draw(enc, PrimitiveTopology::TriangleStrip);
 
     renderer.CheckErrors("Lighting pass");
 }
 
-void TransparentPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
+void TransparentPass::Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder* enc) {
     ZoneScopedN("TransparentPass");
     auto& cam = *ctx->GetMainCamera();
     Atmospheric::CameraInfo camInfo = { .view = cam.GetViewMatrix(),
@@ -1195,7 +1115,7 @@ void TransparentPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
     Atmospheric::ParticleServer::GetInstance().Draw(camInfo);// TODO: transparent pass
 }
 
-void MSAAResolvePass::Execute(GraphicsServer* ctx, Renderer& renderer) {
+void MSAAResolvePass::Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder* enc) {
     ZoneScopedN("MSAAResolvePass");
     if (!renderer.postProcessEnabled) {
         return;
@@ -1205,8 +1125,8 @@ void MSAAResolvePass::Execute(GraphicsServer* ctx, Renderer& renderer) {
     glViewport(0, 0, width, height);
  
     // Resolve MSAA (color + depth)
-    glBindFramebuffer(GL_READ_FRAMEBUFFER, renderer.sceneFBO);
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, renderer.msaaResolveFBO);
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, static_cast<GLRenderTarget*>(renderer.sceneRT.get())->GetNativeFBOID());
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, static_cast<GLRenderTarget*>(renderer.msaaResolveRT.get())->GetNativeFBOID());
     
     GLbitfield mask = GL_COLOR_BUFFER_BIT;
 #ifdef __EMSCRIPTEN__
@@ -1225,7 +1145,7 @@ void MSAAResolvePass::Execute(GraphicsServer* ctx, Renderer& renderer) {
 }
 
 // WorldCanvasPass: World sprites with depth testing
-void WorldCanvasPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
+void WorldCanvasPass::Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder* enc) {
     ZoneScopedN("WorldCanvasPass");
 
     // Filter all world-space drawables (3D layers only, below LAYER_WORLD_2D)
@@ -1241,7 +1161,12 @@ void WorldCanvasPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
 
     auto [width, height] = Window::Get()->GetFramebufferSize();
     glViewport(0, 0, width, height);
-    glBindFramebuffer(GL_FRAMEBUFFER, renderer.postProcessEnabled ? renderer.msaaResolveFBO : renderer.finalFBO);
+    {
+        GLuint targetFBO = renderer.postProcessEnabled
+            ? static_cast<GLRenderTarget*>(renderer.msaaResolveRT.get())->GetNativeFBOID()
+            : renderer.finalFBO;
+        glBindFramebuffer(GL_FRAMEBUFFER, targetFBO);
+    }
 
     // Get camera for projection
     CameraComponent* camera = ctx->GetMainCamera();
@@ -1285,7 +1210,7 @@ void WorldCanvasPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
 }
 
 // CanvasPass: Pure 2D sprites (no depth testing)
-void CanvasPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
+void CanvasPass::Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder* enc) {
     ZoneScopedN("CanvasPass");
 
     std::vector<CanvasDrawable*> drawables2D;
@@ -1300,7 +1225,12 @@ void CanvasPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
 
     auto [width, height] = Window::Get()->GetFramebufferSize();
     glViewport(0, 0, width, height);
-    glBindFramebuffer(GL_FRAMEBUFFER, renderer.postProcessEnabled ? renderer.msaaResolveFBO : renderer.finalFBO);
+    {
+        GLuint targetFBO = renderer.postProcessEnabled
+            ? static_cast<GLRenderTarget*>(renderer.msaaResolveRT.get())->GetNativeFBOID()
+            : renderer.finalFBO;
+        glBindFramebuffer(GL_FRAMEBUFFER, targetFBO);
+    }
 
     glDisable(GL_DEPTH_TEST);
     glDisable(GL_CULL_FACE);
@@ -1341,7 +1271,7 @@ void CanvasPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
 // Helper to reduce code duplication
 
 
-void PostProcessPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
+void PostProcessPass::Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder* enc) {
     ZoneScopedN("PostProcessPass");
     if (!renderer.postProcessEnabled) {
         return;
@@ -1358,7 +1288,7 @@ void PostProcessPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
 #endif
 
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, renderer.msaaResolveTexture);
+    glBindTexture(GL_TEXTURE_2D, renderer.msaaResolveRT->GetTextureID());
 
     glClearColor(renderer.clearColor.x, renderer.clearColor.y, renderer.clearColor.z, renderer.clearColor.w);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -1366,8 +1296,7 @@ void PostProcessPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
     postProcessShader->Activate();
     postProcessShader->SetUniform(std::string("color_map_unit"), (int)0);
     postProcessShader->SetUniform(std::string("exposure"), 0.5f);
-    glBindVertexArray(renderer.screenVAO);
-    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    renderer.screenBuffer->Draw(enc, PrimitiveTopology::TriangleStrip);
 
     renderer.CheckErrors("Post process pass");
 }
@@ -1380,7 +1309,7 @@ void Renderer::SubmitCanvasCommand(const BatchDrawCommand& cmd) {
     _canvasQueue.push_back(cmd);
 }
 
-void UIPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
+void UIPass::Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder* enc) {
     ZoneScopedN("UIPass");
     auto* batchRenderer = renderer.GetBatchRenderer();
     auto& queue = renderer.GetUIQueue();

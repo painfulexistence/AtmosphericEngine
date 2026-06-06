@@ -129,8 +129,8 @@ void Mesh::Update(const std::vector<VoxelVertex>& vertices) {
         );
     }
 
-    // Get GLBuffer and upload data
-    GLBuffer* renderMesh = GraphicsServer::Get()->GetRenderMesh(_renderMeshHandle);
+    // Get Buffer and upload data
+    Buffer* renderMesh = GraphicsServer::Get()->GetRenderMesh(_renderMeshHandle);
     if (renderMesh) {
         renderMesh->Upload(vertices.data(), vertices.size(), sizeof(VoxelVertex));
         vertCount = vertices.size();

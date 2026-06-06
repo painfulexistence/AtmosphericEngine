@@ -101,3 +101,71 @@ jobs:
           path: ${{ github.workspace }}/build/HelloWorld/
           if-no-files-found: error
           retention-days: 30
+
+  # ── WebGPU compile check (non-blocking) ──────────────────────────────────
+  # Verifies that AE_WEB_BACKEND_WEBGPU=ON compiles cleanly with emdawnwebgpu.
+  # The WebGPU backend is still WIP so failures here do not block merging.
+  build-web-webgpu:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+          sparse-checkout: |
+            AtmosphericEngine
+            frontends
+            Example_HelloWorld
+            CMakeLists.txt
+            CMakePresets.json
+            vcpkg.json
+            scripts/check-emscripten-version.sh
+
+      - name: Read Emscripten version
+        id: emver
+        run: |
+          echo "version=$(bash scripts/check-emscripten-version.sh --print-primary-version)" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Emscripten SDK
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: ${{ steps.emver.outputs.version }}
+          actions-cache-folder: emsdk-cache
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends cmake ninja-build pkg-config
+
+      - name: Check out vcpkg
+        uses: actions/checkout@v4
+        with:
+          repository: microsoft/vcpkg
+          path: vcpkg
+
+      - name: Bootstrap vcpkg
+        run: ${{ github.workspace }}/vcpkg/bootstrap-vcpkg.sh -disableMetrics
+
+      - name: Cache vcpkg installed packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ github.workspace }}/vcpkg/installed
+            ${{ github.workspace }}/vcpkg/packages
+          key: vcpkg-wasm32-emscripten-${{ hashFiles('vcpkg.json') }}
+          restore-keys: |
+            vcpkg-wasm32-emscripten-
+
+      - name: CMake Configure (WebGPU)
+        run: >
+          cmake -G Ninja
+          -B ${{ github.workspace }}/build
+          -S ${{ github.workspace }}
+          -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake
+          -DVCPKG_TARGET_TRIPLET=wasm32-emscripten
+          -DCMAKE_BUILD_TYPE=MinSizeRel
+          -DAE_WEB_BACKEND_WEBGPU=ON
+
+      - name: CMake Build (HelloWorld WebGPU)
+        run: cmake --build ${{ github.workspace }}/build --target HelloWorld --parallel

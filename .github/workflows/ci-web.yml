@@ -46,7 +46,7 @@ jobs:
         uses: mymindstorm/setup-emsdk@v14
         with:
           version: ${{ steps.emver.outputs.version }}
-          actions-cache-folder: emsdk-cache
+          actions-cache-folder: emsdk-${{ steps.emver.outputs.version }}
 
       # ── System tools ───────────────────────────────────────────────────────
       - name: Install system dependencies
@@ -131,7 +131,7 @@ jobs:
         uses: mymindstorm/setup-emsdk@v14
         with:
           version: ${{ steps.emver.outputs.version }}
-          actions-cache-folder: emsdk-cache
+          actions-cache-folder: emsdk-${{ steps.emver.outputs.version }}
 
       - name: Install system dependencies
         run: |

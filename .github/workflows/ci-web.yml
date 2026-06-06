@@ -1,4 +1,4 @@
-name: Build (WebGL / Emscripten)
+name: Build (WebAssembly)
 
 # Validates that AtmosLua links successfully as a WebAssembly module.
 # A successful link catches the majority of WebGL-specific failures:
@@ -18,7 +18,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-web:
+  build-wasm-webgl:
     runs-on: ubuntu-latest
 
     steps:
@@ -105,7 +105,7 @@ jobs:
   # ── WebGPU compile check (non-blocking) ──────────────────────────────────
   # Verifies that AE_WEB_BACKEND_WEBGPU=ON compiles cleanly with emdawnwebgpu.
   # The WebGPU backend is still WIP so failures here do not block merging.
-  build-web-webgpu:
+  build-wam-webgpu:
     runs-on: ubuntu-latest
     continue-on-error: true
 

@@ -16,15 +16,25 @@ echo -e "${BLUE}===================================================${NC}"
 
 # 預設建置類型為 Release
 BUILD_TYPE="Release"
+WEBGPU_SUPPORT="OFF"
 
 # 解析參數
-if [ "$1" = "debug" ] || [ "$1" = "Debug" ]; then
-    BUILD_TYPE="Debug"
-elif [ "$1" = "release" ] || [ "$1" = "Release" ]; then
-    BUILD_TYPE="Release"
-fi
+for arg in "$@"; do
+    case "$arg" in
+        debug|Debug)
+            BUILD_TYPE="Debug"
+            ;;
+        release|Release)
+            BUILD_TYPE="Release"
+            ;;
+        --webgpu)
+            WEBGPU_SUPPORT="ON"
+            ;;
+    esac
+done
 
 echo -e "建置類型: ${GREEN}${BUILD_TYPE}${NC}"
+echo -e "WebGPU 支援: ${GREEN}${WEBGPU_SUPPORT}${NC}"
 echo -e ""
 
 # 1. 檢查是否已設定 Emscripten SDK 環境變數
@@ -76,10 +86,7 @@ emcmake cmake -G Ninja \
   -DCMAKE_TOOLCHAIN_FILE="$VCPKG_DIR/scripts/buildsystems/vcpkg.cmake" \
   -DVCPKG_TARGET_TRIPLET=wasm32-emscripten \
   -DCMAKE_BUILD_TYPE="$BUILD_TYPE" \
-  -DAE_USE_EMSCRIPTEN=ON \
-  -DAE_USE_SDL3=OFF \
-  -DAE_USE_SDL2=OFF \
-  -DAE_USE_AUDIO=OFF
+  -DAE_USE_WEBGPU="$WEBGPU_SUPPORT"
 
 # 5. 進行建置 (目標包含 AtmosLua, HelloWorld 與 Maze 迷宮遊戲)
 echo -e ""

@@ -1,11 +1,11 @@
 #pragma once
-#if defined(AE_WEB_BACKEND_WEBGPU) && defined(__EMSCRIPTEN__)
+#if defined(AE_USE_WEBGPU) && defined(__EMSCRIPTEN__)
 #include "render_target.hpp"
 #include "command_encoder.hpp"
 #include <webgpu/webgpu.h>
 #include <glm/glm.hpp>
 
-// WebGPU implementation of RenderTarget (Emscripten + AE_WEB_BACKEND_WEBGPU).
+// WebGPU implementation of RenderTarget (Emscripten + AE_USE_WEBGPU).
 //
 // Begin(enc):  creates texture views, opens a WGPURenderPassEncoder, and
 //              sets enc->pass so subsequent Draw() calls can bind buffers.
@@ -56,4 +56,4 @@ private:
     bool _hdr       = false;
     glm::vec4 _clearColor = glm::vec4(0.0f);
 };
-#endif // AE_WEB_BACKEND_WEBGPU && __EMSCRIPTEN__
+#endif // AE_USE_WEBGPU && __EMSCRIPTEN__

@@ -172,13 +172,13 @@ set(SOURCES
 )
 # ── Graphics backend selection ────────────────────────────────────────────────
 # Native  : Dawn WebGPU (not yet integrated — falls back to OpenGL 4.1).
-# Web     : browser WebGPU via Emscripten (AE_WEB_BACKEND_WEBGPU=ON)
-#           or WebGL 2.0 fallback (AE_WEB_BACKEND_WEBGPU=OFF, default).
+# Web     : browser WebGPU via Emscripten (AE_USE_WEBGPU=ON)
+#           or WebGL 2.0 fallback (AE_USE_WEBGPU=OFF, default).
 #
 # When enabling on Emscripten, also update target_link_options below:
 #   Remove : -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2 -sFULL_ES3=1
 #   Add    : -sUSE_WEBGPU=1
-option(AE_WEB_BACKEND_WEBGPU "Target WebGPU on Emscripten builds (replaces WebGL2)" OFF)
+option(AE_USE_WEBGPU "Target WebGPU on Emscripten builds (replaces WebGL2)" OFF)
 
 list(APPEND SOURCES src/gfx_factory.cpp)
 list(APPEND SOURCES src/audio_manager.cpp)
@@ -186,7 +186,7 @@ if(NOT EMSCRIPTEN)
     list(APPEND SOURCES src/window_sdl3.cpp)
 else()
     list(APPEND SOURCES src/window_glfw.cpp)
-    if(AE_WEB_BACKEND_WEBGPU)
+    if(AE_USE_WEBGPU)
         list(APPEND SOURCES src/gpu_buffer.cpp)
         list(APPEND SOURCES src/gpu_render_target.cpp)
     endif()
@@ -378,9 +378,9 @@ if(EMSCRIPTEN)
     target_compile_definitions(AtmosphericEngine PRIVATE IMGUI_IMPL_OPENGL_ES3)
     target_link_libraries(AtmosphericEngine PUBLIC spdlog::spdlog)
     target_compile_options(AtmosphericEngine PRIVATE)
-    if(AE_WEB_BACKEND_WEBGPU)
-        target_compile_definitions(AtmosphericEngine PUBLIC AE_WEB_BACKEND_WEBGPU)
-        # AE_WEB_BACKEND_WEBGPU=ON compiles in WebGPU support (emdawnwebgpu).
+    if(AE_USE_WEBGPU)
+        target_compile_definitions(AtmosphericEngine PUBLIC AE_USE_WEBGPU)
+        # AE_USE_WEBGPU=ON compiles in WebGPU support (emdawnwebgpu).
         # The actual backend is chosen at runtime by GfxFactory::Init():
         #   - browser exposes navigator.gpu → attempts WebGPU
         #   - WebGPU unavailable or device creation fails → falls back to WebGL 2

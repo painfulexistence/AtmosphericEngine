@@ -2,7 +2,7 @@
 #include "gl_buffer.hpp"
 #include "gl_render_target.hpp"
 
-#if defined(AE_WEB_BACKEND_WEBGPU) && defined(__EMSCRIPTEN__)
+#if defined(AE_USE_WEBGPU) && defined(__EMSCRIPTEN__)
 #include <webgpu/webgpu.h>
 #include "gpu_buffer.hpp"
 #include "gpu_render_target.hpp"
@@ -11,7 +11,7 @@
 // ── Static member definitions ────────────────────────────────────────────────
 GfxBackend GfxFactory::_backend = GfxBackend::OpenGL;
 
-#if defined(__EMSCRIPTEN__) && defined(AE_WEB_BACKEND_WEBGPU)
+#if defined(__EMSCRIPTEN__) && defined(AE_USE_WEBGPU)
 WGPUDevice GfxFactory::_wgpuDevice = nullptr;
 WGPUQueue  GfxFactory::_wgpuQueue  = nullptr;
 #elif !defined(__EMSCRIPTEN__)
@@ -22,7 +22,7 @@ SDL_Window* GfxFactory::_sdlWindow = nullptr;
 #ifdef __EMSCRIPTEN__
 
 void GfxFactory::Init() {
-#if defined(AE_WEB_BACKEND_WEBGPU)
+#if defined(AE_USE_WEBGPU)
     if (Window::IsWebGPUAvailable()) {
         _backend = GfxBackend::WebGPU;
         // Device arrives async — caller must invoke SetWebGPUDevice() once
@@ -33,7 +33,7 @@ void GfxFactory::Init() {
     _backend = GfxBackend::OpenGL;  // No WebGPU support or unavailable → WebGL 2
 }
 
-#if defined(AE_WEB_BACKEND_WEBGPU)
+#if defined(AE_USE_WEBGPU)
 void GfxFactory::SetWebGPUDevice(WGPUDevice device) {
     if (!device) {
         _backend = GfxBackend::OpenGL;  // device creation failed → WebGL 2
@@ -71,7 +71,7 @@ void GfxFactory::Init(SDL_Window* sdlWindow) {
 
 // ── Shutdown ─────────────────────────────────────────────────────────────────
 void GfxFactory::Shutdown() {
-#if defined(__EMSCRIPTEN__) && defined(AE_WEB_BACKEND_WEBGPU)
+#if defined(__EMSCRIPTEN__) && defined(AE_USE_WEBGPU)
     if (_wgpuDevice) {
         wgpuDeviceRelease(_wgpuDevice);
         _wgpuDevice = nullptr;
@@ -85,7 +85,7 @@ void GfxFactory::Shutdown() {
 
 // ── Factory methods ──────────────────────────────────────────────────────────
 std::unique_ptr<Buffer> GfxFactory::CreateBuffer() {
-#if defined(AE_WEB_BACKEND_WEBGPU) && defined(__EMSCRIPTEN__)
+#if defined(AE_USE_WEBGPU) && defined(__EMSCRIPTEN__)
     if (_backend == GfxBackend::WebGPU && _wgpuDevice)
         return std::make_unique<GPUBuffer>(_wgpuDevice, _wgpuQueue);
 #elif !defined(__EMSCRIPTEN__)
@@ -97,7 +97,7 @@ std::unique_ptr<Buffer> GfxFactory::CreateBuffer() {
 
 std::unique_ptr<RenderTarget> GfxFactory::CreateRenderTarget(
         const RenderTarget::Props& props) {
-#if defined(AE_WEB_BACKEND_WEBGPU) && defined(__EMSCRIPTEN__)
+#if defined(AE_USE_WEBGPU) && defined(__EMSCRIPTEN__)
     if (_backend == GfxBackend::WebGPU && _wgpuDevice)
         return std::make_unique<GPURenderTarget>(_wgpuDevice, props);
 #elif !defined(__EMSCRIPTEN__)

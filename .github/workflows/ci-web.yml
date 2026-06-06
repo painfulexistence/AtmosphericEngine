@@ -101,7 +101,7 @@ jobs:
           retention-days: 30
 
   # ── WebGPU compile check (non-blocking) ──────────────────────────────────
-  # Verifies that AE_WEB_BACKEND_WEBGPU=ON compiles cleanly with emdawnwebgpu.
+  # Verifies that AE_USE_WEBGPU=ON compiles cleanly with emdawnwebgpu.
   # The WebGPU backend is still WIP so failures here do not block merging.
   build-wam-webgpu:
     runs-on: ubuntu-latest
@@ -157,7 +157,7 @@ jobs:
           -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake
           -DVCPKG_TARGET_TRIPLET=wasm32-emscripten
           -DCMAKE_BUILD_TYPE=MinSizeRel
-          -DAE_WEB_BACKEND_WEBGPU=ON
+          -DAE_USE_WEBGPU=ON
 
       - name: CMake Build (HelloWorld WebGPU)
         run: cmake --build ${{ github.workspace }}/build --target HelloWorld --parallel

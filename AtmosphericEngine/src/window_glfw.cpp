@@ -252,7 +252,7 @@ bool Window::IsWebGPUAvailable() {
 
 GfxBackend Window::GetActiveBackend() {
     // WebGPU is the target web backend.
-    // Requires AE_WEB_BACKEND_WEBGPU=ON in CMake + a browser that supports WebGPU.
+    // Requires AE_USE_WEBGPU=ON in CMake + a browser that supports WebGPU.
     return GfxBackend::WebGPU;
 }
 

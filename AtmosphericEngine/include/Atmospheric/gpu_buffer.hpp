@@ -1,10 +1,10 @@
 #pragma once
-#if defined(AE_WEB_BACKEND_WEBGPU) && defined(__EMSCRIPTEN__)
+#if defined(AE_USE_WEBGPU) && defined(__EMSCRIPTEN__)
 #include "buffer.hpp"
 #include "command_encoder.hpp"
 #include <webgpu/webgpu.h>
 
-// WebGPU implementation of Buffer (Emscripten + AE_WEB_BACKEND_WEBGPU).
+// WebGPU implementation of Buffer (Emscripten + AE_USE_WEBGPU).
 //
 // Upload path:  wgpuQueueWriteBuffer — synchronous write from JS side.
 // Draw path:    binds vertex / index buffers to the active WGPURenderPassEncoder
@@ -47,4 +47,4 @@ private:
     bool _initialized    = false;
     bool _hasIndices     = false;
 };
-#endif // AE_WEB_BACKEND_WEBGPU && __EMSCRIPTEN__
+#endif // AE_USE_WEBGPU && __EMSCRIPTEN__

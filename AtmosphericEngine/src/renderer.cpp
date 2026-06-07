@@ -1158,20 +1158,11 @@ void MSAAResolvePass::Execute(GraphicsServer* ctx, Renderer& renderer, CommandEn
     auto [width, height] = Window::Get()->GetFramebufferSize();
     glViewport(0, 0, width, height);
  
-    // Resolve MSAA (color + depth)
+    // Resolve MSAA color only — depth formats (32F vs 24) differ between
+    // sceneRT and msaaResolveRT, and depth is not needed by post-process passes.
     glBindFramebuffer(GL_READ_FRAMEBUFFER, static_cast<GLRenderTarget*>(renderer.sceneRT.get())->GetNativeFBOID());
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, static_cast<GLRenderTarget*>(renderer.msaaResolveRT.get())->GetNativeFBOID());
-    
-    GLbitfield mask = GL_COLOR_BUFFER_BIT;
-#ifdef __EMSCRIPTEN__
-    // WebGL 2.0 throws INVALID_OPERATION if blitting depth to the default framebuffer 0
-    if (renderer.postProcessEnabled) {
-        mask |= GL_DEPTH_BUFFER_BIT;
-    }
-#else
-    mask |= GL_DEPTH_BUFFER_BIT;
-#endif
-    glBlitFramebuffer(0, 0, width, height, 0, 0, width, height, mask, GL_NEAREST);
+    glBlitFramebuffer(0, 0, width, height, 0, 0, width, height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
  
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
  

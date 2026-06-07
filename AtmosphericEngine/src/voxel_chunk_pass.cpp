@@ -233,8 +233,10 @@ void BloomPass::Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder*
     upShader->Deactivate();
     glDisable(GL_BLEND);
 
-    // 4. Composite: scene + bloom → default framebuffer
-    glBindFramebuffer(GL_FRAMEBUFFER, renderer.finalFBO);
+    // 4. Composite: scene + bloom → back into msaaResolveRT (linear HDR, no tonemapping)
+    // PostProcessPass reads msaaResolveRT and applies HDR tonemapping as the final step.
+    GLuint resolveTargetFBO = static_cast<GLRenderTarget*>(renderer.msaaResolveRT.get())->GetNativeFBOID();
+    glBindFramebuffer(GL_FRAMEBUFFER, resolveTargetFBO);
     glViewport(0, 0, w, h);
     compShader->Activate();
     glActiveTexture(GL_TEXTURE0);
@@ -244,7 +246,6 @@ void BloomPass::Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder*
     compShader->SetUniform("u_scene",        0);
     compShader->SetUniform("u_bloom",        1);
     compShader->SetUniform("u_bloomStrength", bloomStrength);
-    compShader->SetUniform("u_exposure",     exposure);
     DrawScreenQuadVAO(renderer.screenQuadVAO);
     compShader->Deactivate();
 

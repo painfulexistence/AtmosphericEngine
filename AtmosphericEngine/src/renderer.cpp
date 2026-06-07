@@ -211,7 +211,15 @@ void Renderer::SortTransparent() {
 void Renderer::BucketCommands(const glm::vec3& cameraPos) {
     for (const auto& cmd : _commandList) {
         Material* mat = cmd.mesh->GetMaterial();
-        if (!mat) continue;
+
+        // Voxel meshes have no material — route directly to opaque queue
+        if (!mat) {
+            if (cmd.mesh->type == MeshType::VOXEL) {
+                uint64_t sortKey = CalculateSortKey(cmd, cameraPos);
+                _opaqueQueue.push_back({ cmd, sortKey });
+            }
+            continue;
+        }
 
         int queue = mat->GetFinalRenderQueue();
         uint64_t sortKey = CalculateSortKey(cmd, cameraPos);

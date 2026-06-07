@@ -1,7 +1,18 @@
 #include "voxel_chunk_component.hpp"
 #include "graphics_server.hpp"
+#include "material.hpp"
 #include <algorithm>
 #include <cstring>
+
+// Shared opaque material for all voxel chunks — no textures, just signals Opaque queue
+static Material* s_voxelMaterial = nullptr;
+static Material* GetVoxelMaterial() {
+    if (!s_voxelMaterial) {
+        s_voxelMaterial = new Material(MaterialProps{});
+        s_voxelMaterial->renderQueue = RenderQueue::Opaque;
+    }
+    return s_voxelMaterial;
+}
 
 VoxelChunkComponent::VoxelChunkComponent(GameObject* owner, GraphicsServer* gfx, glm::ivec3 chunkPos)
     : _gfx(gfx), _chunkPos(chunkPos)
@@ -85,6 +96,7 @@ void VoxelChunkComponent::RebuildMesh() {
 
     if (!_mesh) {
         _mesh = new Mesh(MeshType::VOXEL);
+        _mesh->SetMaterial(GetVoxelMaterial());
     }
     if (!verts.empty()) {
         _mesh->Update(verts);

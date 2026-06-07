@@ -34,6 +34,12 @@ void VoxelChunkPass::Execute(GraphicsServer* ctx, Renderer& renderer, CommandEnc
     auto [width, height] = Window::Get()->GetFramebufferSize();
     glViewport(0, 0, width, height);
 
+    // Render into the same target as ForwardOpaquePass (no clear — already done)
+    GLuint targetFBO = renderer.postProcessEnabled
+        ? static_cast<GLRenderTarget*>(renderer.sceneRT.get())->GetNativeFBOID()
+        : renderer.finalFBO;
+    glBindFramebuffer(GL_FRAMEBUFFER, targetFBO);
+
     shader->Activate();
 
     glm::mat4 viewProj = camera->GetProjectionMatrix() * camera->GetViewMatrix();

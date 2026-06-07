@@ -84,6 +84,47 @@ public:
     void Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder* enc = nullptr) override;
 };
 
+// Renders MeshType::VOXEL meshes from the opaque queue using the voxel shader.
+class VoxelChunkPass : public RenderPass {
+public:
+    void Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder* enc = nullptr) override;
+};
+
+// Renders MeshType::PRIM water meshes tagged via material renderQueue.
+class WaterPass : public RenderPass {
+public:
+    void Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder* enc = nullptr) override;
+
+    float time = 0.0f;
+};
+
+// Pyramid bloom: threshold → downsample → upsample → composite.
+class BloomPass : public RenderPass {
+public:
+    void Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder* enc = nullptr) override;
+
+    float threshold     = 0.8f;
+    float bloomStrength = 0.04f;
+    float exposure      = 1.0f;
+
+private:
+    static constexpr int MIP_LEVELS = 5;
+
+    struct MipRT {
+        GLuint fbo = 0;
+        GLuint tex = 0;
+        int    w   = 0;
+        int    h   = 0;
+    };
+
+    MipRT _mips[MIP_LEVELS];
+    bool  _initialized = false;
+    int   _lastW = 0, _lastH = 0;
+
+    void InitMips(int w, int h);
+    void DrawScreenQuad(GLuint screenVAO);
+};
+
 class RenderGraph {
     std::vector<std::unique_ptr<RenderPass>> _passes;
 
@@ -108,16 +149,6 @@ public:
     void Init(int width, int height);
     void Cleanup();
     void Resize(int width, int height);
-
-    // void ApplyMaterial(const Material& material);
-
-    // void ApplyPipeline(const Pipeline& pipeline);
-
-    // void ApplyCamera(const Camera& camera);
-
-    // void ApplyTransform(const glm::mat4 transform);
-
-    // void Draw(const std::shared_ptr<Mesh> mesh);
 
     void CheckFramebufferStatus(const std::string& prefix);
     void CheckErrors(const std::string& prefix);
@@ -178,12 +209,12 @@ public:
     std::unique_ptr<Buffer> debugBuffer;
     std::unique_ptr<Buffer> screenBuffer;
 
-    // GL-specific: shadow maps (depth-only array/cube textures, not covered by RenderTarget)
-    std::array<GLuint, MAX_UNI_LIGHTS> uniShadowMaps;
+    // GL-specific: shadow maps
+    std::array<GLuint, MAX_UNI_LIGHTS>  uniShadowMaps;
     std::array<GLuint, MAX_OMNI_LIGHTS> omniShadowMaps;
     GLuint envMap, irradianceMap;
 
-    // GL-specific: GBuffer (MRT with 4 color attachments, not covered by RenderTarget interface)
+    // GL-specific: GBuffer
     struct GBuffer {
         GLuint id;
         GLuint positionRT;
@@ -196,6 +227,12 @@ public:
     GLuint shadowFBO;
     GLuint canvasVAO, canvasVBO;  // GL-specific: legacy canvas geometry
 
+    // Screen-quad VAO shared by post-process passes (bloom, composite, etc.)
+    GLuint screenQuadVAO = 0;
+
+    // Per-frame time (seconds) forwarded from RenderFrame for animated passes.
+    float frameTime = 0.0f;
+
     struct SortableCommand {
         RenderCommand cmd;
         uint64_t sortKey;
@@ -205,12 +242,12 @@ private:
     std::vector<RenderCommand> _commandList;
 
     // Bucketed and sorted queues
-    std::vector<SortableCommand> _opaqueQueue;// For scene, voxel chunks, skybox
-    std::vector<SortableCommand> _afterOpaqueQueue;// For raymarching voxel chunks, GPU particles
-    std::vector<SortableCommand> _transparentQueue;// For particles, world UI
-    std::vector<SortableCommand> _gizmoQueue;// For world debug UI
-    std::vector<BatchDrawCommand> _hudQueue;// For HUD (RmlUi)
-    std::vector<BatchDrawCommand> _canvasQueue;// For immediate mode canvas (Lua)
+    std::vector<SortableCommand> _opaqueQueue;      // scene, voxel chunks, skybox
+    std::vector<SortableCommand> _afterOpaqueQueue; // raymarching, GPU particles
+    std::vector<SortableCommand> _transparentQueue; // particles, world UI
+    std::vector<SortableCommand> _gizmoQueue;       // world debug UI
+    std::vector<BatchDrawCommand> _hudQueue;        // HUD (RmlUi)
+    std::vector<BatchDrawCommand> _canvasQueue;     // immediate mode canvas (Lua)
 
     std::unique_ptr<RenderGraph> _renderGraph;
     RenderPath _currRenderPath = RenderPath::Forward;
@@ -223,6 +260,7 @@ private:
     void CreateCanvasVAO();
     void CreateScreenBuffer();
     void CreateDebugBuffer();
+    void CreateScreenQuadVAO();
 
     void SortAndBucket(const glm::vec3& cameraPos);
     uint64_t CalculateSortKey(const RenderCommand& cmd, const glm::vec3& cameraPos);

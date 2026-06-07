@@ -1,29 +1,36 @@
 #include "voxel_world.hpp"
+#include "application.hpp"
+#include "game_object.hpp"
 #include "graphics_server.hpp"
 #include "frustum.hpp"
 
-// FastNoiseLite – single-header noise library (pulled in by CMakeLists)
 #include "FastNoiseLite.h"
 
 #include <algorithm>
 #include <cmath>
 
-VoxelWorld::~VoxelWorld() {
-    _chunks.clear();
-}
-
-void VoxelWorld::Init(GraphicsServer* gfx, PhysicsServer* physics, int seed) {
-    _gfx     = gfx;
-    _physics = physics;
-    _seed    = seed;
+void VoxelWorld::Init(Application* app, int seed) {
+    _gfx  = app->GetGraphicsServer();
+    _seed = seed;
 
     const int total = WORLD_X * WORLD_Y * WORLD_Z;
     _chunks.reserve(total);
 
-    for (int cx = 0; cx < WORLD_X; ++cx)
-        for (int cy = 0; cy < WORLD_Y; ++cy)
-            for (int cz = 0; cz < WORLD_Z; ++cz)
-                _chunks.push_back(std::make_unique<VoxelChunk>(glm::ivec3(cx, cy, cz)));
+    for (int cx = 0; cx < WORLD_X; ++cx) {
+        for (int cy = 0; cy < WORLD_Y; ++cy) {
+            for (int cz = 0; cz < WORLD_Z; ++cz) {
+                glm::vec3 worldPos = glm::vec3(cx, cy, cz) *
+                                     static_cast<float>(VoxelChunkComponent::SIZE);
+                GameObject* go = app->CreateGameObject(worldPos);
+                go->SetName("VoxelChunk_" + std::to_string(cx) + "_" +
+                            std::to_string(cy) + "_" + std::to_string(cz));
+
+                auto* comp = new VoxelChunkComponent(go, _gfx, glm::ivec3(cx, cy, cz));
+                go->AddComponent(comp);
+                _chunks.push_back(comp);
+            }
+        }
+    }
 
     GenerateTerrain();
     LinkNeighbors();
@@ -35,20 +42,17 @@ void VoxelWorld::Update(float /*dt*/, const glm::vec3& /*cameraPos*/) {
 }
 
 void VoxelWorld::SubmitRenderCommands(Renderer* renderer,
-                                       const glm::mat4& viewProj,
-                                       const glm::vec3& cameraPos)
+                                      const glm::mat4& viewProj,
+                                      const glm::vec3& cameraPos)
 {
     Frustum frustum(viewProj);
 
-    for (auto& chunk : _chunks) {
+    for (auto* chunk : _chunks) {
         Mesh* mesh = chunk->GetMesh();
         if (!mesh || !mesh->UsesRenderMesh()) continue;
 
-        // Bounding-sphere frustum cull
         glm::vec3 center = chunk->GetBoundingSphereCenter();
-        float radius     = chunk->GetBoundingSphereRadius();
-        if (!frustum.Intersects(center)) continue; // quick point check
-        // (a full sphere test would need Frustum::IntersectsSphere, use bbox fallback)
+        if (!frustum.Intersects(center)) continue;
         auto bbox = mesh->GetBoundingBox();
         if (!frustum.Intersects(bbox)) continue;
 
@@ -61,25 +65,25 @@ void VoxelWorld::SubmitRenderCommands(Renderer* renderer,
 }
 
 uint8_t VoxelWorld::GetVoxel(int wx, int wy, int wz) const {
-    int cx = wx / VoxelChunk::SIZE, lx = wx % VoxelChunk::SIZE;
-    int cy = wy / VoxelChunk::SIZE, ly = wy % VoxelChunk::SIZE;
-    int cz = wz / VoxelChunk::SIZE, lz = wz % VoxelChunk::SIZE;
-    VoxelChunk* c = GetChunk(cx, cy, cz);
+    int cx = wx / VoxelChunkComponent::SIZE, lx = wx % VoxelChunkComponent::SIZE;
+    int cy = wy / VoxelChunkComponent::SIZE, ly = wy % VoxelChunkComponent::SIZE;
+    int cz = wz / VoxelChunkComponent::SIZE, lz = wz % VoxelChunkComponent::SIZE;
+    VoxelChunkComponent* c = GetChunk(cx, cy, cz);
     return c ? c->GetVoxel(lx, ly, lz) : 0;
 }
 
 void VoxelWorld::SetVoxel(int wx, int wy, int wz, uint8_t type) {
-    int cx = wx / VoxelChunk::SIZE, lx = wx % VoxelChunk::SIZE;
-    int cy = wy / VoxelChunk::SIZE, ly = wy % VoxelChunk::SIZE;
-    int cz = wz / VoxelChunk::SIZE, lz = wz % VoxelChunk::SIZE;
-    VoxelChunk* c = GetChunk(cx, cy, cz);
+    int cx = wx / VoxelChunkComponent::SIZE, lx = wx % VoxelChunkComponent::SIZE;
+    int cy = wy / VoxelChunkComponent::SIZE, ly = wy % VoxelChunkComponent::SIZE;
+    int cz = wz / VoxelChunkComponent::SIZE, lz = wz % VoxelChunkComponent::SIZE;
+    VoxelChunkComponent* c = GetChunk(cx, cy, cz);
     if (c) c->SetVoxel(lx, ly, lz, type);
 }
 
-VoxelChunk* VoxelWorld::GetChunk(int cx, int cy, int cz) const {
+VoxelChunkComponent* VoxelWorld::GetChunk(int cx, int cy, int cz) const {
     int idx = ChunkIndex(cx, cy, cz);
     if (idx < 0) return nullptr;
-    return _chunks[idx].get();
+    return _chunks[idx];
 }
 
 int VoxelWorld::ChunkIndex(int cx, int cy, int cz) const {
@@ -90,7 +94,6 @@ int VoxelWorld::ChunkIndex(int cx, int cy, int cz) const {
 }
 
 void VoxelWorld::GenerateTerrain() {
-    // ---- Terrain height via FBm Simplex noise --------------------------------
     FastNoiseLite heightNoise;
     heightNoise.SetSeed(_seed);
     heightNoise.SetNoiseType(FastNoiseLite::NoiseType_OpenSimplex2);
@@ -100,42 +103,39 @@ void VoxelWorld::GenerateTerrain() {
     heightNoise.SetFractalLacunarity(2.0f);
     heightNoise.SetFractalGain(0.5f);
 
-    // ---- Cave noise (3-D) ---------------------------------------------------
     FastNoiseLite caveNoise;
     caveNoise.SetSeed(_seed + 1);
     caveNoise.SetNoiseType(FastNoiseLite::NoiseType_Perlin);
     caveNoise.SetFrequency(0.04f);
 
-    const int worldYVoxels = WORLD_Y * VoxelChunk::SIZE;
-    const int SEA_LEVEL    = worldYVoxels / 3;  // roughly y=32
+    const int worldYVoxels = WORLD_Y * VoxelChunkComponent::SIZE;
+    const int SEA_LEVEL    = worldYVoxels / 3;
 
     for (int cx = 0; cx < WORLD_X; ++cx) {
         for (int cz = 0; cz < WORLD_Z; ++cz) {
-            for (int lx = 0; lx < VoxelChunk::SIZE; ++lx) {
-                for (int lz = 0; lz < VoxelChunk::SIZE; ++lz) {
-                    int wx = cx * VoxelChunk::SIZE + lx;
-                    int wz = cz * VoxelChunk::SIZE + lz;
+            for (int lx = 0; lx < VoxelChunkComponent::SIZE; ++lx) {
+                for (int lz = 0; lz < VoxelChunkComponent::SIZE; ++lz) {
+                    int wx = cx * VoxelChunkComponent::SIZE + lx;
+                    int wz = cz * VoxelChunkComponent::SIZE + lz;
 
-                    // Height in world-voxel coords
                     float h = heightNoise.GetNoise((float)wx, (float)wz);
-                    int   height = (int)(( h * 0.5f + 0.5f ) * worldYVoxels * 0.55f) + 10;
+                    int height = (int)((h * 0.5f + 0.5f) * worldYVoxels * 0.55f) + 10;
                     height = std::clamp(height, 0, worldYVoxels - 1);
 
                     for (int wy = 0; wy < height; ++wy) {
-                        // Cave carving
                         float cv = caveNoise.GetNoise((float)wx, (float)wy, (float)wz);
-                        if (cv > 0.55f && wy > 4) continue; // carve out cave
+                        if (cv > 0.55f && wy > 4) continue;
 
-                        int cy = wy / VoxelChunk::SIZE;
-                        int ly = wy % VoxelChunk::SIZE;
-                        VoxelChunk* chunk = GetChunk(cx, cy, cz);
+                        int cy = wy / VoxelChunkComponent::SIZE;
+                        int ly = wy % VoxelChunkComponent::SIZE;
+                        VoxelChunkComponent* chunk = GetChunk(cx, cy, cz);
                         if (!chunk) continue;
 
                         uint8_t id;
                         if (wy == height - 1 && wy >= SEA_LEVEL) {
-                            id = 2; // grass on surface above sea level
+                            id = 2; // grass
                         } else if (wy >= height - 4) {
-                            id = (wy < SEA_LEVEL) ? 5 : 1; // sand below sea, dirt above
+                            id = (wy < SEA_LEVEL) ? 5 : 1; // sand or dirt
                         } else {
                             id = 3; // stone
                         }
@@ -151,7 +151,7 @@ void VoxelWorld::LinkNeighbors() {
     for (int cx = 0; cx < WORLD_X; ++cx) {
         for (int cy = 0; cy < WORLD_Y; ++cy) {
             for (int cz = 0; cz < WORLD_Z; ++cz) {
-                VoxelChunk* chunk = GetChunk(cx, cy, cz);
+                VoxelChunkComponent* chunk = GetChunk(cx, cy, cz);
                 if (!chunk) continue;
 
                 for (int dx = -1; dx <= 1; ++dx) {
@@ -166,9 +166,9 @@ void VoxelWorld::LinkNeighbors() {
 }
 
 void VoxelWorld::RebuildDirtyChunks() {
-    for (auto& chunk : _chunks) {
+    for (auto* chunk : _chunks) {
         if (chunk->IsDirty()) {
-            chunk->RebuildMesh(_gfx);
+            chunk->RebuildMesh();
         }
     }
 }

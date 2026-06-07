@@ -249,7 +249,13 @@ void AssetManager::LoadDefaultShaders() {
 #endif
                   { "canvas", { .vert = "assets/shaders/canvas.vert", .frag = "assets/shaders/canvas.frag" } },
                   { "geometry", { .vert = "assets/shaders/geometry.vert", .frag = "assets/shaders/geometry.frag" } },
-                  { "lighting", { .vert = "assets/shaders/lighting.vert", .frag = "assets/shaders/lighting.frag" } } });
+                  { "lighting", { .vert = "assets/shaders/lighting.vert", .frag = "assets/shaders/lighting.frag" } },
+                  { "voxel",           { .vert = "assets/shaders/voxel.vert",            .frag = "assets/shaders/voxel.frag" } },
+                  { "water",           { .vert = "assets/shaders/water.vert",            .frag = "assets/shaders/water.frag" } },
+                  { "bloom_threshold", { .vert = "assets/shaders/bloom.vert",            .frag = "assets/shaders/bloom_threshold.frag" } },
+                  { "bloom_downsample",{ .vert = "assets/shaders/bloom.vert",            .frag = "assets/shaders/bloom_downsample.frag" } },
+                  { "bloom_upsample",  { .vert = "assets/shaders/bloom.vert",            .frag = "assets/shaders/bloom_upsample.frag" } },
+                  { "bloom_composite", { .vert = "assets/shaders/bloom.vert",            .frag = "assets/shaders/bloom_composite.frag" } } });
 }
 
 void AssetManager::LoadShaders(const std::unordered_map<std::string, ShaderProgramProps>& shaderDefs) {

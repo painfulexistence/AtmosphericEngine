@@ -71,12 +71,38 @@ void Renderer::Init(int width, int height) {
     m_BatchRenderer = std::make_unique<BatchRenderer2D>();
     m_BatchRenderer->Init();
 
+    // Screen-space quad VAO for post-process passes (bloom, etc.)
+    {
+        static const float quadVerts[] = {
+            -1.f, -1.f, 0.f, 0.f,
+             1.f, -1.f, 1.f, 0.f,
+             1.f,  1.f, 1.f, 1.f,
+            -1.f, -1.f, 0.f, 0.f,
+             1.f,  1.f, 1.f, 1.f,
+            -1.f,  1.f, 0.f, 1.f,
+        };
+        GLuint vbo;
+        glGenVertexArrays(1, &screenQuadVAO);
+        glGenBuffers(1, &vbo);
+        glBindVertexArray(screenQuadVAO);
+        glBindBuffer(GL_ARRAY_BUFFER, vbo);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(quadVerts), quadVerts, GL_STATIC_DRAW);
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
+        glEnableVertexAttribArray(1);
+        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
+        glBindVertexArray(0);
+    }
+
     _renderGraph = std::make_unique<RenderGraph>();
     _renderGraph->AddPass(std::make_unique<ShadowPass>());
+    _renderGraph->AddPass(std::make_unique<VoxelChunkPass>());
     _renderGraph->AddPass(std::make_unique<ForwardOpaquePass>());
     _renderGraph->AddPass(std::make_unique<MSAAResolvePass>());
+    _renderGraph->AddPass(std::make_unique<WaterPass>());
     _renderGraph->AddPass(std::make_unique<WorldCanvasPass>());// World sprites with depth testing
     _renderGraph->AddPass(std::make_unique<CanvasPass>());// 2D sprites, world space ortho, with no depth testing
+    _renderGraph->AddPass(std::make_unique<BloomPass>());
     _renderGraph->AddPass(std::make_unique<PostProcessPass>());
     _renderGraph->AddPass(std::make_unique<UIPass>());
 }
@@ -207,6 +233,7 @@ void Renderer::BucketCommands(const glm::vec3& cameraPos) {
 
 void Renderer::RenderFrame(GraphicsServer* ctx, float dt) {
     ZoneScopedN("Renderer::RenderFrame");
+    frameTime += dt;
     SortAndBucket(ctx->GetMainCamera()->GetEyePosition());
     _renderGraph->Render(ctx, *this);
 
@@ -748,6 +775,10 @@ void ForwardOpaquePass::Execute(GraphicsServer* ctx, Renderer& renderer, Command
             // TODO: implement skybox rendering
             break;
 
+        case MeshType::VOXEL:
+            // Handled by VoxelChunkPass before this pass.
+            break;
+
         case MeshType::PRIM:
         default:
             colorShader->Activate();
@@ -967,6 +998,9 @@ void DeferredGeometryPass::Execute(GraphicsServer* ctx, Renderer& renderer, Comm
             break;
         case MeshType::SKY:
             // TODO: implement skybox rendering
+            break;
+        case MeshType::VOXEL:
+            // Handled by VoxelChunkPass.
             break;
         case MeshType::PRIM:
         default:

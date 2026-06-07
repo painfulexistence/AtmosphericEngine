@@ -1,4 +1,17 @@
 option(BUILD_SHARED_LIBS OFF)
+
+# ── FastNoiseLite (single-header noise library) ───────────────────────────────
+FetchContent_Declare(
+    FastNoiseLite
+    GIT_REPOSITORY https://github.com/Auburn/FastNoiseLite.git
+    GIT_TAG        v1.1.1
+    GIT_SHALLOW    TRUE
+    UPDATE_DISCONNECTED TRUE
+)
+FetchContent_GetProperties(FastNoiseLite)
+if(NOT FastNoiseLite_POPULATED)
+    FetchContent_Populate(FastNoiseLite)
+endif()
 if(NOT EMSCRIPTEN)
     FetchContent_Declare(
         SDL3
@@ -165,6 +178,9 @@ set(SOURCES
     src/rigidbody_2d_component.cpp
     src/mesh_builder.cpp
     src/shape_renderer_component.cpp
+    src/voxel_chunk_component.cpp
+    src/voxel_world.cpp
+    src/voxel_chunk_pass.cpp
     src/scene_loader.cpp
     src/script.cpp
     src/component_registry.cpp
@@ -350,6 +366,7 @@ target_include_directories(AtmosphericEngine
         ${CMAKE_CURRENT_SOURCE_DIR}/external/stb
         ${CMAKE_CURRENT_SOURCE_DIR}/include/Atmospheric
         ${FLATBUFFERS_GENERATED_DIR}
+        ${fastnoiselite_SOURCE_DIR}/Cpp
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui
         ${CMAKE_CURRENT_SOURCE_DIR}/include

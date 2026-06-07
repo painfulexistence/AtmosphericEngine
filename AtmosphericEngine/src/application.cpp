@@ -23,6 +23,12 @@
 #include <tracy/Tracy.hpp>
 #endif
 
+#ifdef __EMSCRIPTEN__
+#include <malloc.h>
+#include <emscripten.h>
+#include <emscripten/heap.h>
+#endif
+
 Application::Application(AppConfig config) : _config(config) {
     // setbuf(stdout, NULL); // Cancel output stream buffering so that output can be seen immediately
 
@@ -311,3 +317,23 @@ GameObject* Application::CreateGameObject(glm::vec2 position, float angle) {
     _entities.push_back(e);
     return e;
 }
+
+#ifdef __EMSCRIPTEN__
+extern "C" {
+
+EMSCRIPTEN_KEEPALIVE
+void printWasmMemoryStats() {
+    struct mallinfo mi = mallinfo();
+    double mb = 1024.0 * 1024.0;
+    size_t heapSize = emscripten_get_heap_size();
+
+    printf("========== WASM Memory Stats ==========\n");
+    printf("WASM Heap Size     : %.2f MB\n", heapSize / mb);
+    printf("dlmalloc Arena     : %.2f MB\n", mi.arena / mb);
+    printf("真實使用量 (Used)  : %.2f MB\n", mi.uordblks / mb);
+    printf("閒置可用量 (Free)  : %.2f MB\n", mi.fordblks / mb);
+    printf("=======================================\n");
+}
+
+} // extern "C"
+#endif

@@ -351,8 +351,8 @@ void FileSystem::Prefetch(const std::vector<std::string>& paths,
     auto queue         = std::make_shared<PrefetchQueue>();
     queue->pendingPaths = std::move(pending);
 
-    // Capping concurrency at 400 to reproduce memory spike issue
-    constexpr size_t MAX_CONCURRENT_FETCHES = 400;
+    // Capping concurrency at 4 for high-performance sliding window
+    constexpr size_t MAX_CONCURRENT_FETCHES = 4;
     size_t initialFetches = std::min(queue->pendingPaths.size(), MAX_CONCURRENT_FETCHES);
     
     {

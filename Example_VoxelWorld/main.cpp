@@ -11,7 +11,7 @@ class VoxelWorldApp : public Application {
 
         _world.Init(this, /*seed=*/1337);
 
-        console.Info("VoxelWorld loaded. WASD to move, ESC to quit.");
+        console.Info("VoxelWorld loaded. WASD to move, Q/E up/down, ESC to quit.");
     }
 
     void OnUpdate(float dt, float time) override {
@@ -50,6 +50,22 @@ class VoxelWorldApp : public Application {
     }
 };
 
+#ifdef __EMSCRIPTEN__
+static void StartGame();
+
+int main(int argc, char* argv[]) {
+    FileSystem::Get().Prefetch({}, StartGame);
+    return 0;
+}
+
+static void StartGame() {
+    static VoxelWorldApp game({
+        .useDefaultTextures = true,
+        .useDefaultShaders  = true,
+    });
+    game.Run();
+}
+#else
 int main(int argc, char* argv[]) {
     VoxelWorldApp game({
         .useDefaultTextures = true,
@@ -58,3 +74,4 @@ int main(int argc, char* argv[]) {
     game.Run();
     return 0;
 }
+#endif

@@ -87,9 +87,14 @@ void GLRenderTarget::Create() {
 #endif
         glBindTexture(GL_TEXTURE_2D, _colorTexture);
 
+#ifdef __EMSCRIPTEN__
+        GLenum internalFormat = GL_RGBA8;
+        GLenum type           = GL_UNSIGNED_BYTE;
+#else
         GLenum internalFormat = _hdr ? GL_RGBA16F : GL_RGBA8;
-        GLenum format         = GL_RGBA;
         GLenum type           = _hdr ? GL_FLOAT : GL_UNSIGNED_BYTE;
+#endif
+        GLenum format         = GL_RGBA;
         glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, _width, _height, 0, format, type, nullptr);
 
         GLenum filterMode = _filtered ? GL_LINEAR : GL_NEAREST;
@@ -110,7 +115,7 @@ void GLRenderTarget::Create() {
                 glGenTextures(1, &_depthTexture);
                 glBindTexture(GL_TEXTURE_2D, _depthTexture);
                 glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, _width, _height, 0,
-                             GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
+                             GL_DEPTH_COMPONENT, GL_UNSIGNED_INT, nullptr);
                 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
                 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
                 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);

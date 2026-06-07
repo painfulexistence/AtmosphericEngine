@@ -72,7 +72,8 @@ if [ ! -d "$VCPKG_DIR" ] || [ ! -f "$VCPKG_DIR/vcpkg" ]; then
 fi
 
 # 3. 定義 WebAssembly 專屬建置目錄
-BUILD_DIR="$(pwd)/build-wasm"
+BUILD_SUBDIR=$(echo "$BUILD_TYPE" | tr '[:upper:]' '[:lower:]')
+BUILD_DIR="$(pwd)/build-wasm/$BUILD_SUBDIR"
 echo -e "${BLUE}配置資訊:${NC}"
 echo -e "  - 專案根目錄: $(pwd)"
 echo -e "  - 建置目錄:   $BUILD_DIR"
@@ -96,9 +97,11 @@ cmake --build "$BUILD_DIR" --parallel
 echo -e ""
 echo -e "${GREEN}✨ WebAssembly / Emscripten 建置成功！(${BUILD_TYPE})${NC}"
 echo -e "網頁版產物已輸出至："
-echo -e "  - AtmosLua:   ${YELLOW}$BUILD_DIR/AtmosLua/${NC}"
-echo -e "  - HelloWorld: ${YELLOW}$BUILD_DIR/HelloWorld/${NC}"
-echo -e "  - Maze 迷宮:  ${YELLOW}$BUILD_DIR/Maze/${NC}"
+echo -e "  - AtmosLua:      ${YELLOW}$BUILD_DIR/AtmosLua/${NC}"
+echo -e "  - HelloWorld:    ${YELLOW}$BUILD_DIR/HelloWorld/${NC}"
+echo -e "  - Maze 迷宮:     ${YELLOW}$BUILD_DIR/Maze/${NC}"
+echo -e "  - Physics2D 物理:${YELLOW}$BUILD_DIR/Physics2DDemo/${NC}"
+echo -e "  - CSBDemo 角色:  ${YELLOW}$BUILD_DIR/CSBDemo/${NC}"
 echo -e ""
 
 # 6. 提供啟動本地伺服器的選項以便立即測試
@@ -114,6 +117,8 @@ if [ "$RUN_SERVER" = "y" ] || [ "$RUN_SERVER" = "Y" ]; then
     echo -e "  👉 AtmosLua (Lua 前端): ${BLUE}http://localhost:$PORT/AtmosLua/AtmosLua.html${NC}"
     echo -e "  👉 HelloWorld 範例:    ${BLUE}http://localhost:$PORT/HelloWorld/HelloWorld.html${NC}"
     echo -e "  👉 Maze 迷宮大作:      ${BLUE}http://localhost:$PORT/Maze/Maze.html${NC}"
+    echo -e "  👉 Physics2D 物理範例:  ${BLUE}http://localhost:$PORT/Physics2DDemo/Physics2DDemo.html${NC}"
+    echo -e "  👉 CSBDemo 角色範例:    ${BLUE}http://localhost:$PORT/CSBDemo/CSBDemo.html${NC}"
     echo -e ""
     echo -e "按下 ${RED}Ctrl+C${NC} 可以停止伺服器。"
     echo -e ""

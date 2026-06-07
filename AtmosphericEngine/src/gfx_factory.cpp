@@ -1,6 +1,7 @@
 #include "gfx_factory.hpp"
 #include "gl_buffer.hpp"
 #include "gl_render_target.hpp"
+#include "console.hpp"
 
 #if defined(AE_USE_WEBGPU) && defined(__EMSCRIPTEN__)
 #include <webgpu/webgpu.h>
@@ -28,6 +29,8 @@ void GfxFactory::Init() {
         // Device arrives async — caller must invoke SetWebGPUDevice() once
         // emscripten_webgpu_get_device() callback fires.
         return;
+    } else {
+        Console::Get()->Warn("[GfxFactory] WebGPU is not supported or enabled in the browser. Falling back to WebGL 2.0 (OpenGL ES3).");
     }
 #endif
     _backend = GfxBackend::OpenGL;  // No WebGPU support or unavailable → WebGL 2
@@ -36,6 +39,7 @@ void GfxFactory::Init() {
 #if defined(AE_USE_WEBGPU)
 void GfxFactory::SetWebGPUDevice(WGPUDevice device) {
     if (!device) {
+        Console::Get()->Warn("[GfxFactory] Failed to request WebGPU device asynchronously. Falling back to WebGL 2.0 (OpenGL ES3).");
         _backend = GfxBackend::OpenGL;  // device creation failed → WebGL 2
         return;
     }

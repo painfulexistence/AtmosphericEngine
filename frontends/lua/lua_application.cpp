@@ -19,6 +19,8 @@ LuaApplication::~LuaApplication() {
 }
 
 void LuaApplication::OnInit() {
+    GoScene("main", [this]{ OnLoad(); });
+
     // Load default shaders and textures
     AssetManager::Get().LoadDefaultShaders();
     AssetManager::Get().LoadDefaultTextures();

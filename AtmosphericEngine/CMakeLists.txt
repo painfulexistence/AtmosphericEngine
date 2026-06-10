@@ -182,6 +182,7 @@ set(SOURCES
     src/voxel_world.cpp
     src/voxel_chunk_pass.cpp
     src/scene_loader.cpp
+    src/scene_transition.cpp
     src/script.cpp
     src/component_registry.cpp
     ${FLATBUFFERS_GENERATED_DIR}/Scene_generated.h
@@ -406,17 +407,18 @@ if(EMSCRIPTEN)
         # to work at runtime.
         # --closure=1 is recommended in release builds to reduce emdawnwebgpu JS size.
         # TODO: switch ImGui backend to imgui_impl_wgpu once WebGPU path is stable.
-        target_link_options(AtmosphericEngine PUBLIC
+        target_link_options(AtmosphericEngine INTERFACE
             -sWASM=1 -O3 -sUSE_GLFW=3
             --use-port=emdawnwebgpu
             -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2 -sFULL_ES3=1
-            -sFETCH=1)
+            -sFETCH=1
+            -sEXPORTED_RUNTIME_METHODS=["requestFullscreen"])
     else()
-        # WebGPU support not compiled in — always uses WebGL 2.
-        target_link_options(AtmosphericEngine PRIVATE
+        target_link_options(AtmosphericEngine INTERFACE
             -sWASM=1 -O3 -sUSE_GLFW=3
             -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2 -sFULL_ES3=1
-            -sFETCH=1)
+            -sFETCH=1
+            -sEXPORTED_RUNTIME_METHODS=["requestFullscreen"])
     endif()
 else()
     target_compile_definitions(AtmosphericEngine PUBLIC BT_THREADSAFE=1)

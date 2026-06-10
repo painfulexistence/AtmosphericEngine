@@ -394,12 +394,14 @@ if(EMSCRIPTEN)
             -sWASM=1 -O3 -sUSE_GLFW=3
             --use-port=emdawnwebgpu
             -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2 -sFULL_ES3=1
-            -sFETCH=1)
+            -sFETCH=1
+            -sEXPORTED_RUNTIME_METHODS=["requestFullscreen"])
     else()
         target_link_options(AtmosphericEngine INTERFACE
             -sWASM=1 -O3 -sUSE_GLFW=3
             -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2 -sFULL_ES3=1
-            -sFETCH=1)
+            -sFETCH=1
+            -sEXPORTED_RUNTIME_METHODS=["requestFullscreen"])
     endif()
 else()
     target_compile_definitions(AtmosphericEngine PUBLIC BT_THREADSAFE=1)

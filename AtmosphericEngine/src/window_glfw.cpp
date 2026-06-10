@@ -212,6 +212,21 @@ void Window::Init() {
         }
     });
 
+#ifdef __EMSCRIPTEN__
+    emscripten_set_fullscreenchange_callback(
+        EMSCRIPTEN_EVENT_TARGET_DOCUMENT,
+        this,
+        EM_FALSE,
+        [](int eventType, const EmscriptenFullscreenChangeEvent* event, void* userData) -> EM_BOOL {
+            auto self = static_cast<Window*>(userData);
+            if (self) {
+                self->_isFullscreen = event->isFullscreen;
+            }
+            return EM_TRUE;
+        }
+    );
+#endif
+
     // Default event listeners
     AddMouseMoveCallback([](float x, float y) {
         // ENGINE_LOG("-- Mouse moved to ({},{})\n", x, y);
@@ -341,6 +356,22 @@ void Window::MainLoop(std::function<void(float, float)> callback)
 }
 
 void Window::ToggleFullscreen() {
+#ifdef __EMSCRIPTEN__
+    if (!_isFullscreen) {
+        EmscriptenFullscreenStrategy strategy;
+        strategy.scaleMode = EMSCRIPTEN_FULLSCREEN_SCALE_ASPECT;
+        strategy.canvasResolutionScaleMode = EMSCRIPTEN_FULLSCREEN_CANVAS_SCALE_STDDEF;
+        strategy.filteringMode = EMSCRIPTEN_FULLSCREEN_FILTERING_DEFAULT;
+        strategy.canvasResizedCallback = nullptr;
+        strategy.canvasResizedCallbackUserData = nullptr;
+
+        // Request fullscreen on the main canvas element (ID "canvas" is standard in Emscripten templates)
+        // Set deferUntilInEventHandler to true so the request succeeds if called asynchronously.
+        emscripten_request_fullscreen_strategy("#canvas", EM_TRUE, &strategy);
+    } else {
+        emscripten_exit_fullscreen();
+    }
+#else
     GLFWwindow* window = static_cast<GLFWwindow*>(_internal);
     if (!_isFullscreen) {
         GLFWmonitor* monitor = glfwGetPrimaryMonitor();
@@ -352,6 +383,7 @@ void Window::ToggleFullscreen() {
         glfwSetWindowMonitor(window, nullptr, _windowedX, _windowedY, _windowedWidth, _windowedHeight, 0);
         _isFullscreen = false;
     }
+#endif
 }
 
 void Window::Close() {

@@ -30,6 +30,13 @@ using TextureID = uint32_t;
 using ShaderID = uint32_t;
 using MaterialID = uint32_t;
 
+struct Texture2D {
+    GLuint   glID   = 0;
+    uint32_t width  = 0;
+    uint32_t height = 0;
+    size_t   bytes  = 0;
+};
+
 class AssetManager {
 public:
     static AssetManager& Get();
@@ -82,6 +89,8 @@ public:
         return materials;
     }
 
+    size_t getTotalTextureBytes() const;
+
     // ========== Cleanup ==========
     void Clear();
 
@@ -107,7 +116,7 @@ private:
     // Textures
     std::vector<GLuint> defaultTextures;
     std::vector<GLuint> textures;
-    std::unordered_map<std::string, uint32_t> _textureCache;
+    std::unordered_map<std::string, Texture2D> _textureCache;
     uint32_t _nextTextureID = 0;
 
     // Meshes
@@ -124,7 +133,7 @@ private:
     //         which consumes the in-process cache populated by Prefetch().
     // On native: bytes are read directly from disk if not cached.
     // Returns the GL texture object ID.
-    GLuint LoadKTX2Texture(const std::string& path);
+    GLuint LoadKTX2Texture(const std::string& path, Texture2D* out = nullptr);
 
     // True after basist::basisu_transcoder_init() has been called.
     bool _basisuInitialized = false;

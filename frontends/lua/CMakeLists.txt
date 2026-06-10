@@ -75,6 +75,7 @@ if(EMSCRIPTEN)
         -sASSERTIONS=1
         -sDISABLE_EXCEPTION_CATCHING=0
         -sEXPORTED_FUNCTIONS=["_main","_printWasmMemoryStats"]
+        -Wl,--undefined=printWasmMemoryStats
         --preload-file ${EM_PRELOAD_STAGING_DIR}/shaders@assets/shaders
     )
 

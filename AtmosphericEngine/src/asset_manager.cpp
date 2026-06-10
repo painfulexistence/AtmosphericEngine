@@ -1,4 +1,5 @@
 #include "asset_manager.hpp"
+#include <unordered_set>
 #include <spdlog/spdlog.h>
 #include "console.hpp"
 #include "file_system.hpp"
@@ -409,9 +410,14 @@ void AssetManager::LoadTextures(const std::vector<std::string>& paths) {
         if (path.size() >= 5 && path.compare(path.size() - 5, 5, ".ktx2") == 0) {
 #ifdef AE_USE_BASIS_UNIVERSAL
             auto cached = _textureCache.find(path);
-            GLuint texID = (cached != _textureCache.end()) ? cached->second : LoadKTX2Texture(path);
-            textures[oldCount + i] = texID;
-            _textureCache[path]    = texID;
+            if (cached != _textureCache.end()) {
+                textures[oldCount + i] = cached->second.glID;
+            } else {
+                Texture2D tex2d;
+                GLuint texID = LoadKTX2Texture(path, &tex2d);
+                textures[oldCount + i] = texID;
+                _textureCache[path] = tex2d;
+            }
 #else
             throw std::runtime_error(
                 fmt::format("KTX2 texture requested but AE_USE_BASIS_UNIVERSAL is disabled: {}", path));
@@ -446,12 +452,11 @@ void AssetManager::LoadTextures(const std::vector<std::string>& paths) {
             spdlog::warn("Failed to load texture at '{}', using default fallback texture.", regularPaths[j]);
             // Re-use the default texture (defaultTextures[0]) as a safe fallback
             textures[oldCount + i] = defaultTextures.empty() ? 0u : defaultTextures[0];
-            _textureCache[regularPaths[j]] = textures[oldCount + i];
+            _textureCache[regularPaths[j]] = { textures[oldCount + i], 0, 0, 0 };
             continue;
         }
 
-        textures[oldCount + i]    = texID;
-        _textureCache[regularPaths[j]] = texID;
+        textures[oldCount + i] = texID;
 
         glBindTexture(GL_TEXTURE_2D, texID);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S,       GL_REPEAT);
@@ -476,6 +481,8 @@ void AssetManager::LoadTextures(const std::vector<std::string>& paths) {
             throw std::runtime_error(fmt::format("Unknown texture format at {}\n", regularPaths[j]));
         }
         glGenerateMipmap(GL_TEXTURE_2D);
+        _textureCache[regularPaths[j]] = { texID, (uint32_t)img->width, (uint32_t)img->height,
+                                           (size_t)img->width * img->height * img->channelCount };
     }
 }
 
@@ -490,15 +497,16 @@ GLuint AssetManager::CreateTexture(const std::string& path) {
     // Return cached texture (GLuint) if already uploaded.
     auto it = _textureCache.find(redirectedPath);
     if (it != _textureCache.end()) {
-        return it->second; // stored as GL texture ID by both loaders
+        return it->second.glID;
     }
 
 #ifdef AE_USE_BASIS_UNIVERSAL
     // Route .ktx2 files to the GPU-compressed loader.
     if (redirectedPath.size() >= 5 && redirectedPath.compare(redirectedPath.size() - 5, 5, ".ktx2") == 0) {
-        GLuint texID = LoadKTX2Texture(redirectedPath);
+        Texture2D tex2d;
+        GLuint texID = LoadKTX2Texture(redirectedPath, &tex2d);
         textures.push_back(texID);
-        _textureCache[redirectedPath] = texID;
+        _textureCache[redirectedPath] = tex2d;
         return texID;
     }
 #endif
@@ -540,7 +548,8 @@ GLuint AssetManager::CreateTextureFromImage(const std::shared_ptr<Image>& image)
     }
     glGenerateMipmap(GL_TEXTURE_2D);
 
-    _textureCache["unnamed_" + std::to_string(_nextTextureID++)] = _nextTextureID;
+    size_t bytes = (size_t)image->width * image->height * image->channelCount;
+    _textureCache["unnamed_" + std::to_string(_nextTextureID++)] = { texID, (uint32_t)image->width, (uint32_t)image->height, bytes };
     textures.push_back(texID);
     return texID;
 }
@@ -548,7 +557,7 @@ GLuint AssetManager::CreateTextureFromImage(const std::shared_ptr<Image>& image)
 GLuint AssetManager::GetTexture(const std::string& name) const {
     auto it = _textureCache.find(name);
     if (it != _textureCache.end()) {
-        return GetTextureByID(it->second);
+        return it->second.glID;
     }
     throw std::runtime_error(fmt::format("Texture '{}' not found", name));
 }
@@ -558,6 +567,16 @@ GLuint AssetManager::GetTextureByID(uint32_t id) const {
         return textures[id];
     }
     throw std::runtime_error(fmt::format("Texture ID {} out of range", id));
+}
+
+size_t AssetManager::getTotalTextureBytes() const {
+    std::unordered_set<GLuint> seen;
+    size_t total = 0;
+    for (auto& kv : _textureCache) {
+        if (kv.second.glID != 0 && seen.insert(kv.second.glID).second)
+            total += kv.second.bytes;
+    }
+    return total;
 }
 
 #ifdef AE_USE_BASIS_UNIVERSAL
@@ -580,7 +599,7 @@ GLuint AssetManager::GetTextureByID(uint32_t id) const {
 //     toktx --t2 --encode etc1s --mipmap out.ktx2 input.png
 //   If the KTX2 has only one level, GL_LINEAR is used (no mip filtering).
 // ============================================================================
-GLuint AssetManager::LoadKTX2Texture(const std::string& path) {
+GLuint AssetManager::LoadKTX2Texture(const std::string& path, Texture2D* out) {
     // Ensure basisu is initialised (may already be done in Init()).
     if (!_basisuInitialized) {
         basist::basisu_transcoder_init();
@@ -681,6 +700,17 @@ GLuint AssetManager::LoadKTX2Texture(const std::string& path) {
     ENGINE_LOG("Loaded KTX2 texture '{}' ({}×{}, {} mips, {})",
                path, baseWidth, baseHeight, levels,
                hasAlpha ? "RGBA" : "RGB");
+
+    if (out) {
+        // Sum compressed bytes across all mip levels for accurate VRAM accounting.
+        size_t totalBytes = 0;
+        for (uint32_t level = 0; level < levels; ++level) {
+            basist::ktx2_image_level_info info;
+            if (ktx2Dec.get_image_level_info(info, level, 0, 0))
+                totalBytes += (size_t)info.m_total_blocks * bytesPerBlk;
+        }
+        *out = { texID, baseWidth, baseHeight, totalBytes };
+    }
 
     return texID;
 }

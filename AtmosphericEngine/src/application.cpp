@@ -326,12 +326,14 @@ void printWasmMemoryStats() {
     struct mallinfo mi = mallinfo();
     double mb = 1024.0 * 1024.0;
     size_t heapSize = emscripten_get_heap_size();
+    size_t vramBytes = AssetManager::Get().getTotalTextureBytes();
 
     printf("========== WASM Memory Stats ==========\n");
     printf("WASM Heap Size     : %.2f MB\n", heapSize / mb);
     printf("dlmalloc Arena     : %.2f MB\n", mi.arena / mb);
-    printf("真實使用量 (Used)  : %.2f MB\n", mi.uordblks / mb);
-    printf("閒置可用量 (Free)  : %.2f MB\n", mi.fordblks / mb);
+    printf("Used               : %.2f MB\n", mi.uordblks / mb);
+    printf("Free               : %.2f MB\n", mi.fordblks / mb);
+    printf("VRAM (textures)    : %.2f MB\n", vramBytes / mb);
     printf("=======================================\n");
 }
 

@@ -166,6 +166,7 @@ set(SOURCES
     src/mesh_builder.cpp
     src/shape_renderer_component.cpp
     src/scene_loader.cpp
+    src/scene_transition.cpp
     src/script.cpp
     src/component_registry.cpp
     ${FLATBUFFERS_GENERATED_DIR}/Scene_generated.h

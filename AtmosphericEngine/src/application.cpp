@@ -13,6 +13,7 @@
 #include "rigidbody_component.hpp"
 #include "rmlui_manager.hpp"
 #include "scene.hpp"
+#include "scene_transition.hpp"
 #include "shape_renderer_component.hpp"
 #include "sprite_3d_component.hpp"
 #include "sprite_component.hpp"
@@ -133,8 +134,6 @@ void Application::Run() {
 
     OnInit();
 
-    OnLoad();
-
     _window->MainLoop([this](float currTime, float deltaTime) {
         FrameData currFrame = { GetClock(), currTime, deltaTime };
 #ifdef TRACY_ENABLE
@@ -196,26 +195,36 @@ void Application::LoadScene(const SceneDef& scene) {
     _currentSceneDef = scene;
 }
 
+void Application::GoScene(const std::string& sceneName, std::function<void()> onReady)
+{
+    _sceneReady = false;
+    SceneTransition::Go(sceneName, [this, sceneName, onReady]{
+        for (auto* e : _entities) {
+            if (e != _defaultGameObject) delete e;
+        }
+        _entities.clear();
+        _nextEntityID = 0;
+        if (_defaultGameObject) {
+            _entities.push_back(_defaultGameObject);
+            _nextEntityID = 1;
+        }
+
+        graphics.cameras.clear();
+        graphics.directionalLights.clear();
+        graphics.pointLights.clear();
+
+        audio.StopAll();
+        physics.Reset();
+
+        _currentSceneName = sceneName;
+        if (onReady) onReady();
+        _sceneReady = true;
+    }, nullptr, _currentSceneName);
+}
+
 void Application::ReloadScene() {
-    // TODO: making sure all resources are cleaned up before loading
-    AssetManager::Get().Clear();
-    graphics.cameras.clear();
-    graphics.directionalLights.clear();
-    graphics.pointLights.clear();
-
-    audio.StopAll();
-    physics.Reset();
-
-    for (auto e : _entities) {
-        delete e;
-    }
-    _entities.clear();
-
-    // TODO: reload scene
-    if (_currentSceneDef.has_value()) {
-        OnLoad();
-        // LoadScene(_currentSceneDef.value());
-    }
+    if (_currentSceneName.empty()) return;
+    SceneTransition::Go(_currentSceneName, [this]{ OnLoad(); });
 }
 
 void Application::Quit() {
@@ -227,6 +236,8 @@ void Application::Update(const FrameData& props) {
 #ifdef TRACY_ENABLE
     ZoneScopedN("Application::Update");
 #endif
+    if (!_sceneReady) return;
+
     float dt = props.deltaTime;
 
     OnUpdate(dt, GetWindowTime());

@@ -156,6 +156,43 @@ void AssetManager::Clear() {
     _imageCache.clear();
 }
 
+void AssetManager::ClearSceneAssets() {
+    // Textures: clear scene textures, keep defaultTextures untouched.
+    if (!textures.empty()) {
+        glDeleteTextures(textures.size(), textures.data());
+        textures.clear();
+    }
+    // Remove scene texture cache entries (keep default texture entries by glID).
+    std::unordered_set<GLuint> defaultIDs(defaultTextures.begin(), defaultTextures.end());
+    for (auto it = _textureCache.begin(); it != _textureCache.end(); ) {
+        if (defaultIDs.count(it->second.glID))
+            ++it;
+        else
+            it = _textureCache.erase(it);
+    }
+
+    // Shaders: delete only scene shaders (indices >= _defaultShaderCount).
+    for (uint32_t i = _defaultShaderCount; i < (uint32_t)shaders.size(); ++i)
+        delete shaders[i];
+    shaders.resize(_defaultShaderCount);
+    // Rebuild shader cache to only contain default shaders.
+    for (auto it = _shaderCache.begin(); it != _shaderCache.end(); )
+        it = (it->second < _defaultShaderCount) ? std::next(it) : _shaderCache.erase(it);
+    _nextShaderID = _defaultShaderCount;
+
+    // Materials and meshes are always scene-specific.
+    for (auto* m : materials) delete m;
+    materials.clear();
+    _materialCache.clear();
+    _nextMaterialID = 0;
+
+    for (auto* m : meshes) delete m;
+    meshes.clear();
+    _meshCache.clear();
+
+    _imageCache.clear();
+}
+
 // ============================================================================
 // Image Management
 // ============================================================================
@@ -251,6 +288,7 @@ void AssetManager::LoadDefaultShaders() {
                   { "canvas", { .vert = "assets/shaders/canvas.vert", .frag = "assets/shaders/canvas.frag" } },
                   { "geometry", { .vert = "assets/shaders/geometry.vert", .frag = "assets/shaders/geometry.frag" } },
                   { "lighting", { .vert = "assets/shaders/lighting.vert", .frag = "assets/shaders/lighting.frag" } } });
+    _defaultShaderCount = (uint32_t)shaders.size();
 }
 
 void AssetManager::LoadShaders(const std::unordered_map<std::string, ShaderProgramProps>& shaderDefs) {

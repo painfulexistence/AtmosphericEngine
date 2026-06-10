@@ -47,6 +47,9 @@ if(EMSCRIPTEN)
         COMMAND ${CMAKE_COMMAND} -E copy_directory
             ${CMAKE_CURRENT_SOURCE_DIR}/assets/fonts
             ${EM_PRELOAD_STAGING_DIR}/fonts
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+            ${CMAKE_CURRENT_SOURCE_DIR}/assets/scenes
+            ${EM_PRELOAD_STAGING_DIR}/scenes
         COMMENT "Staging Emscripten preload assets (shaders, fonts) for ${GAME_NAME}"
     )
     add_dependencies(${GAME_NAME} stage_${GAME_NAME}_em_preload)
@@ -69,7 +72,8 @@ if(EMSCRIPTEN)
         -sDISABLE_EXCEPTION_CATCHING=0
         -sEXPORTED_FUNCTIONS=["_main","_printWasmMemoryStats"]
         -Wl,--undefined=printWasmMemoryStats
-        --preload-file ${EM_PRELOAD_STAGING_DIR}/shaders@assets/shaders
+        "SHELL:--preload-file ${EM_PRELOAD_STAGING_DIR}/shaders@assets/shaders"
+        "SHELL:--preload-file ${EM_PRELOAD_STAGING_DIR}/scenes@assets/scenes"
     )
 
 else()

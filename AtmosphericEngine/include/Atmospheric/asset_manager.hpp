@@ -93,6 +93,7 @@ public:
 
     // ========== Cleanup ==========
     void Clear();
+    void ClearSceneAssets();  // Clears scene assets only, preserving defaults.
 
 private:
     AssetManager() = default;
@@ -107,6 +108,7 @@ private:
     std::vector<ShaderProgram*> shaders;
     std::unordered_map<std::string, uint32_t> _shaderCache;
     uint32_t _nextShaderID = 0;
+    uint32_t _defaultShaderCount = 0;
 
     // Materials
     std::vector<Material*> materials;

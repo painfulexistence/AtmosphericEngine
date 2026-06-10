@@ -55,11 +55,6 @@ if(EMSCRIPTEN)
 
     target_compile_options(${GAME_NAME} PRIVATE)
     target_link_options(${GAME_NAME} PRIVATE
-        -sWASM=1
-        -O3
-        -sUSE_GLFW=3
-        -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2 -sFULL_ES3=1
-        -sFETCH=1
         -sALLOW_MEMORY_GROWTH=1
         -sASSERTIONS=1
         -sDISABLE_EXCEPTION_CATCHING=0

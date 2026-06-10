@@ -33,6 +33,8 @@ jobs:
             AtmosphericEngine
             frontends
             Example_HelloWorld
+            Example_Physics2D
+            Example_CSB
             CMakeLists.txt
             CMakePresets.json
             vcpkg.json
@@ -88,8 +90,8 @@ jobs:
           -DCMAKE_BUILD_TYPE=MinSizeRel
 
       # ── Build ──────────────────────────────────────────────────────────────
-      - name: CMake Build (HelloWorld)
-        run: cmake --build ${{ github.workspace }}/build --target HelloWorld --parallel
+      - name: CMake Build (All Targets)
+        run: cmake --build ${{ github.workspace }}/build --parallel
 
       # ── Artifact upload ────────────────────────────────────────────────────
       - name: Upload WebAssembly artifacts
@@ -115,6 +117,8 @@ jobs:
             AtmosphericEngine
             frontends
             Example_HelloWorld
+            Example_Physics2D
+            Example_CSB
             CMakeLists.txt
             CMakePresets.json
             vcpkg.json
@@ -159,5 +163,5 @@ jobs:
           -DCMAKE_BUILD_TYPE=MinSizeRel
           -DAE_USE_WEBGPU=ON
 
-      - name: CMake Build (HelloWorld WebGPU)
-        run: cmake --build ${{ github.workspace }}/build --target HelloWorld --parallel
+      - name: CMake Build (WebGPU)
+        run: cmake --build ${{ github.workspace }}/build --parallel

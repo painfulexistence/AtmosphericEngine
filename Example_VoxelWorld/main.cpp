@@ -5,6 +5,10 @@ class VoxelWorldApp : public Application {
 
     VoxelWorld _world;
 
+    void OnInit() override {
+        GoScene("main", [this]{ OnLoad(); });
+    }
+
     void OnLoad() override {
         LoadScene({});  // initializes mainCamera / mainLight
 

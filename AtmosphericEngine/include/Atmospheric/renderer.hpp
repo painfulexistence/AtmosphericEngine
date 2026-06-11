@@ -73,22 +73,16 @@ public:
     void Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder* enc = nullptr) override;
 };
 
-// Final post-process blit: ACES tonemapping + optional chromatic aberration.
+// Final composite blit: ACES tonemapping + optional chromatic aberration.
 class PostProcessPass : public RenderPass {
 public:
     void Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder* enc = nullptr) override;
 
-    bool  enabled  = true;   // ACES tonemapping (exposure); false = passthrough at exposure 1.0
-    float exposure = 0.5f;
-};
+    bool  tonemapEnabled = true;
+    float exposure       = 0.5f;
 
-// Screen-space chromatic aberration, composited inside PostProcessPass shader.
-class ChromaticAberrationPass : public RenderPass {
-public:
-    void Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder* enc = nullptr) override;
-
-    bool  enabled  = false;
-    float strength = 0.005f;
+    bool  caEnabled  = false;
+    float caStrength = 0.005f;
 };
 
 // TODO: rename this

@@ -126,7 +126,6 @@ void Renderer::Init(int width, int height) {
     _renderGraph->AddPass(std::make_unique<WorldCanvasPass>());// World sprites with depth testing
     _renderGraph->AddPass(std::make_unique<CanvasPass>());// 2D sprites, world space ortho, with no depth testing
     _renderGraph->AddPass(std::make_unique<BloomPass>());
-    _renderGraph->AddPass(std::make_unique<ChromaticAberrationPass>());
     _renderGraph->AddPass(std::make_unique<PostProcessPass>());
     _renderGraph->AddPass(std::make_unique<UIPass>());
 }
@@ -1301,14 +1300,8 @@ void CanvasPass::Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder
 // Helper to reduce code duplication
 
 
-void ChromaticAberrationPass::Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder* enc) {
-    // CA is handled inline in PostProcessPass via u_ca_enabled uniform — no separate pass needed.
-}
-
 void PostProcessPass::Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder* enc) {
     ZoneScopedN("PostProcessPass");
-
-    auto* caPass = renderer.GetPass<ChromaticAberrationPass>();
 
     auto size = Window::Get()->GetFramebufferSize();
     glViewport(0, 0, size.width, size.height);
@@ -1323,13 +1316,13 @@ void PostProcessPass::Execute(GraphicsServer* ctx, Renderer& renderer, CommandEn
     auto shader = ctx->GetShader("hdr");
     shader->Activate();
     shader->SetUniform(std::string("color_map_unit"), (int)0);
-    shader->SetUniform(std::string("exposure"),       enabled ? exposure : 1.0f);
-    shader->SetUniform(std::string("u_ca_enabled"),   (int)(caPass && caPass->enabled));
-    shader->SetUniform(std::string("u_ca_strength"),  caPass ? caPass->strength : 0.01f);
+    shader->SetUniform(std::string("exposure"),       tonemapEnabled ? exposure : 1.0f);
+    shader->SetUniform(std::string("u_ca_enabled"),   (int)caEnabled);
+    shader->SetUniform(std::string("u_ca_strength"),  caStrength);
 
     renderer.screenBuffer->Draw(enc, PrimitiveTopology::TriangleStrip);
 
-    renderer.CheckErrors("Tonemap pass");
+    renderer.CheckErrors("PostProcess pass");
 }
 
 void Renderer::SubmitUICommand(const BatchDrawCommand& cmd) {

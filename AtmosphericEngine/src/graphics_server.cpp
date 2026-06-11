@@ -344,6 +344,7 @@ void GraphicsServer::Reset() {
     cameras.clear();
     directionalLights.clear();
     pointLights.clear();
+    sunComponents.clear();
     renderables.clear();
 }
 
@@ -440,6 +441,11 @@ LightComponent* GraphicsServer::RegisterLight(LightComponent* light) {
         directionalLights.push_back(light);
     }
     return light;
+}
+
+SunComponent* GraphicsServer::RegisterSun(SunComponent* sun) {
+    sunComponents.push_back(sun);
+    return sun;
 }
 
 // ===== Render Target Management Implementation =====

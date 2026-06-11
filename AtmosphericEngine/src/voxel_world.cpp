@@ -4,7 +4,9 @@
 #include "game_object.hpp"
 #include "graphics_server.hpp"
 #include "frustum.hpp"
+#include "light_component.hpp"
 #include "material.hpp"
+#include "sun_component.hpp"
 
 #include "FastNoiseLite.h"
 
@@ -37,6 +39,20 @@ void VoxelWorld::Init(Application* app, int seed) {
     GenerateTerrain();
     LinkNeighbors();
     RebuildDirtyChunks();
+
+    // Sun GameObject: owns the directional light + visual billboard params
+    GameObject* sunGO = app->CreateGameObject(glm::vec3(0));
+    sunGO->SetName("Sun");
+    sunGO->AddComponent(new LightComponent(sunGO, LightProps{
+        .type      = LightType::Directional,
+        .ambient   = glm::vec3(1.0f),
+        .diffuse   = glm::vec3(1.0f),
+        .specular  = glm::vec3(1.0f),
+        .direction = glm::normalize(glm::vec3(0.0f, -1.0f, 0.5f)), // VX default
+        .intensity = 1.0f,
+        .castShadow = false,
+    }));
+    sunGO->AddComponent(new SunComponent(sunGO));  // default color/radius/height match VX
 
     // Single water plane covering the whole world at WATER_LINE, matching VX
     float worldW = WORLD_X * VoxelChunkComponent::SIZE;

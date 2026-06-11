@@ -3,6 +3,7 @@
 #include "camera_component.hpp"
 #include "graphics_server.hpp"
 #include "light_component.hpp"
+#include "sun_component.hpp"
 #include "mesh.hpp"
 #include "gl_buffer.hpp"
 #include "gl_render_target.hpp"
@@ -29,23 +30,23 @@ void SunPass::Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder* /
     CameraComponent* camera = ctx->GetMainCamera();
     if (!camera) return;
     LightComponent*  light  = ctx->GetMainLight();
+    SunComponent*    sun    = ctx->GetMainSun();
+    if (!sun) return;
 
     auto [width, height] = Window::Get()->GetFramebufferSize();
     glViewport(0, 0, width, height);
 
     glBindFramebuffer(GL_FRAMEBUFFER, static_cast<GLRenderTarget*>(renderer.sceneRT.get())->GetNativeFBOID());
 
-    // Mirror VX sun.py get_model_matrix() exactly:
-    // light_direction = normalize(0, -1, 0.5), height = 64, placed at world edge opposite to light dir
+    // Mirror VX sun.py get_model_matrix(): push sun to world edge along light direction
     glm::vec3 lightDir = light ? glm::normalize(light->direction) : glm::normalize(glm::vec3(0.0f, -1.0f, 0.5f));
-    const float CHUNK_SIZE  = 32.0f;
-    const float WORLD_W     = 25.0f; // chunks
-    const float WORLD_D     = 25.0f;
-    const float CENTER_X    = WORLD_W * CHUNK_SIZE * 0.5f;
-    const float CENTER_Z    = WORLD_D * CHUNK_SIZE * 0.5f;
-    const float SUN_HEIGHT  = 64.0f;  // VX: self.height = 64
+    const float CHUNK_SIZE = 32.0f;
+    const float WORLD_W    = 25.0f;
+    const float WORLD_D    = 25.0f;
+    const float CENTER_X   = WORLD_W * CHUNK_SIZE * 0.5f;
+    const float CENTER_Z   = WORLD_D * CHUNK_SIZE * 0.5f;
 
-    glm::vec3 sunPos(CENTER_X, SUN_HEIGHT, CENTER_Z);
+    glm::vec3 sunPos(CENTER_X, sun->height, CENTER_Z);
     if (lightDir.z > 0.0f) {
         float atan_xz = lightDir.x / lightDir.z;
         sunPos.z = CENTER_Z - CHUNK_SIZE * WORLD_D;
@@ -57,7 +58,7 @@ void SunPass::Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder* /
     } else {
         if (lightDir.x > 0.0f)      sunPos.x = CENTER_X - CHUNK_SIZE * WORLD_W;
         else if (lightDir.x < 0.0f) sunPos.x = CENTER_X + CHUNK_SIZE * WORLD_W;
-        else                         sunPos.y = SUN_HEIGHT * 2.0f;
+        else                         sunPos.y = sun->height * 2.0f;
     }
 
     // Billboard: orient quad to face the camera
@@ -67,17 +68,17 @@ void SunPass::Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder* /
     glm::vec3 up       = glm::cross(right, toCamera);
 
     glm::mat4 model(1.0f);
-    model[0] = glm::vec4(right * radius, 0);
-    model[1] = glm::vec4(up    * radius, 0);
-    model[2] = glm::vec4(toCamera,       0);
-    model[3] = glm::vec4(sunPos,         1);
+    model[0] = glm::vec4(right * sun->billboardRadius, 0);
+    model[1] = glm::vec4(up    * sun->billboardRadius, 0);
+    model[2] = glm::vec4(toCamera,                     0);
+    model[3] = glm::vec4(sunPos,                       1);
 
     glm::mat4 viewProj = camera->GetProjectionMatrix() * camera->GetViewMatrix();
 
     shader->Activate();
     shader->SetUniform("u_model",      model);
     shader->SetUniform("u_viewProj",   viewProj);
-    shader->SetUniform("u_color",      color);
+    shader->SetUniform("u_color",      sun->billboardColor);
     shader->SetUniform("u_fogColor",   glm::vec3(1.0f, 1.0f, 1.0f)); // VX: COLOR_WHITE
     shader->SetUniform("u_fogDensity", 0.000003f);                    // VX: 0.000003
 

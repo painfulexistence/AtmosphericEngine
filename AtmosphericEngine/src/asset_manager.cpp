@@ -797,6 +797,41 @@ Mesh* AssetManager::CreatePlaneMesh(const std::string& name, float width, float 
     return mesh;
 }
 
+Mesh* AssetManager::CreatePlaneMeshSubdivided(const std::string& name,
+                                               float width, float height, int subdivisions) {
+    int n = std::max(1, subdivisions);
+    float hw = width * 0.5f, hh = height * 0.5f;
+
+    std::vector<Vertex> verts;
+    std::vector<uint16_t> tris;
+    verts.reserve((n + 1) * (n + 1));
+    tris.reserve(n * n * 6);
+
+    for (int z = 0; z <= n; ++z) {
+        for (int x = 0; x <= n; ++x) {
+            float fx = -hw + width  * x / n;
+            float fz = -hh + height * z / n;
+            verts.push_back({ { fx, 0.0f, fz },
+                              { (float)x / n, (float)z / n },
+                              { 0.0f, 1.0f, 0.0f } });
+        }
+    }
+    for (int z = 0; z < n; ++z) {
+        for (int x = 0; x < n; ++x) {
+            uint16_t i0 = (uint16_t)( z      * (n + 1) + x    );
+            uint16_t i1 = (uint16_t)( z      * (n + 1) + x + 1);
+            uint16_t i2 = (uint16_t)((z + 1) * (n + 1) + x    );
+            uint16_t i3 = (uint16_t)((z + 1) * (n + 1) + x + 1);
+            tris.insert(tris.end(), { i0, i2, i1, i1, i2, i3 });
+        }
+    }
+
+    auto mesh = new Mesh(MeshType::PRIM);
+    mesh->Initialize(verts, tris);
+    _meshCache[name] = mesh;
+    return mesh;
+}
+
 Mesh* AssetManager::CreateSphereMesh(const std::string& name, float radius, int division) {
     auto mesh = MeshBuilder::CreateSphere(radius, division);
     if (_materialCache.find("Default") != _materialCache.end()) {

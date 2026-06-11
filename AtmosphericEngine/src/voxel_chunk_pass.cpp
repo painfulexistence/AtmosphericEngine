@@ -210,6 +210,12 @@ void WaterPass::Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder*
     auto [width, height] = Window::Get()->GetFramebufferSize();
     glViewport(0, 0, width, height);
 
+    // Render into msaaResolveRT so water goes through bloom + tonemapping
+    GLuint targetFBO = renderer.postProcessEnabled
+        ? static_cast<GLRenderTarget*>(renderer.msaaResolveRT.get())->GetNativeFBOID()
+        : renderer.finalFBO;
+    glBindFramebuffer(GL_FRAMEBUFFER, targetFBO);
+
     // WaterPass runs after MSAAResolvePass so the resolved depth is ready
     GLuint depthTex = renderer.GetResolvedDepthTexture();
 

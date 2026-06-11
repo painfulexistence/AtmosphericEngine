@@ -41,7 +41,7 @@ void VoxelWorld::Init(Application* app, int seed) {
     // Single water plane covering the whole world at WATER_LINE, matching VX
     float worldW = WORLD_X * VoxelChunkComponent::SIZE;
     float worldD = WORLD_Z * VoxelChunkComponent::SIZE;
-    _waterMesh = AssetManager::Get().CreatePlaneMesh("VoxelWaterPlane", worldW, worldD);
+    _waterMesh = AssetManager::Get().CreatePlaneMeshSubdivided("VoxelWaterPlane", worldW, worldD, 64);
 
     _waterMat = new Material(MaterialProps{});
     _waterMat->renderQueue = RenderQueue::Transparent;

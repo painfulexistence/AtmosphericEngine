@@ -149,6 +149,14 @@ class RenderGraph {
 public:
     void AddPass(std::unique_ptr<RenderPass> pass);
     void Render(GraphicsServer* ctx, Renderer& renderer, CommandEncoder* enc = nullptr);
+
+    template<typename T>
+    T* GetPass() {
+        for (auto& p : _passes) {
+            if (auto* t = dynamic_cast<T*>(p.get())) return t;
+        }
+        return nullptr;
+    }
 };
 
 class Renderer {
@@ -180,6 +188,9 @@ public:
     void EnablePostProcess(bool enable = true) {
         postProcessEnabled = enable;
     }
+
+    template<typename T>
+    T* GetPass() { return _renderGraph ? _renderGraph->GetPass<T>() : nullptr; }
 
     void SetCapability(const GLenum& cap, bool enable = true) {
         if (enable) {

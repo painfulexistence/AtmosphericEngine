@@ -17,6 +17,14 @@ class VoxelWorldApp : public Application {
 
         _world.Init(this, /*seed=*/1337);
 
+        // Enable post-processing (tonemapping + bloom for sun glow)
+        Renderer* renderer = GetGraphicsServer()->renderer;
+        renderer->EnablePostProcess(true);
+        if (auto* bloom = renderer->GetPass<BloomPass>()) {
+            bloom->threshold     = 0.6f;
+            bloom->bloomStrength = 0.06f;
+        }
+
         console.Info("VoxelWorld loaded. WASD move, RF up/down, IJKL look, ESC quit.");
     }
 

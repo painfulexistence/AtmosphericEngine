@@ -52,7 +52,7 @@ void VoxelWorld::Init(Application* app, int seed) {
         .intensity = 1.0f,
         .castShadow = false,
     }));
-    sunGO->AddComponent(new SunComponent(sunGO));  // default color/radius/height match VX
+    sunGO->AddComponent(new SunComponent());  // default color/radius/height match VX
 
     // Single water plane covering the whole world at WATER_LINE, matching VX
     float worldW = WORLD_X * VoxelChunkComponent::SIZE;

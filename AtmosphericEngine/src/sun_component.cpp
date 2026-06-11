@@ -4,12 +4,10 @@
 #include "graphics_server.hpp"
 #include <algorithm>
 
-SunComponent::SunComponent(GameObject* owner,
-                           glm::vec3 billboardColor,
+SunComponent::SunComponent(glm::vec3 billboardColor,
                            float     billboardRadius,
                            float     height)
-    : Component(owner)
-    , billboardColor(billboardColor)
+    : billboardColor(billboardColor)
     , billboardRadius(billboardRadius)
     , height(height)
 {}

@@ -6,14 +6,15 @@
 // on the same GameObject — SunPass reads both.
 class SunComponent : public Component {
 public:
-    SunComponent(GameObject* owner,
-                 glm::vec3 billboardColor = glm::vec3(1.0f, 0.4f, 0.0f) * 50.0f,
+    SunComponent(glm::vec3 billboardColor = glm::vec3(1.0f, 0.4f, 0.0f) * 50.0f,
                  float     billboardRadius = 20.0f,
                  float     height          = 64.0f);
 
     std::string GetName() const override { return "SunComponent"; }
+    void OnAttach() override;
+    void OnDetach() override;
 
     glm::vec3 billboardColor  = glm::vec3(1.0f, 0.4f, 0.0f) * 50.0f;
     float     billboardRadius = 20.0f;
-    float     height          = 64.0f;  // world-space Y of the sun billboard
+    float     height          = 64.0f;
 };

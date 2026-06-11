@@ -8,6 +8,8 @@
 class Application;
 class GraphicsServer;
 class PhysicsServer;
+class Mesh;
+class Material;
 
 class VoxelWorld {
 public:
@@ -32,8 +34,12 @@ public:
 private:
     // Raw pointers — lifetime managed by the Application's entity list.
     std::vector<VoxelChunkComponent*> _chunks;
-    GraphicsServer* _gfx     = nullptr;
-    int             _seed    = 42;
+    GraphicsServer* _gfx        = nullptr;
+    int             _seed       = 42;
+    Mesh*           _waterMesh  = nullptr;
+    Material*       _waterMat   = nullptr;
+
+    static constexpr float WATER_LINE = 32.0f; // matches VX WATER_LINE
 
     VoxelChunkComponent* GetChunk(int cx, int cy, int cz) const;
     int                  ChunkIndex(int cx, int cy, int cz) const;

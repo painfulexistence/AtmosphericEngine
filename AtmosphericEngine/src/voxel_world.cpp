@@ -1,8 +1,10 @@
 #include "voxel_world.hpp"
 #include "application.hpp"
+#include "asset_manager.hpp"
 #include "game_object.hpp"
 #include "graphics_server.hpp"
 #include "frustum.hpp"
+#include "material.hpp"
 
 #include "FastNoiseLite.h"
 
@@ -35,6 +37,15 @@ void VoxelWorld::Init(Application* app, int seed) {
     GenerateTerrain();
     LinkNeighbors();
     RebuildDirtyChunks();
+
+    // Single water plane covering the whole world at WATER_LINE, matching VX
+    float worldW = WORLD_X * VoxelChunkComponent::SIZE;
+    float worldD = WORLD_Z * VoxelChunkComponent::SIZE;
+    _waterMesh = AssetManager::Get().CreatePlaneMesh("VoxelWaterPlane", worldW, worldD);
+
+    _waterMat = new Material(MaterialProps{});
+    _waterMat->renderQueue = RenderQueue::Transparent;
+    _waterMesh->SetMaterial(_waterMat);
 }
 
 void VoxelWorld::Update(float /*dt*/, const glm::vec3& /*cameraPos*/) {
@@ -59,6 +70,15 @@ void VoxelWorld::SubmitRenderCommands(Renderer* renderer,
 
         RenderCommand cmd{ .mesh = mesh, .transform = model };
         renderer->SubmitCommand(cmd);
+    }
+
+    // Water plane at WATER_LINE (slight z-offset to avoid z-fighting, matching VX)
+    if (_waterMesh) {
+        float cx = (WORLD_X * VoxelChunkComponent::SIZE) * 0.5f;
+        float cz = (WORLD_Z * VoxelChunkComponent::SIZE) * 0.5f;
+        glm::mat4 waterModel = glm::translate(glm::mat4(1.0f),
+                                              glm::vec3(cx, WATER_LINE + 0.05f, cz));
+        renderer->SubmitCommand({ .mesh = _waterMesh, .transform = waterModel });
     }
 }
 

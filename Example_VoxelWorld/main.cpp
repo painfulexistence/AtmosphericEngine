@@ -22,32 +22,21 @@ class VoxelWorldApp : public Application {
 
     void OnUpdate(float dt, float /*time*/) override {
         glm::vec3 pos = mainCamera->gameObject->GetPosition();
-        glm::vec3 rot = mainCamera->gameObject->GetRotation();
 
         const float moveSpeed = 20.0f;
         const float lookSpeed = 1.5f; // radians/sec
 
-        // IJKL look
-        if (input.IsKeyDown(Key::I)) rot.x -= lookSpeed * dt;
-        if (input.IsKeyDown(Key::K)) rot.x += lookSpeed * dt;
-        if (input.IsKeyDown(Key::J)) rot.y -= lookSpeed * dt;
-        if (input.IsKeyDown(Key::L)) rot.y += lookSpeed * dt;
-        rot.x = glm::clamp(rot.x, glm::radians(-89.0f), glm::radians(89.0f));
-        mainCamera->gameObject->SetRotation(rot);
+        // IJKL look — use CameraComponent's own angle state
+        if (input.IsKeyDown(Key::I)) mainCamera->Pitch( lookSpeed * dt);
+        if (input.IsKeyDown(Key::K)) mainCamera->Pitch(-lookSpeed * dt);
+        if (input.IsKeyDown(Key::J)) mainCamera->Yaw(-lookSpeed * dt);
+        if (input.IsKeyDown(Key::L)) mainCamera->Yaw( lookSpeed * dt);
 
-        // Forward vector from current rotation
-        glm::vec3 forward = glm::vec3(
-            std::sin(rot.y) * std::cos(rot.x),
-            -std::sin(rot.x),
-            std::cos(rot.y) * std::cos(rot.x)
-        );
-        glm::vec3 right = glm::normalize(glm::cross(forward, glm::vec3(0, 1, 0)));
-
-        // WASD move, RF up/down
-        if (input.IsKeyDown(Key::W)) pos += forward * moveSpeed * dt;
-        if (input.IsKeyDown(Key::S)) pos -= forward * moveSpeed * dt;
-        if (input.IsKeyDown(Key::A)) pos -= right   * moveSpeed * dt;
-        if (input.IsKeyDown(Key::D)) pos += right   * moveSpeed * dt;
+        // WASD: world-axis movement (not linked to view direction)
+        if (input.IsKeyDown(Key::W)) pos.z -= moveSpeed * dt;
+        if (input.IsKeyDown(Key::S)) pos.z += moveSpeed * dt;
+        if (input.IsKeyDown(Key::A)) pos.x -= moveSpeed * dt;
+        if (input.IsKeyDown(Key::D)) pos.x += moveSpeed * dt;
         if (input.IsKeyDown(Key::R)) pos.y += moveSpeed * dt;
         if (input.IsKeyDown(Key::F)) pos.y -= moveSpeed * dt;
 

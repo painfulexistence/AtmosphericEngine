@@ -268,7 +268,7 @@ void AssetManager::LoadDefaultShaders() {
                   },
                   {
                     "hdr",
-                    { .vert = "assets/shaders/hdr.vert", .frag = "assets/shaders/hdr_ca.frag" },
+                    { .vert = "assets/shaders/hdr.vert", .frag = "assets/shaders/hdr.frag" },
                   },
 #ifdef __EMSCRIPTEN__
                   {

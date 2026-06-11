@@ -1302,12 +1302,13 @@ void CanvasPass::Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder
 
 
 void ChromaticAberrationPass::Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder* enc) {
-    if (!enabled) return;
-    // TODO: implement screen-space chromatic aberration shader
+    // CA is handled inline in TonemapPass via u_ca_enabled uniform — no separate pass needed.
 }
 
 void TonemapPass::Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder* enc) {
     ZoneScopedN("TonemapPass");
+
+    auto* caPass = renderer.GetPass<ChromaticAberrationPass>();
 
     auto size = Window::Get()->GetFramebufferSize();
     glViewport(0, 0, size.width, size.height);
@@ -1319,18 +1320,13 @@ void TonemapPass::Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncode
     glClearColor(renderer.clearColor.x, renderer.clearColor.y, renderer.clearColor.z, renderer.clearColor.w);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    if (enabled) {
-        auto tonemapShader = ctx->GetShader("hdr");
-        tonemapShader->Activate();
-        tonemapShader->SetUniform(std::string("color_map_unit"), (int)0);
-        tonemapShader->SetUniform(std::string("exposure"), exposure);
-    } else {
-        // Passthrough: blit HDR texture as-is (no tonemapping)
-        auto passthroughShader = ctx->GetShader("hdr");
-        passthroughShader->Activate();
-        passthroughShader->SetUniform(std::string("color_map_unit"), (int)0);
-        passthroughShader->SetUniform(std::string("exposure"), 1.0f);
-    }
+    auto shader = ctx->GetShader("hdr");
+    shader->Activate();
+    shader->SetUniform(std::string("color_map_unit"), (int)0);
+    shader->SetUniform(std::string("exposure"),       enabled ? exposure : 1.0f);
+    shader->SetUniform(std::string("u_ca_enabled"),   (int)(caPass && caPass->enabled));
+    shader->SetUniform(std::string("u_ca_strength"),  caPass ? caPass->strength : 0.01f);
+
     renderer.screenBuffer->Draw(enc, PrimitiveTopology::TriangleStrip);
 
     renderer.CheckErrors("Tonemap pass");

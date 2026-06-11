@@ -206,7 +206,7 @@ void GraphicsServer::DrawImGui(float dt) {
         if (auto* ca = renderer->GetPass<ChromaticAberrationPass>()) {
             ImGui::Checkbox("Chromatic Aberration", &ca->enabled);
         }
-        if (auto* tonemap = renderer->GetPass<TonemapPass>()) {
+        if (auto* tonemap = renderer->GetPass<PostProcessPass>()) {
             ImGui::Checkbox("Tonemap", &tonemap->enabled);
         }
         ImGui::Text("Opaque Queue Size: %d", (int)renderer->GetOpaqueQueue().size());

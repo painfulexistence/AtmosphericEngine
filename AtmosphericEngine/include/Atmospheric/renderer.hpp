@@ -73,16 +73,16 @@ public:
     void Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder* enc = nullptr) override;
 };
 
-// ACES tonemapping from HDR msaaResolveRT to framebuffer 0.
-class TonemapPass : public RenderPass {
+// Final post-process blit: ACES tonemapping + optional chromatic aberration.
+class PostProcessPass : public RenderPass {
 public:
     void Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder* enc = nullptr) override;
 
-    bool  enabled  = true;
+    bool  enabled  = true;   // ACES tonemapping (exposure); false = passthrough at exposure 1.0
     float exposure = 0.5f;
 };
 
-// Screen-space chromatic aberration applied before final tonemap blit.
+// Screen-space chromatic aberration, composited inside PostProcessPass shader.
 class ChromaticAberrationPass : public RenderPass {
 public:
     void Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder* enc = nullptr) override;
@@ -90,9 +90,6 @@ public:
     bool  enabled  = false;
     float strength = 0.005f;
 };
-
-// Legacy alias — kept so existing GetPass<PostProcessPass>() calls still compile.
-using PostProcessPass = TonemapPass;
 
 // TODO: rename this
 class UIPass : public RenderPass {

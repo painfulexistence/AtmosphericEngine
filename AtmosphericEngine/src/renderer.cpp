@@ -127,7 +127,7 @@ void Renderer::Init(int width, int height) {
     _renderGraph->AddPass(std::make_unique<CanvasPass>());// 2D sprites, world space ortho, with no depth testing
     _renderGraph->AddPass(std::make_unique<BloomPass>());
     _renderGraph->AddPass(std::make_unique<ChromaticAberrationPass>());
-    _renderGraph->AddPass(std::make_unique<TonemapPass>());
+    _renderGraph->AddPass(std::make_unique<PostProcessPass>());
     _renderGraph->AddPass(std::make_unique<UIPass>());
 }
 
@@ -1302,11 +1302,11 @@ void CanvasPass::Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder
 
 
 void ChromaticAberrationPass::Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder* enc) {
-    // CA is handled inline in TonemapPass via u_ca_enabled uniform — no separate pass needed.
+    // CA is handled inline in PostProcessPass via u_ca_enabled uniform — no separate pass needed.
 }
 
-void TonemapPass::Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder* enc) {
-    ZoneScopedN("TonemapPass");
+void PostProcessPass::Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder* enc) {
+    ZoneScopedN("PostProcessPass");
 
     auto* caPass = renderer.GetPass<ChromaticAberrationPass>();
 

@@ -141,16 +141,19 @@ void WaterPass::Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder*
     shader->Activate();
 
     glm::mat4 viewProj = camera->GetProjectionMatrix() * camera->GetViewMatrix();
-    shader->SetUniform("u_viewProj",   viewProj);
-    shader->SetUniform("u_cameraPos",  camera->GetEyePosition());
-    shader->SetUniform("u_time",       renderer.frameTime);
-    shader->SetUniform("u_fogColor",   glm::vec3(0.55f, 0.65f, 0.75f));
-    shader->SetUniform("u_fogDensity", 0.003f);
+    shader->SetUniform("u_viewProj",      viewProj);
+    shader->SetUniform("u_cameraPos",     camera->GetEyePosition());
+    shader->SetUniform("u_time",          renderer.frameTime);
+    shader->SetUniform("u_fogColor",      glm::vec3(0.55f, 0.65f, 0.75f));
+    shader->SetUniform("u_fogDensity",    0.003f);
+    shader->SetUniform("u_waterLine",     32.0f);
+    shader->SetUniform("u_waveStrength",  0.1f);
+    shader->SetUniform("u_waveSpeed",     1.0f);
 
     glm::vec3 lightDir   = light ? glm::normalize(-light->direction) : glm::vec3(0.5f, 1.0f, 0.3f);
     glm::vec3 lightColor = light ? light->diffuse  : glm::vec3(1.0f);
-    shader->SetUniform("u_lightDir",   lightDir);
-    shader->SetUniform("u_lightColor", lightColor);
+    shader->SetUniform("u_lightDir",      lightDir);
+    shader->SetUniform("u_lightColor",    lightColor);
 
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_BLEND);

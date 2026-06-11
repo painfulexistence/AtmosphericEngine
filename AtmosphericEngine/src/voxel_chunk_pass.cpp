@@ -18,6 +18,78 @@ static void DrawScreenQuadVAO(GLuint vao) {
 }
 
 // ============================================================================
+//  SunPass  (billboard quad at light direction, HDR gold for bloom glow)
+// ============================================================================
+void SunPass::Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder* /*enc*/) {
+    if (renderer.skyboxVAO == 0) return; // skybox cube doubles as bounding check
+
+    ShaderProgram* shader = AssetManager::Get().GetShader("sun");
+    if (!shader) return;
+
+    CameraComponent* camera = ctx->GetMainCamera();
+    if (!camera) return;
+    LightComponent*  light  = ctx->GetMainLight();
+
+    auto [width, height] = Window::Get()->GetFramebufferSize();
+    glViewport(0, 0, width, height);
+
+    GLuint targetFBO = renderer.postProcessEnabled
+        ? static_cast<GLRenderTarget*>(renderer.sceneRT.get())->GetNativeFBOID()
+        : renderer.finalFBO;
+    glBindFramebuffer(GL_FRAMEBUFFER, targetFBO);
+
+    // Sun position: push far along the *opposite* of light direction (toward light source)
+    glm::vec3 lightDir = light ? glm::normalize(light->direction) : glm::vec3(0.0f, 1.0f, -0.5f);
+    const float WORLD_HALF = 25 * 32 * 0.5f; // center of world
+    glm::vec3 sunPos = glm::vec3(WORLD_HALF, WORLD_HALF, WORLD_HALF) - lightDir * WORLD_HALF * 2.0f;
+
+    // Billboard: orient quad to face the camera
+    glm::vec3 camPos   = camera->GetEyePosition();
+    glm::vec3 toCamera = glm::normalize(camPos - sunPos);
+    glm::vec3 right    = glm::normalize(glm::cross(toCamera, glm::vec3(0, 1, 0)));
+    glm::vec3 up       = glm::cross(right, toCamera);
+
+    glm::mat4 model(1.0f);
+    model[0] = glm::vec4(right * radius, 0);
+    model[1] = glm::vec4(up    * radius, 0);
+    model[2] = glm::vec4(toCamera,       0);
+    model[3] = glm::vec4(sunPos,         1);
+
+    glm::mat4 viewProj = camera->GetProjectionMatrix() * camera->GetViewMatrix();
+
+    shader->Activate();
+    shader->SetUniform("u_model",      model);
+    shader->SetUniform("u_viewProj",   viewProj);
+    shader->SetUniform("u_color",      color);
+    shader->SetUniform("u_fogColor",   glm::vec3(0.55f, 0.65f, 0.75f));
+    shader->SetUniform("u_fogDensity", 0.003f);
+
+    glDisable(GL_CULL_FACE);
+    glEnable(GL_DEPTH_TEST);
+
+    // Simple quad: two triangles from the skybox cube's first face vertices
+    // Use a minimal inline quad VAO via screenQuadVAO trick — draw a unit quad
+    static GLuint sunVAO = 0, sunVBO = 0;
+    if (sunVAO == 0) {
+        float q[] = { -1,-1,0,  1,-1,0,  1,1,0,  -1,-1,0,  1,1,0,  -1,1,0 };
+        glGenVertexArrays(1, &sunVAO);
+        glGenBuffers(1, &sunVBO);
+        glBindVertexArray(sunVAO);
+        glBindBuffer(GL_ARRAY_BUFFER, sunVBO);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(q), q, GL_STATIC_DRAW);
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), nullptr);
+        glBindVertexArray(0);
+    }
+    glBindVertexArray(sunVAO);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+    glBindVertexArray(0);
+
+    glEnable(GL_CULL_FACE);
+    shader->Deactivate();
+}
+
+// ============================================================================
 //  SkyboxPass  (gradient sky, rendered at depth = 1)
 // ============================================================================
 void SkyboxPass::Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder* /*enc*/) {
@@ -138,9 +210,14 @@ void WaterPass::Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder*
     auto [width, height] = Window::Get()->GetFramebufferSize();
     glViewport(0, 0, width, height);
 
+    // WaterPass runs after MSAAResolvePass so the resolved depth is ready
+    GLuint depthTex = renderer.GetResolvedDepthTexture();
+
     shader->Activate();
 
-    glm::mat4 viewProj = camera->GetProjectionMatrix() * camera->GetViewMatrix();
+    glm::mat4 proj    = camera->GetProjectionMatrix();
+    glm::mat4 view    = camera->GetViewMatrix();
+    glm::mat4 viewProj = proj * view;
     shader->SetUniform("u_viewProj",      viewProj);
     shader->SetUniform("u_cameraPos",     camera->GetEyePosition());
     shader->SetUniform("u_time",          renderer.frameTime);
@@ -149,11 +226,17 @@ void WaterPass::Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder*
     shader->SetUniform("u_waterLine",     32.0f);
     shader->SetUniform("u_waveStrength",  0.1f);
     shader->SetUniform("u_waveSpeed",     1.0f);
+    shader->SetUniform("u_invProj",       glm::inverse(proj));
+    shader->SetUniform("u_invView",       glm::inverse(view));
+    shader->SetUniform("u_depthTexture",  1);
 
     glm::vec3 lightDir   = light ? glm::normalize(-light->direction) : glm::vec3(0.5f, 1.0f, 0.3f);
     glm::vec3 lightColor = light ? light->diffuse  : glm::vec3(1.0f);
     shader->SetUniform("u_lightDir",      lightDir);
     shader->SetUniform("u_lightColor",    lightColor);
+
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, depthTex);
 
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_BLEND);

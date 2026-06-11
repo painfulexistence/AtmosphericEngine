@@ -289,6 +289,7 @@ void AssetManager::LoadDefaultShaders() {
                   { "geometry", { .vert = "assets/shaders/geometry.vert", .frag = "assets/shaders/geometry.frag" } },
                   { "lighting", { .vert = "assets/shaders/lighting.vert", .frag = "assets/shaders/lighting.frag" } },
                   { "skybox",          { .vert = "assets/shaders/skybox.vert",           .frag = "assets/shaders/skybox.frag" } },
+                  { "sun",             { .vert = "assets/shaders/sun.vert",              .frag = "assets/shaders/sun.frag" } },
                   { "voxel",           { .vert = "assets/shaders/voxel.vert",            .frag = "assets/shaders/voxel.frag" } },
                   { "water",           { .vert = "assets/shaders/water.vert",            .frag = "assets/shaders/water.frag" } },
                   { "bloom_threshold", { .vert = "assets/shaders/bloom.vert",            .frag = "assets/shaders/bloom_threshold.frag" } },

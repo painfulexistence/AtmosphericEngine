@@ -84,6 +84,15 @@ public:
     void Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder* enc = nullptr) override;
 };
 
+// Flat billboard quad at the light source position — HDR color drives bloom glow.
+class SunPass : public RenderPass {
+public:
+    void Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder* enc = nullptr) override;
+
+    float     radius   = 20.0f;
+    glm::vec3 color    = glm::vec3(1.0f, 0.85f, 0.3f) * 50.0f; // VX COLOR_VIVID_GOLD * 50
+};
+
 // Gradient sky rendered at depth=1 (behind everything).  Matches VX's Skybox.
 class SkyboxPass : public RenderPass {
 public:
@@ -243,6 +252,12 @@ public:
 
     // Per-frame time (seconds) forwarded from RenderFrame for animated passes.
     float frameTime = 0.0f;
+
+    // Returns the resolved (non-MSAA) depth texture for screen-space effects.
+    GLuint GetResolvedDepthTexture() const {
+        if (!msaaResolveRT) return 0;
+        return static_cast<GLuint>(msaaResolveRT->GetDepthTextureID());
+    }
 
     struct SortableCommand {
         RenderCommand cmd;

@@ -119,6 +119,7 @@ void Renderer::Init(int width, int height) {
     _renderGraph->AddPass(std::make_unique<ShadowPass>());
     _renderGraph->AddPass(std::make_unique<ForwardOpaquePass>());
     _renderGraph->AddPass(std::make_unique<SkyboxPass>());   // after clear, fills empty sky pixels
+    _renderGraph->AddPass(std::make_unique<SunPass>());
     _renderGraph->AddPass(std::make_unique<VoxelChunkPass>());
     _renderGraph->AddPass(std::make_unique<MSAAResolvePass>());
     _renderGraph->AddPass(std::make_unique<WaterPass>());
@@ -1182,11 +1183,11 @@ void MSAAResolvePass::Execute(GraphicsServer* ctx, Renderer& renderer, CommandEn
     auto [width, height] = Window::Get()->GetFramebufferSize();
     glViewport(0, 0, width, height);
  
-    // Resolve MSAA color only — depth formats (32F vs 24) differ between
-    // sceneRT and msaaResolveRT, and depth is not needed by post-process passes.
+    // Resolve MSAA color + depth — both RTs now use GL_DEPTH_COMPONENT32F.
     glBindFramebuffer(GL_READ_FRAMEBUFFER, static_cast<GLRenderTarget*>(renderer.sceneRT.get())->GetNativeFBOID());
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, static_cast<GLRenderTarget*>(renderer.msaaResolveRT.get())->GetNativeFBOID());
-    glBlitFramebuffer(0, 0, width, height, 0, 0, width, height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+    glBlitFramebuffer(0, 0, width, height, 0, 0, width, height,
+                      GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT, GL_NEAREST);
  
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
  

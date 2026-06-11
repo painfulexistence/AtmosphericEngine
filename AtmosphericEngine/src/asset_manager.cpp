@@ -615,6 +615,14 @@ GLuint AssetManager::GetTextureByID(uint32_t id) const {
     throw std::runtime_error(fmt::format("Texture ID {} out of range", id));
 }
 
+std::string AssetManager::GetTexturePath(GLuint id) const {
+    for (const auto& [path, tex2d] : _textureCache) {
+        if (tex2d.glID == id) return path;
+    }
+    return "";
+}
+
+
 size_t AssetManager::getTotalTextureBytes() const {
     std::unordered_set<GLuint> seen;
     size_t total = 0;

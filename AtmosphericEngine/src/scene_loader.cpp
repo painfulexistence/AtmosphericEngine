@@ -40,6 +40,8 @@ SceneLoadResult SceneLoader::Load(const std::string& filename, const glm::vec3& 
 }
 
 SceneLoadResult SceneLoader::Load(const std::string& filename, const SceneLoadConfig& config) {
+    spdlog::info("SceneLoader: Loading CSB file '{}'...", filename);
+
 #ifndef __EMSCRIPTEN__
     const std::string path = SDL_GetBasePath() + filename;
 #else
@@ -73,7 +75,11 @@ SceneLoadResult SceneLoader::Load(const std::string& filename, const SceneLoadCo
         }
     }
 
-    return LoadFromBuffer(buffer.data(), buffer.size(), actualConfig);
+    SceneLoadResult res = LoadFromBuffer(buffer.data(), buffer.size(), actualConfig);
+    if (res.success) {
+        spdlog::info("SceneLoader: CSB file '{}' loaded successfully ({} nodes created)", filename, res.allNodes.size());
+    }
+    return res;
 }
 
 SceneLoadResult SceneLoader::LoadFromBuffer(const uint8_t* buffer, size_t size, const SceneLoadConfig& config) {

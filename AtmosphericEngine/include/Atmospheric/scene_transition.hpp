@@ -3,12 +3,15 @@
 #include <string>
 #include <vector>
 
+#include "shader.hpp"
+#include <unordered_map>
+
 // Describes the assets required by one game/scene.
 // Loaded from assets/scenes/<name>.json.
 struct GameManifest {
     std::string              name;
     std::vector<std::string> textures;
-    std::vector<std::string> shaders;
+    std::unordered_map<std::string, ShaderProgramProps> shaders;
 
     static GameManifest FromJSON(const std::string& json);
 };

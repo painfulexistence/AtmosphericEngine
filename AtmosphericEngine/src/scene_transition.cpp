@@ -17,9 +17,22 @@ static GameManifest ParseJSON(const std::string& json)
             for (auto& v : j["textures"])
                 manifest.textures.push_back(v.get<std::string>());
 
-        if (j.contains("shaders"))
-            for (auto& v : j["shaders"])
-                manifest.shaders.push_back(v.get<std::string>());
+        if (j.contains("shaders")) {
+            if (j["shaders"].is_object()) {
+                for (auto& [name, shaderVal] : j["shaders"].items()) {
+                    ShaderProgramProps props;
+                    props.vert = shaderVal.value("vert", "");
+                    props.frag = shaderVal.value("frag", "");
+                    if (shaderVal.contains("tesc")) {
+                        props.tesc = shaderVal["tesc"].get<std::string>();
+                    }
+                    if (shaderVal.contains("tese")) {
+                        props.tese = shaderVal["tese"].get<std::string>();
+                    }
+                    manifest.shaders[name] = props;
+                }
+            }
+        }
 
     } catch (const std::exception& e) {
         spdlog::error("GameManifest: JSON parse error: {}", e.what());
@@ -60,9 +73,14 @@ void SceneTransition::Go(const std::string& sceneName, OnReadyFn onReady, OnErro
 
         auto manifest = GameManifest::FromJSON(std::string(bytes.begin(), bytes.end()));
 
-        // Prefetch all scene assets, then load.
         std::vector<std::string> allPaths;
         allPaths.insert(allPaths.end(), manifest.textures.begin(), manifest.textures.end());
+        for (const auto& [name, props] : manifest.shaders) {
+            if (!props.vert.empty()) allPaths.push_back(props.vert);
+            if (!props.frag.empty()) allPaths.push_back(props.frag);
+            if (props.tesc.has_value() && !props.tesc.value().empty()) allPaths.push_back(props.tesc.value());
+            if (props.tese.has_value() && !props.tese.value().empty()) allPaths.push_back(props.tese.value());
+        }
 
         spdlog::info("SceneTransition: prefetching {} asset(s) for '{}'",
                      allPaths.size(), sceneName);
@@ -77,7 +95,8 @@ void SceneTransition::Go(const std::string& sceneName, OnReadyFn onReady, OnErro
                 if (!manifest.textures.empty())
                     AssetManager::Get().LoadTextures(manifest.textures);
 
-                // TODO: load shaders from manifest.shaders
+                if (!manifest.shaders.empty())
+                    AssetManager::Get().LoadShaders(manifest.shaders);
 
             } catch (const std::exception& e) {
                 spdlog::error("SceneTransition: load failed: {}", e.what());

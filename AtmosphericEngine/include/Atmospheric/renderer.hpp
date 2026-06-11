@@ -73,10 +73,26 @@ public:
     void Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder* enc = nullptr) override;
 };
 
-class PostProcessPass : public RenderPass {
+// ACES tonemapping from HDR msaaResolveRT to framebuffer 0.
+class TonemapPass : public RenderPass {
 public:
     void Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder* enc = nullptr) override;
+
+    bool  enabled  = true;
+    float exposure = 0.5f;
 };
+
+// Screen-space chromatic aberration applied before final tonemap blit.
+class ChromaticAberrationPass : public RenderPass {
+public:
+    void Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder* enc = nullptr) override;
+
+    bool  enabled  = false;
+    float strength = 0.005f;
+};
+
+// Legacy alias — kept so existing GetPass<PostProcessPass>() calls still compile.
+using PostProcessPass = TonemapPass;
 
 // TODO: rename this
 class UIPass : public RenderPass {
@@ -121,9 +137,9 @@ class BloomPass : public RenderPass {
 public:
     void Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder* enc = nullptr) override;
 
+    bool  enabled       = false;
     float threshold     = 0.8f;
     float bloomStrength = 0.04f;
-    float exposure      = 1.0f;
 
 private:
     static constexpr int MIP_LEVELS = 5;
@@ -185,10 +201,6 @@ public:
         wireframeEnabled = enable;
     }
 
-    void EnablePostProcess(bool enable = true) {
-        postProcessEnabled = enable;
-    }
-
     template<typename T>
     T* GetPass() { return _renderGraph ? _renderGraph->GetPass<T>() : nullptr; }
 
@@ -226,7 +238,6 @@ public:
     }
 
     glm::vec4 clearColor = glm::vec4(0.15f, 0.183f, 0.2f, 1.0f);
-    bool postProcessEnabled = false;
     bool wireframeEnabled = false;
 
     // Abstract render targets (backend-independent)

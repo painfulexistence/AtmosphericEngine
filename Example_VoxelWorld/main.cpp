@@ -17,10 +17,9 @@ class VoxelWorldApp : public Application {
 
         _world.Init(this, /*seed=*/1337);
 
-        // Enable post-processing (tonemapping + bloom for sun glow)
         Renderer* renderer = GetGraphicsServer()->renderer;
-        renderer->EnablePostProcess(true);
         if (auto* bloom = renderer->GetPass<BloomPass>()) {
+            bloom->enabled       = true;
             bloom->threshold     = 0.6f;
             bloom->bloomStrength = 0.06f;
         }

@@ -126,7 +126,8 @@ void Renderer::Init(int width, int height) {
     _renderGraph->AddPass(std::make_unique<WorldCanvasPass>());// World sprites with depth testing
     _renderGraph->AddPass(std::make_unique<CanvasPass>());// 2D sprites, world space ortho, with no depth testing
     _renderGraph->AddPass(std::make_unique<BloomPass>());
-    _renderGraph->AddPass(std::make_unique<PostProcessPass>());
+    _renderGraph->AddPass(std::make_unique<ChromaticAberrationPass>());
+    _renderGraph->AddPass(std::make_unique<TonemapPass>());
     _renderGraph->AddPass(std::make_unique<UIPass>());
 }
 
@@ -673,10 +674,7 @@ void ForwardOpaquePass::Execute(GraphicsServer* ctx, Renderer& renderer, Command
     auto [width, height] = Window::Get()->GetFramebufferSize();
     glViewport(0, 0, width, height);
 
-    GLuint targetFBO = renderer.postProcessEnabled
-        ? static_cast<GLRenderTarget*>(renderer.sceneRT.get())->GetNativeFBOID()
-        : renderer.finalFBO;
-    glBindFramebuffer(GL_FRAMEBUFFER, targetFBO);
+    glBindFramebuffer(GL_FRAMEBUFFER, static_cast<GLRenderTarget*>(renderer.sceneRT.get())->GetNativeFBOID());
     // Bind textures
     auto& assetManager = AssetManager::Get();
     for (int i = 0; i < MAX_UNI_LIGHTS; ++i) {
@@ -1111,12 +1109,7 @@ void DeferredLightingPass::Execute(GraphicsServer* ctx, Renderer& renderer, Comm
     ZoneScopedN("DeferredLightingPass");
     auto [width, height] = Window::Get()->GetFramebufferSize();
     glViewport(0, 0, width, height);
-    {
-        GLuint targetFBO = renderer.postProcessEnabled
-            ? static_cast<GLRenderTarget*>(renderer.sceneRT.get())->GetNativeFBOID()
-            : renderer.finalFBO;
-        glBindFramebuffer(GL_FRAMEBUFFER, targetFBO);
-    }
+    glBindFramebuffer(GL_FRAMEBUFFER, static_cast<GLRenderTarget*>(renderer.sceneRT.get())->GetNativeFBOID());
 
     glClearColor(renderer.clearColor.r, renderer.clearColor.g, renderer.clearColor.b, renderer.clearColor.a);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -1176,9 +1169,6 @@ void TransparentPass::Execute(GraphicsServer* ctx, Renderer& renderer, CommandEn
 
 void MSAAResolvePass::Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder* enc) {
     ZoneScopedN("MSAAResolvePass");
-    if (!renderer.postProcessEnabled) {
-        return;
-    }
     
     auto [width, height] = Window::Get()->GetFramebufferSize();
     glViewport(0, 0, width, height);
@@ -1211,12 +1201,7 @@ void WorldCanvasPass::Execute(GraphicsServer* ctx, Renderer& renderer, CommandEn
 
     auto [width, height] = Window::Get()->GetFramebufferSize();
     glViewport(0, 0, width, height);
-    {
-        GLuint targetFBO = renderer.postProcessEnabled
-            ? static_cast<GLRenderTarget*>(renderer.msaaResolveRT.get())->GetNativeFBOID()
-            : renderer.finalFBO;
-        glBindFramebuffer(GL_FRAMEBUFFER, targetFBO);
-    }
+    glBindFramebuffer(GL_FRAMEBUFFER, static_cast<GLRenderTarget*>(renderer.msaaResolveRT.get())->GetNativeFBOID());
 
     // Get camera for projection
     CameraComponent* camera = ctx->GetMainCamera();
@@ -1275,12 +1260,7 @@ void CanvasPass::Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder
 
     auto [width, height] = Window::Get()->GetFramebufferSize();
     glViewport(0, 0, width, height);
-    {
-        GLuint targetFBO = renderer.postProcessEnabled
-            ? static_cast<GLRenderTarget*>(renderer.msaaResolveRT.get())->GetNativeFBOID()
-            : renderer.finalFBO;
-        glBindFramebuffer(GL_FRAMEBUFFER, targetFBO);
-    }
+    glBindFramebuffer(GL_FRAMEBUFFER, static_cast<GLRenderTarget*>(renderer.msaaResolveRT.get())->GetNativeFBOID());
 
     glDisable(GL_DEPTH_TEST);
     glDisable(GL_CULL_FACE);
@@ -1321,34 +1301,39 @@ void CanvasPass::Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder
 // Helper to reduce code duplication
 
 
-void PostProcessPass::Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder* enc) {
-    ZoneScopedN("PostProcessPass");
-    if (!renderer.postProcessEnabled) {
-        return;
-    }
+void ChromaticAberrationPass::Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder* enc) {
+    if (!enabled) return;
+    // TODO: implement screen-space chromatic aberration shader
+}
+
+void TonemapPass::Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder* enc) {
+    ZoneScopedN("TonemapPass");
 
     auto size = Window::Get()->GetFramebufferSize();
-
     glViewport(0, 0, size.width, size.height);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    // glDisable(GL_DEPTH_TEST);
-    // glDisable(GL_BLEND);
-#ifndef __EMSCRIPTEN__
-    // glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-#endif
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, renderer.msaaResolveRT->GetTextureID());
 
     glClearColor(renderer.clearColor.x, renderer.clearColor.y, renderer.clearColor.z, renderer.clearColor.w);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    auto postProcessShader = ctx->GetShader("hdr");
-    postProcessShader->Activate();
-    postProcessShader->SetUniform(std::string("color_map_unit"), (int)0);
-    postProcessShader->SetUniform(std::string("exposure"), 0.5f);
+
+    if (enabled) {
+        auto tonemapShader = ctx->GetShader("hdr");
+        tonemapShader->Activate();
+        tonemapShader->SetUniform(std::string("color_map_unit"), (int)0);
+        tonemapShader->SetUniform(std::string("exposure"), exposure);
+    } else {
+        // Passthrough: blit HDR texture as-is (no tonemapping)
+        auto passthroughShader = ctx->GetShader("hdr");
+        passthroughShader->Activate();
+        passthroughShader->SetUniform(std::string("color_map_unit"), (int)0);
+        passthroughShader->SetUniform(std::string("exposure"), 1.0f);
+    }
     renderer.screenBuffer->Draw(enc, PrimitiveTopology::TriangleStrip);
 
-    renderer.CheckErrors("Post process pass");
+    renderer.CheckErrors("Tonemap pass");
 }
 
 void Renderer::SubmitUICommand(const BatchDrawCommand& cmd) {

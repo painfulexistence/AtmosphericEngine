@@ -33,10 +33,7 @@ void SunPass::Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder* /
     auto [width, height] = Window::Get()->GetFramebufferSize();
     glViewport(0, 0, width, height);
 
-    GLuint targetFBO = renderer.postProcessEnabled
-        ? static_cast<GLRenderTarget*>(renderer.sceneRT.get())->GetNativeFBOID()
-        : renderer.finalFBO;
-    glBindFramebuffer(GL_FRAMEBUFFER, targetFBO);
+    glBindFramebuffer(GL_FRAMEBUFFER, static_cast<GLRenderTarget*>(renderer.sceneRT.get())->GetNativeFBOID());
 
     // Sun position: push far along the *opposite* of light direction (toward light source)
     glm::vec3 lightDir = light ? glm::normalize(light->direction) : glm::vec3(0.0f, 1.0f, -0.5f);
@@ -104,10 +101,7 @@ void SkyboxPass::Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder
     auto [width, height] = Window::Get()->GetFramebufferSize();
     glViewport(0, 0, width, height);
 
-    GLuint targetFBO = renderer.postProcessEnabled
-        ? static_cast<GLRenderTarget*>(renderer.sceneRT.get())->GetNativeFBOID()
-        : renderer.finalFBO;
-    glBindFramebuffer(GL_FRAMEBUFFER, targetFBO);
+    glBindFramebuffer(GL_FRAMEBUFFER, static_cast<GLRenderTarget*>(renderer.sceneRT.get())->GetNativeFBOID());
 
     shader->Activate();
 
@@ -151,10 +145,7 @@ void VoxelChunkPass::Execute(GraphicsServer* ctx, Renderer& renderer, CommandEnc
     glViewport(0, 0, width, height);
 
     // Render into the same target as ForwardOpaquePass (no clear — already done)
-    GLuint targetFBO = renderer.postProcessEnabled
-        ? static_cast<GLRenderTarget*>(renderer.sceneRT.get())->GetNativeFBOID()
-        : renderer.finalFBO;
-    glBindFramebuffer(GL_FRAMEBUFFER, targetFBO);
+    glBindFramebuffer(GL_FRAMEBUFFER, static_cast<GLRenderTarget*>(renderer.sceneRT.get())->GetNativeFBOID());
 
     shader->Activate();
 
@@ -211,10 +202,7 @@ void WaterPass::Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder*
     glViewport(0, 0, width, height);
 
     // Render into msaaResolveRT so water goes through bloom + tonemapping
-    GLuint targetFBO = renderer.postProcessEnabled
-        ? static_cast<GLRenderTarget*>(renderer.msaaResolveRT.get())->GetNativeFBOID()
-        : renderer.finalFBO;
-    glBindFramebuffer(GL_FRAMEBUFFER, targetFBO);
+    glBindFramebuffer(GL_FRAMEBUFFER, static_cast<GLRenderTarget*>(renderer.msaaResolveRT.get())->GetNativeFBOID());
 
     // WaterPass runs after MSAAResolvePass so the resolved depth is ready
     GLuint depthTex = renderer.GetResolvedDepthTexture();
@@ -301,7 +289,7 @@ void BloomPass::InitMips(int w, int h) {
 }
 
 void BloomPass::Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder* /*enc*/) {
-    if (!renderer.postProcessEnabled) return;
+    if (!enabled)                     return;
     if (!renderer.msaaResolveRT)      return;
     if (renderer.screenQuadVAO == 0)  return;
 

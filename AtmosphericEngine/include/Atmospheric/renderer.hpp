@@ -106,7 +106,7 @@ public:
     void Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder* enc = nullptr) override;
 
     float     radius   = 20.0f;
-    glm::vec3 color    = glm::vec3(1.0f, 0.85f, 0.3f) * 50.0f; // VX COLOR_VIVID_GOLD * 50
+    glm::vec3 color    = glm::vec3(1.0f, 0.4f, 0.0f) * 50.0f; // VX: COLOR_VIVID_GOLD=(1,0.4,0) * 50
 };
 
 // Gradient sky rendered at depth=1 (behind everything).  Matches VX's Skybox.

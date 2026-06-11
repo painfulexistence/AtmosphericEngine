@@ -35,10 +35,30 @@ void SunPass::Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder* /
 
     glBindFramebuffer(GL_FRAMEBUFFER, static_cast<GLRenderTarget*>(renderer.sceneRT.get())->GetNativeFBOID());
 
-    // Sun position: push far along the *opposite* of light direction (toward light source)
-    glm::vec3 lightDir = light ? glm::normalize(light->direction) : glm::vec3(0.0f, 1.0f, -0.5f);
-    const float WORLD_HALF = 25 * 32 * 0.5f; // center of world
-    glm::vec3 sunPos = glm::vec3(WORLD_HALF, WORLD_HALF, WORLD_HALF) - lightDir * WORLD_HALF * 2.0f;
+    // Mirror VX sun.py get_model_matrix() exactly:
+    // light_direction = normalize(0, -1, 0.5), height = 64, placed at world edge opposite to light dir
+    glm::vec3 lightDir = light ? glm::normalize(light->direction) : glm::normalize(glm::vec3(0.0f, -1.0f, 0.5f));
+    const float CHUNK_SIZE  = 32.0f;
+    const float WORLD_W     = 25.0f; // chunks
+    const float WORLD_D     = 25.0f;
+    const float CENTER_X    = WORLD_W * CHUNK_SIZE * 0.5f;
+    const float CENTER_Z    = WORLD_D * CHUNK_SIZE * 0.5f;
+    const float SUN_HEIGHT  = 64.0f;  // VX: self.height = 64
+
+    glm::vec3 sunPos(CENTER_X, SUN_HEIGHT, CENTER_Z);
+    if (lightDir.z > 0.0f) {
+        float atan_xz = lightDir.x / lightDir.z;
+        sunPos.z = CENTER_Z - CHUNK_SIZE * WORLD_D;
+        sunPos.x = CENTER_X - CHUNK_SIZE * WORLD_D * atan_xz;
+    } else if (lightDir.z < 0.0f) {
+        float atan_xz = lightDir.x / lightDir.z;
+        sunPos.z = CENTER_Z + CHUNK_SIZE * WORLD_D;
+        sunPos.x = CENTER_X + CHUNK_SIZE * WORLD_D * atan_xz;
+    } else {
+        if (lightDir.x > 0.0f)      sunPos.x = CENTER_X - CHUNK_SIZE * WORLD_W;
+        else if (lightDir.x < 0.0f) sunPos.x = CENTER_X + CHUNK_SIZE * WORLD_W;
+        else                         sunPos.y = SUN_HEIGHT * 2.0f;
+    }
 
     // Billboard: orient quad to face the camera
     glm::vec3 camPos   = camera->GetEyePosition();
@@ -58,8 +78,8 @@ void SunPass::Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder* /
     shader->SetUniform("u_model",      model);
     shader->SetUniform("u_viewProj",   viewProj);
     shader->SetUniform("u_color",      color);
-    shader->SetUniform("u_fogColor",   glm::vec3(0.55f, 0.65f, 0.75f));
-    shader->SetUniform("u_fogDensity", 0.003f);
+    shader->SetUniform("u_fogColor",   glm::vec3(1.0f, 1.0f, 1.0f)); // VX: COLOR_WHITE
+    shader->SetUniform("u_fogDensity", 0.000003f);                    // VX: 0.000003
 
     glDisable(GL_CULL_FACE);
     glEnable(GL_DEPTH_TEST);

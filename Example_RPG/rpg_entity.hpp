@@ -2,6 +2,7 @@
 #include <glm/glm.hpp>
 #include <string>
 #include <vector>
+#include <unordered_map>
 
 // ---------------------------------------------------------------------------
 // Axis-aligned bounding box helpers

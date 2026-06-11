@@ -272,16 +272,15 @@ void RPGGame::UpdatePlayer(float dt) {
     (void)gfx;
 
     float ax = 0, ay = 0;
-    if (inp->IsKeyDown(Key::KEY_LEFT)  || inp->IsKeyDown(Key::KEY_A)) ax -= 1;
-    if (inp->IsKeyDown(Key::KEY_RIGHT) || inp->IsKeyDown(Key::KEY_D)) ax += 1;
-    if (inp->IsKeyDown(Key::KEY_UP)    || inp->IsKeyDown(Key::KEY_W)) ay -= 1;
-    if (inp->IsKeyDown(Key::KEY_DOWN)  || inp->IsKeyDown(Key::KEY_S)) ay += 1;
+    if (inp->IsKeyDown(Key::LEFT)  || inp->IsKeyDown(Key::A)) ax -= 1;
+    if (inp->IsKeyDown(Key::RIGHT) || inp->IsKeyDown(Key::D)) ax += 1;
+    if (inp->IsKeyDown(Key::UP)    || inp->IsKeyDown(Key::W)) ay -= 1;
+    if (inp->IsKeyDown(Key::DOWN)  || inp->IsKeyDown(Key::S)) ay += 1;
 
     Player& p = _player;
-    const auto& md = _tilemap->GetData();
 
     // Attack
-    if (inp->IsKeyPressed(Key::KEY_Z) && p.attackCooldown <= 0) {
+    if (inp->IsKeyPressed(Key::Z) && p.attackCooldown <= 0) {
         p.isAttacking   = true;
         p.attackTimer   = 0.25f;
         p.attackCooldown = 0.4f;
@@ -304,7 +303,7 @@ void RPGGame::UpdatePlayer(float dt) {
     }
 
     // Interact
-    if (inp->IsKeyPressed(Key::KEY_E)) {
+    if (inp->IsKeyPressed(Key::E)) {
         for (auto& npc : _npcs) {
             float dx = npc.cx() - p.cx(), dy = npc.cy() - p.cy();
             if (std::sqrt(dx*dx + dy*dy) < npc.talkRadius) {

@@ -18,6 +18,50 @@ static void DrawScreenQuadVAO(GLuint vao) {
 }
 
 // ============================================================================
+//  SkyboxPass  (gradient sky, rendered at depth = 1)
+// ============================================================================
+void SkyboxPass::Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder* /*enc*/) {
+    if (renderer.skyboxVAO == 0) return;
+
+    ShaderProgram* shader = AssetManager::Get().GetShader("skybox");
+    if (!shader) return;
+
+    CameraComponent* camera = ctx->GetMainCamera();
+    if (!camera) return;
+
+    auto [width, height] = Window::Get()->GetFramebufferSize();
+    glViewport(0, 0, width, height);
+
+    GLuint targetFBO = renderer.postProcessEnabled
+        ? static_cast<GLRenderTarget*>(renderer.sceneRT.get())->GetNativeFBOID()
+        : renderer.finalFBO;
+    glBindFramebuffer(GL_FRAMEBUFFER, targetFBO);
+
+    shader->Activate();
+
+    // Strip translation from view matrix so sky doesn't move with camera
+    glm::mat4 viewNoTranslation = glm::mat4(glm::mat3(camera->GetViewMatrix()));
+    shader->SetUniform("u_proj",         camera->GetProjectionMatrix());
+    shader->SetUniform("u_view",         viewNoTranslation);
+    shader->SetUniform("u_skyColor",     skyColor);
+    shader->SetUniform("u_horizonColor", horizonColor);
+
+    glDepthFunc(GL_LEQUAL);
+    glDepthMask(GL_FALSE);
+    glDisable(GL_CULL_FACE);
+
+    glBindVertexArray(renderer.skyboxVAO);
+    glDrawArrays(GL_TRIANGLES, 0, 36);
+    glBindVertexArray(0);
+
+    glDepthMask(GL_TRUE);
+    glDepthFunc(GL_LESS);
+    glEnable(GL_CULL_FACE);
+
+    shader->Deactivate();
+}
+
+// ============================================================================
 //  VoxelChunkPass
 // ============================================================================
 void VoxelChunkPass::Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder* /*enc*/) {

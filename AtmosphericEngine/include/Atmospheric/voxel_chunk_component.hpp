@@ -41,6 +41,10 @@ public:
     glm::vec3 GetBoundingSphereCenter() const;
     float     GetBoundingSphereRadius() const;
 
+    // Half-diagonal of the chunk cube — used for sphere frustum culling
+    static constexpr float BSPHERE_RADIUS =
+        static_cast<float>(SIZE) * 0.5f * 1.7320508f;
+
 private:
     GraphicsServer*      _gfx;
     glm::ivec3           _chunkPos;
@@ -51,7 +55,4 @@ private:
 
     uint8_t GetVoxelWithNeighbors(int x, int y, int z) const;
     void    BuildGreedyLayer(VoxelMeshBuilder& builder, int axis, int layer, int dir);
-
-    static constexpr float BSPHERE_RADIUS =
-        static_cast<float>(SIZE) * 0.5f * 1.7320508f;
 };

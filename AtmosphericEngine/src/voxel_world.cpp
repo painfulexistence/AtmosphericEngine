@@ -51,10 +51,8 @@ void VoxelWorld::SubmitRenderCommands(Renderer* renderer,
         Mesh* mesh = chunk->GetMesh();
         if (!mesh || !mesh->UsesRenderMesh()) continue;
 
-        glm::vec3 center = chunk->GetBoundingSphereCenter();
-        if (!frustum.Intersects(center)) continue;
-        auto bbox = mesh->GetBoundingBox();
-        if (!frustum.Intersects(bbox)) continue;
+        if (!frustum.IntersectsSphere(chunk->GetBoundingSphereCenter(),
+                                       VoxelChunkComponent::BSPHERE_RADIUS)) continue;
 
         glm::vec3 wp = chunk->GetWorldPos();
         glm::mat4 model = glm::translate(glm::mat4(1.0f), wp);
@@ -108,8 +106,8 @@ void VoxelWorld::GenerateTerrain() {
     caveNoise.SetNoiseType(FastNoiseLite::NoiseType_Perlin);
     caveNoise.SetFrequency(0.04f);
 
+    // Match VX: height = noise * 32 + 32, voxel_id = wy + 1 (palette driven by height)
     const int worldYVoxels = WORLD_Y * VoxelChunkComponent::SIZE;
-    const int SEA_LEVEL    = worldYVoxels / 3;
 
     for (int cx = 0; cx < WORLD_X; ++cx) {
         for (int cz = 0; cz < WORLD_Z; ++cz) {
@@ -119,8 +117,7 @@ void VoxelWorld::GenerateTerrain() {
                     int wz = cz * VoxelChunkComponent::SIZE + lz;
 
                     float h = heightNoise.GetNoise((float)wx, (float)wz);
-                    int height = (int)((h * 0.5f + 0.5f) * worldYVoxels * 0.55f) + 10;
-                    height = std::clamp(height, 0, worldYVoxels - 1);
+                    int height = std::clamp((int)(h * 32.0f + 32.0f), 0, worldYVoxels - 1);
 
                     for (int wy = 0; wy < height; ++wy) {
                         float cv = caveNoise.GetNoise((float)wx, (float)wy, (float)wz);
@@ -131,15 +128,8 @@ void VoxelWorld::GenerateTerrain() {
                         VoxelChunkComponent* chunk = GetChunk(cx, cy, cz);
                         if (!chunk) continue;
 
-                        uint8_t id;
-                        if (wy == height - 1 && wy >= SEA_LEVEL) {
-                            id = 2; // grass
-                        } else if (wy >= height - 4) {
-                            id = (wy < SEA_LEVEL) ? 5 : 1; // sand or dirt
-                        } else {
-                            id = 3; // stone
-                        }
-                        chunk->SetVoxel(lx, ly, lz, id);
+                        // voxel_id = wy + 1, matching VX's height-based palette
+                        chunk->SetVoxel(lx, ly, lz, (uint8_t)std::min(wy + 1, 255));
                     }
                 }
             }

@@ -94,7 +94,29 @@ void Renderer::Init(int width, int height) {
         glBindVertexArray(0);
     }
 
+    // ── Skybox cube VAO ────────────────────────────────────────────────────
+    {
+        // Unit cube — each face two triangles, 36 verts, positions only
+        static const float cubeVerts[] = {
+            -1, -1, -1,  1, -1, -1,  1,  1, -1,  1,  1, -1, -1,  1, -1, -1, -1, -1,
+            -1, -1,  1,  1, -1,  1,  1,  1,  1,  1,  1,  1, -1,  1,  1, -1, -1,  1,
+            -1,  1,  1, -1,  1, -1, -1, -1, -1, -1, -1, -1, -1, -1,  1, -1,  1,  1,
+             1,  1,  1,  1,  1, -1,  1, -1, -1,  1, -1, -1,  1, -1,  1,  1,  1,  1,
+            -1, -1, -1, -1, -1,  1,  1, -1,  1,  1, -1,  1,  1, -1, -1, -1, -1, -1,
+            -1,  1, -1, -1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1, -1, -1,  1, -1,
+        };
+        glGenVertexArrays(1, &skyboxVAO);
+        glGenBuffers(1, &skyboxVBO);
+        glBindVertexArray(skyboxVAO);
+        glBindBuffer(GL_ARRAY_BUFFER, skyboxVBO);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(cubeVerts), cubeVerts, GL_STATIC_DRAW);
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), nullptr);
+        glBindVertexArray(0);
+    }
+
     _renderGraph = std::make_unique<RenderGraph>();
+    _renderGraph->AddPass(std::make_unique<SkyboxPass>());
     _renderGraph->AddPass(std::make_unique<ShadowPass>());
     _renderGraph->AddPass(std::make_unique<ForwardOpaquePass>());
     _renderGraph->AddPass(std::make_unique<VoxelChunkPass>());
@@ -118,6 +140,8 @@ void Renderer::Cleanup() {
     // debug and screen are now std::unique_ptr<Buffer> that auto-destruct
     glDeleteVertexArrays(1, &canvasVAO);
     glDeleteBuffers(1, &canvasVBO);
+    glDeleteVertexArrays(1, &skyboxVAO);
+    glDeleteBuffers(1, &skyboxVBO);
 }
 
 void Renderer::Resize(int width, int height) {

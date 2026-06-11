@@ -2,11 +2,10 @@
 
 in vec3 v_worldPos;
 in vec3 v_normal;
-in vec2 v_uv;
 flat in uint v_voxelId;
 flat in uint v_faceId;
 
-uniform vec3  u_lightDir;     // world-space direction TOWARD the light
+uniform vec3  u_lightDir;
 uniform vec3  u_lightColor;
 uniform vec3  u_ambientColor;
 uniform vec3  u_fogColor;
@@ -15,38 +14,30 @@ uniform vec3  u_cameraPos;
 
 out vec4 fragColor;
 
-// Fallback palette (index 0 unused; IDs are 1-based)
-const vec3 VOXEL_COLORS[9] = vec3[](
-    vec3(0.0),               // 0 – air (never drawn)
-    vec3(0.45, 0.30, 0.15),  // 1 – dirt
-    vec3(0.28, 0.55, 0.18),  // 2 – grass
-    vec3(0.50, 0.50, 0.52),  // 3 – stone
-    vec3(0.20, 0.38, 0.76),  // 4 – water
-    vec3(0.88, 0.78, 0.48),  // 5 – sand
-    vec3(0.48, 0.28, 0.08),  // 6 – wood
-    vec3(0.14, 0.52, 0.14),  // 7 – leaves
-    vec3(0.92, 0.96, 1.00)   // 8 – snow
-);
+// VX Palette 5 cosine palette: a + b * cos(2π * (c*t + d))
+vec3 palette(float t) {
+    vec3 a = vec3(0.746, 0.815, 0.846);
+    vec3 b = vec3(0.195, 0.283, 0.187);
+    vec3 c = vec3(1.093, 1.417, 1.405);
+    vec3 d = vec3(5.435, 2.400, 5.741);
+    return a + b * cos(6.28318 * (c * t + d));
+}
 
 void main() {
     vec3 norm = normalize(v_normal);
 
-    // Directional diffuse
     float diff = max(dot(norm, normalize(u_lightDir)), 0.0);
 
-    // Per-voxel-type base color
-    uint id = clamp(v_voxelId, 0u, 8u);
-    vec3 baseColor = VOXEL_COLORS[id];
+    vec3 baseColor = palette(float(v_voxelId) / 50.0);
 
-    // Slight top-face brightness boost (AO approximation)
-    float topBoost = (v_faceId == 0u) ? 1.0 : (v_faceId == 1u ? 0.6 : 0.85);
-    baseColor *= topBoost;
+    // Face shading levels matching VX: top=1.0, bottom=0.5, sides=0.9
+    float faceShade = (v_faceId == 0u) ? 1.0 : (v_faceId == 1u ? 0.5 : 0.9);
+    baseColor *= faceShade;
 
     vec3 ambient = u_ambientColor * baseColor;
     vec3 diffuse = diff * u_lightColor * baseColor;
     vec3 color   = ambient + diffuse;
 
-    // Exponential fog
     float dist      = length(v_worldPos - u_cameraPos);
     float fogFactor = clamp(exp(-u_fogDensity * dist), 0.0, 1.0);
     color = mix(u_fogColor, color, fogFactor);

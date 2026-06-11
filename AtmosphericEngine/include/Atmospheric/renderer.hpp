@@ -84,6 +84,15 @@ public:
     void Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder* enc = nullptr) override;
 };
 
+// Gradient sky rendered at depth=1 (behind everything).  Matches VX's Skybox.
+class SkyboxPass : public RenderPass {
+public:
+    void Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder* enc = nullptr) override;
+
+    glm::vec3 skyColor     = glm::vec3(0.686f, 0.933f, 0.933f); // VX COLOR_MINT_GREEN
+    glm::vec3 horizonColor = glm::vec3(1.000f, 0.980f, 0.804f); // VX COLOR_LEMON_CREAM
+};
+
 // Renders MeshType::VOXEL meshes from the opaque queue using the voxel shader.
 class VoxelChunkPass : public RenderPass {
 public:
@@ -229,6 +238,8 @@ public:
 
     // Screen-quad VAO shared by post-process passes (bloom, composite, etc.)
     GLuint screenQuadVAO = 0;
+    GLuint skyboxVAO     = 0;
+    GLuint skyboxVBO     = 0;
 
     // Per-frame time (seconds) forwarded from RenderFrame for animated passes.
     float frameTime = 0.0f;

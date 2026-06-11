@@ -35,11 +35,7 @@ find_package(spdlog REQUIRED)
 find_package(RmlUi REQUIRED)
 find_package(flatbuffers CONFIG REQUIRED)
 
-# ── Lua 5.4 (built from source) ───────────────────────────────────────────────
-# Building from source rather than find_package(lua) because:
-#   1. Emscripten must compile Lua to WASM — system lua.a is host-arch only.
-#   2. Avoids architecture mismatch on Apple Silicon (arm64 vs x86_64).
-#   3. Version is pinned — no dependency on whatever vcpkg/Homebrew installed.
+# ── Lua 5.4 (built from source) ─────────────────────────────────────────────
 FetchContent_Declare(lua_src
     GIT_REPOSITORY https://github.com/lua/lua.git
     GIT_TAG        v5.4.7
@@ -51,33 +47,21 @@ if(NOT lua_src_POPULATED)
     FetchContent_Populate(lua_src)
 endif()
 
-# Lua's repo has all .c files in the root (no src/ subdir).
-# Exclude the standalone interpreter (lua.c) and compiler (luac.c).
 file(GLOB LUA_CORE_SOURCES "${lua_src_SOURCE_DIR}/*.c")
 list(FILTER LUA_CORE_SOURCES EXCLUDE REGEX ".*(lua|luac)\\.c$")
 
 add_library(lua_static STATIC ${LUA_CORE_SOURCES})
 target_include_directories(lua_static PUBLIC "${lua_src_SOURCE_DIR}")
 if(UNIX AND NOT EMSCRIPTEN)
-    # Enable POSIX APIs (better file I/O, signals, etc.) on Linux / macOS.
-    # Not needed on Windows or Emscripten.
     target_compile_definitions(lua_static PRIVATE LUA_USE_POSIX)
 endif()
-# Suppress warnings from Lua's C code (not our code, not our problem)
 if(MSVC)
     target_compile_options(lua_static PRIVATE /W0)
 else()
     target_compile_options(lua_static PRIVATE -w)
 endif()
 
-# ── sol2 (develop branch, header-only) ────────────────────────────────────────
-# v3.3.0 had a bug in optional_implementation.hpp where tl::optional's CRTP
-# base 'construct' method is not visible in the reference-type specialisation
-# (optional<T&>).  Apple Clang 15+ (Xcode 15 / macOS 14) enforces this more
-# strictly and rejects the code.  Fixed in v3.5.0.
-#
-# We use FetchContent_Populate (not MakeAvailable) to avoid running sol2's own
-# CMakeLists.txt, which would call find_package(Lua) and conflict with lua_static.
+# ── sol2 (develop branch, header-only) ──────────────────────────────────────────
 FetchContent_Declare(sol2_src
     GIT_REPOSITORY https://github.com/ThePhD/sol2.git
     GIT_TAG        v3.5.0
@@ -89,16 +73,9 @@ if(NOT sol2_src_POPULATED)
     FetchContent_Populate(sol2_src)
 endif()
 
-# sol2 is header-only; create a minimal INTERFACE target manually.
 add_library(sol2_iface INTERFACE)
 target_include_directories(sol2_iface INTERFACE "${sol2_src_SOURCE_DIR}/include")
-# Link lua_static as INTERFACE so that:
-#   1. sol2 headers resolve <lua.h> / <lua.hpp> from our Lua 5.4 source,
-#      not from any system/vcpkg installation.
-#   2. Include order is guaranteed: our lua_static dir comes first.
 target_link_libraries(sol2_iface INTERFACE lua_static)
-# Alias matches the target name produced by find_package(sol2 CONFIG REQUIRED),
-# so existing target_link_libraries(... sol2::sol2) lines continue to work.
 add_library(sol2::sol2 ALIAS sol2_iface)
 
 # Generate FlatBuffers headers from schema
@@ -117,7 +94,6 @@ if(NOT EMSCRIPTEN)
     add_subdirectory(external/raudio/projects/CMake)
 endif()
 
-#file(GLOB SOURCES src/*.cpp RECURSIVE)
 set(SOURCES
     src/application.cpp
     src/game_layer.cpp
@@ -141,6 +117,7 @@ set(SOURCES
     src/terrain_component.cpp
     src/shader.cpp
     src/graphics_server.cpp
+    src/graphics_server_tile.cpp
     src/renderer.cpp
     src/physics_server.cpp
     src/physics_debug_drawer.cpp
@@ -169,16 +146,11 @@ set(SOURCES
     src/scene_transition.cpp
     src/script.cpp
     src/component_registry.cpp
+    src/tilemap_2d.cpp
+    src/lighting_2d.cpp
     ${FLATBUFFERS_GENERATED_DIR}/Scene_generated.h
 )
-# ── Graphics backend selection ────────────────────────────────────────────────
-# Native  : Dawn WebGPU (not yet integrated — falls back to OpenGL 4.1).
-# Web     : browser WebGPU via Emscripten (AE_USE_WEBGPU=ON)
-#           or WebGL 2.0 fallback (AE_USE_WEBGPU=OFF, default).
-#
-# When enabling on Emscripten, also update target_link_options below:
-#   Remove : -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2 -sFULL_ES3=1
-#   Add    : -sUSE_WEBGPU=1
+# ── Graphics backend selection ─────────────────────────────────────────────────
 option(AE_USE_WEBGPU "Target WebGPU on Emscripten builds (replaces WebGL2)" OFF)
 
 list(APPEND SOURCES src/gfx_factory.cpp)
@@ -192,10 +164,6 @@ else()
         list(APPEND SOURCES src/gpu_render_target.cpp)
     endif()
 endif()
-# FileSystem: platform-agnostic async I/O with in-process cache.
-#   Web    : emscripten_fetch + IndexedDB + MEMFS writes for text assets.
-#   Native : synchronous fread + JobSystem-parallel Prefetch.
-# Compiled on all platforms (not just Emscripten).
 list(APPEND SOURCES src/file_system.cpp)
 
 set(SOURCES_EXT
@@ -211,35 +179,19 @@ else()
     list(APPEND SOURCES_EXT external/imgui/backends/imgui_impl_sdl3.cpp)
 endif()
 
-# ============================================================================
-# Basis Universal transcoder (KTX2 GPU-compressed texture support)
-# Only the transcoder is compiled — the encoder is not needed at runtime.
-# Supported target formats for WebGL2:
-#   - ETC2  (GLES3 required, best for web/mobile)
-#   - S3TC  (desktop browsers, via extension check)
-# Developers convert source textures to KTX2 with:
-#   basisu -ktx2 -mipmap texture.png
-#   toktx --t2 --encode etc1s --mipmap out.ktx2 input.png
-# ============================================================================
 if(AE_USE_BASIS_UNIVERSAL)
     FetchContent_Declare(
         basis_universal
         GIT_REPOSITORY https://github.com/BinomialLLC/basis_universal.git
-        GIT_TAG        1.16.4          # named release tag — allows GIT_SHALLOW
+        GIT_TAG        1.16.4
         GIT_SHALLOW    TRUE
         UPDATE_DISCONNECTED TRUE
     )
     FetchContent_GetProperties(basis_universal)
     if(NOT basis_universal_POPULATED)
-        # Do NOT process basisu's own CMakeLists.txt (it drags in encoder, etc.)
         FetchContent_Populate(basis_universal)
     endif()
 
-    # ── basisu host encoder (for PNG→KTX2 auto-conversion at build time) ─────
-    # The transcoder below is compiled with em++ for WASM; we also need the
-    # basisu CLI as a HOST tool to convert project textures during the build.
-    # Try a system install first; fall back to building from the fetched source
-    # using the default (host) compiler — no Emscripten toolchain involved.
     if(EMSCRIPTEN)
         find_program(_BASISU_SYSTEM basisu)
         if(_BASISU_SYSTEM)
@@ -247,16 +199,11 @@ if(AE_USE_BASIS_UNIVERSAL)
             add_custom_target(basisu_host_tool)
         else()
             set(_BASISU_HOST_DIR ${CMAKE_BINARY_DIR}/_basisu_host)
-            set(BASISU_EXECUTABLE "${_BASISU_HOST_DIR}/basisu"
-                CACHE INTERNAL "basisu encoder")
+            set(BASISU_EXECUTABLE "${_BASISU_HOST_DIR}/basisu" CACHE INTERNAL "basisu encoder")
             add_custom_command(
                 OUTPUT "${BASISU_EXECUTABLE}"
-                COMMAND "${CMAKE_COMMAND}"
-                    -B "${_BASISU_HOST_DIR}"
-                    -S "${basis_universal_SOURCE_DIR}"
-                    -DCMAKE_BUILD_TYPE=Release
-                COMMAND "${CMAKE_COMMAND}"
-                    --build "${_BASISU_HOST_DIR}" --target basisu --parallel
+                COMMAND "${CMAKE_COMMAND}" -B "${_BASISU_HOST_DIR}" -S "${basis_universal_SOURCE_DIR}" -DCMAKE_BUILD_TYPE=Release
+                COMMAND "${CMAKE_COMMAND}" --build "${_BASISU_HOST_DIR}" --target basisu --parallel
                 COMMENT "Building basisu host encoder"
                 VERBATIM
             )
@@ -272,32 +219,23 @@ if(AE_USE_BASIS_UNIVERSAL)
         ${basis_universal_SOURCE_DIR}
         ${basis_universal_SOURCE_DIR}/transcoder
     )
-    # Disable formats not needed for web (reduces transcoder binary size)
     target_compile_definitions(basisu_transcoder PUBLIC
-        BASISD_SUPPORT_KTX2=1          # Enable KTX2 container
-        BASISD_SUPPORT_KTX2_ZSTD=0     # Zstandard supercompression not needed
-        BASISD_SUPPORT_PVRTC1=0        # PowerVR only (legacy mobile)
-        BASISD_SUPPORT_PVRTC2=0        # PowerVR2 only (legacy mobile)
-        BASISD_SUPPORT_FXT1=0          # Intel FXT1 (obsolete)
-        BASISD_SUPPORT_ATC=0           # ATI (obsolete)
+        BASISD_SUPPORT_KTX2=1
+        BASISD_SUPPORT_KTX2_ZSTD=0
+        BASISD_SUPPORT_PVRTC1=0
+        BASISD_SUPPORT_PVRTC2=0
+        BASISD_SUPPORT_FXT1=0
+        BASISD_SUPPORT_ATC=0
     )
     if(MSVC)
         target_compile_options(basisu_transcoder PRIVATE /W0)
     else()
         target_compile_options(basisu_transcoder PRIVATE
-            -Wno-unused-variable
-            -Wno-unused-function
-            -Wno-unused-but-set-variable
+            -Wno-unused-variable -Wno-unused-function -Wno-unused-but-set-variable
         )
     endif()
 endif()
 
-# ── ae_auto_convert_textures(<target> <src_dir> <dst_dir>) ───────────────────
-# Emscripten-only: converts every PNG/JPG under <src_dir> to KTX2 in the
-# corresponding path under <dst_dir>.  Each file is its own custom command so
-# only changed images are re-converted.  Adds CMAKE_CONFIGURE_DEPENDS on
-# <src_dir> so new files are picked up on the next configure.
-# No-op on native builds or when AE_USE_BASIS_UNIVERSAL is off.
 function(ae_auto_convert_textures TARGET SRC_DIR DST_DIR)
     if(NOT EMSCRIPTEN OR NOT AE_USE_BASIS_UNIVERSAL)
         return()
@@ -306,27 +244,17 @@ function(ae_auto_convert_textures TARGET SRC_DIR DST_DIR)
         return()
     endif()
     set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${SRC_DIR}")
-
-    file(GLOB_RECURSE _IMGS
-        LIST_DIRECTORIES false
-        "${SRC_DIR}/*.png" "${SRC_DIR}/*.jpg" "${SRC_DIR}/*.jpeg"
-    )
-    if(NOT _IMGS)
-        return()
-    endif()
-
+    file(GLOB_RECURSE _IMGS LIST_DIRECTORIES false "${SRC_DIR}/*.png" "${SRC_DIR}/*.jpg" "${SRC_DIR}/*.jpeg")
+    if(NOT _IMGS) return() endif()
     set(_OUTPUTS)
     foreach(_IMG ${_IMGS})
-        if(_IMG MATCHES "heightmap")
-            continue()
-        endif()
+        if(_IMG MATCHES "heightmap") continue() endif()
         file(RELATIVE_PATH _REL "${SRC_DIR}" "${_IMG}")
-        get_filename_component(_STEM    "${_REL}" NAME_WE)
-        get_filename_component(_SUBDIR  "${_REL}" DIRECTORY)
+        get_filename_component(_STEM   "${_REL}" NAME_WE)
+        get_filename_component(_SUBDIR "${_REL}" DIRECTORY)
         set(_OUT_DIR "${DST_DIR}/${_SUBDIR}")
         set(_KTX2    "${_OUT_DIR}/${_STEM}.ktx2")
         list(APPEND _OUTPUTS "${_KTX2}")
-
         add_custom_command(
             OUTPUT "${_KTX2}"
             COMMAND "${CMAKE_COMMAND}" -E make_directory "${_OUT_DIR}"
@@ -336,7 +264,6 @@ function(ae_auto_convert_textures TARGET SRC_DIR DST_DIR)
             VERBATIM
         )
     endforeach()
-
     add_custom_target(${TARGET}_convert_textures ALL DEPENDS ${_OUTPUTS})
     add_dependencies(${TARGET} ${TARGET}_convert_textures)
 endfunction()
@@ -347,7 +274,6 @@ target_include_directories(AtmosphericEngine
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src
         ${BULLET_INCLUDE_DIR}
-        # lua_static has PUBLIC include dirs → Lua headers propagate automatically
         ${CMAKE_CURRENT_SOURCE_DIR}/external/stb
         ${CMAKE_CURRENT_SOURCE_DIR}/include/Atmospheric
         ${FLATBUFFERS_GENERATED_DIR}
@@ -370,26 +296,11 @@ if(AE_USE_BASIS_UNIVERSAL)
     target_compile_definitions(AtmosphericEngine PUBLIC AE_USE_BASIS_UNIVERSAL)
 endif()
 if(EMSCRIPTEN)
-    # IMGUI_IMPL_OPENGL_ES3 : tell Dear ImGui's OpenGL3 backend to use GLES3
-    #   headers (GLES3/gl3.h) instead of the default desktop GL3 loader
-    #   (imgui_impl_opengl3_loader.h) which tries to dlopen("libGL.so").
-    #   Without this, imgui_impl_opengl3.cpp fails to work on WebGL 2.0.
-    # spdlog::spdlog : console.cpp and scene_loader.cpp call spdlog directly;
-    #   Emscripten maps stdout → browser console so spdlog works fine on web.
     target_compile_definitions(AtmosphericEngine PRIVATE IMGUI_IMPL_OPENGL_ES3)
     target_link_libraries(AtmosphericEngine PUBLIC spdlog::spdlog)
     target_compile_options(AtmosphericEngine PRIVATE)
     if(AE_USE_WEBGPU)
         target_compile_definitions(AtmosphericEngine PUBLIC AE_USE_WEBGPU)
-        # AE_USE_WEBGPU=ON compiles in WebGPU support (emdawnwebgpu).
-        # The actual backend is chosen at runtime by GfxFactory::Init():
-        #   - browser exposes navigator.gpu → attempts WebGPU
-        #   - WebGPU unavailable or device creation fails → falls back to WebGL 2
-        # WebGL 2 flags are therefore kept alongside emdawnwebgpu so the
-        # OpenGL fallback path and ImGui (still imgui_impl_opengl3) continue
-        # to work at runtime.
-        # --closure=1 is recommended in release builds to reduce emdawnwebgpu JS size.
-        # TODO: switch ImGui backend to imgui_impl_wgpu once WebGPU path is stable.
         target_link_options(AtmosphericEngine INTERFACE
             -sWASM=1 -O3 -sUSE_GLFW=3
             --use-port=emdawnwebgpu

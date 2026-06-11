@@ -65,6 +65,7 @@ public:
     GLuint CreateTextureFromImage(const std::shared_ptr<Image>& image);
     GLuint GetTexture(const std::string& name) const;
     GLuint GetTextureByID(uint32_t id) const;
+    std::string GetTexturePath(GLuint id) const;
     void LoadDefaultTextures();
     void LoadTextures(const std::vector<std::string>& paths);
     Mesh* CreateMesh(Mesh* mesh = nullptr);

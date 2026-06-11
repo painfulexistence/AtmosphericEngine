@@ -99,6 +99,7 @@ public:
 
     std::shared_ptr<Window> GetWindow();
     void LoadScene(const SceneDef& scene);
+    void LoadScene(const std::string& jsonContent);
     void ReloadScene();
     void GoScene(const std::string& sceneName, std::function<void()> onReady = nullptr);
 

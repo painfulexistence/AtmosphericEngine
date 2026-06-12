@@ -126,9 +126,7 @@ void GLRenderTarget::Create() {
                                        GL_TEXTURE_2D, _depthTexture, 0);
             }
         }
-#ifndef __EMSCRIPTEN__
     }
-#endif
 
     GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
     if (status != GL_FRAMEBUFFER_COMPLETE) {

@@ -1,12 +1,7 @@
 #include "rpg_game.hpp"
 
-#ifndef __EMSCRIPTEN__
-#include <glad/glad.h>
-#else
-#include <GLES3/gl3.h>
-#endif
-
 #include <Atmospheric/graphics_server.hpp>
+#include <Atmospheric/gfx_factory.hpp>
 #include <Atmospheric/input.hpp>
 #include <Atmospheric/audio_manager.hpp>
 #include <glm/gtc/constants.hpp>
@@ -29,28 +24,6 @@ RPGGame::RPGGame() : Application(AppConfig{
     .enableGraphics3D = false,
     .enablePhysics3D  = false,
 }) {}
-
-// ---------------------------------------------------------------------------
-// Helpers — OpenGL texture creation (no stb_image, fully procedural)
-// ---------------------------------------------------------------------------
-
-uint32_t RPGGame::CreateGLTexture(const uint8_t* pixels, int w, int h) {
-    GLuint id;
-    glGenTextures(1, &id);
-    glBindTexture(GL_TEXTURE_2D, id);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
-    glBindTexture(GL_TEXTURE_2D, 0);
-    return (uint32_t)id;
-}
-
-uint32_t RPGGame::CreateSolidTexture(uint8_t r, uint8_t g, uint8_t b) {
-    const uint8_t px[4] = { r, g, b, 255 };
-    return CreateGLTexture(px, 1, 1);
-}
 
 // ---------------------------------------------------------------------------
 // AnimClip builder (mirrors 2d-engine makeClip)
@@ -100,9 +73,9 @@ void RPGGame::OnLoad() {
         {180,160,120},  // 7 light stone
     };
     auto tilePixels = MakeColorSheetPixels(TS, TCOLS, TROWS, tileColors);
-    _tilesetTex = CreateGLTexture(tilePixels.data(), TCOLS*TS, TROWS*TS);
+    _tilesetTex = GfxFactory::UploadTexture2D(tilePixels.data(), TCOLS*TS, TROWS*TS);
 
-    // ─ Tilemap data (matches TS RPG map) ───────────────────────────────
+    // ─ Tilemap data ──────────────────────────────────────────────────
     const std::vector<std::string> MAP_STR = {
         "3333333333333333333333333",
         "3111111111111111111111113",
@@ -126,35 +99,35 @@ void RPGGame::OnLoad() {
         "3333333333333333333333333",
     };
     Tilemap2DData mapData;
-    mapData.width      = (int)MAP_STR[0].size();
-    mapData.height     = (int)MAP_STR.size();
-    mapData.tileSize   = TS;
+    mapData.width       = (int)MAP_STR[0].size();
+    mapData.height      = (int)MAP_STR.size();
+    mapData.tileSize    = TS;
     mapData.tilesetCols = TCOLS;
     mapData.tilesetRows = TROWS;
-    mapData.solid      = { 3, 4 };  // water + sand are solid
+    mapData.solid       = { 3, 4 };  // water + sand are solid
     for (const auto& row : MAP_STR)
         for (char ch : row)
             mapData.tiles.push_back(ch - '0');
     _tilemap = std::make_unique<Tilemap2D>(mapData, _tilesetTex);
 
     // ─ Player texture ─────────────────────────────────────────────
-    // 4 walk frames + 4 attack frames, 2 rows (2 animation sets)
     constexpr int CS = 24, CCOLS = 4, CROWS = 2;
     auto playerPixels = MakeColorSheetPixels(CS, CCOLS, CROWS, {
         {70,120,200},{60,110,190},{80,130,210},{65,115,195},
         {50,100,180},{75,125,205},{85,140,215},{55,105,185},
     });
-    _playerTex = CreateGLTexture(playerPixels.data(), CCOLS*CS, CROWS*CS);
+    _playerTex = GfxFactory::UploadTexture2D(playerPixels.data(), CCOLS*CS, CROWS*CS);
 
     // ─ Enemy texture ─────────────────────────────────────────────
     auto enemyPixels = MakeColorSheetPixels(CS, CCOLS, CROWS, {
         {200,60,60},{180,50,50},{210,70,70},{190,55,55},
         {220,80,80},{170,45,45},{200,65,65},{185,55,55},
     });
-    _enemyTex = CreateGLTexture(enemyPixels.data(), CCOLS*CS, CROWS*CS);
+    _enemyTex = GfxFactory::UploadTexture2D(enemyPixels.data(), CCOLS*CS, CROWS*CS);
 
-    // ─ NPC texture (solid green) ────────────────────────────────────
-    _npcTex = CreateSolidTexture(180, 200, 80);
+    // ─ NPC texture (solid green 1×1) ────────────────────────────────
+    const uint8_t npcPx[4] = { 180, 200, 80, 255 };
+    _npcTex = GfxFactory::UploadTexture2D(npcPx, 1, 1);
 
     // ─ Player entity + animations ──────────────────────────────────
     _player.x = 3 * TS;
@@ -239,7 +212,7 @@ void RPGGame::OnUpdate(float dt, float /*time*/) {
     CameraFollow(_player.cx(), _player.cy());
     CameraClamp(_tilemap->GetPixelWidth(), _tilemap->GetPixelHeight());
 
-    // Lighting: player + nearby alive enemies
+    // Lighting: player torch + nearby enemy lights
     _lighting.lights.clear();
     _lighting.lights.push_back({
         _player.cx() - _camX,
@@ -268,8 +241,6 @@ void RPGGame::OnUpdate(float dt, float /*time*/) {
 
 void RPGGame::UpdatePlayer(float dt) {
     auto* inp = GetInput();
-    auto* gfx = GetGraphicsServer();
-    (void)gfx;
 
     float ax = 0, ay = 0;
     if (inp->IsKeyDown(Key::LEFT)  || inp->IsKeyDown(Key::A)) ax -= 1;
@@ -281,8 +252,8 @@ void RPGGame::UpdatePlayer(float dt) {
 
     // Attack
     if (inp->IsKeyPressed(Key::Z) && p.attackCooldown <= 0) {
-        p.isAttacking   = true;
-        p.attackTimer   = 0.25f;
+        p.isAttacking    = true;
+        p.attackTimer    = 0.25f;
         p.attackCooldown = 0.4f;
         _playerAnim.play("attack");
 
@@ -319,7 +290,7 @@ void RPGGame::UpdatePlayer(float dt) {
     if (!p.isAttacking && p.attackTimer <= 0)
         _playerAnim.play((ax||ay) ? "walk" : "idle");
 
-    // Movement
+    // Movement with tile collision
     if (ax || ay) {
         float len = std::sqrt(ax*ax + ay*ay);
         float nx = ax/len, ny = ay/len;
@@ -388,10 +359,10 @@ void RPGGame::DrawScene() {
     auto* gfx = GetGraphicsServer();
     const float camX = _camX, camY = _camY;
 
-    // — Tilemap
+    // Tilemap
     _tilemap->Draw(gfx, camX, camY, _screenW, _screenH);
 
-    // — NPCs
+    // NPCs
     for (const auto& npc : _npcs) {
         float sx = npc.x - camX, sy = npc.y - camY;
         gfx->DrawTexturedQuad(sx + npc.w*0.5f, sy + npc.h*0.5f,
@@ -399,7 +370,7 @@ void RPGGame::DrawScene() {
                                _npcTex, vec4(1.0f));
     }
 
-    // — Enemies
+    // Enemies
     constexpr int CS = 24, CCOLS = 4, CROWS = 2;
     for (size_t i = 0; i < _enemies.size(); i++) {
         if (!_enemies[i].alive) continue;
@@ -411,7 +382,7 @@ void RPGGame::DrawScene() {
         gfx->DrawSprite2D(sx, sy, e.w, e.h, _enemyTex, uvMin, uvMax);
     }
 
-    // — Player
+    // Player
     {
         auto [fc, fr] = _playerAnim.currentFrame();
         float sx = _player.x - camX, sy = _player.y - camY;
@@ -421,7 +392,7 @@ void RPGGame::DrawScene() {
         gfx->DrawSprite2D(sx, sy, _player.w, _player.h, _playerTex, uvMin, uvMax, tint);
     }
 
-    // — Lighting overlay (dark ambient + light circles)
+    // Lighting overlay
     _lighting.Apply(gfx, _screenW, _screenH);
 }
 
@@ -449,10 +420,9 @@ void RPGGame::DrawHUD() {
                   12, (float)_screenH - 24, 0.5f, vec4(0.8f, 0.8f, 0.8f, 0.7f));
 
     // Fade-in overlay
-    if (_fadeIn > 0.01f) {
+    if (_fadeIn > 0.01f)
         gfx->DrawQuad(0, 0, (float)_screenW, (float)_screenH, 0.0f,
                        vec4(0, 0, 0, _fadeIn));
-    }
 }
 
 // ---------------------------------------------------------------------------
@@ -463,7 +433,7 @@ void RPGGame::DrawHPBar(float x, float y, float w, float h, float hp, float maxH
     auto* gfx = GetGraphicsServer();
     // Background
     gfx->DrawQuad(x + w*0.5f, y + h*0.5f, w, h, 0.0f, vec4(0.1f, 0.1f, 0.1f, 0.85f));
-    // Fill (green → red based on HP ratio)
+    // Fill
     float ratio = hp / maxHp;
     float fillW = (w - 2) * ratio;
     if (fillW > 0)
@@ -481,10 +451,8 @@ void RPGGame::DrawDialog() {
     const float W = (float)_screenW, H = (float)_screenH;
     const float bx = 40, bh = 70, by = H - bh - 20, bw = W - 80;
 
-    // Box background
     gfx->DrawQuad(bx + bw*0.5f, by + bh*0.5f, bw, bh,
                    0.0f, vec4(0.05f, 0.05f, 0.1f, 0.92f));
-    // Top accent bar
     gfx->DrawQuad(bx + bw*0.5f, by + 1.5f, bw, 3.0f,
                    0.0f, vec4(0.5f, 0.8f, 1.0f, 1.0f));
 

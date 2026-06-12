@@ -117,6 +117,7 @@ jobs:
           submodules: false
           sparse-checkout: |
             AtmosphericEngine
+            cmake
             frontends
             Example_HelloWorld
             Example_VoxelWorld

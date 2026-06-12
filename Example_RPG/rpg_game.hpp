@@ -57,10 +57,6 @@ private:
     std::string _dialogText;
     float       _dialogTimer = 0.0f;
 
-    // ─ helpers ──────────────────────────────────────────────
-    static uint32_t CreateGLTexture(const uint8_t* pixels, int w, int h);
-    static uint32_t CreateSolidTexture(uint8_t r, uint8_t g, uint8_t b);
-
     void UpdatePlayer(float dt);
     void UpdateEnemies(float dt);
     void DrawScene();

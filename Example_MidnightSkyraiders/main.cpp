@@ -235,9 +235,9 @@ class MidnightSkyraiders : public Application {
     void updateTitle(float /*dt*/) {
         auto* gs = GraphicsServer::Get();
         gs->DrawText(fontID, "Press SPACE or ENTER to start",
-            HALF - 140.0f, WORLD - 60.0f, 0.8f, glm::vec4(1.0f,1.0f,0.0f,1.0f));
+            HALF - 140.0f, 60.0f, 0.8f, glm::vec4(1.0f,1.0f,0.0f,1.0f));
 
-        if (input.IsKeyPressed(Key::SPACE) || input.IsKeyPressed(Key::RETURN)) {
+        if (input.IsKeyPressed(Key::SPACE) || input.IsKeyPressed(Key::ENTER)) {
             if (titleObj) { titleObj->SetActive(false); titleObj = nullptr; }
             startGame();
         }
@@ -527,7 +527,7 @@ class MidnightSkyraiders : public Application {
             << "  Lv." << plLevel
             << " (" << std::fixed << std::setprecision(1)
             << (plXP / nextXP * 100.0f) << "%)";
-        gs->DrawText(fontID, oss.str(), 10.0f, 10.0f, 0.8f, glm::vec4(1.0f,1.0f,0.0f,1.0f));
+        gs->DrawText(fontID, oss.str(), 10.0f, WORLD - 30.0f, 0.8f, glm::vec4(1.0f,1.0f,0.0f,1.0f));
     }
 
     // ─────────────── Game Over ───────────────
@@ -549,7 +549,7 @@ class MidnightSkyraiders : public Application {
         gs->DrawText(fontID, "Press SPACE or ENTER to play again",
             HALF - 150.0f, WORLD * 0.28f, 0.8f, glm::vec4(0.8f,0.8f,0.8f,1.0f));
 
-        if (input.IsKeyPressed(Key::SPACE) || input.IsKeyPressed(Key::RETURN)) {
+        if (input.IsKeyPressed(Key::SPACE) || input.IsKeyPressed(Key::ENTER)) {
             startGame();
         }
     }
@@ -562,6 +562,50 @@ class MidnightSkyraiders : public Application {
     }
 };
 
+#ifdef __EMSCRIPTEN__
+static const std::vector<std::string> kAssets = {
+    "assets/textures/default_diff.ktx2",
+    "assets/textures/default_norm.ktx2",
+    "assets/textures/default_ao.ktx2",
+    "assets/textures/default_rough.ktx2",
+    "assets/textures/default_metallic.ktx2",
+    "assets/images/player.ktx2",
+    "assets/images/enemy1.ktx2",
+    "assets/images/enemy2.ktx2",
+    "assets/images/enemy3.ktx2",
+    "assets/images/bullet.ktx2",
+    "assets/images/circle-bullet.ktx2",
+    "assets/images/orbit-bullet.ktx2",
+    "assets/images/enemy-bullet.ktx2",
+    "assets/images/enemy-circle-bullet.ktx2",
+    "assets/images/nightsky-bg.ktx2",
+    "assets/images/nightsky-mountains.ktx2",
+    "assets/images/nightsky-fg.ktx2",
+    "assets/images/title.ktx2",
+    "assets/sounds/sky-lines.ogg",
+    "assets/sounds/explosion.wav",
+    "assets/sounds/game-over.wav",
+};
+
+static void StartGame();
+
+int main(int argc, char* argv[]) {
+    FileSystem::Get().Prefetch(kAssets, StartGame);
+    return 0;
+}
+
+static void StartGame() {
+    static MidnightSkyraiders game({
+        .windowTitle        = "Midnight Skyraiders",
+        .windowWidth        = 600,
+        .windowHeight       = 600,
+        .useDefaultTextures = true,
+        .useDefaultShaders  = true,
+        .enablePhysics3D    = false,
+    });
+    game.Run();
+}
+#else
 int main(int argc, char* argv[]) {
     MidnightSkyraiders game({
         .windowTitle        = "Midnight Skyraiders",
@@ -574,3 +618,4 @@ int main(int argc, char* argv[]) {
     game.Run();
     return 0;
 }
+#endif

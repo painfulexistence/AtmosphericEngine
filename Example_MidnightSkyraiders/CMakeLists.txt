@@ -30,12 +30,6 @@ if(EMSCRIPTEN)
         COMMAND ${CMAKE_COMMAND} -E copy_directory
             ${CMAKE_SOURCE_DIR}/AtmosphericEngine/default_assets/fonts
             ${EM_PRELOAD_STAGING_DIR}/fonts
-        COMMAND ${CMAKE_COMMAND} -E copy_directory
-            ${CMAKE_CURRENT_SOURCE_DIR}/assets/images
-            ${EM_PRELOAD_STAGING_DIR}/images
-        COMMAND ${CMAKE_COMMAND} -E copy_directory
-            ${CMAKE_CURRENT_SOURCE_DIR}/assets/sounds
-            ${EM_PRELOAD_STAGING_DIR}/sounds
         COMMENT "Staging Emscripten preload assets for ${GAME_NAME}"
     )
     add_dependencies(${GAME_NAME} stage_${GAME_NAME}_em_preload)
@@ -48,8 +42,6 @@ if(EMSCRIPTEN)
         -Wl,--undefined=printWasmMemoryStats
         "SHELL:--preload-file ${EM_PRELOAD_STAGING_DIR}/shaders@assets/shaders"
         "SHELL:--preload-file ${EM_PRELOAD_STAGING_DIR}/fonts@assets/fonts"
-        "SHELL:--preload-file ${EM_PRELOAD_STAGING_DIR}/images@assets/images"
-        "SHELL:--preload-file ${EM_PRELOAD_STAGING_DIR}/sounds@assets/sounds"
     )
 else()
     find_package(spdlog CONFIG REQUIRED)
@@ -62,13 +54,24 @@ else()
     )
 endif()
 
-if(NOT EMSCRIPTEN)
-    add_custom_command(TARGET ${GAME_NAME} POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_directory
-            ${CMAKE_SOURCE_DIR}/AtmosphericEngine/default_assets
-            $<TARGET_FILE_DIR:${GAME_NAME}>/assets
-        COMMAND ${CMAKE_COMMAND} -E copy_directory
-            ${CMAKE_CURRENT_SOURCE_DIR}/assets
-            $<TARGET_FILE_DIR:${GAME_NAME}>/assets
-    )
-endif()
+# ── Asset sync ───────────────────────────────────────────────────────────────
+add_custom_target(sync_default_assets_${GAME_NAME} ALL
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_SOURCE_DIR}/AtmosphericEngine/default_assets
+        ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${GAME_NAME}/assets
+    COMMENT "Syncing default assets for ${GAME_NAME}"
+)
+add_dependencies(sync_default_assets_${GAME_NAME} ${GAME_NAME})
+
+add_custom_target(sync_game_assets_${GAME_NAME} ALL
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_CURRENT_SOURCE_DIR}/assets
+        ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${GAME_NAME}/assets
+    COMMENT "Syncing game assets for ${GAME_NAME}"
+)
+add_dependencies(sync_game_assets_${GAME_NAME} ${GAME_NAME})
+
+ae_auto_convert_textures(${GAME_NAME}
+    ${CMAKE_CURRENT_SOURCE_DIR}/assets/images
+    ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${GAME_NAME}/assets/images
+)

@@ -10,7 +10,7 @@ class VoxelWorldApp : public Application {
     }
 
     void OnLoad() override {
-        LoadScene({});  // initializes mainCamera / mainLight
+        LoadScene(SceneDef{});
 
         mainCamera->gameObject->SetPosition(glm::vec3(200.0f, 80.0f, 200.0f));
         mainCamera->gameObject->SetRotation(glm::vec3(glm::radians(-20.0f), 0.0f, 0.0f));

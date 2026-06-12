@@ -7,6 +7,7 @@
 #include "mesh_component.hpp"
 #include "buffer.hpp"
 #include "render_target.hpp"
+#include "sun_component.hpp"
 #include "vertex.hpp"
 #include "server.hpp"
 #include "shader.hpp"
@@ -62,6 +63,7 @@ public:
     std::vector<LightComponent*> directionalLights;
     std::vector<LightComponent*> pointLights;
     std::vector<CameraComponent*> cameras;
+    std::vector<SunComponent*> sunComponents;
 
     std::vector<DebugVertex> debugLines;
     std::vector<CanvasVertex> canvasDrawList;
@@ -96,13 +98,18 @@ public:
         return directionalLights.size() > 0 ? directionalLights[0] : defaultLight;
     }
 
+    SunComponent* GetMainSun() const {
+        return sunComponents.empty() ? nullptr : sunComponents[0];
+    }
+
     ShaderProgram* GetShader(const std::string& name) const;
     ShaderProgram* GetShaderByID(uint32_t id) const;
     Mesh* GetMesh(const std::string& name) const;
 
-    MeshComponent*  RegisterMesh(MeshComponent* mesh);
+    MeshComponent*   RegisterMesh(MeshComponent* mesh);
     CameraComponent* RegisterCamera(CameraComponent* camera);
     LightComponent*  RegisterLight(LightComponent* light);
+    SunComponent*    RegisterSun(SunComponent* sun);
     CanvasDrawable*  RegisterCanvasDrawable(CanvasDrawable* drawable);
 
     // ===== Render Target Management =====

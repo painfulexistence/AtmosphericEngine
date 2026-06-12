@@ -47,14 +47,14 @@ static float rnd() {
     return std::uniform_real_distribution<float>(0.0f, 1.0f)(g_rng);
 }
 
-// World size: 600×600, origin at bottom-left (engine y-up).
+// World size: 600x600, screen-space coordinates (top-left origin, y-down).
 // The original game uses center origin (0,0) with y-down.
-// Conversion: eng_x = orig_x + 300;  eng_y = 300 - orig_y
+// Conversion: eng_x = orig_x + 300;  eng_y = orig_y + 300
 static constexpr float WORLD = 600.0f;
 static constexpr float HALF  = WORLD * 0.5f;
 
 static float toEngX(float ox) { return ox + HALF; }
-static float toEngY(float oy) { return HALF - oy; }
+static float toEngY(float oy) { return oy + HALF; } // screen-space y-down
 
 enum class GameState { Title, Playing, GameOver };
 
@@ -102,19 +102,19 @@ class MidnightSkyraiders : public Application {
     SoundID sfxExp  = 0;
     SoundID sfxOver = 0;
 
-    // Parallax: 3 layers × 2 seamless tiles
+    // Parallax: 3 layers x 2 seamless tiles
     struct BgPair { GameObject* a = nullptr; GameObject* b = nullptr; };
     BgPair bg[3];
     float bgTime = 0.0f;
-    // Scroll speeds in px/s: original -0.005, -0.04, -0.12 px/ms × 1000
+    // Scroll speeds in px/s: original -0.005, -0.04, -0.12 px/ms x 1000
     static constexpr float BG_SPEED[3] = { 5.0f, 40.0f, 120.0f };
 
     // Title sprite
     GameObject* titleObj = nullptr;
 
-    // Player (positions are engine-space centers)
+    // Player (positions are screen-space centers)
     GameObject* playerObj = nullptr;
-    // Original top-left (-280, -32), 32×32 → center (-264, -16) → engine (36, 316)
+    // Original top-left (-280, -32), 32x32 -> center (-264, -16) -> screen (36, 284)
     float plX = toEngX(-264.0f);
     float plY = toEngY(-16.0f);
     static constexpr float PL_W = 32.0f, PL_H = 32.0f;
@@ -142,14 +142,6 @@ class MidnightSkyraiders : public Application {
     }
 
     void OnLoad() override {
-        // Orthographic camera — 600×600, bottom-left origin, y-up
-        mainCamera = graphics.GetMainCamera();
-        if (mainCamera) {
-            mainCamera->SetOrthographic(WORLD, WORLD, -100.0f, 100.0f);
-            mainCamera->gameObject->SetPosition(glm::vec3(HALF, HALF, 0.0f));
-            mainCamera->Yaw(-glm::half_pi<float>());
-        }
-
         // Load textures
         auto& am = AssetManager::Get();
         texPlayer  = am.CreateTexture("assets/images/player.png");
@@ -235,7 +227,7 @@ class MidnightSkyraiders : public Application {
     void updateTitle(float /*dt*/) {
         auto* gs = GraphicsServer::Get();
         gs->DrawText(fontID, "Press SPACE or ENTER to start",
-            HALF - 140.0f, 60.0f, 0.8f, glm::vec4(1.0f,1.0f,0.0f,1.0f));
+            HALF - 140.0f, WORLD - 60.0f, 0.8f, glm::vec4(1.0f,1.0f,0.0f,1.0f));
 
         if (input.IsKeyPressed(Key::SPACE) || input.IsKeyPressed(Key::ENTER)) {
             if (titleObj) { titleObj->SetActive(false); titleObj = nullptr; }
@@ -295,8 +287,8 @@ class MidnightSkyraiders : public Application {
         float dx = 0.0f, dy = 0.0f;
         if (input.IsKeyDown(Key::LEFT))  dx = -500.0f * dt;
         if (input.IsKeyDown(Key::RIGHT)) dx = +500.0f * dt;
-        if (input.IsKeyDown(Key::UP))    dy = +500.0f * dt; // y-up: UP = +y
-        if (input.IsKeyDown(Key::DOWN))  dy = -500.0f * dt;
+        if (input.IsKeyDown(Key::UP))    dy = -500.0f * dt; // screen-space: UP = -y
+        if (input.IsKeyDown(Key::DOWN))  dy = +500.0f * dt;
 
         plX = std::clamp(plX + dx, PL_W * 0.5f, WORLD - PL_W * 0.5f);
         plY = std::clamp(plY + dy, PL_H * 0.5f, WORLD - PL_H * 0.5f);
@@ -349,29 +341,29 @@ class MidnightSkyraiders : public Application {
 
         const float lt = b.lifetime;
         switch (b.type) {
-        case 0:  // Player normal — straight right
+        case 0:  // Player normal -- straight right
             b.x += 800.0f * dt;
             break;
-        case 1:  // Player circle — fast + random y jitter
+        case 1:  // Player circle -- fast + random y jitter
             b.x += 1200.0f * dt;
             b.y += (rnd() * 2.0f - 1.0f) * 300.0f * dt;
             break;
-        case 2: { // Player orbit — sinusoidal spiral
+        case 2: { // Player orbit -- sinusoidal spiral
             // Original: dx = 10*sin(0.02*ltMs) + 0.2*dt, dy = 10*-cos(0.02*ltMs)
-            // Engine: orbit speed 20 rad/s (0.02 rad/ms × 1000)
+            // Engine: orbit speed 20 rad/s (0.02 rad/ms x 1000)
             b.x += (10.0f * std::sin(20.0f * lt) + 200.0f) * dt;
             b.y += 300.0f * -std::cos(20.0f * lt) * dt;
             break;
         }
-        case -1: case -2: // Enemy straight — moves left
+        case -1: case -2: // Enemy straight -- moves left
             b.x -= 600.0f * dt;
             break;
-        case -3: { // Enemy spiral — expanding outward
+        case -3: { // Enemy spiral -- expanding outward
             // Original (unscaled by dt, ~60fps): dx = lt_ms*0.002*cos(0.005*lt_ms)
             // Approximated with dt compensation:
             const float ltMs = lt * 1000.0f;
             b.x += ltMs * 0.002f * std::cos(5.0f * lt) * 60.0f * dt;
-            b.y -= ltMs * 0.002f * std::sin(5.0f * lt) * 60.0f * dt; // y-up: negate
+            b.y += ltMs * 0.002f * std::sin(5.0f * lt) * 60.0f * dt;
             break;
         }
         }
@@ -453,7 +445,7 @@ class MidnightSkyraiders : public Application {
 
     void spawnWave() {
         waveCount++;
-        // Matches original off-by-one: floor(random*(24-1)) → 0..22
+        // Matches original off-by-one: floor(random*(24-1)) -> 0..22
         int idx  = (int)(rnd() * 23);
         float ox = (rnd() - 0.5f) * 30.0f;
         float oy = (rnd() - 0.5f) * 30.0f;
@@ -465,7 +457,7 @@ class MidnightSkyraiders : public Application {
                 // Original grid position (center origin, y-down)
                 float origX = col * 90.0f - 300.0f + ox;
                 float origY = row * 90.0f - 300.0f + 100.0f + oy;
-                // Engine position (bottom-left origin, y-up); spawn off right edge
+                // Screen-space position; spawn off right edge
                 float ex = toEngX(origX) + WORLD;
                 float ey = toEngY(origY);
                 spawnEnemy(cell, ex, ey, waveCount);
@@ -474,11 +466,11 @@ class MidnightSkyraiders : public Application {
     }
 
     void spawnEnemy(int type, float x, float y, int lvl) {
-        // Speed: original 0.05*(floor(lvl/5)+1) px/ms × 1000 = px/s, capped at 500
+        // Speed: original 0.05*(floor(lvl/5)+1) px/ms x 1000 = px/s, capped at 500
         float spd     = std::min(std::floor(lvl / 5.0f + 1.0f) * 50.0f, 500.0f);
         float fireCD  = std::max(2.0f - 0.1f * lvl, 0.5f);
         float raidDur = (type == 1) ? 0.0f : (type == 2 ? 1.0f : 2.0f);
-        // Raid direction: move toward vertical center (y-up aware)
+        // Raid direction: move toward vertical center
         float raidDist = (y < HALF ? +1.0f : -1.0f) * 600.0f * rnd();
         // Raid start delay: original (1000/speed_px_ms)*rnd() ms
         //                   engine: (1000/spd)*rnd() seconds
@@ -527,7 +519,7 @@ class MidnightSkyraiders : public Application {
             << "  Lv." << plLevel
             << " (" << std::fixed << std::setprecision(1)
             << (plXP / nextXP * 100.0f) << "%)";
-        gs->DrawText(fontID, oss.str(), 10.0f, WORLD - 30.0f, 0.8f, glm::vec4(1.0f,1.0f,0.0f,1.0f));
+        gs->DrawText(fontID, oss.str(), 10.0f, 10.0f, 0.8f, glm::vec4(1.0f,1.0f,0.0f,1.0f));
     }
 
     // ─────────────── Game Over ───────────────
@@ -541,13 +533,13 @@ class MidnightSkyraiders : public Application {
     void updateGameOver(float /*dt*/) {
         auto* gs = GraphicsServer::Get();
         gs->DrawText(fontID, "GAME  OVER",
-            HALF - 80.0f, WORLD * 0.55f, 1.5f, glm::vec4(1.0f,0.2f,0.2f,1.0f));
+            HALF - 80.0f, WORLD * 0.30f, 1.5f, glm::vec4(1.0f,0.2f,0.2f,1.0f));
         gs->DrawText(fontID, "Score: " + std::to_string((long long)score),
             HALF - 80.0f, WORLD * 0.45f, 1.0f, glm::vec4(1,1,1,1));
         gs->DrawText(fontID, "Best:  " + std::to_string(hiScore),
-            HALF - 80.0f, WORLD * 0.38f, 1.0f, glm::vec4(1.0f,1.0f,0.0f,1.0f));
+            HALF - 80.0f, WORLD * 0.52f, 1.0f, glm::vec4(1.0f,1.0f,0.0f,1.0f));
         gs->DrawText(fontID, "Press SPACE or ENTER to play again",
-            HALF - 150.0f, WORLD * 0.28f, 0.8f, glm::vec4(0.8f,0.8f,0.8f,1.0f));
+            HALF - 150.0f, WORLD * 0.65f, 0.8f, glm::vec4(0.8f,0.8f,0.8f,1.0f));
 
         if (input.IsKeyPressed(Key::SPACE) || input.IsKeyPressed(Key::ENTER)) {
             startGame();

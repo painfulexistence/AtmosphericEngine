@@ -61,10 +61,18 @@ class VoxelWorldApp : public Application {
 };
 
 #ifdef __EMSCRIPTEN__
+static const std::vector<std::string> kAssets = {
+    "assets/textures/default_diff.ktx2",
+    "assets/textures/default_norm.ktx2",
+    "assets/textures/default_ao.ktx2",
+    "assets/textures/default_rough.ktx2",
+    "assets/textures/default_metallic.ktx2",
+};
+
 static void StartGame();
 
 int main(int argc, char* argv[]) {
-    FileSystem::Get().Prefetch({}, StartGame);
+    FileSystem::Get().Prefetch(kAssets, StartGame);
     return 0;
 }
 

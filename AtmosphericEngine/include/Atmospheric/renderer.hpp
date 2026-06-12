@@ -123,6 +123,7 @@ public:
 // Pyramid bloom: threshold → downsample → upsample → composite.
 class BloomPass : public RenderPass {
 public:
+    ~BloomPass() override;
     void Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder* enc = nullptr) override;
 
     bool  enabled       = false;
@@ -140,6 +141,8 @@ private:
     };
 
     MipRT _mips[MIP_LEVELS];
+    GLuint _tempFBO = 0;
+    GLuint _tempTex = 0;
     bool  _initialized = false;
     int   _lastW = 0, _lastH = 0;
 
@@ -265,8 +268,15 @@ public:
 
     // Returns the resolved (non-MSAA) depth texture for screen-space effects.
     GLuint GetResolvedDepthTexture() const {
+#ifdef __EMSCRIPTEN__
+        // WebGL 2.0 does not allow reading from the depth texture of the bound FBO (feedback loop).
+        // Since sceneRT is single-sampled on WebGL, we can read from sceneRT's depth texture instead!
+        if (!sceneRT) return 0;
+        return static_cast<GLuint>(sceneRT->GetDepthTextureID());
+#else
         if (!msaaResolveRT) return 0;
         return static_cast<GLuint>(msaaResolveRT->GetDepthTextureID());
+#endif
     }
 
     struct SortableCommand {

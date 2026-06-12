@@ -283,7 +283,31 @@ void WaterPass::Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder*
 // ============================================================================
 //  BloomPass  (pyramid downsample + upsample + ACES composite)
 // ============================================================================
+BloomPass::~BloomPass() {
+    for (int i = 0; i < MIP_LEVELS; ++i) {
+        if (_mips[i].tex) glDeleteTextures(1, &_mips[i].tex);
+        if (_mips[i].fbo) glDeleteFramebuffers(1, &_mips[i].fbo);
+    }
+    if (_tempTex) glDeleteTextures(1, &_tempTex);
+    if (_tempFBO) glDeleteFramebuffers(1, &_tempFBO);
+}
+
 void BloomPass::InitMips(int w, int h) {
+    if (_tempTex) glDeleteTextures(1, &_tempTex);
+    if (_tempFBO) glDeleteFramebuffers(1, &_tempFBO);
+
+    glGenTextures(1, &_tempTex);
+    glBindTexture(GL_TEXTURE_2D, _tempTex);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, w, h, 0, GL_RGBA, GL_FLOAT, nullptr);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+    glGenFramebuffers(1, &_tempFBO);
+    glBindFramebuffer(GL_FRAMEBUFFER, _tempFBO);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, _tempTex, 0);
+
     for (int i = 0; i < MIP_LEVELS; ++i) {
         w = std::max(1, w / 2);
         h = std::max(1, h / 2);
@@ -295,7 +319,12 @@ void BloomPass::InitMips(int w, int h) {
 
         glGenTextures(1, &m.tex);
         glBindTexture(GL_TEXTURE_2D, m.tex);
+#ifdef __EMSCRIPTEN__
+        // WebGL 2.0 does not support GL_RGB16F as a color-renderable format. Must use GL_RGBA16F.
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, w, h, 0, GL_RGBA, GL_FLOAT, nullptr);
+#else
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, w, h, 0, GL_RGB, GL_FLOAT, nullptr);
+#endif
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -381,7 +410,7 @@ void BloomPass::Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder*
     // 4. Composite: scene + bloom → back into msaaResolveRT (linear HDR, no tonemapping)
     // PostProcessPass reads msaaResolveRT and applies HDR tonemapping as the final step.
     GLuint resolveTargetFBO = static_cast<GLRenderTarget*>(renderer.msaaResolveRT.get())->GetNativeFBOID();
-    glBindFramebuffer(GL_FRAMEBUFFER, resolveTargetFBO);
+    glBindFramebuffer(GL_FRAMEBUFFER, _tempFBO);
     glViewport(0, 0, w, h);
     compShader->Activate();
     glActiveTexture(GL_TEXTURE0);
@@ -393,6 +422,18 @@ void BloomPass::Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder*
     compShader->SetUniform("u_bloomStrength", bloomStrength);
     DrawScreenQuadVAO(renderer.screenQuadVAO);
     compShader->Deactivate();
+
+    // Unbind composite textures to prevent any feedback loops during blitting/subsequent draws
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, 0);
+
+    // Blit from temp framebuffer to resolveTargetFBO to avoid GPU feedback loop
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, _tempFBO);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, resolveTargetFBO);
+    glBlitFramebuffer(0, 0, w, h, 0, 0, w, h, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+    glBindFramebuffer(GL_FRAMEBUFFER, resolveTargetFBO);
 
     glEnable(GL_DEPTH_TEST);
 }

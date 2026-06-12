@@ -84,16 +84,18 @@ void GLRenderTarget::Create() {
             glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D_MULTISAMPLE, _depthTexture, 0);
         }
     } else {
+#else
+    // TODO: Implement WebGL-compatible offscreen MSAA.
+    // WebGL 2.0 does not support GL_TEXTURE_2D_MULTISAMPLE. To support offscreen MSAA with post-processing 
+    // on Web, we must allocate multisampled Renderbuffers using glRenderbufferStorageMultisample 
+    // and bind them to the framebuffer, then resolve (blit) to a single-sampled texture FBO.
+    if (false) {
+    } else {
 #endif
         glBindTexture(GL_TEXTURE_2D, _colorTexture);
 
-#ifdef __EMSCRIPTEN__
-        GLenum internalFormat = GL_RGBA8;
-        GLenum type           = GL_UNSIGNED_BYTE;
-#else
         GLenum internalFormat = _hdr ? GL_RGBA16F : GL_RGBA8;
         GLenum type           = _hdr ? GL_FLOAT : GL_UNSIGNED_BYTE;
-#endif
         GLenum format         = GL_RGBA;
         glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, _width, _height, 0, format, type, nullptr);
 

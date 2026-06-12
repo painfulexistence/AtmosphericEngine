@@ -31,8 +31,10 @@ jobs:
           submodules: false
           sparse-checkout: |
             AtmosphericEngine
+            cmake
             frontends
             Example_HelloWorld
+            Example_VoxelWorld
             Example_Physics2D
             Example_CSB
             CMakeLists.txt
@@ -115,8 +117,10 @@ jobs:
           submodules: false
           sparse-checkout: |
             AtmosphericEngine
+            cmake
             frontends
             Example_HelloWorld
+            Example_VoxelWorld
             Example_Physics2D
             Example_CSB
             CMakeLists.txt

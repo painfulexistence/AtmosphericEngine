@@ -1,11 +1,8 @@
-set(GAME_NAME CSBDemo)
-set(GAME_ASSETS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/assets)
+set(GAME_NAME VoxelWorld)
 
 find_package(glm CONFIG REQUIRED)
 find_package(fmt CONFIG REQUIRED)
 find_package(Bullet CONFIG REQUIRED)
-find_package(box2d CONFIG REQUIRED)
-find_package(flatbuffers CONFIG REQUIRED)
 
 add_executable(${GAME_NAME}
     main.cpp
@@ -20,22 +17,19 @@ target_include_directories(${GAME_NAME} PRIVATE
 
 # Base dependencies (available on all platforms)
 target_link_libraries(${GAME_NAME} PRIVATE
-    AtmosphericEngine   # pulls in lua_static transitively
+    AtmosphericEngine
     glm::glm
     fmt::fmt
     BulletSoftBody
     BulletDynamics
     BulletCollision
     LinearMath
-    box2d::box2d
-    flatbuffers::flatbuffers
 )
 
 if(EMSCRIPTEN)
     # ── Emscripten / WebAssembly build ──────────────────────────────────────
     set(CMAKE_EXECUTABLE_SUFFIX ".html")
 
-    # Stage shaders, scenes, and fonts BEFORE the link step
     set(EM_PRELOAD_STAGING_DIR ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${GAME_NAME}/assets)
 
     add_custom_target(stage_${GAME_NAME}_em_preload
@@ -44,31 +38,25 @@ if(EMSCRIPTEN)
             ${CMAKE_SOURCE_DIR}/AtmosphericEngine/default_assets/shaders
             ${EM_PRELOAD_STAGING_DIR}/shaders
         COMMAND ${CMAKE_COMMAND} -E copy_directory
-            ${CMAKE_CURRENT_SOURCE_DIR}/assets/scenes
+            ${CMAKE_SOURCE_DIR}/AtmosphericEngine/default_assets/fonts
+            ${EM_PRELOAD_STAGING_DIR}/fonts
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+            ${CMAKE_SOURCE_DIR}/Example_VoxelWorld/assets/scenes
             ${EM_PRELOAD_STAGING_DIR}/scenes
-        COMMAND ${CMAKE_COMMAND}
-            -Dsrc=${CMAKE_CURRENT_SOURCE_DIR}/assets/fonts
-            -Ddst=${EM_PRELOAD_STAGING_DIR}/fonts
-            -P ${CMAKE_SOURCE_DIR}/cmake/copy_dir_if_exists.cmake
-        COMMENT "Staging Emscripten preload assets (shaders, scenes, fonts) for ${GAME_NAME}"
+        COMMENT "Staging Emscripten preload assets (shaders + fonts + scenes) for ${GAME_NAME}"
     )
     add_dependencies(${GAME_NAME} stage_${GAME_NAME}_em_preload)
 
-    set(_em_link_opts
+    target_compile_options(${GAME_NAME} PRIVATE)
+    target_link_options(${GAME_NAME} PRIVATE
         -sALLOW_MEMORY_GROWTH=1
         -sASSERTIONS=1
         -sDISABLE_EXCEPTION_CATCHING=0
         -sEXPORTED_FUNCTIONS=["_main","_printWasmMemoryStats"]
-        -Wl,--undefined=printWasmMemoryStats
         "SHELL:--preload-file ${EM_PRELOAD_STAGING_DIR}/shaders@assets/shaders"
+        "SHELL:--preload-file ${EM_PRELOAD_STAGING_DIR}/fonts@assets/fonts"
         "SHELL:--preload-file ${EM_PRELOAD_STAGING_DIR}/scenes@assets/scenes"
     )
-    if(IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/assets/fonts)
-        list(APPEND _em_link_opts
-            "SHELL:--preload-file ${EM_PRELOAD_STAGING_DIR}/fonts@assets/fonts"
-        )
-    endif()
-    target_link_options(${GAME_NAME} PRIVATE ${_em_link_opts})
 
 else()
     # ── Native build ─────────────────────────────────────────────────────────
@@ -83,21 +71,28 @@ else()
     )
 endif()
 
-# ── Asset sync for desktop ──
-if(NOT EMSCRIPTEN)
-    add_custom_command(
-        TARGET ${GAME_NAME} POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_directory
+# ── Asset sync for all platforms ──
+add_custom_target(sync_default_assets_${GAME_NAME} ALL
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
         ${CMAKE_SOURCE_DIR}/AtmosphericEngine/default_assets
-        $<TARGET_FILE_DIR:${GAME_NAME}>/assets
-    )
+        ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${GAME_NAME}/assets
+    COMMENT "Syncing default assets for ${GAME_NAME}"
+)
+add_dependencies(sync_default_assets_${GAME_NAME} ${GAME_NAME})
 
-    if(EXISTS ${GAME_ASSETS_DIR})
-        add_custom_command(
-            TARGET ${GAME_NAME} POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_directory
+set(GAME_ASSETS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/assets)
+if(EXISTS ${GAME_ASSETS_DIR})
+    add_custom_target(sync_game_assets_${GAME_NAME} ALL
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
             ${GAME_ASSETS_DIR}
-            $<TARGET_FILE_DIR:${GAME_NAME}>/assets
-        )
-    endif()
+            ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${GAME_NAME}/assets
+        COMMENT "Syncing game assets for ${GAME_NAME}"
+    )
+    add_dependencies(sync_game_assets_${GAME_NAME} ${GAME_NAME})
+
+    # Auto convert textures if Basis Universal is enabled
+    ae_auto_convert_textures(${GAME_NAME}
+        ${GAME_ASSETS_DIR}/textures
+        ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${GAME_NAME}/assets/textures
+    )
 endif()

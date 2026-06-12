@@ -214,4 +214,7 @@ private:
 
 public:
     void RenderBufferedText(BatchRenderer2D* batch);
+    // WebGPU path: converts buffered text commands into BatchDrawCommands
+    // and submits them via SubmitCanvasCommand so CanvasPass can process them.
+    void FlushTextToQueue();
 };

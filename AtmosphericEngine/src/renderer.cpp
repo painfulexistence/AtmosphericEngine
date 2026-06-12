@@ -12,6 +12,10 @@
 #include "physics_server_2d.hpp"
 #include "window.hpp"
 #include <algorithm>
+#if defined(AE_USE_WEBGPU) && defined(__EMSCRIPTEN__)
+#include "gpu_canvas_pass.hpp"
+#include <webgpu/webgpu.h>
+#endif
 #ifdef TRACY_ENABLE
 #include <tracy/Tracy.hpp>
 #endif
@@ -70,6 +74,10 @@ void Renderer::Init(int width, int height) {
 
     m_BatchRenderer = std::make_unique<BatchRenderer2D>();
     m_BatchRenderer->Init();
+
+#if defined(AE_USE_WEBGPU) && defined(__EMSCRIPTEN__)
+    m_GPUCanvasPass = std::make_unique<GPUCanvasPass>();
+#endif
 
     _renderGraph = std::make_unique<RenderGraph>();
     _renderGraph->AddPass(std::make_unique<ShadowPass>());
@@ -1212,6 +1220,29 @@ void WorldCanvasPass::Execute(GraphicsServer* ctx, Renderer& renderer, CommandEn
 // CanvasPass: Pure 2D sprites (no depth testing)
 void CanvasPass::Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder* enc) {
     ZoneScopedN("CanvasPass");
+
+#if defined(AE_USE_WEBGPU) && defined(__EMSCRIPTEN__)
+    if (GfxFactory::GetBackend() == GfxBackend::WebGPU) {
+        GPUCanvasPass* gpuPass = renderer.GetGPUCanvasPass();
+        if (!gpuPass) return;
+
+        ctx->FlushTextToQueue(); // convert text commands → BatchDrawCommands in queue
+
+        if (renderer.GetCanvasQueue().empty()) return;
+
+        auto [width, height] = Window::Get()->GetFramebufferSize();
+        const glm::mat4 viewProj = glm::ortho(0.0f, (float)width, (float)height, 0.0f, -1.0f, 1.0f);
+
+        WGPUTextureView targetView = GfxFactory::GetCurrentSwapchainView();
+        if (!targetView) return; // surface not ready (device still initializing)
+
+        gpuPass->Render(targetView, viewProj, renderer.GetCanvasQueue());
+
+        wgpuTextureViewRelease(targetView);
+        GfxFactory::PresentSwapchain();
+        return;
+    }
+#endif
 
     std::vector<CanvasDrawable*> drawables2D;
     for (auto* drawable : ctx->canvasDrawables) {

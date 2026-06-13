@@ -1,5 +1,12 @@
 option(BUILD_SHARED_LIBS OFF)
 
+# FetchContent_Populate is called directly for lua_src, sol2_src, and
+# basis_universal to avoid running their own CMakeLists.txt (which would
+# conflict with our custom targets).  Suppress the CMP0169 deprecation warning.
+if(POLICY CMP0169)
+    cmake_policy(SET CMP0169 OLD)
+endif()
+
 # ── FastNoiseLite (single-header noise library) ───────────────────────────────
 FetchContent_Declare(
     FastNoiseLite

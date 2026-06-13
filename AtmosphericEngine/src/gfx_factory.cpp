@@ -38,7 +38,9 @@ void GfxFactory::Init() {
         adapterOpts.powerPreference = WGPUPowerPreference_HighPerformance;
         wgpuInstanceRequestAdapter(nullptr, &adapterOpts,
             [](WGPURequestAdapterStatus status, WGPUAdapter adapter,
-               const char* /*msg*/, void* /*udata*/) {
+               const char* msg, void* /*udata*/) {
+                Console::Get()->Info("[GfxFactory] wgpuInstanceRequestAdapter callback: status={}, adapter={}, msg={}",
+                    (int)status, (void*)adapter, msg ? msg : "(null)");
                 if (status != WGPURequestAdapterStatus_Success || !adapter) {
                     Console::Get()->Warn("[GfxFactory] WebGPU adapter request failed. Falling back to WebGL 2.");
                     GfxFactory::_backend = GfxBackend::OpenGL;
@@ -46,8 +48,10 @@ void GfxFactory::Init() {
                 }
                 WGPUDeviceDescriptor devDesc{};
                 wgpuAdapterRequestDevice(adapter, &devDesc,
-                    [](WGPURequestDeviceStatus /*status*/, WGPUDevice device,
-                       const char* /*msg*/, void* /*udata*/) {
+                    [](WGPURequestDeviceStatus status, WGPUDevice device,
+                       const char* msg, void* /*udata*/) {
+                        Console::Get()->Info("[GfxFactory] wgpuAdapterRequestDevice callback: status={}, device={}, msg={}",
+                            (int)status, (void*)device, msg ? msg : "(null)");
                         GfxFactory::SetWebGPUDevice(device);
                     }, nullptr);
                 wgpuAdapterRelease(adapter);
@@ -63,12 +67,14 @@ void GfxFactory::Init() {
 #if defined(AE_USE_WEBGPU)
 void GfxFactory::SetWebGPUDevice(WGPUDevice device) {
     if (!device) {
-        Console::Get()->Warn("[GfxFactory] WebGPU device creation failed. Falling back to WebGL 2.");
+        Console::Get()->Warn("[GfxFactory] SetWebGPUDevice: device is null. Falling back to WebGL 2.");
         _backend = GfxBackend::OpenGL;
         return;
     }
+    Console::Get()->Info("[GfxFactory] SetWebGPUDevice: got device={}", (void*)device);
     _wgpuDevice = device;
     _wgpuQueue  = wgpuDeviceGetQueue(device);
+    Console::Get()->Info("[GfxFactory] SetWebGPUDevice: queue={}", (void*)_wgpuQueue);
 
     // Create and configure the HTML canvas surface
     WGPUSurfaceDescriptorFromCanvasHTMLSelector canvasDesc{};
@@ -79,8 +85,10 @@ void GfxFactory::SetWebGPUDevice(WGPUDevice device) {
     WGPUInstance inst = wgpuCreateInstance(nullptr);
     _surface = wgpuInstanceCreateSurface(inst, &surfDesc);
     wgpuInstanceRelease(inst);
+    Console::Get()->Info("[GfxFactory] SetWebGPUDevice: surface={}", (void*)_surface);
 
     auto [w, h] = Window::Get()->GetFramebufferSize();
+    Console::Get()->Info("[GfxFactory] SetWebGPUDevice: configuring surface {}x{}", w, h);
     _swapchainFormat = WGPUTextureFormat_BGRA8Unorm;
     WGPUSurfaceConfiguration cfg{};
     cfg.device      = device;

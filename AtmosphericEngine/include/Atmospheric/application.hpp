@@ -43,9 +43,6 @@ struct AppConfig {
     float fixedTimeStep = FIXED_TIME_STEP;
     bool useDefaultTextures = false;
     bool useDefaultShaders = true;
-    // Set to false to start with the editor UI hidden (e.g. shipping builds or web apps).
-    // F1 toggles visibility at runtime regardless of this setting.
-    bool showImGui = true;
 };
 
 using EntityID = uint64_t;
@@ -101,8 +98,10 @@ public:
         return &audio;
     }
 
+#ifndef NDEBUG
     bool IsShowingImGui() const;
     void SetShowImGui(bool show);
+#endif
 
     std::shared_ptr<Window> GetWindow();
     void LoadScene(const SceneDef& scene);
@@ -168,7 +167,9 @@ private:
 
     std::vector<Layer*> _layers;
     GameObject* _selectedEntity = nullptr;
+#ifndef NDEBUG
     EditorLayer* _editorLayer = nullptr;
+#endif
 
     void Update(const FrameData& frame);
     void Render(const FrameData& frame

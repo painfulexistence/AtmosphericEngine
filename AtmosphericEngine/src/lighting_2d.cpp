@@ -13,7 +13,7 @@ void LightingSystem2D::Apply(GraphicsServer* gfx, int screenW, int screenH) cons
     float darkness = std::max(0.0f, 1.0f - ambientBrightness * 1.5f);
 
     if (darkness > 0.01f) {
-        gfx->DrawQuad(0, 0, (float)screenW, (float)screenH, 0.0f,
+        gfx->DrawQuad(screenW * 0.5f, screenH * 0.5f, (float)screenW, (float)screenH, 0.0f,
                       glm::vec4(ambientR * 0.05f,
                                 ambientG * 0.05f,
                                 ambientB * 0.05f,

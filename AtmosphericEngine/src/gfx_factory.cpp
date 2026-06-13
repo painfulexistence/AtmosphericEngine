@@ -6,6 +6,7 @@
 
 #if defined(AE_USE_WEBGPU) && defined(__EMSCRIPTEN__)
 #include <webgpu/webgpu.h>
+#include <emscripten/html5_webgpu.h>
 #include "gpu_buffer.hpp"
 #include "gpu_render_target.hpp"
 #endif
@@ -30,33 +31,23 @@ SDL_Window* GfxFactory::_sdlWindow = nullptr;
 void GfxFactory::Init() {
 #if defined(AE_USE_WEBGPU)
     if (Window::IsWebGPUAvailable()) {
-        _backend = GfxBackend::WebGPU;
-
-        // Asynchronously request adapter → device.
-        // CanvasPass will skip frames until SetWebGPUDevice() is called.
-        WGPURequestAdapterOptions adapterOpts{};
-        adapterOpts.powerPreference = WGPUPowerPreference_HighPerformance;
-        wgpuInstanceRequestAdapter(nullptr, &adapterOpts,
-            [](WGPURequestAdapterStatus status, WGPUAdapter adapter,
-               const char* msg, void* /*udata*/) {
-                Console::Get()->Info(fmt::format("[GfxFactory] wgpuInstanceRequestAdapter callback: status={}, adapter={}, msg={}",
-                    (int)status, (void*)adapter, msg ? msg : "(null)"));
-                if (status != WGPURequestAdapterStatus_Success || !adapter) {
-                    Console::Get()->Warn("[GfxFactory] WebGPU adapter request failed. Falling back to WebGL 2.");
-                    GfxFactory::_backend = GfxBackend::OpenGL;
-                    return;
-                }
-                WGPUDeviceDescriptor devDesc{};
-                wgpuAdapterRequestDevice(adapter, &devDesc,
-                    [](WGPURequestDeviceStatus status, WGPUDevice device,
-                       const char* msg, void* /*udata*/) {
-                        Console::Get()->Info(fmt::format("[GfxFactory] wgpuAdapterRequestDevice callback: status={}, device={}, msg={}",
-                            (int)status, (void*)device, msg ? msg : "(null)"));
-                        GfxFactory::SetWebGPUDevice(device);
-                    }, nullptr);
-                wgpuAdapterRelease(adapter);
-            }, nullptr);
-        return;
+        // wgpuInstanceRequestAdapter / wgpuAdapterRequestDevice in emsdk 4.x have a
+        // mismatched ABI between webgpu.h (old 4-arg callback) and the precompiled
+        // libemdawnwebgpu (new 3-arg Future API) — calling them causes a WASM trap.
+        //
+        // Instead we use emscripten_webgpu_get_device(), which reads a device that
+        // the HTML shell pre-initialised and stored in Module.preinitializedWebGPUDevice
+        // before WASM started.  If that hasn't been set up the call returns null and
+        // we fall through to WebGL 2.
+        WGPUDevice device = emscripten_webgpu_get_device();
+        if (device) {
+            Console::Get()->Info("[GfxFactory] WebGPU: got pre-initialised device from shell.");
+            _backend = GfxBackend::WebGPU;
+            SetWebGPUDevice(device);
+            return;
+        }
+        Console::Get()->Warn("[GfxFactory] WebGPU available but no pre-initialised device found "
+                             "(Module.preinitializedWebGPUDevice not set). Falling back to WebGL 2.");
     } else {
         Console::Get()->Warn("[GfxFactory] WebGPU not available in browser. Falling back to WebGL 2.");
     }

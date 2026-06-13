@@ -13,8 +13,8 @@ elseif(DEFINED ENV{EMSCRIPTEN})
         "$ENV{EMSCRIPTEN}/cmake/Modules/Platform/Emscripten.cmake")
 endif()
 
-# Enable WASM atomics so libraries compiled with the multithreading feature
-# (e.g. bullet3) produce object files compatible with --shared-memory linking.
-# Required when the consumer uses -sUSE_PTHREADS=1 / -sPROXY_TO_PTHREAD=1.
-set(VCPKG_C_FLAGS "-pthread -matomics -mbulk-memory")
-set(VCPKG_CXX_FLAGS "-pthread -matomics -mbulk-memory")
+# Pass -matomics -mbulk-memory directly so every port's object files support
+# WASM shared memory.  -pthread alone may be silently dropped by Emscripten's
+# CMake integration when building static libraries via vcpkg.
+set(VCPKG_C_FLAGS "-matomics -mbulk-memory")
+set(VCPKG_CXX_FLAGS "-matomics -mbulk-memory")

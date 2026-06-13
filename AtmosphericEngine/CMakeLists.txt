@@ -264,7 +264,9 @@ if(AE_USE_BASIS_UNIVERSAL)
             add_custom_target(basisu_host_tool)
         else()
             set(_BASISU_HOST_DIR ${CMAKE_BINARY_DIR}/_basisu_host)
-            set(BASISU_EXECUTABLE "${_BASISU_HOST_DIR}/basisu"
+            # basis_universal's CMakeLists hardcodes output to ${SOURCE_DIR}/bin,
+            # so the binary lands in basis_universal_SOURCE_DIR/bin/basisu.
+            set(BASISU_EXECUTABLE "${basis_universal_SOURCE_DIR}/bin/basisu"
                 CACHE INTERNAL "basisu encoder")
             add_custom_command(
                 OUTPUT "${BASISU_EXECUTABLE}"
@@ -347,7 +349,7 @@ function(ae_auto_convert_textures TARGET SRC_DIR DST_DIR)
         add_custom_command(
             OUTPUT "${_KTX2}"
             COMMAND "${CMAKE_COMMAND}" -E make_directory "${_OUT_DIR}"
-            COMMAND "${BASISU_EXECUTABLE}" -ktx2 -mipmap "${_IMG}" -output_path "${_OUT_DIR}"
+            COMMAND "${BASISU_EXECUTABLE}" -ktx2 -mipmap -y_flip "${_IMG}" -output_path "${_OUT_DIR}"
             DEPENDS "${_IMG}" basisu_host_tool
             COMMENT "Converting ${_STEM} → KTX2"
             VERBATIM

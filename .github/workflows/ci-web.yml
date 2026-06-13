@@ -37,6 +37,7 @@ jobs:
             Example_VoxelWorld
             Example_Physics2D
             Example_CSB
+            Example_MidnightSkyraiders
             CMakeLists.txt
             CMakePresets.json
             vcpkg.json
@@ -123,6 +124,7 @@ jobs:
             Example_VoxelWorld
             Example_Physics2D
             Example_CSB
+            Example_MidnightSkyraiders
             CMakeLists.txt
             CMakePresets.json
             vcpkg.json

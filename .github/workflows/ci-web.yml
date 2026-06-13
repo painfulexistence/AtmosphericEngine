@@ -76,9 +76,9 @@ jobs:
           path: |
             ${{ github.workspace }}/vcpkg/installed
             ${{ github.workspace }}/vcpkg/packages
-          key: vcpkg-wasm32-emscripten-${{ hashFiles('vcpkg.json', 'triplets/wasm32-emscripten.cmake') }}
+          key: vcpkg-wasm32-emscripten-pthread-${{ hashFiles('vcpkg.json', 'triplets/wasm32-emscripten.cmake') }}
           restore-keys: |
-            vcpkg-wasm32-emscripten-
+            vcpkg-wasm32-emscripten-pthread-
 
       # ── Configure ──────────────────────────────────────────────────────────
       # Emscripten builds use GLFW (-sUSE_GLFW=3) from the Emscripten sysroot;
@@ -161,9 +161,9 @@ jobs:
           path: |
             ${{ github.workspace }}/vcpkg/installed
             ${{ github.workspace }}/vcpkg/packages
-          key: vcpkg-wasm32-emscripten-${{ hashFiles('vcpkg.json', 'triplets/wasm32-emscripten.cmake') }}
+          key: vcpkg-wasm32-emscripten-pthread-${{ hashFiles('vcpkg.json', 'triplets/wasm32-emscripten.cmake') }}
           restore-keys: |
-            vcpkg-wasm32-emscripten-
+            vcpkg-wasm32-emscripten-pthread-
 
       - name: CMake Configure (WebGPU)
         run: >

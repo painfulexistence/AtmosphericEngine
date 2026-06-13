@@ -137,6 +137,8 @@ void Renderer::Init(int width, int height) {
     _renderGraph->AddPass(std::make_unique<UIPass>());
 }
 
+Renderer::~Renderer() = default;
+
 void Renderer::Cleanup() {
     if (m_BatchRenderer) {
         m_BatchRenderer->Shutdown();

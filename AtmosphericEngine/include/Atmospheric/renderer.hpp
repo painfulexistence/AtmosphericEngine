@@ -175,7 +175,7 @@ public:
     };
 
     Renderer() = default;
-    ~Renderer() = default;
+    ~Renderer();
 
     void Init(int width, int height);
     void Cleanup();

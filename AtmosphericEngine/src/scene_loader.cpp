@@ -305,7 +305,34 @@ void SceneLoader::ParseAnimations(
                 ));
             }
         } else if (property == "CColor") {
-            // Color logic pending FadeTo/TintTo implementation
+            for (auto frame : *timeline->frames()) {
+                if (frame->colorFrame() && frame->colorFrame()->color()) {
+                    int currentFrameIndex = frame->colorFrame()->frameIndex();
+                    auto* colorData = frame->colorFrame()->color();
+
+                    glm::vec4 targetColor(
+                      colorData->r() / 255.0f,
+                      colorData->g() / 255.0f,
+                      colorData->b() / 255.0f,
+                      colorData->a() / 255.0f
+                    );
+
+                    int deltaFrames = currentFrameIndex - lastFrameIndex;
+                    float duration = deltaFrames / frameRate / speed;
+                    if (duration < 0.001f) duration = 0.001f;
+
+                    EasingType easing = EasingType::Linear;
+                    if (frame->colorFrame()->easingData()) {
+                        easing = GetEasingType(frame->colorFrame()->easingData()->type());
+                    }
+
+                    auto* action = new ColorTo(duration, targetColor);
+                    action->SetEasing(easing);
+                    sequenceActions.push_back(action);
+
+                    lastFrameIndex = currentFrameIndex;
+                }
+            }
         }
 
         if (!sequenceActions.empty()) {

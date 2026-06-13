@@ -330,6 +330,18 @@ static Action* ParseAction(const nlohmann::json& val) {
         action->SetEasing(easing);
         return action;
     }
+    else if (type == "ColorTo") {
+        glm::vec4 color = ParseVec4(val.value("color", nlohmann::json::array()), glm::vec4(1.0f));
+        auto* action = new ColorTo(duration, color);
+        action->SetEasing(easing);
+        return action;
+    }
+    else if (type == "FadeTo") {
+        float alpha = val.value("alpha", 1.0f);
+        auto* action = new FadeTo(duration, alpha);
+        action->SetEasing(easing);
+        return action;
+    }
     else if (type == "Sequence") {
         std::vector<FiniteTimeAction*> seqActions;
         if (val.contains("actions") && val["actions"].is_array()) {

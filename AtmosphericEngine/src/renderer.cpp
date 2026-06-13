@@ -102,7 +102,7 @@ void Renderer::Init(int width, int height) {
         glBindVertexArray(0);
     }
 
-    // ── Skybox cube VAO ────────────────────────────────────────────────────
+    // ── Skybox cube VAO ─────────────────────────────────────────────
     {
         static const float cubeVerts[] = {
             -1, -1, -1,  1, -1, -1,  1,  1, -1,  1,  1, -1, -1,  1, -1, -1, -1, -1,
@@ -719,29 +719,6 @@ void ForwardOpaquePass::Execute(GraphicsServer* ctx, Renderer& renderer, Command
         glEnable(GL_DEPTH_TEST);
         glDepthFunc(GL_LESS);
 
-        // glEnable(GL_STENCIL_TEST);
-        // glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
-        // glStencilFunc(GL_ALWAYS, 1, 0xFF);
-
-        // Outline rendering
-        // glStencilMask(0xFF);
-        // glStencilFunc(GL_ALWAYS, 1, 0xFF);
-        // /*
-        // pass 1
-        // ...
-        //  */
-        // glStencilMask(0x00);
-        // glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
-        // glDepthFunc(GL_ALWAYS);
-        // /*
-        // pass 2 (scaled)
-        // ...
-        //  */
-        // glDepthFunc(GL_LESS);
-
-        // glStencilMask(0xFF);
-        // glStencilFunc(GL_ALWAYS, 1, 0xFF);
-
 #ifndef __EMSCRIPTEN__
         if (renderer.wireframeEnabled || mesh->GetMaterial()->polygonMode == GL_LINE)
             glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
@@ -753,8 +730,6 @@ void ForwardOpaquePass::Execute(GraphicsServer* ctx, Renderer& renderer, Command
             glEnable(GL_CULL_FACE);
         else
             glDisable(GL_CULL_FACE);
-
-        // glEnable(GL_PRIMITIVE_RESTART);
 
         switch (mesh->type) {
 
@@ -980,16 +955,7 @@ void DeferredGeometryPass::Execute(GraphicsServer* ctx, Renderer& renderer, Comm
         GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3
     };
     glDrawBuffers(attachments.size(), attachments.data());
-    // for (int i = 0; i < MAX_UNI_LIGHTS; ++i) {
-    //     glActiveTexture(GL_TEXTURE0 + i);
-    //     glBindTexture(GL_TEXTURE_2D, uniShadowMaps[i]);
-    // }
-    // for (int i = 0; i < MAX_OMNI_LIGHTS; ++i) {
-    //     glActiveTexture(GL_TEXTURE0 + UNI_SHADOW_MAP_COUNT + i);
-    //     glBindTexture(GL_TEXTURE_CUBE_MAP, omniShadowMaps[i]);
-    // }
     auto& assetManager = AssetManager::Get();
-    // Global static binding removed; textures are now dynamically bound per draw call
 
     glClearColor(renderer.clearColor.r, renderer.clearColor.g, renderer.clearColor.b, renderer.clearColor.a);
     glClearDepthf(1.0f);
@@ -1285,6 +1251,14 @@ void CanvasPass::Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder
         }
     }
 
+    // Sort 2D drawables by layer first, then by z-order
+    std::sort(drawables2D.begin(), drawables2D.end(), [](CanvasDrawable* a, CanvasDrawable* b) {
+        if (a->GetLayer() != b->GetLayer()) {
+            return a->GetLayer() < b->GetLayer();
+        }
+        return a->GetZOrder() < b->GetZOrder();
+    });
+
     if (drawables2D.empty() && renderer.GetCanvasQueue().empty()) return;
 
     auto [width, height] = Window::Get()->GetFramebufferSize();
@@ -1308,7 +1282,8 @@ void CanvasPass::Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder
         // Fallback or perspective camera handling for 2D?
         // For now, if perspective, we might just use screen space or a default ortho.
         // Let's assume default ortho for safety if no 2D camera is set.
-        worldViewProj = glm::ortho(0.0f, (float)width, (float)height, 0.0f, -1.0f, 1.0f);
+        auto [winW, winH] = Window::Get()->GetSize();
+        worldViewProj = glm::ortho(0.0f, (float)winW, (float)winH, 0.0f, -1.0f, 1.0f);
     }
 
     renderer.GetBatchRenderer()->BeginBatch(worldViewProj);
@@ -1319,7 +1294,6 @@ void CanvasPass::Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder
     for (const auto& cmd : renderer.GetCanvasQueue()) {
         renderer.GetBatchRenderer()->DrawGeometry(cmd.vertices, cmd.indices, cmd.textureID, cmd.transform);
     }
-    ctx->RenderBufferedText(renderer.GetBatchRenderer());
     renderer.GetBatchRenderer()->EndBatch();
 
     glDisable(GL_BLEND);
@@ -1368,27 +1342,22 @@ void UIPass::Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder* en
     auto* batchRenderer = renderer.GetBatchRenderer();
     auto& queue = renderer.GetUIQueue();
 
-    if (queue.empty()) return;
-
     // Setup OpenGL state for UI
     glDisable(GL_DEPTH_TEST);
     glDisable(GL_CULL_FACE);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    // Get viewport size
-    GLint viewport[4];
-    glGetIntegerv(GL_VIEWPORT, viewport);
-    float width = (float)viewport[2];
-    float height = (float)viewport[3];
-
-    glm::mat4 projection = glm::ortho(0.0f, width, height, 0.0f, -1.0f, 1.0f);
+    auto [winW, winH] = Window::Get()->GetSize();
+    glm::mat4 projection = glm::ortho(0.0f, (float)winW, (float)winH, 0.0f, -1.0f, 1.0f);
 
     batchRenderer->BeginBatch(projection);
 
     for (const auto& cmd : queue) {
         batchRenderer->DrawGeometry(cmd.vertices, cmd.indices, cmd.textureID, cmd.transform);
     }
+
+    ctx->RenderBufferedText(batchRenderer);
 
     batchRenderer->EndBatch();
 

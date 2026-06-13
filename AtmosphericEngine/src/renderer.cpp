@@ -1221,6 +1221,14 @@ void CanvasPass::Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder
         }
     }
 
+    // Sort 2D drawables by layer first, then by z-order
+    std::sort(drawables2D.begin(), drawables2D.end(), [](CanvasDrawable* a, CanvasDrawable* b) {
+        if (a->GetLayer() != b->GetLayer()) {
+            return a->GetLayer() < b->GetLayer();
+        }
+        return a->GetZOrder() < b->GetZOrder();
+    });
+
     if (drawables2D.empty() && renderer.GetCanvasQueue().empty()) return;
 
     auto [width, height] = Window::Get()->GetFramebufferSize();

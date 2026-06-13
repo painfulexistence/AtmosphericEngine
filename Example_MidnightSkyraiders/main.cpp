@@ -173,7 +173,8 @@ class MidnightSkyraiders : public Application {
                     .pivot     = glm::vec2(0.0f, 0.0f),
                     .color     = glm::vec4(1,1,1,1),
                     .textureID = (int)texBg[i],
-                    .layer     = CanvasLayer::LAYER_WORLD_BACK,
+                    .layer     = CanvasLayer::LAYER_WORLD_2D,
+                    .flipY     = true,
                     .zOrder    = i,
                 });
                 return obj;
@@ -205,8 +206,8 @@ class MidnightSkyraiders : public Application {
             // Scroll left; fmod keeps value in (-600, 0]
             float xA = std::fmod(-BG_SPEED[i] * bgTime, WORLD);
             if (xA > 0.0f) xA -= WORLD; // normalise to (-600, 0]
-            if (bg[i].a) bg[i].a->SetPosition(glm::vec3(xA,          0.0f, -1.0f - 0.1f * i));
-            if (bg[i].b) bg[i].b->SetPosition(glm::vec3(xA + WORLD,  0.0f, -1.0f - 0.1f * i));
+            if (bg[i].a) bg[i].a->SetPosition(glm::vec3(xA,          0.0f, 0.0f));
+            if (bg[i].b) bg[i].b->SetPosition(glm::vec3(xA + WORLD,  0.0f, 0.0f));
         }
     }
 
@@ -219,7 +220,8 @@ class MidnightSkyraiders : public Application {
             .pivot     = glm::vec2(0.5f, 0.5f),
             .color     = glm::vec4(1,1,1,1),
             .textureID = (int)texTitle,
-            .layer     = CanvasLayer::LAYER_WORLD,
+            .layer     = CanvasLayer::LAYER_WORLD_2D,
+            .flipY     = true,
             .zOrder    = 20,
         });
     }
@@ -257,7 +259,8 @@ class MidnightSkyraiders : public Application {
             .pivot     = glm::vec2(0.5f, 0.5f),
             .color     = glm::vec4(1,1,1,1),
             .textureID = (int)texPlayer,
-            .layer     = CanvasLayer::LAYER_WORLD,
+            .layer     = CanvasLayer::LAYER_WORLD_2D,
+            .flipY     = true,
             .zOrder    = 5,
         });
 
@@ -329,7 +332,8 @@ class MidnightSkyraiders : public Application {
             .pivot     = glm::vec2(0.5f, 0.5f),
             .color     = glm::vec4(1,1,1,1),
             .textureID = (int)tex,
-            .layer     = CanvasLayer::LAYER_WORLD,
+            .layer     = CanvasLayer::LAYER_WORLD_2D,
+            .flipY     = true,
             .zOrder    = 3,
         });
         bullets.push_back({ obj, type, x, y, 0.0f, maxLife, true });
@@ -483,7 +487,8 @@ class MidnightSkyraiders : public Application {
             .pivot     = glm::vec2(0.5f, 0.5f),
             .color     = glm::vec4(1,1,1,1),
             .textureID = (int)tex,
-            .layer     = CanvasLayer::LAYER_WORLD,
+            .layer     = CanvasLayer::LAYER_WORLD_2D,
+            .flipY     = true,
             .zOrder    = 4,
         });
 

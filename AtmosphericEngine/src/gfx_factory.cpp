@@ -92,7 +92,7 @@ void GfxFactory::SetWebGPUDevice(WGPUDevice device) {
     cfg.alphaMode   = WGPUCompositeAlphaMode_Opaque;
     wgpuSurfaceConfigure(_surface, &cfg);
 
-    Console::Get()->Log("[GfxFactory] WebGPU device ready. Surface configured.");
+    Console::Get()->Info("[GfxFactory] WebGPU device ready. Surface configured.");
 }
 
 WGPUTextureView GfxFactory::GetCurrentSwapchainView() {

@@ -22,6 +22,11 @@
 #ifdef TRACY_ENABLE
 #include <tracy/Tracy.hpp>
 #define TRACY_CALLSTACK 1 // Optional: Enable call stack capture for more detailed profiling
+#else
+#define ZoneScoped
+#define ZoneScopedN(name)
+#define FrameMark
+#define TracyNoop
 #endif
 
 #include <glm/glm.hpp>

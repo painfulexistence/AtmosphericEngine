@@ -1,6 +1,3 @@
 [submodule "vcpkg"]
 	path = vcpkg
 	url = https://github.com/Microsoft/vcpkg.git
-[submodule "AtmosphericEngine/external/sol2"]
-	path = AtmosphericEngine/external/sol2
-	url = https://github.com/ThePhD/sol2.git

@@ -4,11 +4,17 @@
 #include "canvas_drawable.hpp"
 #include "console.hpp"
 #include "game_object.hpp"
+#include "gfx_factory.hpp"
+#include "gl_buffer.hpp"
+#include "gl_render_target.hpp"
 #include "graphics_server.hpp"
 #include "particle_server.hpp"
+#include "physics_server_2d.hpp"
 #include "window.hpp"
 #include <algorithm>
+#ifdef TRACY_ENABLE
 #include <tracy/Tracy.hpp>
+#endif
 
 struct RenderBatch {
     Mesh* mesh = nullptr;
@@ -44,35 +50,84 @@ static std::vector<RenderBatch> BuildBatches(const std::vector<Renderer::Sortabl
 
 static constexpr int MAX_CANVAS_TEXTURES = 32;
 
-void RenderPipeline::AddPass(std::unique_ptr<RenderPass> pass) {
+void RenderGraph::AddPass(std::unique_ptr<RenderPass> pass) {
     _passes.push_back(std::move(pass));
 }
 
-void RenderPipeline::Render(GraphicsServer* ctx, Renderer& renderer) {
+void RenderGraph::Render(GraphicsServer* ctx, Renderer& renderer, CommandEncoder* enc) {
     // Execute all passes in order (sorting, batching, drawing)
     for (auto& pass : _passes) {
-        pass->Execute(ctx, renderer);
+        pass->Execute(ctx, renderer, enc);
     }
 }
 
 void Renderer::Init(int width, int height) {
     CreateFBOs();
     CreateRTs(RenderTargetProps{ width, height });
-    CreateDebugVAO();
+    CreateDebugBuffer();
     CreateCanvasVAO();
-    CreateScreenVAO();
+    CreateScreenBuffer();
 
     m_BatchRenderer = std::make_unique<BatchRenderer2D>();
     m_BatchRenderer->Init();
 
-    _pipeline = std::make_unique<RenderPipeline>();
-    _pipeline->AddPass(std::make_unique<ShadowPass>());
-    _pipeline->AddPass(std::make_unique<ForwardOpaquePass>());
-    _pipeline->AddPass(std::make_unique<MSAAResolvePass>());
-    _pipeline->AddPass(std::make_unique<WorldCanvasPass>());// World sprites with depth testing
-    _pipeline->AddPass(std::make_unique<CanvasPass>());// 2D sprites, world space ortho, with no depth testing
-    _pipeline->AddPass(std::make_unique<PostProcessPass>());
-    _pipeline->AddPass(std::make_unique<UIPass>());
+    // Screen-space quad VAO for post-process passes (bloom, etc.)
+    {
+        static const float quadVerts[] = {
+            -1.f, -1.f, 0.f, 0.f,
+             1.f, -1.f, 1.f, 0.f,
+             1.f,  1.f, 1.f, 1.f,
+            -1.f, -1.f, 0.f, 0.f,
+             1.f,  1.f, 1.f, 1.f,
+            -1.f,  1.f, 0.f, 1.f,
+        };
+        GLuint vbo;
+        glGenVertexArrays(1, &screenQuadVAO);
+        glGenBuffers(1, &vbo);
+        glBindVertexArray(screenQuadVAO);
+        glBindBuffer(GL_ARRAY_BUFFER, vbo);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(quadVerts), quadVerts, GL_STATIC_DRAW);
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
+        glEnableVertexAttribArray(1);
+        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
+        glBindVertexArray(0);
+    }
+
+    // ── Skybox cube VAO ─────────────────────────────────────────────
+    {
+        // Unit cube — each face two triangles, 36 verts, positions only
+        static const float cubeVerts[] = {
+            -1, -1, -1,  1, -1, -1,  1,  1, -1,  1,  1, -1, -1,  1, -1, -1, -1, -1,
+            -1, -1,  1,  1, -1,  1,  1,  1,  1,  1,  1,  1, -1,  1,  1, -1, -1,  1,
+            -1,  1,  1, -1,  1, -1, -1, -1, -1, -1, -1, -1, -1, -1,  1, -1,  1,  1,
+             1,  1,  1,  1,  1, -1,  1, -1, -1,  1, -1, -1,  1, -1,  1,  1,  1,  1,
+            -1, -1, -1, -1, -1,  1,  1, -1,  1,  1, -1,  1,  1, -1, -1, -1, -1, -1,
+            -1,  1, -1, -1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1, -1, -1,  1, -1,
+        };
+        glGenVertexArrays(1, &skyboxVAO);
+        glGenBuffers(1, &skyboxVBO);
+        glBindVertexArray(skyboxVAO);
+        glBindBuffer(GL_ARRAY_BUFFER, skyboxVBO);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(cubeVerts), cubeVerts, GL_STATIC_DRAW);
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), nullptr);
+        glBindVertexArray(0);
+    }
+
+    _renderGraph = std::make_unique<RenderGraph>();
+    _renderGraph->AddPass(std::make_unique<ShadowPass>());
+    _renderGraph->AddPass(std::make_unique<ForwardOpaquePass>());
+    _renderGraph->AddPass(std::make_unique<SkyboxPass>());   // after clear, fills empty sky pixels
+    _renderGraph->AddPass(std::make_unique<SunPass>());
+    _renderGraph->AddPass(std::make_unique<VoxelChunkPass>());
+    _renderGraph->AddPass(std::make_unique<MSAAResolvePass>());
+    _renderGraph->AddPass(std::make_unique<WaterPass>());
+    _renderGraph->AddPass(std::make_unique<WorldCanvasPass>());// World sprites with depth testing
+    _renderGraph->AddPass(std::make_unique<CanvasPass>());// 2D sprites, world space ortho, with no depth testing
+    _renderGraph->AddPass(std::make_unique<BloomPass>());
+    _renderGraph->AddPass(std::make_unique<PostProcessPass>());
+    _renderGraph->AddPass(std::make_unique<UIPass>());
 }
 
 void Renderer::Cleanup() {
@@ -83,12 +138,11 @@ void Renderer::Cleanup() {
     DestroyRTs();
     DestroyFBOs();
 
-    glDeleteVertexArrays(1, &debugVAO);
+    // debug and screen are now std::unique_ptr<Buffer> that auto-destruct
     glDeleteVertexArrays(1, &canvasVAO);
-    glDeleteVertexArrays(1, &screenVAO);
-    glDeleteBuffers(1, &debugVBO);
     glDeleteBuffers(1, &canvasVBO);
-    glDeleteBuffers(1, &screenVBO);
+    glDeleteVertexArrays(1, &skyboxVAO);
+    glDeleteBuffers(1, &skyboxVBO);
 }
 
 void Renderer::Resize(int width, int height) {
@@ -204,8 +258,9 @@ void Renderer::BucketCommands(const glm::vec3& cameraPos) {
 
 void Renderer::RenderFrame(GraphicsServer* ctx, float dt) {
     ZoneScopedN("Renderer::RenderFrame");
+    frameTime += dt;
     SortAndBucket(ctx->GetMainCamera()->GetEyePosition());
-    _pipeline->Render(ctx, *this);
+    _renderGraph->Render(ctx, *this);
 
     _hudQueue.clear();
     _canvasQueue.clear();
@@ -278,15 +333,11 @@ void Renderer::CheckErrors(const std::string& prefix) {
 
 void Renderer::CreateFBOs() {
     glGenFramebuffers(1, &shadowFBO);
-    glGenFramebuffers(1, &sceneFBO);
-    glGenFramebuffers(1, &msaaResolveFBO);
     glGenFramebuffers(1, &gBuffer.id);
 }
 
 void Renderer::DestroyFBOs() {
     glDeleteFramebuffers(1, &shadowFBO);
-    glDeleteFramebuffers(1, &sceneFBO);
-    glDeleteFramebuffers(1, &msaaResolveFBO);
     glDeleteFramebuffers(1, &gBuffer.id);
 }
 
@@ -300,7 +351,7 @@ void Renderer::CreateRTs(const RenderTargetProps& props) {
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, SHADOW_W, SHADOW_H, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32F, SHADOW_W, SHADOW_H, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
         uniShadowMaps[i] = map;
     }
     for (int i = 0; i < MAX_OMNI_LIGHTS; ++i) {
@@ -316,7 +367,7 @@ void Renderer::CreateRTs(const RenderTargetProps& props) {
             glTexImage2D(
               GL_TEXTURE_CUBE_MAP_POSITIVE_X + f,
               0,
-              GL_DEPTH_COMPONENT,
+              GL_DEPTH_COMPONENT32F,
               SHADOW_W,
               SHADOW_H,
               0,
@@ -328,7 +379,11 @@ void Renderer::CreateRTs(const RenderTargetProps& props) {
         omniShadowMaps[i] = map;
     }
 
-#ifndef __EMSCRIPTEN__
+#ifdef __EMSCRIPTEN__
+    glBindFramebuffer(GL_FRAMEBUFFER, shadowFBO);
+    GLenum drawBuffers[] = { GL_NONE };
+    glDrawBuffers(1, drawBuffers);
+#else
     glBindFramebuffer(GL_FRAMEBUFFER, shadowFBO);
     for (int i = 0; i < (int)uniShadowMaps.size(); ++i) {
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, uniShadowMaps[i], 0);
@@ -343,96 +398,41 @@ void Renderer::CreateRTs(const RenderTargetProps& props) {
 #endif
     CheckErrors("Create shadow RTs");
 
-    // 2. Create and set HDR pass attachments
-    glGenTextures(1, &sceneColorTexture);
-#ifdef __EMSCRIPTEN__
-    glBindTexture(GL_TEXTURE_2D, sceneColorTexture);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, props.width, props.height, 0, GL_RGBA, GL_FLOAT, NULL);
-#else
-    if (_currRenderPath == RenderPath::Forward) {
-        glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, sceneColorTexture);
-        glTexImage2DMultisample(
-          GL_TEXTURE_2D_MULTISAMPLE, props.numSamples, GL_RGBA16F, props.width, props.height, GL_TRUE
-        );
-    } else {
-        glBindTexture(GL_TEXTURE_2D, sceneColorTexture);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, props.width, props.height, 0, GL_RGBA, GL_FLOAT, NULL);
-    }
+    // 2. Scene render target (MSAA on desktop forward path, standard otherwise)
+    {
+        RenderTarget::Props p;
+        p.width = props.width;
+        p.height = props.height;
+        p.withDepth = true;
+        p.hdr = true;
+#ifndef __EMSCRIPTEN__
+        if (_currRenderPath == RenderPath::Forward)
+            p.numSamples = props.numSamples;
 #endif
-    if (glIsTexture(sceneColorTexture) != GL_TRUE) {
-        throw std::runtime_error("Failed to create HDR color texture");
+        sceneRT = GfxFactory::CreateRenderTarget(p);
     }
 
-    glGenTextures(1, &sceneDepthTexture);
-#ifdef __EMSCRIPTEN__
-    glBindTexture(GL_TEXTURE_2D, sceneDepthTexture);
-    glTexImage2D(
-      GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, props.width, props.height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL
-    );
-#else
-    if (_currRenderPath == RenderPath::Forward) {
-        glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, sceneDepthTexture);
-        glTexImage2DMultisample(
-          GL_TEXTURE_2D_MULTISAMPLE, props.numSamples, GL_DEPTH_COMPONENT, props.width, props.height, GL_TRUE
-        );
-    } else {
-        glBindTexture(GL_TEXTURE_2D, sceneDepthTexture);
-        glTexImage2D(
-          GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, props.width, props.height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL
-        );
+    // 3. MSAA resolve render target (non-MSAA, for post-process input)
+    {
+        RenderTarget::Props p;
+        p.width = props.width;
+        p.height = props.height;
+        p.withDepth = true;
+        p.hdr = true;
+        p.filtered = true;
+        msaaResolveRT = GfxFactory::CreateRenderTarget(p);
     }
-#endif
-    if (glIsTexture(sceneDepthTexture) != GL_TRUE) {
-        throw std::runtime_error("Failed to create HDR depth texture");
-    }
-
-    glBindFramebuffer(GL_FRAMEBUFFER, sceneFBO);
-#ifdef __EMSCRIPTEN__
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, sceneColorTexture, 0);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, sceneDepthTexture, 0);
-#else
-    if (_currRenderPath == RenderPath::Forward) {
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D_MULTISAMPLE, sceneColorTexture, 0);
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D_MULTISAMPLE, sceneDepthTexture, 0);
-    } else {
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, sceneColorTexture, 0);
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, sceneDepthTexture, 0);
-    }
-#endif
-    CheckFramebufferStatus("HDR framebuffer incomplete");
-    CheckErrors("Create HDR RTs");
-
-    // 3. Create and set MSAA resolve pass attachments
-    glGenTextures(1, &msaaResolveTexture);
-    glBindTexture(GL_TEXTURE_2D, msaaResolveTexture);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, props.width, props.height, 0, GL_RGBA, GL_FLOAT, NULL);
-
-    glGenTextures(1, &msaaResolveDepthTexture);
-    glBindTexture(GL_TEXTURE_2D, msaaResolveDepthTexture);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexImage2D(
-      GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, props.width, props.height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL
-    );
-
-    glBindFramebuffer(GL_FRAMEBUFFER, msaaResolveFBO);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, msaaResolveTexture, 0);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, msaaResolveDepthTexture, 0);
-    CheckFramebufferStatus("MSAA framebuffer incomplete");
-    CheckErrors("Create MSAA resolve RTs");
 
     // 4. Create and set geometry pass attachments
     glGenTextures(1, &gBuffer.positionRT);
     glBindTexture(GL_TEXTURE_2D, gBuffer.positionRT);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, props.width, props.height, 0, GL_RGB, GL_FLOAT, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, props.width, props.height, 0, GL_RGBA, GL_FLOAT, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
     glGenTextures(1, &gBuffer.normalRT);
     glBindTexture(GL_TEXTURE_2D, gBuffer.normalRT);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, props.width, props.height, 0, GL_RGB, GL_FLOAT, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, props.width, props.height, 0, GL_RGBA, GL_FLOAT, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
@@ -444,14 +444,14 @@ void Renderer::CreateRTs(const RenderTargetProps& props) {
 
     glGenTextures(1, &gBuffer.materialRT);
     glBindTexture(GL_TEXTURE_2D, gBuffer.materialRT);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, props.width, props.height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, props.width, props.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
     glGenTextures(1, &gBuffer.depthRT);
     glBindTexture(GL_TEXTURE_2D, gBuffer.depthRT);
     glTexImage2D(
-      GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, props.width, props.height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL
+      GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32F, props.width, props.height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL
     );
 
     glGenFramebuffers(1, &gBuffer.id);
@@ -472,10 +472,8 @@ void Renderer::CreateRTs(const RenderTargetProps& props) {
 }
 
 void Renderer::DestroyRTs() {
-    glDeleteTextures(1, &sceneColorTexture);
-    glDeleteTextures(1, &sceneDepthTexture);
-    glDeleteTextures(1, &msaaResolveTexture);
-    glDeleteTextures(1, &msaaResolveDepthTexture);
+    sceneRT.reset();
+    msaaResolveRT.reset();
 
     glDeleteTextures(1, &gBuffer.positionRT);
     glDeleteTextures(1, &gBuffer.normalRT);
@@ -501,40 +499,24 @@ void Renderer::CreateCanvasVAO() {
     glBindVertexArray(0);
 }
 
-void Renderer::CreateScreenVAO() {
+void Renderer::CreateScreenBuffer() {
     std::array<ScreenVertex, 4> verts = { {
-      { { -1.0f, 1.0f }, { 0.0f, 1.0f } },
-      { { -1.0f, -1.0f }, { 0.0f, 0.0f } },
-      { { 1.0f, 1.0f }, { 1.0f, 1.0f } },
-      { { 1.0f, -1.0f }, { 1.0f, 0.0f } },
+        { { -1.0f,  1.0f }, { 0.0f, 1.0f } },
+        { { -1.0f, -1.0f }, { 0.0f, 0.0f } },
+        { {  1.0f,  1.0f }, { 1.0f, 1.0f } },
+        { {  1.0f, -1.0f }, { 1.0f, 0.0f } },
     } };
-    glGenVertexArrays(1, &screenVAO);
-    glGenBuffers(1, &screenVBO);
-
-    glBindVertexArray(screenVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, screenVBO);
-    glBufferData(GL_ARRAY_BUFFER, verts.size() * sizeof(ScreenVertex), verts.data(), GL_STATIC_DRAW);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(ScreenVertex), (void*)0);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(ScreenVertex), (void*)(offsetof(ScreenVertex, texCoord)));
-    glEnableVertexAttribArray(0);
-    glEnableVertexAttribArray(1);
-    glBindVertexArray(0);
+    screenBuffer = GfxFactory::CreateBuffer();
+    screenBuffer->Initialize(VertexFormat::Screen, BufferUsage::Static);
+    screenBuffer->Upload(verts.data(), verts.size(), sizeof(ScreenVertex));
 }
 
-void Renderer::CreateDebugVAO() {
-    glGenVertexArrays(1, &debugVAO);
-    glGenBuffers(1, &debugVBO);
-
-    glBindVertexArray(debugVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, debugVBO);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(DebugVertex), (void*)0);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(DebugVertex), (void*)offsetof(DebugVertex, color));
-    glEnableVertexAttribArray(0);
-    glEnableVertexAttribArray(1);
-    glBindVertexArray(0);
+void Renderer::CreateDebugBuffer() {
+    debugBuffer = GfxFactory::CreateBuffer();
+    debugBuffer->Initialize(VertexFormat::Debug, BufferUsage::Stream);
 }
 
-void ShadowPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
+void ShadowPass::Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder* enc) {
     ZoneScopedN("ShadowPass");
     glViewport(0, 0, SHADOW_W, SHADOW_H);
 #ifndef __EMSCRIPTEN__
@@ -561,6 +543,10 @@ void ShadowPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
     auto mainLight = ctx->GetMainLight();
 
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, renderer.uniShadowMaps[0], 0);
+#ifdef __EMSCRIPTEN__
+    GLenum drawBuffers[] = { GL_NONE };
+    glDrawBuffers(1, drawBuffers);
+#endif
     glClear(GL_DEPTH_BUFFER_BIT);
     auto depthShader = ctx->GetShader("depth");
     depthShader->Activate();
@@ -586,6 +572,15 @@ void ShadowPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
         if (mesh->type == MeshType::PRIM) {
             glBindVertexArray(mesh->vao);
 
+#ifdef __EMSCRIPTEN__
+            // WebGL 2.0 Fallback: Non-instanced draw calls using World uniform
+            for (const auto& inst : instances) {
+                depthShader->SetUniform(std::string("World"), inst.modelMatrix);
+                glDrawElements(
+                  mesh->GetMaterial()->primitiveType, mesh->triCount * 3, GL_UNSIGNED_SHORT, 0
+                );
+            }
+#else
             // Upload ALL instances for this batch once
             glBindBuffer(GL_ARRAY_BUFFER, mesh->ibo);
             glBufferData(GL_ARRAY_BUFFER, instances.size() * sizeof(InstanceData), instances.data(), GL_DYNAMIC_DRAW);
@@ -594,6 +589,7 @@ void ShadowPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
             glDrawElementsInstanced(
               mesh->GetMaterial()->primitiveType, mesh->triCount * 3, GL_UNSIGNED_SHORT, 0, instances.size()
             );
+#endif
         }
         glBindVertexArray(0);
     }
@@ -616,6 +612,10 @@ void ShadowPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
         for (int f = 0; f < 6; ++f) {
             GLenum face = GL_TEXTURE_CUBE_MAP_POSITIVE_X + f;
             glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, face, renderer.omniShadowMaps[i], 0);
+#ifdef __EMSCRIPTEN__
+            GLenum drawBuffers[] = { GL_NONE };
+            glDrawBuffers(1, drawBuffers);
+#endif
             glClear(GL_DEPTH_BUFFER_BIT);
             depthCubemapShader->SetUniform(std::string("LightPosition"), l->GetPosition());
             depthCubemapShader->SetUniform(
@@ -639,6 +639,15 @@ void ShadowPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
                 if (mesh->type == MeshType::PRIM) {
                     glBindVertexArray(mesh->vao);
 
+#ifdef __EMSCRIPTEN__
+                    // WebGL 2.0 Fallback: Non-instanced draw calls using World uniform
+                    for (const auto& inst : instances) {
+                        depthCubemapShader->SetUniform(std::string("World"), inst.modelMatrix);
+                        glDrawElements(
+                          mesh->GetMaterial()->primitiveType, mesh->triCount * 3, GL_UNSIGNED_SHORT, 0
+                        );
+                    }
+#else
                     // Upload ALL instances for this batch once
                     glBindBuffer(GL_ARRAY_BUFFER, mesh->ibo);
                     glBufferData(
@@ -649,6 +658,7 @@ void ShadowPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
                     glDrawElementsInstanced(
                       mesh->GetMaterial()->primitiveType, mesh->triCount * 3, GL_UNSIGNED_SHORT, 0, instances.size()
                     );
+#endif
                 }
                 glBindVertexArray(0);
             }
@@ -658,12 +668,12 @@ void ShadowPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
-void ForwardOpaquePass::Execute(GraphicsServer* ctx, Renderer& renderer) {
+void ForwardOpaquePass::Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder* enc) {
     ZoneScopedN("ForwardOpaquePass");
     auto [width, height] = Window::Get()->GetFramebufferSize();
     glViewport(0, 0, width, height);
 
-    glBindFramebuffer(GL_FRAMEBUFFER, renderer.sceneFBO);
+    glBindFramebuffer(GL_FRAMEBUFFER, static_cast<GLRenderTarget*>(renderer.sceneRT.get())->GetNativeFBOID());
     // Bind textures
     auto& assetManager = AssetManager::Get();
     for (int i = 0; i < MAX_UNI_LIGHTS; ++i) {
@@ -674,14 +684,7 @@ void ForwardOpaquePass::Execute(GraphicsServer* ctx, Renderer& renderer) {
         glActiveTexture(GL_TEXTURE0 + UNI_SHADOW_MAP_COUNT + i);
         glBindTexture(GL_TEXTURE_CUBE_MAP, renderer.omniShadowMaps[i]);
     }
-    for (int i = 0; i < assetManager.GetDefaultTextures().size(); ++i) {
-        glActiveTexture(GL_TEXTURE0 + DEFAULT_TEXTURE_BASE_INDEX + i);
-        glBindTexture(GL_TEXTURE_2D, assetManager.GetDefaultTextures()[i]);
-    }
-    for (int i = 0; i < assetManager.GetTextures().size(); ++i) {
-        glActiveTexture(GL_TEXTURE0 + SCENE_TEXTURE_BASE_INDEX + i);
-        glBindTexture(GL_TEXTURE_2D, assetManager.GetTextures()[i]);
-    }
+    // Global static binding removed; textures are now dynamically bound per draw call
 
     auto mainLight = ctx->GetMainLight();
     glm::vec3 eyePos = ctx->GetMainCamera()->GetEyePosition();
@@ -709,29 +712,6 @@ void ForwardOpaquePass::Execute(GraphicsServer* ctx, Renderer& renderer) {
         glEnable(GL_DEPTH_TEST);
         glDepthFunc(GL_LESS);
 
-        // glEnable(GL_STENCIL_TEST);
-        // glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
-        // glStencilFunc(GL_ALWAYS, 1, 0xFF);
-
-        // Outline rendering
-        // glStencilMask(0xFF);
-        // glStencilFunc(GL_ALWAYS, 1, 0xFF);
-        // /*
-        // pass 1
-        // ...
-        //  */
-        // glStencilMask(0x00);
-        // glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
-        // glDepthFunc(GL_ALWAYS);
-        // /*
-        // pass 2 (scaled)
-        // ...
-        //  */
-        // glDepthFunc(GL_LESS);
-
-        // glStencilMask(0xFF);
-        // glStencilFunc(GL_ALWAYS, 1, 0xFF);
-
 #ifndef __EMSCRIPTEN__
         if (renderer.wireframeEnabled || mesh->GetMaterial()->polygonMode == GL_LINE)
             glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
@@ -744,11 +724,9 @@ void ForwardOpaquePass::Execute(GraphicsServer* ctx, Renderer& renderer) {
         else
             glDisable(GL_CULL_FACE);
 
-        // glEnable(GL_PRIMITIVE_RESTART);
-
         switch (mesh->type) {
 
-        case MeshType::TERRAIN:
+        case MeshType::TERRAIN: {
             terrainShader->Activate();
             terrainShader->SetUniform(std::string("cam_pos"), eyePos);
             terrainShader->SetUniform(std::string("main_light.direction"), mainLight->direction);
@@ -766,9 +744,14 @@ void ForwardOpaquePass::Execute(GraphicsServer* ctx, Renderer& renderer) {
 
             terrainShader->SetUniform(std::string("tessellation_factor"), (float)16.0);
             terrainShader->SetUniform(std::string("height_scale"), (float)32.0);
-            terrainShader->SetUniform(
-              std::string("height_map_unit"), SCENE_TEXTURE_BASE_INDEX + mesh->GetMaterial()->heightMap
-            );
+            glActiveTexture(GL_TEXTURE7);
+            int heightMap = mesh->GetMaterial()->heightMap;
+            if (heightMap >= 0 && (size_t)heightMap < assetManager.GetTextures().size()) {
+                glBindTexture(GL_TEXTURE_2D, assetManager.GetTextures()[heightMap]);
+            } else {
+                glBindTexture(GL_TEXTURE_2D, 0);
+            }
+            terrainShader->SetUniform(std::string("height_map_unit"), 7);
             terrainShader->SetUniform(std::string("ProjectionView"), projectionView);
 
             // Terrain is usually a single instance, but we handle it in the batch loop
@@ -783,9 +766,14 @@ void ForwardOpaquePass::Execute(GraphicsServer* ctx, Renderer& renderer) {
 #endif
             glBindVertexArray(0);
             break;
+        }
 
         case MeshType::SKY:
             // TODO: implement skybox rendering
+            break;
+
+        case MeshType::VOXEL:
+            // Handled by VoxelChunkPass before this pass.
             break;
 
         case MeshType::PRIM:
@@ -842,46 +830,79 @@ void ForwardOpaquePass::Execute(GraphicsServer* ctx, Renderer& renderer) {
             colorShader->SetUniform(std::string("surf_params.ambient"), mesh->GetMaterial()->ambient);
             colorShader->SetUniform(std::string("surf_params.shininess"), mesh->GetMaterial()->shininess);
 
-            // Material textures
-            if (mesh->GetMaterial()->baseMap >= 0) {
-                colorShader->SetUniform(
-                  std::string("base_map_unit"), SCENE_TEXTURE_BASE_INDEX + mesh->GetMaterial()->baseMap
-                );
+            // Material textures - dynamically bound to Units 2-6
+            // Base Map (Unit 2)
+            glActiveTexture(GL_TEXTURE2);
+            int baseMap = mesh->GetMaterial()->baseMap;
+            if (baseMap >= 0 && (size_t)baseMap < assetManager.GetTextures().size()) {
+                glBindTexture(GL_TEXTURE_2D, assetManager.GetTextures()[baseMap]);
+            } else if (assetManager.GetDefaultTextures().size() > 0) {
+                glBindTexture(GL_TEXTURE_2D, assetManager.GetDefaultTextures()[0]);
             } else {
-                colorShader->SetUniform(std::string("base_map_unit"), DEFAULT_TEXTURE_BASE_INDEX + 0);
+                glBindTexture(GL_TEXTURE_2D, 0);
             }
-            if (mesh->GetMaterial()->normalMap >= 0) {
-                colorShader->SetUniform(
-                  std::string("normal_map_unit"), SCENE_TEXTURE_BASE_INDEX + mesh->GetMaterial()->normalMap
-                );
+            colorShader->SetUniform(std::string("base_map_unit"), 2);
+
+            // Normal Map (Unit 3)
+            glActiveTexture(GL_TEXTURE3);
+            int normalMap = mesh->GetMaterial()->normalMap;
+            if (normalMap >= 0 && (size_t)normalMap < assetManager.GetTextures().size()) {
+                glBindTexture(GL_TEXTURE_2D, assetManager.GetTextures()[normalMap]);
+            } else if (assetManager.GetDefaultTextures().size() > 1) {
+                glBindTexture(GL_TEXTURE_2D, assetManager.GetDefaultTextures()[1]);
             } else {
-                colorShader->SetUniform(std::string("normal_map_unit"), DEFAULT_TEXTURE_BASE_INDEX + 1);
+                glBindTexture(GL_TEXTURE_2D, 0);
             }
-            if (mesh->GetMaterial()->aoMap >= 0) {
-                colorShader->SetUniform(
-                  std::string("ao_map_unit"), SCENE_TEXTURE_BASE_INDEX + mesh->GetMaterial()->aoMap
-                );
+            colorShader->SetUniform(std::string("normal_map_unit"), 3);
+
+            // AO Map (Unit 4)
+            glActiveTexture(GL_TEXTURE4);
+            int aoMap = mesh->GetMaterial()->aoMap;
+            if (aoMap >= 0 && (size_t)aoMap < assetManager.GetTextures().size()) {
+                glBindTexture(GL_TEXTURE_2D, assetManager.GetTextures()[aoMap]);
+            } else if (assetManager.GetDefaultTextures().size() > 2) {
+                glBindTexture(GL_TEXTURE_2D, assetManager.GetDefaultTextures()[2]);
             } else {
-                colorShader->SetUniform(std::string("ao_map_unit"), DEFAULT_TEXTURE_BASE_INDEX + 2);
+                glBindTexture(GL_TEXTURE_2D, 0);
             }
-            if (mesh->GetMaterial()->roughnessMap >= 0) {
-                colorShader->SetUniform(
-                  std::string("roughness_map_unit"), SCENE_TEXTURE_BASE_INDEX + mesh->GetMaterial()->roughnessMap
-                );
+            colorShader->SetUniform(std::string("ao_map_unit"), 4);
+
+            // Roughness Map (Unit 5)
+            glActiveTexture(GL_TEXTURE5);
+            int roughnessMap = mesh->GetMaterial()->roughnessMap;
+            if (roughnessMap >= 0 && (size_t)roughnessMap < assetManager.GetTextures().size()) {
+                glBindTexture(GL_TEXTURE_2D, assetManager.GetTextures()[roughnessMap]);
+            } else if (assetManager.GetDefaultTextures().size() > 3) {
+                glBindTexture(GL_TEXTURE_2D, assetManager.GetDefaultTextures()[3]);
             } else {
-                colorShader->SetUniform(std::string("roughness_map_unit"), DEFAULT_TEXTURE_BASE_INDEX + 3);
+                glBindTexture(GL_TEXTURE_2D, 0);
             }
-            if (mesh->GetMaterial()->metallicMap >= 0) {
-                colorShader->SetUniform(
-                  std::string("metallic_map_unit"), SCENE_TEXTURE_BASE_INDEX + mesh->GetMaterial()->metallicMap
-                );
+            colorShader->SetUniform(std::string("roughness_map_unit"), 5);
+
+            // Metallic Map (Unit 6)
+            glActiveTexture(GL_TEXTURE6);
+            int metallicMap = mesh->GetMaterial()->metallicMap;
+            if (metallicMap >= 0 && (size_t)metallicMap < assetManager.GetTextures().size()) {
+                glBindTexture(GL_TEXTURE_2D, assetManager.GetTextures()[metallicMap]);
+            } else if (assetManager.GetDefaultTextures().size() > 4) {
+                glBindTexture(GL_TEXTURE_2D, assetManager.GetDefaultTextures()[4]);
             } else {
-                colorShader->SetUniform(std::string("metallic_map_unit"), DEFAULT_TEXTURE_BASE_INDEX + 4);
+                glBindTexture(GL_TEXTURE_2D, 0);
             }
+            colorShader->SetUniform(std::string("metallic_map_unit"), 6);
 
             glBindVertexArray(mesh->vao);
             glBindBuffer(GL_ARRAY_BUFFER, mesh->ibo);
 
+#ifdef __EMSCRIPTEN__
+            // WebGL 2.0 Fallback: Non-instanced draw calls using World uniform
+            for (const auto& inst : instances) {
+                colorShader->SetUniform(std::string("World"), inst.modelMatrix);
+                glDrawElements(
+                  mesh->GetMaterial()->primitiveType, mesh->triCount * 3, GL_UNSIGNED_SHORT, 0
+                );
+            }
+#else
             // Upload batched instance data
             if (!instances.empty()) {
                 glBufferData(
@@ -891,6 +912,7 @@ void ForwardOpaquePass::Execute(GraphicsServer* ctx, Renderer& renderer) {
                   mesh->GetMaterial()->primitiveType, mesh->triCount * 3, GL_UNSIGNED_SHORT, 0, instances.size()
                 );
             }
+#endif
 
             glBindVertexArray(0);
             break;
@@ -904,13 +926,8 @@ void ForwardOpaquePass::Execute(GraphicsServer* ctx, Renderer& renderer) {
         debugShader->Activate();
         debugShader->SetUniform(std::string("ProjectionView"), projectionView);
 
-        glBindVertexArray(renderer.debugVAO);
-        glBindBuffer(GL_ARRAY_BUFFER, renderer.debugVBO);
-        glBufferData(
-          GL_ARRAY_BUFFER, ctx->debugLines.size() * sizeof(DebugVertex), ctx->debugLines.data(), GL_DYNAMIC_DRAW
-        );
-        glDrawArrays(GL_LINES, 0, ctx->debugLines.size());
-        glBindVertexArray(0);
+        renderer.debugBuffer->Upload(ctx->debugLines.data(), ctx->debugLines.size(), sizeof(DebugVertex));
+        renderer.debugBuffer->Draw(enc, PrimitiveTopology::Lines);
 
         // glEnable(GL_DEPTH_TEST);
 
@@ -921,7 +938,7 @@ void ForwardOpaquePass::Execute(GraphicsServer* ctx, Renderer& renderer) {
     renderer.CheckErrors("Opaque pass");
 }
 
-void DeferredGeometryPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
+void DeferredGeometryPass::Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder* enc) {
     ZoneScopedN("DeferredGeometryPass");
     auto [width, height] = Window::Get()->GetFramebufferSize();
     glViewport(0, 0, width, height);
@@ -931,23 +948,7 @@ void DeferredGeometryPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
         GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3
     };
     glDrawBuffers(attachments.size(), attachments.data());
-    // for (int i = 0; i < MAX_UNI_LIGHTS; ++i) {
-    //     glActiveTexture(GL_TEXTURE0 + i);
-    //     glBindTexture(GL_TEXTURE_2D, uniShadowMaps[i]);
-    // }
-    // for (int i = 0; i < MAX_OMNI_LIGHTS; ++i) {
-    //     glActiveTexture(GL_TEXTURE0 + UNI_SHADOW_MAP_COUNT + i);
-    //     glBindTexture(GL_TEXTURE_CUBE_MAP, omniShadowMaps[i]);
-    // }
     auto& assetManager = AssetManager::Get();
-    for (int i = 0; i < assetManager.GetDefaultTextures().size(); ++i) {
-        glActiveTexture(GL_TEXTURE0 + DEFAULT_TEXTURE_BASE_INDEX + i);
-        glBindTexture(GL_TEXTURE_2D, assetManager.GetDefaultTextures()[i]);
-    }
-    for (int i = 0; i < assetManager.GetTextures().size(); ++i) {
-        glActiveTexture(GL_TEXTURE0 + SCENE_TEXTURE_BASE_INDEX + i);
-        glBindTexture(GL_TEXTURE_2D, assetManager.GetTextures()[i]);
-    }
 
     glClearColor(renderer.clearColor.r, renderer.clearColor.g, renderer.clearColor.b, renderer.clearColor.a);
     glClearDepthf(1.0f);
@@ -986,35 +987,71 @@ void DeferredGeometryPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
         case MeshType::SKY:
             // TODO: implement skybox rendering
             break;
+        case MeshType::VOXEL:
+            // Handled by VoxelChunkPass.
+            break;
         case MeshType::PRIM:
         default:
-            if (mesh->GetMaterial()->baseMap >= 0) {
-                geometryShader->SetUniform("baseMap", SCENE_TEXTURE_BASE_INDEX + mesh->GetMaterial()->baseMap);
+            // Material textures - dynamically bound to Units 2-6
+            // Base Map (Unit 2)
+            glActiveTexture(GL_TEXTURE2);
+            int baseMap = mesh->GetMaterial()->baseMap;
+            if (baseMap >= 0 && (size_t)baseMap < assetManager.GetTextures().size()) {
+                glBindTexture(GL_TEXTURE_2D, assetManager.GetTextures()[baseMap]);
+            } else if (assetManager.GetDefaultTextures().size() > 0) {
+                glBindTexture(GL_TEXTURE_2D, assetManager.GetDefaultTextures()[0]);
             } else {
-                geometryShader->SetUniform("baseMap", DEFAULT_TEXTURE_BASE_INDEX + 0);
+                glBindTexture(GL_TEXTURE_2D, 0);
             }
-            if (mesh->GetMaterial()->normalMap >= 0) {
-                geometryShader->SetUniform("normalMap", SCENE_TEXTURE_BASE_INDEX + mesh->GetMaterial()->normalMap);
+            geometryShader->SetUniform("baseMap", 2);
+
+            // Normal Map (Unit 3)
+            glActiveTexture(GL_TEXTURE3);
+            int normalMap = mesh->GetMaterial()->normalMap;
+            if (normalMap >= 0 && (size_t)normalMap < assetManager.GetTextures().size()) {
+                glBindTexture(GL_TEXTURE_2D, assetManager.GetTextures()[normalMap]);
+            } else if (assetManager.GetDefaultTextures().size() > 1) {
+                glBindTexture(GL_TEXTURE_2D, assetManager.GetDefaultTextures()[1]);
             } else {
-                geometryShader->SetUniform("normalMap", DEFAULT_TEXTURE_BASE_INDEX + 1);
+                glBindTexture(GL_TEXTURE_2D, 0);
             }
-            if (mesh->GetMaterial()->aoMap >= 0) {
-                geometryShader->SetUniform("aoMap", SCENE_TEXTURE_BASE_INDEX + mesh->GetMaterial()->aoMap);
+            geometryShader->SetUniform("normalMap", 3);
+
+            // AO Map (Unit 4)
+            glActiveTexture(GL_TEXTURE4);
+            int aoMap = mesh->GetMaterial()->aoMap;
+            if (aoMap >= 0 && (size_t)aoMap < assetManager.GetTextures().size()) {
+                glBindTexture(GL_TEXTURE_2D, assetManager.GetTextures()[aoMap]);
+            } else if (assetManager.GetDefaultTextures().size() > 2) {
+                glBindTexture(GL_TEXTURE_2D, assetManager.GetDefaultTextures()[2]);
             } else {
-                geometryShader->SetUniform("aoMap", DEFAULT_TEXTURE_BASE_INDEX + 2);
+                glBindTexture(GL_TEXTURE_2D, 0);
             }
-            if (mesh->GetMaterial()->roughnessMap >= 0) {
-                geometryShader->SetUniform(
-                  "roughnessMap", SCENE_TEXTURE_BASE_INDEX + mesh->GetMaterial()->roughnessMap
-                );
+            geometryShader->SetUniform("aoMap", 4);
+
+            // Roughness Map (Unit 5)
+            glActiveTexture(GL_TEXTURE5);
+            int roughnessMap = mesh->GetMaterial()->roughnessMap;
+            if (roughnessMap >= 0 && (size_t)roughnessMap < assetManager.GetTextures().size()) {
+                glBindTexture(GL_TEXTURE_2D, assetManager.GetTextures()[roughnessMap]);
+            } else if (assetManager.GetDefaultTextures().size() > 3) {
+                glBindTexture(GL_TEXTURE_2D, assetManager.GetDefaultTextures()[3]);
             } else {
-                geometryShader->SetUniform("roughnessMap", DEFAULT_TEXTURE_BASE_INDEX + 3);
+                glBindTexture(GL_TEXTURE_2D, 0);
             }
-            if (mesh->GetMaterial()->metallicMap >= 0) {
-                geometryShader->SetUniform("metallicMap", SCENE_TEXTURE_BASE_INDEX + mesh->GetMaterial()->metallicMap);
+            geometryShader->SetUniform("roughnessMap", 5);
+
+            // Metallic Map (Unit 6)
+            glActiveTexture(GL_TEXTURE6);
+            int metallicMap = mesh->GetMaterial()->metallicMap;
+            if (metallicMap >= 0 && (size_t)metallicMap < assetManager.GetTextures().size()) {
+                glBindTexture(GL_TEXTURE_2D, assetManager.GetTextures()[metallicMap]);
+            } else if (assetManager.GetDefaultTextures().size() > 4) {
+                glBindTexture(GL_TEXTURE_2D, assetManager.GetDefaultTextures()[4]);
             } else {
-                geometryShader->SetUniform("metallicMap", DEFAULT_TEXTURE_BASE_INDEX + 4);
+                glBindTexture(GL_TEXTURE_2D, 0);
             }
+            geometryShader->SetUniform("metallicMap", 6);
 
             glBindVertexArray(mesh->vao);
             glBindBuffer(GL_ARRAY_BUFFER, mesh->ibo);
@@ -1033,11 +1070,11 @@ void DeferredGeometryPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
     renderer.CheckErrors("Geometry pass");
 }
 
-void DeferredLightingPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
+void DeferredLightingPass::Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder* enc) {
     ZoneScopedN("DeferredLightingPass");
     auto [width, height] = Window::Get()->GetFramebufferSize();
     glViewport(0, 0, width, height);
-    glBindFramebuffer(GL_FRAMEBUFFER, renderer.sceneFBO);
+    glBindFramebuffer(GL_FRAMEBUFFER, static_cast<GLRenderTarget*>(renderer.sceneRT.get())->GetNativeFBOID());
 
     glClearColor(renderer.clearColor.r, renderer.clearColor.g, renderer.clearColor.b, renderer.clearColor.a);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -1081,14 +1118,12 @@ void DeferredLightingPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
     }
     lightingShader->SetUniform("pointLightCount", (int)ctx->pointLights.size());
 
-    glBindVertexArray(renderer.screenVAO);
-    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-    glBindVertexArray(0);
+    renderer.screenBuffer->Draw(enc, PrimitiveTopology::TriangleStrip);
 
     renderer.CheckErrors("Lighting pass");
 }
 
-void TransparentPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
+void TransparentPass::Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder* enc) {
     ZoneScopedN("TransparentPass");
     auto& cam = *ctx->GetMainCamera();
     Atmospheric::CameraInfo camInfo = { .view = cam.GetViewMatrix(),
@@ -1097,23 +1132,25 @@ void TransparentPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
     Atmospheric::ParticleServer::GetInstance().Draw(camInfo);// TODO: transparent pass
 }
 
-void MSAAResolvePass::Execute(GraphicsServer* ctx, Renderer& renderer) {
+void MSAAResolvePass::Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder* enc) {
     ZoneScopedN("MSAAResolvePass");
+    
     auto [width, height] = Window::Get()->GetFramebufferSize();
     glViewport(0, 0, width, height);
-
-    // Resolve MSAA (color + depth)
-    glBindFramebuffer(GL_READ_FRAMEBUFFER, renderer.sceneFBO);
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, renderer.postProcessEnabled ? renderer.msaaResolveFBO : renderer.finalFBO);
-    glBlitFramebuffer(0, 0, width, height, 0, 0, width, height, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT, GL_NEAREST);
-
+ 
+    // Resolve MSAA color + depth — both RTs now use GL_DEPTH_COMPONENT32F.
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, static_cast<GLRenderTarget*>(renderer.sceneRT.get())->GetNativeFBOID());
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, static_cast<GLRenderTarget*>(renderer.msaaResolveRT.get())->GetNativeFBOID());
+    glBlitFramebuffer(0, 0, width, height, 0, 0, width, height,
+                      GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT, GL_NEAREST);
+ 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
+ 
     renderer.CheckErrors("MSAA resolve pass");
 }
 
 // WorldCanvasPass: World sprites with depth testing
-void WorldCanvasPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
+void WorldCanvasPass::Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder* enc) {
     ZoneScopedN("WorldCanvasPass");
 
     // Filter all world-space drawables (3D layers only, below LAYER_WORLD_2D)
@@ -1129,7 +1166,7 @@ void WorldCanvasPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
 
     auto [width, height] = Window::Get()->GetFramebufferSize();
     glViewport(0, 0, width, height);
-    glBindFramebuffer(GL_FRAMEBUFFER, renderer.postProcessEnabled ? renderer.msaaResolveFBO : renderer.finalFBO);
+    glBindFramebuffer(GL_FRAMEBUFFER, static_cast<GLRenderTarget*>(renderer.msaaResolveRT.get())->GetNativeFBOID());
 
     // Get camera for projection
     CameraComponent* camera = ctx->GetMainCamera();
@@ -1173,7 +1210,7 @@ void WorldCanvasPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
 }
 
 // CanvasPass: Pure 2D sprites (no depth testing)
-void CanvasPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
+void CanvasPass::Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder* enc) {
     ZoneScopedN("CanvasPass");
 
     std::vector<CanvasDrawable*> drawables2D;
@@ -1184,11 +1221,19 @@ void CanvasPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
         }
     }
 
+    // Sort 2D drawables by layer first, then by z-order
+    std::sort(drawables2D.begin(), drawables2D.end(), [](CanvasDrawable* a, CanvasDrawable* b) {
+        if (a->GetLayer() != b->GetLayer()) {
+            return a->GetLayer() < b->GetLayer();
+        }
+        return a->GetZOrder() < b->GetZOrder();
+    });
+
     if (drawables2D.empty() && renderer.GetCanvasQueue().empty()) return;
 
     auto [width, height] = Window::Get()->GetFramebufferSize();
     glViewport(0, 0, width, height);
-    glBindFramebuffer(GL_FRAMEBUFFER, renderer.postProcessEnabled ? renderer.msaaResolveFBO : renderer.finalFBO);
+    glBindFramebuffer(GL_FRAMEBUFFER, static_cast<GLRenderTarget*>(renderer.msaaResolveRT.get())->GetNativeFBOID());
 
     glDisable(GL_DEPTH_TEST);
     glDisable(GL_CULL_FACE);
@@ -1207,8 +1252,8 @@ void CanvasPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
         // Fallback or perspective camera handling for 2D?
         // For now, if perspective, we might just use screen space or a default ortho.
         // Let's assume default ortho for safety if no 2D camera is set.
-        // Use standard OpenGL/Physics coordinates (Bottom-Left origin, Y-Up)
-        worldViewProj = glm::ortho(0.0f, (float)width, 0.0f, (float)height, -1.0f, 1.0f);
+        auto [winW, winH] = Window::Get()->GetSize();
+        worldViewProj = glm::ortho(0.0f, (float)winW, (float)winH, 0.0f, -1.0f, 1.0f);
     }
 
     renderer.GetBatchRenderer()->BeginBatch(worldViewProj);
@@ -1219,7 +1264,6 @@ void CanvasPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
     for (const auto& cmd : renderer.GetCanvasQueue()) {
         renderer.GetBatchRenderer()->DrawGeometry(cmd.vertices, cmd.indices, cmd.textureID, cmd.transform);
     }
-    ctx->RenderBufferedText(renderer.GetBatchRenderer());
     renderer.GetBatchRenderer()->EndBatch();
 
     glDisable(GL_BLEND);
@@ -1230,34 +1274,29 @@ void CanvasPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
 // Helper to reduce code duplication
 
 
-void PostProcessPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
+void PostProcessPass::Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder* enc) {
     ZoneScopedN("PostProcessPass");
-    if (!renderer.postProcessEnabled) {
-        return;
-    }
 
     auto size = Window::Get()->GetFramebufferSize();
-
     glViewport(0, 0, size.width, size.height);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    // glDisable(GL_DEPTH_TEST);
-    // glDisable(GL_BLEND);
-#ifndef __EMSCRIPTEN__
-    // glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-#endif
 
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, renderer.msaaResolveTexture);
+    glBindTexture(GL_TEXTURE_2D, renderer.msaaResolveRT->GetTextureID());
 
     glClearColor(renderer.clearColor.x, renderer.clearColor.y, renderer.clearColor.z, renderer.clearColor.w);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    auto postProcessShader = ctx->GetShader("hdr");
-    postProcessShader->Activate();
-    postProcessShader->SetUniform(std::string("color_map_unit"), (int)0);
-    glBindVertexArray(renderer.screenVAO);
-    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
-    renderer.CheckErrors("Post process pass");
+    auto shader = ctx->GetShader("hdr");
+    shader->Activate();
+    shader->SetUniform(std::string("color_map_unit"), (int)0);
+    shader->SetUniform(std::string("exposure"),       tonemapEnabled ? exposure : 1.0f);
+    shader->SetUniform(std::string("u_ca_enabled"),   (int)caEnabled);
+    shader->SetUniform(std::string("u_ca_strength"),  caStrength);
+
+    renderer.screenBuffer->Draw(enc, PrimitiveTopology::TriangleStrip);
+
+    renderer.CheckErrors("PostProcess pass");
 }
 
 void Renderer::SubmitUICommand(const BatchDrawCommand& cmd) {
@@ -1268,12 +1307,10 @@ void Renderer::SubmitCanvasCommand(const BatchDrawCommand& cmd) {
     _canvasQueue.push_back(cmd);
 }
 
-void UIPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
+void UIPass::Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder* enc) {
     ZoneScopedN("UIPass");
     auto* batchRenderer = renderer.GetBatchRenderer();
     auto& queue = renderer.GetUIQueue();
-
-    if (queue.empty()) return;
 
     // Setup OpenGL state for UI
     glDisable(GL_DEPTH_TEST);
@@ -1281,19 +1318,16 @@ void UIPass::Execute(GraphicsServer* ctx, Renderer& renderer) {
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    // Get viewport size
-    GLint viewport[4];
-    glGetIntegerv(GL_VIEWPORT, viewport);
-    float width = (float)viewport[2];
-    float height = (float)viewport[3];
-
-    glm::mat4 projection = glm::ortho(0.0f, width, height, 0.0f, -1.0f, 1.0f);
+    auto [winW, winH] = Window::Get()->GetSize();
+    glm::mat4 projection = glm::ortho(0.0f, (float)winW, (float)winH, 0.0f, -1.0f, 1.0f);
 
     batchRenderer->BeginBatch(projection);
 
     for (const auto& cmd : queue) {
         batchRenderer->DrawGeometry(cmd.vertices, cmd.indices, cmd.textureID, cmd.transform);
     }
+
+    ctx->RenderBufferedText(batchRenderer);
 
     batchRenderer->EndBatch();
 

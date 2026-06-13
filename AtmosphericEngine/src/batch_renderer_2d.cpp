@@ -1,10 +1,10 @@
 #include "batch_renderer_2d.hpp"
 #include "asset_manager.hpp"
 #include "console.hpp"
+#include "globals.hpp" // provides glad on native, GLES3/gl3.h on Emscripten
 #include "shader.hpp"
 #include <array>
 #include <fmt/format.h>
-#include <glad/glad.h>
 #include <glm/gtc/matrix_transform.hpp>
 
 struct BatchRenderer2D::Renderer2DData {

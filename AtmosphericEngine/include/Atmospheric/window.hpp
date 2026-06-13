@@ -20,6 +20,12 @@ struct WindowProps {
     bool vsync = VSYNC_ON;
 };
 
+// Active graphics backend.
+enum class GfxBackend {
+    WebGPU,  // Primary: Dawn on native / browser WebGPU on web
+    OpenGL,  // Fallback: OpenGL 4.1 (native) / WebGL 2.0 (Emscripten)
+};
+
 enum class KeyState { PRESSED, RELEASED, HELD, UNKNOWN };
 
 enum class Key {
@@ -95,6 +101,14 @@ public:
         return _instance;
     }
     static void* GetProcAddress();
+
+    // Returns true if the browser exposes navigator.gpu (WebGPU API).
+    // Always false on native platforms. Result is cached after the first call.
+    static bool IsWebGPUAvailable();
+
+    // Returns the intended backend for this build target.
+    // Actual backend may differ if GfxFactory::Init() falls back to OpenGL.
+    static GfxBackend GetActiveBackend();
 
     Window(WindowProps props = {});
     ~Window();

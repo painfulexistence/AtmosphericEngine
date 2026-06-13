@@ -12,6 +12,10 @@ class Physics2DDemo : public Application {
     std::mt19937 rng;
     float spawnTimer = 0.0f;
 
+    void OnInit() override {
+        GoScene("main", [this]{ OnLoad(); });
+    }
+
     void OnLoad() override {
         rng.seed(42);
 

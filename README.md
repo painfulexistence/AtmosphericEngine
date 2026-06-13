@@ -1,4 +1,9 @@
 # Atmospheric Engine
+
+[![Native](https://github.com/painfulexistence/AtmosphericEngine/actions/workflows/ci-native.yml/badge.svg)](https://github.com/painfulexistence/AtmosphericEngine/actions/workflows/ci-native.yml)
+[![Web](https://github.com/painfulexistence/AtmosphericEngine/actions/workflows/ci-web.yml/badge.svg)](https://github.com/painfulexistence/AtmosphericEngine/actions/workflows/ci-web.yml)
+<br />
+
 **Atmospheric Engine** is a cross-platform 3D game engine developed in C++.
 The project is a labor of love, acting as my stepping stone to gain a deeper understanding of graphics programming concepts and practices.
 
@@ -45,6 +50,22 @@ cd AtmosphericEngine
 cmake --preset=dev
 cmake --build --preset=dev
 ```
+
+### WebAssembly (Emscripten) & WebGPU
+We support building WebAssembly targets for browser deployment.
+
+1. **Standard Build (WebGL 2.0 Backend)**:
+   ```bash
+   ./scripts/buildWasm.sh release
+   ```
+
+2. **WebGPU Build (with WebGL 2.0 fallback)**:
+   You can target WebGPU via Emscripten's Dawn port by adding the `--webgpu` flag:
+   ```bash
+   ./scripts/buildWasm.sh release --webgpu
+   ```
+   At runtime, `GfxFactory` will detect browser support. If `navigator.gpu` is available, it initializes the WebGPU pipeline; otherwise, it automatically falls back to WebGL 2.0.
+
 
 ----
 

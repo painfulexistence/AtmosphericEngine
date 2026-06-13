@@ -2,6 +2,7 @@
 #include <GLFW/glfw3.h>
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
+#include <emscripten/html5.h>
 #endif
 #include "backends/imgui_impl_glfw.h"
 #include "backends/imgui_impl_opengl3.h"
@@ -211,6 +212,21 @@ void Window::Init() {
         }
     });
 
+#ifdef __EMSCRIPTEN__
+    emscripten_set_fullscreenchange_callback(
+        EMSCRIPTEN_EVENT_TARGET_DOCUMENT,
+        this,
+        EM_FALSE,
+        [](int eventType, const EmscriptenFullscreenChangeEvent* event, void* userData) -> EM_BOOL {
+            auto self = static_cast<Window*>(userData);
+            if (self) {
+                self->_isFullscreen = event->isFullscreen;
+            }
+            return EM_TRUE;
+        }
+    );
+#endif
+
     // Default event listeners
     AddMouseMoveCallback([](float x, float y) {
         // ENGINE_LOG("-- Mouse moved to ({},{})\n", x, y);
@@ -225,6 +241,34 @@ void Window::Init() {
 
 void* Window::GetProcAddress() {
     return (void*)glfwGetProcAddress;
+}
+
+bool Window::IsWebGPUAvailable() {
+#ifdef __EMSCRIPTEN__
+    // Cache the result — navigator.gpu is immutable after page load.
+    static int cached = -1;
+    if (cached == -1) {
+        cached = EM_ASM_INT({
+            return (typeof navigator !== 'undefined' &&
+                    typeof navigator.gpu !== 'undefined' &&
+                    navigator.gpu !== null) ? 1 : 0;
+        });
+        if (cached) {
+            EM_ASM({ console.log("[AtmosphericEngine] WebGPU detected: navigator.gpu is available."); });
+        } else {
+            EM_ASM({ console.log("[AtmosphericEngine] WebGPU not available — falling back to WebGL 2."); });
+        }
+    }
+    return cached != 0;
+#else
+    return false;
+#endif
+}
+
+GfxBackend Window::GetActiveBackend() {
+    // WebGPU is the target web backend.
+    // Requires AE_USE_WEBGPU=ON in CMake + a browser that supports WebGPU.
+    return GfxBackend::WebGPU;
 }
 
 void Window::InitImGui() {
@@ -274,12 +318,14 @@ void Window::MainLoop(std::function<void(float, float)> callback)
         ctx.deltaTime = currTime - ctx.lastTime;
         ctx.lastTime = currTime;
 
+        ctx.window->BeginImGuiFrame();
         ctx.callback(currTime, ctx.deltaTime);
+        ctx.window->EndImGuiFrame();
 
         glfwSwapBuffers(static_cast<GLFWwindow*>(ctx.window->_internal));
     };
 
-    LoopContext ctx = {
+    static LoopContext ctx = {
         callback,
         GetTime(),
         0,
@@ -288,14 +334,16 @@ void Window::MainLoop(std::function<void(float, float)> callback)
 #ifdef __EMSCRIPTEN__
     static LoopContext* ctxPtr = &ctx;
     auto em_callback = [](void* arg) {
-        auto ctx = *static_cast<LoopContext*>(arg);
+        auto& ctx = *static_cast<LoopContext*>(arg);
         glfwPollEvents();
 
         float currTime = ctx.window->GetTime();
         ctx.deltaTime = currTime - ctx.lastTime;
         ctx.lastTime = currTime;
 
+        ctx.window->BeginImGuiFrame();
         ctx.callback(currTime, ctx.deltaTime);
+        ctx.window->EndImGuiFrame();
 
         glfwSwapBuffers(static_cast<GLFWwindow*>(ctx.window->_internal));
     };
@@ -308,6 +356,22 @@ void Window::MainLoop(std::function<void(float, float)> callback)
 }
 
 void Window::ToggleFullscreen() {
+#ifdef __EMSCRIPTEN__
+    if (!_isFullscreen) {
+        EmscriptenFullscreenStrategy strategy;
+        strategy.scaleMode = EMSCRIPTEN_FULLSCREEN_SCALE_ASPECT;
+        strategy.canvasResolutionScaleMode = EMSCRIPTEN_FULLSCREEN_CANVAS_SCALE_STDDEF;
+        strategy.filteringMode = EMSCRIPTEN_FULLSCREEN_FILTERING_DEFAULT;
+        strategy.canvasResizedCallback = nullptr;
+        strategy.canvasResizedCallbackUserData = nullptr;
+
+        // Request fullscreen on the main canvas element (ID "canvas" is standard in Emscripten templates)
+        // Set deferUntilInEventHandler to true so the request succeeds if called asynchronously.
+        emscripten_request_fullscreen_strategy("#canvas", EM_TRUE, &strategy);
+    } else {
+        emscripten_exit_fullscreen();
+    }
+#else
     GLFWwindow* window = static_cast<GLFWwindow*>(_internal);
     if (!_isFullscreen) {
         GLFWmonitor* monitor = glfwGetPrimaryMonitor();
@@ -319,6 +383,7 @@ void Window::ToggleFullscreen() {
         glfwSetWindowMonitor(window, nullptr, _windowedX, _windowedY, _windowedWidth, _windowedHeight, 0);
         _isFullscreen = false;
     }
+#endif
 }
 
 void Window::Close() {
@@ -487,4 +552,33 @@ void Window::RemoveAllEventCallbacks() {
     _keyReleaseCallbacks.clear();
     _viewportResizeCallbacks.clear();
     _framebufferResizeCallbacks.clear();
+}
+void Window::SetClipboardText(const std::string& text) {
+    glfwSetClipboardString(static_cast<GLFWwindow*>(_internal), text.c_str());
+}
+
+std::string Window::GetClipboardText() {
+    const char* text = glfwGetClipboardString(static_cast<GLFWwindow*>(_internal));
+    return text ? text : "";
+}
+
+void Window::SetMouseCursor(const std::string& cursorName) {
+    int shape = GLFW_ARROW_CURSOR;
+    if (cursorName == "text")    shape = GLFW_IBEAM_CURSOR;
+    else if (cursorName == "cross")   shape = GLFW_CROSSHAIR_CURSOR;
+    else if (cursorName == "pointer") shape = GLFW_HAND_CURSOR;
+    else if (cursorName == "resize")  shape = GLFW_HRESIZE_CURSOR;
+    else if (cursorName == "move")    shape = GLFW_CROSSHAIR_CURSOR;
+
+    // Cache cursors to avoid re-creating them every frame
+    static std::unordered_map<int, GLFWcursor*> cursorCache;
+    auto it = cursorCache.find(shape);
+    if (it == cursorCache.end()) {
+        GLFWcursor* cursor = glfwCreateStandardCursor(shape);
+        cursorCache[shape] = cursor;
+        it = cursorCache.find(shape);
+    }
+    if (it != cursorCache.end() && it->second) {
+        glfwSetCursor(static_cast<GLFWwindow*>(_internal), it->second);
+    }
 }

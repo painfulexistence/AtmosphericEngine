@@ -31,7 +31,7 @@ Mesh::Mesh(MeshType type) : type(type), _material(nullptr), _shape(nullptr) {
 }
 
 Mesh::~Mesh() {
-    // Free RenderMesh if using new system
+    // Free GLBuffer if using new system
     if (_renderMeshHandle.IsValid()) {
         GraphicsServer::Get()->FreeRenderMesh(_renderMeshHandle);
     }
@@ -87,7 +87,10 @@ void Mesh::Initialize(const std::vector<Vertex>& verts, const std::vector<uint16
     glEnableVertexAttribArray(2);
     glEnableVertexAttribArray(3);
     glEnableVertexAttribArray(4);
+#ifndef __EMSCRIPTEN__
     glBindBuffer(GL_ARRAY_BUFFER, ibo);
+    InstanceData dummyData{ glm::mat4(1.0f) };
+    glBufferData(GL_ARRAY_BUFFER, sizeof(InstanceData), &dummyData, GL_DYNAMIC_DRAW);
     glVertexAttribPointer(5, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(glm::vec4), (void*)0);
     glVertexAttribPointer(6, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(glm::vec4), (void*)(4 * sizeof(float)));
     glVertexAttribPointer(7, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(glm::vec4), (void*)(8 * sizeof(float)));
@@ -100,6 +103,7 @@ void Mesh::Initialize(const std::vector<Vertex>& verts, const std::vector<uint16
     glVertexAttribDivisor(6, 1);
     glVertexAttribDivisor(7, 1);
     glVertexAttribDivisor(8, 1);
+#endif
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, tris.size() * sizeof(uint16_t), tris.data(), GL_STATIC_DRAW);
@@ -118,15 +122,15 @@ void Mesh::AddCapsuleShape(float radius, float height) {
 }
 
 void Mesh::Update(const std::vector<VoxelVertex>& vertices) {
-    // Allocate RenderMesh on first use
+    // Allocate GLBuffer on first use
     if (!_renderMeshHandle.IsValid()) {
         _renderMeshHandle = GraphicsServer::Get()->AllocateRenderMesh(
           VertexFormat::Voxel, updateFreq == UpdateFrequency::Static ? BufferUsage::Static : BufferUsage::Dynamic
         );
     }
 
-    // Get RenderMesh and upload data
-    RenderMesh* renderMesh = GraphicsServer::Get()->GetRenderMesh(_renderMeshHandle);
+    // Get Buffer and upload data
+    Buffer* renderMesh = GraphicsServer::Get()->GetRenderMesh(_renderMeshHandle);
     if (renderMesh) {
         renderMesh->Upload(vertices.data(), vertices.size(), sizeof(VoxelVertex));
         vertCount = vertices.size();

@@ -11,17 +11,19 @@
 #include "text_component.hpp"
 #include "window.hpp"
 
-EditorLayer::EditorLayer(Application* app) : Layer("EditorLayer"), _app(app) {
+EditorLayer::EditorLayer(Application* app, bool showImGui)
+    : Layer("EditorLayer"), _app(app), _showImGui(showImGui) {
+}
+
+void EditorLayer::OnUpdate(float dt) {
+    if (ImGui::IsKeyPressed(ImGuiKey_F1))
+        _showImGui = !_showImGui;
 }
 
 void EditorLayer::OnRender(float dt) {
+    if (!_showImGui) return;
+
     if (ImGui::BeginMainMenuBar()) {
-        // if (ImGui::BeginMenu("Scene")) {
-        //     ImGui::MenuItem("New Scene");
-        //     ImGui::MenuItem("Open Scene");
-        //     ImGui::MenuItem("Save Scene");
-        //     ImGui::EndMenu();
-        // }
         if (ImGui::BeginMenu("View")) {
             ImGui::MenuItem("System Info", nullptr, &_showSystemInfo);
             ImGui::MenuItem("Engine", nullptr, &_showEngineView);
@@ -94,9 +96,6 @@ void EditorLayer::DrawAppView() {
     {
         ImGui::BeginChild("Scene", ImVec2(200, 400), true);
         ImGui::Text("Scene (%d entities)", (uint32_t)_app->GetEntities().size());
-        // if (ImGui::Button("Rewind All")) {
-        //     _app->RewindAll();
-        // }
         if (ImGui::Button("Reload Scene")) {
             _app->ReloadScene();
         }
@@ -256,7 +255,9 @@ void EditorLayer::DrawEngineView() {
         _app->GetInput()->DrawImGui(dt);
         _app->GetGraphicsServer()->DrawImGui(dt);
         _app->GetPhysicsServer()->DrawImGui(dt);
+#ifndef __EMSCRIPTEN__
         _app->GetAudioManager()->DrawImGui(dt);
+#endif
     }
     ImGui::End();
 }

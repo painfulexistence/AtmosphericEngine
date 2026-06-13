@@ -11,6 +11,10 @@ class CSBDemo : public Application {
     // Test sprites for layout verification
     std::vector<GameObject*> testSprites;
 
+    void OnInit() override {
+        GoScene("main", [this]{ OnLoad(); });
+    }
+
     void OnLoad() override {
         // Initialize scene loader
         sceneLoader = new SceneLoader(this);

@@ -13,4 +13,6 @@
 - 2024/07/03 - implemented phyiscs debug UI and learned that constantly growing std::vector without reserving space can cause freeze
 - 2025/01/09 - unable to resolve "fatal error LNK1104: cannot open file 'm.lib'" on Windows
 - 2025/05/25 - realized that LNK1104 might be caused by raudio or lua, solved by removing raudio
+- 2026/06/01 - completed major engine port to WebAssembly and resolved critical WebGL2 rendering bugs
 - TODO: use std::filesystem to get the correct asset loading path
+

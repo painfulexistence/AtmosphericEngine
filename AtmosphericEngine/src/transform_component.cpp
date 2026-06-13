@@ -66,3 +66,13 @@ void TransformComponent::UpdatePositionRotationScale() {
     _rotation = glm::eulerAngles(glm::quat_cast(glm::mat3(_localToWorld)));
     _scale = glm::vec3(glm::length(_localToWorld[0]), glm::length(_localToWorld[1]), glm::length(_localToWorld[2]));
 }
+
+// User-friendly API using degrees
+void TransformComponent::SetEulerAngles(const glm::vec3& degrees) {
+    _rotation = glm::radians(degrees);
+    UpdateTransform();
+}
+
+glm::vec3 TransformComponent::GetEulerAngles() const {
+    return glm::degrees(_rotation);
+}

@@ -19,9 +19,8 @@ struct RenderCommand {
     glm::mat4 transform;
 };
 
-// Forward declaration — full definition in gpu_canvas_pass.hpp
 #if defined(AE_USE_WEBGPU) && defined(__EMSCRIPTEN__)
-class GPUCanvasPass;
+#include "gpu_canvas_pass.hpp"
 #endif
 
 class RenderPass {
@@ -175,7 +174,7 @@ public:
     };
 
     Renderer() = default;
-    ~Renderer();
+    ~Renderer() = default;
 
     void Init(int width, int height);
     void Cleanup();

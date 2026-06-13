@@ -65,5 +65,8 @@ add_custom_command(
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         ${CMAKE_SOURCE_DIR}/AtmosphericEngine/default_assets
         ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${GAME_NAME}/assets
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${GAME_ASSETS_DIR}
+        ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${GAME_NAME}/assets
     COMMENT "Copying default assets for ${GAME_NAME}"
 )

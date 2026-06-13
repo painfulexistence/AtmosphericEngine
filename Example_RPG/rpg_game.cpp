@@ -33,6 +33,7 @@ AnimClip RPGGame::MakeClip(int row, std::vector<int> cols, float dur, bool loop)
 
 void RPGGame::OnInit() {
     _screenW = 800; _screenH = 600;
+    GoScene("main", [this]{ OnLoad(); });
 }
 
 // ============================================================================

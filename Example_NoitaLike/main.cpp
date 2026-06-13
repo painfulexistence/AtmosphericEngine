@@ -6,7 +6,11 @@
 #include <chrono>
 #include <cstring>
 #include <ctime>
+#ifndef __EMSCRIPTEN__
 #include <glad/glad.h>
+#else
+#include <GLES3/gl3.h>
+#endif
 
 // ─────────────────────────────────────────────────────────────────────────────
 // NoitaLike: two-player networked falling-sand arena (deterministic lockstep).
@@ -158,7 +162,7 @@ class NoitaLikeGame : public Application {
         f.spell = curSpell;
 
         const Player& me = sim.players[net.localPlayer];
-        auto ws = GetWindow()->GetSize();
+        auto ws = GetWindow()->GetFramebufferSize();
         glm::vec2 mouse = input.GetMousePosition();
         float wx = mouse.x * float(SandWorld::W) / float(ws.width);
         float wy = mouse.y * float(SandWorld::H) / float(ws.height);
@@ -189,7 +193,7 @@ class NoitaLikeGame : public Application {
     }
 
     void RenderWorld() {
-        auto ws = GetWindow()->GetSize();
+        auto ws = GetWindow()->GetFramebufferSize();
         float sx = float(ws.width) / float(SandWorld::W);
         float sy = float(ws.height) / float(SandWorld::H);
 
@@ -313,7 +317,7 @@ class NoitaLikeGame : public Application {
             FixedUpdate(dt);
             RenderWorld();
         } else {
-            auto ws = GetWindow()->GetSize();
+            auto ws = GetWindow()->GetFramebufferSize();
             graphics.DrawQuad(
               ws.width * 0.5f, ws.height * 0.5f, float(ws.width), float(ws.height), 0.0f,
               { 0.09f, 0.08f, 0.13f, 1.0f }

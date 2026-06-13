@@ -1322,12 +1322,12 @@ void UIPass::Execute(GraphicsServer* ctx, Renderer& renderer, CommandEncoder* en
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    // Get viewport size
-    GLint viewport[4];
-    glGetIntegerv(GL_VIEWPORT, viewport);
-    float width = (float)viewport[2];
-    float height = (float)viewport[3];
+    // RmlUi context dimensions are in logical pixels, so projection must match.
+    auto logicalSize = Window::Get()->GetSize();
+    float width = (float)logicalSize.width;
+    float height = (float)logicalSize.height;
 
+    glViewport(0, 0, Window::Get()->GetFramebufferSize().width, Window::Get()->GetFramebufferSize().height);
     glm::mat4 projection = glm::ortho(0.0f, width, height, 0.0f, -1.0f, 1.0f);
 
     batchRenderer->BeginBatch(projection);

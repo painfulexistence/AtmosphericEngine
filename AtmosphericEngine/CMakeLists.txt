@@ -272,6 +272,7 @@ if(AE_USE_BASIS_UNIVERSAL)
                     -B "${_BASISU_HOST_DIR}"
                     -S "${basis_universal_SOURCE_DIR}"
                     -DCMAKE_BUILD_TYPE=Release
+                    -DCMAKE_RUNTIME_OUTPUT_DIRECTORY=${_BASISU_HOST_DIR}
                 COMMAND "${CMAKE_COMMAND}"
                     --build "${_BASISU_HOST_DIR}" --target basisu --parallel
                 COMMENT "Building basisu host encoder"

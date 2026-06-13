@@ -55,7 +55,7 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends cmake ninja-build pkg-config basisu
+          sudo apt-get install -y --no-install-recommends cmake ninja-build pkg-config
 
       # ── vcpkg ──────────────────────────────────────────────────────────────
       - name: Check out vcpkg
@@ -138,7 +138,7 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends cmake ninja-build pkg-config basisu
+          sudo apt-get install -y --no-install-recommends cmake ninja-build pkg-config
 
       - name: Check out vcpkg
         uses: actions/checkout@v4

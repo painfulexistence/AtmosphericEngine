@@ -32,31 +32,26 @@ void GfxFactory::Init() {
     if (Window::IsWebGPUAvailable()) {
         _backend = GfxBackend::WebGPU;
 
-        // Asynchronously request adapter → device (Future-based API, emdawnwebgpu ≥ 2024).
+        // Asynchronously request adapter → device.
         // CanvasPass will skip frames until SetWebGPUDevice() is called.
         WGPURequestAdapterOptions adapterOpts{};
         adapterOpts.powerPreference = WGPUPowerPreference_HighPerformance;
-
-        WGPURequestAdapterCallbackInfo adapterCB{};
-        adapterCB.mode     = WGPUCallbackMode_AllowSpontaneous;
-        adapterCB.callback = [](WGPURequestAdapterStatus status, WGPUAdapter adapter,
-                                WGPUStringView /*msg*/, void* /*u1*/, void* /*u2*/) {
-            if (status != WGPURequestAdapterStatus_Success || !adapter) {
-                Console::Get()->Warn("[GfxFactory] WebGPU adapter request failed. Falling back to WebGL 2.");
-                GfxFactory::_backend = GfxBackend::OpenGL;
-                return;
-            }
-            WGPUDeviceDescriptor devDesc{};
-            WGPURequestDeviceCallbackInfo deviceCB{};
-            deviceCB.mode     = WGPUCallbackMode_AllowSpontaneous;
-            deviceCB.callback = [](WGPURequestDeviceStatus /*status*/, WGPUDevice device,
-                                   WGPUStringView /*msg*/, void* /*u1*/, void* /*u2*/) {
-                GfxFactory::SetWebGPUDevice(device);
-            };
-            wgpuAdapterRequestDevice(adapter, &devDesc, deviceCB);
-            wgpuAdapterRelease(adapter);
-        };
-        wgpuInstanceRequestAdapter(nullptr, &adapterOpts, adapterCB);
+        wgpuInstanceRequestAdapter(nullptr, &adapterOpts,
+            [](WGPURequestAdapterStatus status, WGPUAdapter adapter,
+               const char* /*msg*/, void* /*udata*/) {
+                if (status != WGPURequestAdapterStatus_Success || !adapter) {
+                    Console::Get()->Warn("[GfxFactory] WebGPU adapter request failed. Falling back to WebGL 2.");
+                    GfxFactory::_backend = GfxBackend::OpenGL;
+                    return;
+                }
+                WGPUDeviceDescriptor devDesc{};
+                wgpuAdapterRequestDevice(adapter, &devDesc,
+                    [](WGPURequestDeviceStatus /*status*/, WGPUDevice device,
+                       const char* /*msg*/, void* /*udata*/) {
+                        GfxFactory::SetWebGPUDevice(device);
+                    }, nullptr);
+                wgpuAdapterRelease(adapter);
+            }, nullptr);
         return;
     } else {
         Console::Get()->Warn("[GfxFactory] WebGPU not available in browser. Falling back to WebGL 2.");

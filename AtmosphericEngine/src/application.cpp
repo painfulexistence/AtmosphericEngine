@@ -3,7 +3,6 @@
 #include "asset_manager.hpp"
 #include "camera_component.hpp"
 #include "component_registry.hpp"
-#include "editor_layer.hpp"
 #include "game_layer.hpp"
 #include "game_object.hpp"
 #include "job_system.hpp"
@@ -25,6 +24,9 @@
 #include "terrain_component.hpp"
 #include "transform_component.hpp"
 #include "window.hpp"
+#ifndef NDEBUG
+#include "editor_layer.hpp"
+#endif
 #ifdef TRACY_ENABLE
 #include <tracy/Tracy.hpp>
 #endif
@@ -51,7 +53,11 @@ Application::Application(AppConfig config) : _config(config) {
     _window->InitImGui();
 
     PushLayer(new GameLayer(this));
-    PushLayer(new EditorLayer(this));
+#ifndef NDEBUG
+    auto* editorLayer = new EditorLayer(this);
+    _editorLayer = editorLayer;
+    PushLayer(editorLayer);
+#endif
 
     RegisterComponents();
 }
@@ -163,6 +169,16 @@ void Application::PushLayer(Layer* layer) {
     _layers.push_back(layer);
     layer->OnAttach();
 }
+
+#ifndef NDEBUG
+bool Application::IsShowingImGui() const {
+    return _editorLayer ? _editorLayer->IsVisible() : false;
+}
+
+void Application::SetShowImGui(bool show) {
+    if (_editorLayer) _editorLayer->SetVisible(show);
+}
+#endif
 
 void Application::LoadScene(const SceneDef& scene) {
     ENGINE_LOG("Loading scene...");

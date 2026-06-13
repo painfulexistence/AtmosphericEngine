@@ -1,4 +1,17 @@
 option(BUILD_SHARED_LIBS OFF)
+
+# ── FastNoiseLite (single-header noise library) ───────────────────────────────
+FetchContent_Declare(
+    FastNoiseLite
+    GIT_REPOSITORY https://github.com/Auburn/FastNoiseLite.git
+    GIT_TAG        v1.1.1
+    GIT_SHALLOW    TRUE
+    UPDATE_DISCONNECTED TRUE
+)
+FetchContent_GetProperties(FastNoiseLite)
+if(NOT FastNoiseLite_POPULATED)
+    FetchContent_Populate(FastNoiseLite)
+endif()
 if(NOT EMSCRIPTEN)
     FetchContent_Declare(
         SDL3
@@ -165,20 +178,25 @@ set(SOURCES
     src/rigidbody_2d_component.cpp
     src/mesh_builder.cpp
     src/shape_renderer_component.cpp
+    src/voxel_chunk_component.cpp
+    src/voxel_world.cpp
+    src/voxel_chunk_pass.cpp
+    src/sun_component.cpp
     src/scene_loader.cpp
+    src/scene_transition.cpp
     src/script.cpp
     src/component_registry.cpp
     ${FLATBUFFERS_GENERATED_DIR}/Scene_generated.h
 )
 # ── Graphics backend selection ────────────────────────────────────────────────
 # Native  : Dawn WebGPU (not yet integrated — falls back to OpenGL 4.1).
-# Web     : browser WebGPU via Emscripten (AE_WEB_BACKEND_WEBGPU=ON)
-#           or WebGL 2.0 fallback (AE_WEB_BACKEND_WEBGPU=OFF, default).
+# Web     : browser WebGPU via Emscripten (AE_USE_WEBGPU=ON)
+#           or WebGL 2.0 fallback (AE_USE_WEBGPU=OFF, default).
 #
 # When enabling on Emscripten, also update target_link_options below:
 #   Remove : -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2 -sFULL_ES3=1
 #   Add    : -sUSE_WEBGPU=1
-option(AE_WEB_BACKEND_WEBGPU "Target WebGPU on Emscripten builds (replaces WebGL2)" OFF)
+option(AE_USE_WEBGPU "Target WebGPU on Emscripten builds (replaces WebGL2)" OFF)
 
 list(APPEND SOURCES src/gfx_factory.cpp)
 list(APPEND SOURCES src/audio_manager.cpp)
@@ -186,7 +204,7 @@ if(NOT EMSCRIPTEN)
     list(APPEND SOURCES src/window_sdl3.cpp)
 else()
     list(APPEND SOURCES src/window_glfw.cpp)
-    if(AE_WEB_BACKEND_WEBGPU)
+    if(AE_USE_WEBGPU)
         list(APPEND SOURCES src/gpu_buffer.cpp)
         list(APPEND SOURCES src/gpu_render_target.cpp)
     endif()
@@ -246,7 +264,9 @@ if(AE_USE_BASIS_UNIVERSAL)
             add_custom_target(basisu_host_tool)
         else()
             set(_BASISU_HOST_DIR ${CMAKE_BINARY_DIR}/_basisu_host)
-            set(BASISU_EXECUTABLE "${_BASISU_HOST_DIR}/basisu"
+            # basis_universal's CMakeLists hardcodes output to ${SOURCE_DIR}/bin,
+            # so the binary lands in basis_universal_SOURCE_DIR/bin/basisu.
+            set(BASISU_EXECUTABLE "${basis_universal_SOURCE_DIR}/bin/basisu"
                 CACHE INTERNAL "basisu encoder")
             add_custom_command(
                 OUTPUT "${BASISU_EXECUTABLE}"
@@ -329,7 +349,7 @@ function(ae_auto_convert_textures TARGET SRC_DIR DST_DIR)
         add_custom_command(
             OUTPUT "${_KTX2}"
             COMMAND "${CMAKE_COMMAND}" -E make_directory "${_OUT_DIR}"
-            COMMAND "${BASISU_EXECUTABLE}" -ktx2 -mipmap "${_IMG}" -output_path "${_OUT_DIR}"
+            COMMAND "${BASISU_EXECUTABLE}" -ktx2 -mipmap -y_flip "${_IMG}" -output_path "${_OUT_DIR}"
             DEPENDS "${_IMG}" basisu_host_tool
             COMMENT "Converting ${_STEM} → KTX2"
             VERBATIM
@@ -350,6 +370,7 @@ target_include_directories(AtmosphericEngine
         ${CMAKE_CURRENT_SOURCE_DIR}/external/stb
         ${CMAKE_CURRENT_SOURCE_DIR}/include/Atmospheric
         ${FLATBUFFERS_GENERATED_DIR}
+        ${fastnoiselite_SOURCE_DIR}/Cpp
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui
         ${CMAKE_CURRENT_SOURCE_DIR}/include
@@ -385,10 +406,10 @@ if(EMSCRIPTEN)
     # -sPTHREAD_POOL_SIZE           : pre-spawn workers to avoid first-use latency
     # -sPROXY_TO_PTHREAD=1          : run main() on a worker so blocking Wait()
     #                                 calls do not freeze the browser main thread
-    target_compile_options(AtmosphericEngine PRIVATE -pthread)
-    if(AE_WEB_BACKEND_WEBGPU)
-        target_compile_definitions(AtmosphericEngine PUBLIC AE_WEB_BACKEND_WEBGPU)
-        # AE_WEB_BACKEND_WEBGPU=ON compiles in WebGPU support (emdawnwebgpu).
+    target_compile_options(AtmosphericEngine PRIVATE)
+    if(AE_USE_WEBGPU)
+        target_compile_definitions(AtmosphericEngine PUBLIC AE_USE_WEBGPU)
+        # AE_USE_WEBGPU=ON compiles in WebGPU support (emdawnwebgpu).
         # The actual backend is chosen at runtime by GfxFactory::Init():
         #   - browser exposes navigator.gpu → attempts WebGPU
         #   - WebGPU unavailable or device creation fails → falls back to WebGL 2
@@ -397,23 +418,24 @@ if(EMSCRIPTEN)
         # to work at runtime.
         # --closure=1 is recommended in release builds to reduce emdawnwebgpu JS size.
         # TODO: switch ImGui backend to imgui_impl_wgpu once WebGPU path is stable.
-        target_link_options(AtmosphericEngine PUBLIC
+        target_link_options(AtmosphericEngine INTERFACE
             -sWASM=1 -O3 -sUSE_GLFW=3
             --use-port=emdawnwebgpu
             -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2 -sFULL_ES3=1
             -sFETCH=1
             -sUSE_PTHREADS=1
             "-sPTHREAD_POOL_SIZE=navigator.hardwareConcurrency"
-            -sPROXY_TO_PTHREAD=1)
+            -sPROXY_TO_PTHREAD=1
+            -sEXPORTED_RUNTIME_METHODS=["requestFullscreen"])
     else()
-        # WebGPU support not compiled in — always uses WebGL 2.
-        target_link_options(AtmosphericEngine PRIVATE
+        target_link_options(AtmosphericEngine INTERFACE
             -sWASM=1 -O3 -sUSE_GLFW=3
             -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2 -sFULL_ES3=1
             -sFETCH=1
             -sUSE_PTHREADS=1
             "-sPTHREAD_POOL_SIZE=navigator.hardwareConcurrency"
-            -sPROXY_TO_PTHREAD=1)
+            -sPROXY_TO_PTHREAD=1
+            -sEXPORTED_RUNTIME_METHODS=["requestFullscreen"])
     endif()
 else()
     target_compile_definitions(AtmosphericEngine PUBLIC BT_THREADSAFE=1)

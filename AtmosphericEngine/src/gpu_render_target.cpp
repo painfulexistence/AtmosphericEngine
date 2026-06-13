@@ -1,4 +1,4 @@
-#if defined(AE_WEB_BACKEND_WEBGPU) && defined(__EMSCRIPTEN__)
+#if defined(AE_USE_WEBGPU) && defined(__EMSCRIPTEN__)
 #include "gpu_render_target.hpp"
 
 GPURenderTarget::GPURenderTarget(WGPUDevice device, const RenderTarget::Props& props)
@@ -106,4 +106,4 @@ void GPURenderTarget::Resize(int width, int height) {
     Destroy();
     Create();
 }
-#endif // AE_WEB_BACKEND_WEBGPU && __EMSCRIPTEN__
+#endif // AE_USE_WEBGPU && __EMSCRIPTEN__

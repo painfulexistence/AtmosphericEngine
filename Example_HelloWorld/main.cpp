@@ -13,7 +13,15 @@ class HelloWorld : public Application {
     std::vector<GameObject*> screenSprites;
     FontID fontID;
 
+    void OnInit() override {
+        GoScene("main", [this]{ OnLoad(); });
+    }
+
     void OnLoad() override {
+        cube = nullptr;
+        worldSprites.clear();
+        screenSprites.clear();
+
         // Load font
         fontID = GraphicsServer::Get()->LoadFont("assets/fonts/NotoSans-SemiBold.ttf", 32.0f);
 

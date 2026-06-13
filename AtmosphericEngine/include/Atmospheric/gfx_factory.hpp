@@ -7,14 +7,14 @@
 #ifndef __EMSCRIPTEN__
 struct SDL_Window;
 #endif
-#if defined(AE_WEB_BACKEND_WEBGPU) && defined(__EMSCRIPTEN__)
+#if defined(AE_USE_WEBGPU) && defined(__EMSCRIPTEN__)
 #include <webgpu/webgpu.h>
 #endif
 
 // Static factory — call Init() once after the window is ready, then use
 // CreateBuffer() / CreateRenderTarget() everywhere that needs a GPU resource.
 //
-// AE_WEB_BACKEND_WEBGPU (CMake option, default OFF):
+// AE_USE_WEBGPU (CMake option, default OFF):
 //   Controls whether WebGPU support is compiled in.
 //   The actual backend is chosen at runtime:
 //     - WebGPU support compiled in AND browser/device reports availability
@@ -26,7 +26,7 @@ public:
 #ifdef __EMSCRIPTEN__
     // Web: checks WebGPU availability at runtime; falls back to WebGL 2.
     static void Init();
-#if defined(AE_WEB_BACKEND_WEBGPU)
+#if defined(AE_USE_WEBGPU)
     // Called from the emscripten_webgpu_get_device() callback.
     // Passing nullptr falls back to WebGL 2.
     static void SetWebGPUDevice(WGPUDevice device);
@@ -49,7 +49,7 @@ public:
 private:
     static GfxBackend _backend;
 
-#if defined(__EMSCRIPTEN__) && defined(AE_WEB_BACKEND_WEBGPU)
+#if defined(__EMSCRIPTEN__) && defined(AE_USE_WEBGPU)
     static WGPUDevice _wgpuDevice;
     static WGPUQueue  _wgpuQueue;
 #elif !defined(__EMSCRIPTEN__)

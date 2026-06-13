@@ -16,15 +16,25 @@ echo -e "${BLUE}===================================================${NC}"
 
 # 預設建置類型為 Release
 BUILD_TYPE="Release"
+WEBGPU_SUPPORT="OFF"
 
 # 解析參數
-if [ "$1" = "debug" ] || [ "$1" = "Debug" ]; then
-    BUILD_TYPE="Debug"
-elif [ "$1" = "release" ] || [ "$1" = "Release" ]; then
-    BUILD_TYPE="Release"
-fi
+for arg in "$@"; do
+    case "$arg" in
+        debug|Debug)
+            BUILD_TYPE="Debug"
+            ;;
+        release|Release)
+            BUILD_TYPE="Release"
+            ;;
+        --webgpu)
+            WEBGPU_SUPPORT="ON"
+            ;;
+    esac
+done
 
 echo -e "建置類型: ${GREEN}${BUILD_TYPE}${NC}"
+echo -e "WebGPU 支援: ${GREEN}${WEBGPU_SUPPORT}${NC}"
 echo -e ""
 
 # 1. 檢查是否已設定 Emscripten SDK 環境變數
@@ -62,7 +72,8 @@ if [ ! -d "$VCPKG_DIR" ] || [ ! -f "$VCPKG_DIR/vcpkg" ]; then
 fi
 
 # 3. 定義 WebAssembly 專屬建置目錄
-BUILD_DIR="$(pwd)/build-wasm"
+BUILD_SUBDIR=$(echo "$BUILD_TYPE" | tr '[:upper:]' '[:lower:]')
+BUILD_DIR="$(pwd)/build-wasm/$BUILD_SUBDIR"
 echo -e "${BLUE}配置資訊:${NC}"
 echo -e "  - 專案根目錄: $(pwd)"
 echo -e "  - 建置目錄:   $BUILD_DIR"
@@ -76,10 +87,7 @@ emcmake cmake -G Ninja \
   -DCMAKE_TOOLCHAIN_FILE="$VCPKG_DIR/scripts/buildsystems/vcpkg.cmake" \
   -DVCPKG_TARGET_TRIPLET=wasm32-emscripten \
   -DCMAKE_BUILD_TYPE="$BUILD_TYPE" \
-  -DAE_USE_EMSCRIPTEN=ON \
-  -DAE_USE_SDL3=OFF \
-  -DAE_USE_SDL2=OFF \
-  -DAE_USE_AUDIO=OFF
+  -DAE_USE_WEBGPU="$WEBGPU_SUPPORT"
 
 # 5. 進行建置 (目標包含 AtmosLua, HelloWorld 與 Maze 迷宮遊戲)
 echo -e ""
@@ -89,9 +97,12 @@ cmake --build "$BUILD_DIR" --parallel
 echo -e ""
 echo -e "${GREEN}✨ WebAssembly / Emscripten 建置成功！(${BUILD_TYPE})${NC}"
 echo -e "網頁版產物已輸出至："
-echo -e "  - AtmosLua:   ${YELLOW}$BUILD_DIR/AtmosLua/${NC}"
-echo -e "  - HelloWorld: ${YELLOW}$BUILD_DIR/HelloWorld/${NC}"
-echo -e "  - Maze 迷宮:  ${YELLOW}$BUILD_DIR/Maze/${NC}"
+echo -e "  - AtmosLua:      ${YELLOW}$BUILD_DIR/AtmosLua/${NC}"
+echo -e "  - HelloWorld:    ${YELLOW}$BUILD_DIR/HelloWorld/${NC}"
+echo -e "  - Maze 迷宮:     ${YELLOW}$BUILD_DIR/Maze/${NC}"
+echo -e "  - Physics2D 物理:${YELLOW}$BUILD_DIR/Physics2DDemo/${NC}"
+echo -e "  - CSBDemo 角色:  ${YELLOW}$BUILD_DIR/CSBDemo/${NC}"
+echo -e "  - VoxelWorld:    ${YELLOW}$BUILD_DIR/VoxelWorld/${NC}"
 echo -e ""
 
 # 6. 提供啟動本地伺服器的選項以便立即測試
@@ -107,6 +118,9 @@ if [ "$RUN_SERVER" = "y" ] || [ "$RUN_SERVER" = "Y" ]; then
     echo -e "  👉 AtmosLua (Lua 前端): ${BLUE}http://localhost:$PORT/AtmosLua/AtmosLua.html${NC}"
     echo -e "  👉 HelloWorld 範例:    ${BLUE}http://localhost:$PORT/HelloWorld/HelloWorld.html${NC}"
     echo -e "  👉 Maze 迷宮大作:      ${BLUE}http://localhost:$PORT/Maze/Maze.html${NC}"
+    echo -e "  👉 Physics2D 物理範例:  ${BLUE}http://localhost:$PORT/Physics2DDemo/Physics2DDemo.html${NC}"
+    echo -e "  👉 CSBDemo 角色範例:    ${BLUE}http://localhost:$PORT/CSBDemo/CSBDemo.html${NC}"
+    echo -e "  👉 VoxelWorld 體素範例:  ${BLUE}http://localhost:$PORT/VoxelWorld/VoxelWorld.html${NC}"
     echo -e ""
     echo -e "按下 ${RED}Ctrl+C${NC} 可以停止伺服器。"
     echo -e ""

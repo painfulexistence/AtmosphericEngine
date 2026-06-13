@@ -1,4 +1,4 @@
-#if defined(AE_WEB_BACKEND_WEBGPU) && defined(__EMSCRIPTEN__)
+#if defined(AE_USE_WEBGPU) && defined(__EMSCRIPTEN__)
 #include "gpu_buffer.hpp"
 
 GPUBuffer::GPUBuffer(WGPUDevice device, WGPUQueue queue)
@@ -58,4 +58,4 @@ void GPUBuffer::Draw(CommandEncoder* enc, PrimitiveTopology /*topology*/) const 
         wgpuRenderPassEncoderDraw(pass, static_cast<uint32_t>(_vertexCount), 1, 0, 0);
     }
 }
-#endif // AE_WEB_BACKEND_WEBGPU && __EMSCRIPTEN__
+#endif // AE_USE_WEBGPU && __EMSCRIPTEN__

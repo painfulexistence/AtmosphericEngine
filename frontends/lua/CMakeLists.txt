@@ -57,7 +57,10 @@ if(EMSCRIPTEN)
         COMMAND ${CMAKE_COMMAND} -E copy_directory
             ${CMAKE_SOURCE_DIR}/AtmosphericEngine/default_assets/shaders
             ${EM_PRELOAD_STAGING_DIR}/shaders
-        COMMENT "Staging Emscripten preload assets (shaders) for ${TARGET_NAME}"
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+            ${CMAKE_CURRENT_SOURCE_DIR}/assets/scenes
+            ${EM_PRELOAD_STAGING_DIR}/scenes
+        COMMENT "Staging Emscripten preload assets (shaders, scenes) for ${TARGET_NAME}"
     )
     add_dependencies(${TARGET_NAME} stage_${TARGET_NAME}_em_preload)
 
@@ -74,7 +77,10 @@ if(EMSCRIPTEN)
         -sFETCH=1 -sFORCE_FILESYSTEM=1 -sALLOW_MEMORY_GROWTH=1
         -sASSERTIONS=1
         -sDISABLE_EXCEPTION_CATCHING=0
-        --preload-file ${EM_PRELOAD_STAGING_DIR}/shaders@assets/shaders
+        -sEXPORTED_FUNCTIONS=["_main","_printWasmMemoryStats"]
+        -Wl,--undefined=printWasmMemoryStats
+        "SHELL:--preload-file ${EM_PRELOAD_STAGING_DIR}/shaders@assets/shaders"
+        "SHELL:--preload-file ${EM_PRELOAD_STAGING_DIR}/scenes@assets/scenes"
     )
 
 else()

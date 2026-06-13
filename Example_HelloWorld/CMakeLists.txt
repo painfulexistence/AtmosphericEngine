@@ -47,6 +47,9 @@ if(EMSCRIPTEN)
         COMMAND ${CMAKE_COMMAND} -E copy_directory
             ${CMAKE_CURRENT_SOURCE_DIR}/assets/fonts
             ${EM_PRELOAD_STAGING_DIR}/fonts
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+            ${CMAKE_CURRENT_SOURCE_DIR}/assets/scenes
+            ${EM_PRELOAD_STAGING_DIR}/scenes
         COMMENT "Staging Emscripten preload assets (shaders, fonts) for ${GAME_NAME}"
     )
     add_dependencies(${GAME_NAME} stage_${GAME_NAME}_em_preload)
@@ -59,15 +62,13 @@ if(EMSCRIPTEN)
     # -sALLOW_MEMORY_GROWTH=1 : allows WASM heap to grow dynamically; avoids
     #                   OOM when loading multiple large textures in sequence.
     target_link_options(${GAME_NAME} PRIVATE
-        -sWASM=1
-        -O3
-        -sUSE_GLFW=3
-        -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2 -sFULL_ES3=1
-        -sFETCH=1
         -sALLOW_MEMORY_GROWTH=1
         -sASSERTIONS=1
         -sDISABLE_EXCEPTION_CATCHING=0
-        --preload-file ${EM_PRELOAD_STAGING_DIR}/shaders@assets/shaders
+        -sEXPORTED_FUNCTIONS=["_main","_printWasmMemoryStats"]
+        -Wl,--undefined=printWasmMemoryStats
+        "SHELL:--preload-file ${EM_PRELOAD_STAGING_DIR}/shaders@assets/shaders"
+        "SHELL:--preload-file ${EM_PRELOAD_STAGING_DIR}/scenes@assets/scenes"
     )
 
 else()

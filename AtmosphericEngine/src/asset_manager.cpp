@@ -1,4 +1,5 @@
 #include "asset_manager.hpp"
+#include <unordered_set>
 #include <spdlog/spdlog.h>
 #include "console.hpp"
 #include "file_system.hpp"
@@ -155,6 +156,43 @@ void AssetManager::Clear() {
     _imageCache.clear();
 }
 
+void AssetManager::ClearSceneAssets() {
+    // Textures: clear scene textures, keep defaultTextures untouched.
+    if (!textures.empty()) {
+        glDeleteTextures(textures.size(), textures.data());
+        textures.clear();
+    }
+    // Remove scene texture cache entries (keep default texture entries by glID).
+    std::unordered_set<GLuint> defaultIDs(defaultTextures.begin(), defaultTextures.end());
+    for (auto it = _textureCache.begin(); it != _textureCache.end(); ) {
+        if (defaultIDs.count(it->second.glID))
+            ++it;
+        else
+            it = _textureCache.erase(it);
+    }
+
+    // Shaders: delete only scene shaders (indices >= _defaultShaderCount).
+    for (uint32_t i = _defaultShaderCount; i < (uint32_t)shaders.size(); ++i)
+        delete shaders[i];
+    shaders.resize(_defaultShaderCount);
+    // Rebuild shader cache to only contain default shaders.
+    for (auto it = _shaderCache.begin(); it != _shaderCache.end(); )
+        it = (it->second < _defaultShaderCount) ? std::next(it) : _shaderCache.erase(it);
+    _nextShaderID = _defaultShaderCount;
+
+    // Materials and meshes are always scene-specific.
+    for (auto* m : materials) delete m;
+    materials.clear();
+    _materialCache.clear();
+    _nextMaterialID = 0;
+
+    for (auto* m : meshes) delete m;
+    meshes.clear();
+    _meshCache.clear();
+
+    _imageCache.clear();
+}
+
 // ============================================================================
 // Image Management
 // ============================================================================
@@ -230,7 +268,7 @@ void AssetManager::LoadDefaultShaders() {
                   },
                   {
                     "hdr",
-                    { .vert = "assets/shaders/hdr.vert", .frag = "assets/shaders/hdr_ca.frag" },
+                    { .vert = "assets/shaders/hdr.vert", .frag = "assets/shaders/hdr.frag" },
                   },
 #ifdef __EMSCRIPTEN__
                   {
@@ -249,7 +287,16 @@ void AssetManager::LoadDefaultShaders() {
 #endif
                   { "canvas", { .vert = "assets/shaders/canvas.vert", .frag = "assets/shaders/canvas.frag" } },
                   { "geometry", { .vert = "assets/shaders/geometry.vert", .frag = "assets/shaders/geometry.frag" } },
-                  { "lighting", { .vert = "assets/shaders/lighting.vert", .frag = "assets/shaders/lighting.frag" } } });
+                  { "lighting", { .vert = "assets/shaders/lighting.vert", .frag = "assets/shaders/lighting.frag" } },
+                  { "skybox",          { .vert = "assets/shaders/skybox.vert",           .frag = "assets/shaders/skybox.frag" } },
+                  { "sun",             { .vert = "assets/shaders/sun.vert",              .frag = "assets/shaders/sun.frag" } },
+                  { "voxel",           { .vert = "assets/shaders/voxel.vert",            .frag = "assets/shaders/voxel.frag" } },
+                  { "water",           { .vert = "assets/shaders/water.vert",            .frag = "assets/shaders/water.frag" } },
+                  { "bloom_threshold", { .vert = "assets/shaders/bloom.vert",            .frag = "assets/shaders/bloom_threshold.frag" } },
+                  { "bloom_downsample",{ .vert = "assets/shaders/bloom.vert",            .frag = "assets/shaders/bloom_downsample.frag" } },
+                  { "bloom_upsample",  { .vert = "assets/shaders/bloom.vert",            .frag = "assets/shaders/bloom_upsample.frag" } },
+                  { "bloom_composite", { .vert = "assets/shaders/bloom.vert",            .frag = "assets/shaders/bloom_composite.frag" } } });
+    _defaultShaderCount = (uint32_t)shaders.size();
 }
 
 void AssetManager::LoadShaders(const std::unordered_map<std::string, ShaderProgramProps>& shaderDefs) {
@@ -409,9 +456,14 @@ void AssetManager::LoadTextures(const std::vector<std::string>& paths) {
         if (path.size() >= 5 && path.compare(path.size() - 5, 5, ".ktx2") == 0) {
 #ifdef AE_USE_BASIS_UNIVERSAL
             auto cached = _textureCache.find(path);
-            GLuint texID = (cached != _textureCache.end()) ? cached->second : LoadKTX2Texture(path);
-            textures[oldCount + i] = texID;
-            _textureCache[path]    = texID;
+            if (cached != _textureCache.end()) {
+                textures[oldCount + i] = cached->second.glID;
+            } else {
+                Texture2D tex2d;
+                GLuint texID = LoadKTX2Texture(path, &tex2d);
+                textures[oldCount + i] = texID;
+                _textureCache[path] = tex2d;
+            }
 #else
             throw std::runtime_error(
                 fmt::format("KTX2 texture requested but AE_USE_BASIS_UNIVERSAL is disabled: {}", path));
@@ -446,12 +498,11 @@ void AssetManager::LoadTextures(const std::vector<std::string>& paths) {
             spdlog::warn("Failed to load texture at '{}', using default fallback texture.", regularPaths[j]);
             // Re-use the default texture (defaultTextures[0]) as a safe fallback
             textures[oldCount + i] = defaultTextures.empty() ? 0u : defaultTextures[0];
-            _textureCache[regularPaths[j]] = textures[oldCount + i];
+            _textureCache[regularPaths[j]] = { textures[oldCount + i], 0, 0, 0 };
             continue;
         }
 
-        textures[oldCount + i]    = texID;
-        _textureCache[regularPaths[j]] = texID;
+        textures[oldCount + i] = texID;
 
         glBindTexture(GL_TEXTURE_2D, texID);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S,       GL_REPEAT);
@@ -476,6 +527,8 @@ void AssetManager::LoadTextures(const std::vector<std::string>& paths) {
             throw std::runtime_error(fmt::format("Unknown texture format at {}\n", regularPaths[j]));
         }
         glGenerateMipmap(GL_TEXTURE_2D);
+        _textureCache[regularPaths[j]] = { texID, (uint32_t)img->width, (uint32_t)img->height,
+                                           (size_t)img->width * img->height * img->channelCount };
     }
 }
 
@@ -490,15 +543,16 @@ GLuint AssetManager::CreateTexture(const std::string& path) {
     // Return cached texture (GLuint) if already uploaded.
     auto it = _textureCache.find(redirectedPath);
     if (it != _textureCache.end()) {
-        return it->second; // stored as GL texture ID by both loaders
+        return it->second.glID;
     }
 
 #ifdef AE_USE_BASIS_UNIVERSAL
     // Route .ktx2 files to the GPU-compressed loader.
     if (redirectedPath.size() >= 5 && redirectedPath.compare(redirectedPath.size() - 5, 5, ".ktx2") == 0) {
-        GLuint texID = LoadKTX2Texture(redirectedPath);
+        Texture2D tex2d;
+        GLuint texID = LoadKTX2Texture(redirectedPath, &tex2d);
         textures.push_back(texID);
-        _textureCache[redirectedPath] = texID;
+        _textureCache[redirectedPath] = tex2d;
         return texID;
     }
 #endif
@@ -540,7 +594,8 @@ GLuint AssetManager::CreateTextureFromImage(const std::shared_ptr<Image>& image)
     }
     glGenerateMipmap(GL_TEXTURE_2D);
 
-    _textureCache["unnamed_" + std::to_string(_nextTextureID++)] = _nextTextureID;
+    size_t bytes = (size_t)image->width * image->height * image->channelCount;
+    _textureCache["unnamed_" + std::to_string(_nextTextureID++)] = { texID, (uint32_t)image->width, (uint32_t)image->height, bytes };
     textures.push_back(texID);
     return texID;
 }
@@ -548,7 +603,7 @@ GLuint AssetManager::CreateTextureFromImage(const std::shared_ptr<Image>& image)
 GLuint AssetManager::GetTexture(const std::string& name) const {
     auto it = _textureCache.find(name);
     if (it != _textureCache.end()) {
-        return GetTextureByID(it->second);
+        return it->second.glID;
     }
     throw std::runtime_error(fmt::format("Texture '{}' not found", name));
 }
@@ -558,6 +613,24 @@ GLuint AssetManager::GetTextureByID(uint32_t id) const {
         return textures[id];
     }
     throw std::runtime_error(fmt::format("Texture ID {} out of range", id));
+}
+
+std::string AssetManager::GetTexturePath(GLuint id) const {
+    for (const auto& [path, tex2d] : _textureCache) {
+        if (tex2d.glID == id) return path;
+    }
+    return "";
+}
+
+
+size_t AssetManager::getTotalTextureBytes() const {
+    std::unordered_set<GLuint> seen;
+    size_t total = 0;
+    for (auto& kv : _textureCache) {
+        if (kv.second.glID != 0 && seen.insert(kv.second.glID).second)
+            total += kv.second.bytes;
+    }
+    return total;
 }
 
 #ifdef AE_USE_BASIS_UNIVERSAL
@@ -580,7 +653,7 @@ GLuint AssetManager::GetTextureByID(uint32_t id) const {
 //     toktx --t2 --encode etc1s --mipmap out.ktx2 input.png
 //   If the KTX2 has only one level, GL_LINEAR is used (no mip filtering).
 // ============================================================================
-GLuint AssetManager::LoadKTX2Texture(const std::string& path) {
+GLuint AssetManager::LoadKTX2Texture(const std::string& path, Texture2D* out) {
     // Ensure basisu is initialised (may already be done in Init()).
     if (!_basisuInitialized) {
         basist::basisu_transcoder_init();
@@ -682,6 +755,17 @@ GLuint AssetManager::LoadKTX2Texture(const std::string& path) {
                path, baseWidth, baseHeight, levels,
                hasAlpha ? "RGBA" : "RGB");
 
+    if (out) {
+        // Sum compressed bytes across all mip levels for accurate VRAM accounting.
+        size_t totalBytes = 0;
+        for (uint32_t level = 0; level < levels; ++level) {
+            basist::ktx2_image_level_info info;
+            if (ktx2Dec.get_image_level_info(info, level, 0, 0))
+                totalBytes += (size_t)info.m_total_blocks * bytesPerBlk;
+        }
+        *out = { texID, baseWidth, baseHeight, totalBytes };
+    }
+
     return texID;
 }
 #endif // AE_USE_BASIS_UNIVERSAL
@@ -717,6 +801,41 @@ Mesh* AssetManager::CreatePlaneMesh(const std::string& name, float width, float 
     if (_materialCache.find("Default") != _materialCache.end()) {
         mesh->SetMaterial(GetMaterial("Default"));
     }
+    _meshCache[name] = mesh;
+    return mesh;
+}
+
+Mesh* AssetManager::CreatePlaneMeshSubdivided(const std::string& name,
+                                               float width, float height, int subdivisions) {
+    int n = std::max(1, subdivisions);
+    float hw = width * 0.5f, hh = height * 0.5f;
+
+    std::vector<Vertex> verts;
+    std::vector<uint16_t> tris;
+    verts.reserve((n + 1) * (n + 1));
+    tris.reserve(n * n * 6);
+
+    for (int z = 0; z <= n; ++z) {
+        for (int x = 0; x <= n; ++x) {
+            float fx = -hw + width  * x / n;
+            float fz = -hh + height * z / n;
+            verts.push_back({ { fx, 0.0f, fz },
+                              { (float)x / n, (float)z / n },
+                              { 0.0f, 1.0f, 0.0f } });
+        }
+    }
+    for (int z = 0; z < n; ++z) {
+        for (int x = 0; x < n; ++x) {
+            uint16_t i0 = (uint16_t)( z      * (n + 1) + x    );
+            uint16_t i1 = (uint16_t)( z      * (n + 1) + x + 1);
+            uint16_t i2 = (uint16_t)((z + 1) * (n + 1) + x    );
+            uint16_t i3 = (uint16_t)((z + 1) * (n + 1) + x + 1);
+            tris.insert(tris.end(), { i0, i2, i1, i1, i2, i3 });
+        }
+    }
+
+    auto mesh = new Mesh(MeshType::PRIM);
+    mesh->Initialize(verts, tris);
     _meshCache[name] = mesh;
     return mesh;
 }

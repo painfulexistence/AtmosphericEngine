@@ -1,6 +1,6 @@
 #pragma once
 
-#if defined(AE_WEB_BACKEND_WEBGPU) && defined(__EMSCRIPTEN__)
+#if defined(AE_USE_WEBGPU) && defined(__EMSCRIPTEN__)
 #include <webgpu/webgpu.h>
 #endif
 
@@ -23,7 +23,7 @@ class GLCommandEncoder : public CommandEncoder {};
 
 // WebGPU per-frame recording handles (browser Emscripten path for now;
 // same struct will be used for native Dawn once integrated).
-#if defined(AE_WEB_BACKEND_WEBGPU) && defined(__EMSCRIPTEN__)
+#if defined(AE_USE_WEBGPU) && defined(__EMSCRIPTEN__)
 struct GPUCommandEncoder : public CommandEncoder {
     WGPUCommandEncoder    encoder = nullptr;
     WGPURenderPassEncoder pass    = nullptr;

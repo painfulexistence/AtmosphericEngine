@@ -200,7 +200,7 @@ class MidnightSkyraiders : public Application {
         if (input.IsKeyDown(Key::ESCAPE)) Quit();
     }
 
-    // ─────────────── Parallax ───────────────
+    // ───────────────── Parallax ───────────────
     void updateParallax() {
         for (int i = 0; i < 3; i++) {
             // Scroll left; fmod keeps value in (-600, 0]
@@ -211,7 +211,7 @@ class MidnightSkyraiders : public Application {
         }
     }
 
-    // ─────────────── Title ───────────────
+    // ───────────────── Title ───────────────
     void enterTitle() {
         state = GameState::Title;
         titleObj = CreateGameObject(glm::vec2(HALF, HALF));
@@ -237,7 +237,7 @@ class MidnightSkyraiders : public Application {
         }
     }
 
-    // ─────────────── Game ───────────────
+    // ───────────────── Game ───────────────
     void startGame() {
         // Clean up any objects from a previous session
         for (auto& b : bullets) if (b.obj) b.obj->SetActive(false);
@@ -527,7 +527,7 @@ class MidnightSkyraiders : public Application {
         gs->DrawText(fontID, oss.str(), 10.0f, 10.0f, 0.8f, glm::vec4(1.0f,1.0f,0.0f,1.0f));
     }
 
-    // ─────────────── Game Over ───────────────
+    // ───────────────── Game Over ───────────────
     void triggerGameOver() {
         if ((long long)score > hiScore) hiScore = (long long)score;
         audio.StopMusic(bgm);
@@ -551,7 +551,7 @@ class MidnightSkyraiders : public Application {
         }
     }
 
-    // ─────────────── Helpers ───────────────
+    // ───────────────── Helpers ───────────────
     static bool aabb(float ax, float ay, float aw, float ah,
                      float bx, float by, float bw, float bh) {
         return std::abs(ax - bx) < (aw + bw) * 0.5f &&
@@ -596,9 +596,9 @@ static void StartGame() {
         .windowTitle        = "Midnight Skyraiders",
         .windowWidth        = 600,
         .windowHeight       = 600,
+        .enablePhysics3D    = false,
         .useDefaultTextures = true,
         .useDefaultShaders  = true,
-        .enablePhysics3D    = false,
     });
     game.Run();
 }
@@ -608,9 +608,9 @@ int main(int argc, char* argv[]) {
         .windowTitle        = "Midnight Skyraiders",
         .windowWidth        = 600,
         .windowHeight       = 600,
+        .enablePhysics3D    = false,
         .useDefaultTextures = true,
         .useDefaultShaders  = true,
-        .enablePhysics3D    = false,
     });
     game.Run();
     return 0;

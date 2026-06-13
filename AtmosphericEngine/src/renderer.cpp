@@ -94,7 +94,7 @@ void Renderer::Init(int width, int height) {
         glBindVertexArray(0);
     }
 
-    // ── Skybox cube VAO ────────────────────────────────────────────────────
+    // ── Skybox cube VAO ─────────────────────────────────────────────
     {
         // Unit cube — each face two triangles, 36 verts, positions only
         static const float cubeVerts[] = {

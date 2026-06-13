@@ -39,9 +39,10 @@ void LightingSystem2D::Apply(GraphicsServer* gfx, int screenW, int screenH) cons
             float alpha = clampedIntensity * (1.0f - t) * (1.0f - t) * 0.30f;
             if (alpha < 0.003f) continue;
 
+            // DrawQuad(x, y, ...) centres the quad on (x, y)
             gfx->DrawQuad(
-                light.x - rad, light.y - rad,
-                rad * 2.0f,    rad * 2.0f,
+                light.x, light.y,
+                rad * 2.0f, rad * 2.0f,
                 0.0f,
                 glm::vec4(light.r, light.g, light.b, alpha));
         }

@@ -20,5 +20,7 @@
 #include "Atmospheric/sprite_3d_component.hpp"
 #include "Atmospheric/spline.hpp"
 #include "Atmospheric/terrain_component.hpp"
+#include "Atmospheric/voxel_chunk_component.hpp"
+#include "Atmospheric/voxel_world.hpp"
 #include "Atmospheric/window.hpp"
 #include "imgui.h"

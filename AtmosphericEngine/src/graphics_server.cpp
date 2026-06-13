@@ -200,8 +200,12 @@ void GraphicsServer::DrawImGui(float dt) {
           "Average frame rate: %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate
         );
         ImGui::ColorEdit3("Clear color", (float*)&renderer->clearColor);
-        if (ImGui::Button("Post-processing")) {
-            renderer->EnablePostProcess(!renderer->postProcessEnabled);
+        if (auto* bloom = renderer->GetPass<BloomPass>()) {
+            ImGui::Checkbox("Bloom", &bloom->enabled);
+        }
+        if (auto* pp = renderer->GetPass<PostProcessPass>()) {
+            ImGui::Checkbox("Tonemap", &pp->tonemapEnabled);
+            ImGui::Checkbox("Chromatic Aberration", &pp->caEnabled);
         }
         ImGui::Text("Opaque Queue Size: %d", (int)renderer->GetOpaqueQueue().size());
 
@@ -340,6 +344,7 @@ void GraphicsServer::Reset() {
     cameras.clear();
     directionalLights.clear();
     pointLights.clear();
+    sunComponents.clear();
     renderables.clear();
 }
 
@@ -436,6 +441,11 @@ LightComponent* GraphicsServer::RegisterLight(LightComponent* light) {
         directionalLights.push_back(light);
     }
     return light;
+}
+
+SunComponent* GraphicsServer::RegisterSun(SunComponent* sun) {
+    sunComponents.push_back(sun);
+    return sun;
 }
 
 // ===== Render Target Management Implementation =====

@@ -31,10 +31,13 @@ jobs:
           submodules: false
           sparse-checkout: |
             AtmosphericEngine
+            cmake
             frontends
             Example_HelloWorld
+            Example_VoxelWorld
             Example_Physics2D
             Example_CSB
+            Example_MidnightSkyraiders
             CMakeLists.txt
             CMakePresets.json
             vcpkg.json
@@ -115,10 +118,13 @@ jobs:
           submodules: false
           sparse-checkout: |
             AtmosphericEngine
+            cmake
             frontends
             Example_HelloWorld
+            Example_VoxelWorld
             Example_Physics2D
             Example_CSB
+            Example_MidnightSkyraiders
             CMakeLists.txt
             CMakePresets.json
             vcpkg.json

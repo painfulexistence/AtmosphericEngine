@@ -51,7 +51,9 @@ Application::Application(AppConfig config) : _config(config) {
     _window->InitImGui();
 
     PushLayer(new GameLayer(this));
-    PushLayer(new EditorLayer(this));
+    auto* editorLayer = new EditorLayer(this, _config.showImGui);
+    _editorLayer = editorLayer;
+    PushLayer(editorLayer);
 
     RegisterComponents();
 }
@@ -162,6 +164,14 @@ void Application::Run() {
 void Application::PushLayer(Layer* layer) {
     _layers.push_back(layer);
     layer->OnAttach();
+}
+
+bool Application::IsShowingImGui() const {
+    return _editorLayer ? _editorLayer->IsVisible() : false;
+}
+
+void Application::SetShowImGui(bool show) {
+    if (_editorLayer) _editorLayer->SetVisible(show);
 }
 
 void Application::LoadScene(const SceneDef& scene) {

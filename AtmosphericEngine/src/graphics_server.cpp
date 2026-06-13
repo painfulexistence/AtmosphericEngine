@@ -712,6 +712,41 @@ void GraphicsServer::RenderBufferedText(BatchRenderer2D* batch) {
     _textCommands.clear();
 }
 
+void GraphicsServer::FlushTextToQueue() {
+    for (const auto& cmd : _textCommands) {
+        Font* font = _fontManager.GetFont(cmd.fontID);
+        if (!font) continue;
+        float cursorX = cmd.x;
+        for (char c : cmd.text) {
+            const Glyph* glyph = _fontManager.GetGlyph(cmd.fontID, static_cast<int>(c));
+            if (!glyph) continue;
+            float drawX = cursorX + glyph->xOffset * cmd.scale;
+            float drawY = cmd.y + glyph->yOffset * cmd.scale + font->ascent * cmd.scale;
+            float drawW = glyph->width  * cmd.scale;
+            float drawH = glyph->height * cmd.scale;
+            if (drawW > 0 && drawH > 0) {
+                float finalX = drawX + drawW * 0.5f;
+                float finalY = drawY + drawH * 0.5f;
+                glm::vec2 uvs[4] = {
+                    { glyph->u0, glyph->v0 },
+                    { glyph->u1, glyph->v0 },
+                    { glyph->u1, glyph->v1 },
+                    { glyph->u0, glyph->v1 },
+                };
+                glm::mat4 transform = glm::translate(glm::mat4(1.0f), glm::vec3(finalX, finalY, 0.0f));
+                transform = glm::scale(transform, glm::vec3(drawW, drawH, 1.0f));
+                BatchDrawCommand bdc;
+                bdc.textureID = font->textureID;
+                bdc.transform = glm::mat4(1.0f);
+                CreateQuad(bdc.vertices, bdc.indices, transform, cmd.color, uvs);
+                renderer->SubmitCanvasCommand(bdc);
+            }
+            cursorX += glyph->advance * cmd.scale;
+        }
+    }
+    _textCommands.clear();
+}
+
 glm::vec2 GraphicsServer::MeasureText(FontID fontID, const std::string& text, float scale) {
     return _fontManager.MeasureText(fontID, text, scale);
 }

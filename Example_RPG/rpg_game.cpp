@@ -42,7 +42,7 @@ void RPGGame::OnInit() {
 
 void RPGGame::OnLoad() {
     auto* gfx = GetGraphicsServer();
-    _fontID = gfx->LoadFont("assets/fonts/OpenSans-Regular.ttf", 20.0f);
+    _fontID = gfx->LoadFont("assets/fonts/NotoSans-SemiBold.ttf", 20.0f);
 
     // Tileset (4×2, 32px)
     constexpr int TS=32, TC=4, TR=2;
@@ -168,9 +168,9 @@ void RPGGame::OnLoad() {
         "Merchant: (Shop not yet open)",
     }));
 
-    // Lighting
-    _lighting.ambientR = 0.18f; _lighting.ambientG = 0.20f;
-    _lighting.ambientB = 0.28f; _lighting.ambientA = 1.0f;
+    // Lighting — mild darkness so tiles are still readable, lights pop in dark spots
+    _lighting.ambientR = 0.25f; _lighting.ambientG = 0.28f;
+    _lighting.ambientB = 0.40f; _lighting.ambientA = 1.0f;
 }
 
 // ============================================================================
@@ -330,7 +330,7 @@ void RPGGame::UpdateExplore(float dt) {
 
     // Lighting
     _lighting.lights.clear();
-    _lighting.lights.push_back({p.cx()-_camX, p.cy()-_camY, 1.0f,0.9f,0.7f, 180.0f, 1.2f});
+    _lighting.lights.push_back({p.cx()-_camX, p.cy()-_camY, 1.0f,0.9f,0.7f, 120.0f, 1.5f});
     for (const auto& e : _enemies) {
         if (!e.alive||!e.aggro) continue;
         float dx=e.cx()-p.cx(), dy=e.cy()-p.cy();

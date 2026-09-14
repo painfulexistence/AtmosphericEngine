@@ -1,10 +1,29 @@
-local player
+-- =============================================================================
+-- Atmospheric Lua Playground - main.lua
+--
+-- Edit this file in the panel on the right and press Run (Ctrl+Enter). The
+-- scene is rebuilt from scratch on every run: everything the previous run
+-- spawned is gone, the Lua state is fresh, and load() is called again.
+--
+-- The engine calls two global functions:
+--   load()      once the scene is ready
+--   update(dt)  every frame, dt in seconds
+--
+-- Controls (click the game view first):
+--   WASD   move the ball          SPACE  spin the cube faster
+--   R      reload shaders         ESC    restart the scene (quits natively)
+-- =============================================================================
+
+local ball
 local cube
 local time = 0
 
 -- =============================================================================
--- Example ScriptableComponent: Spinner
--- A component that rotates a GameObject around an axis
+-- ScriptableComponent: Spinner - rotates its GameObject around an axis.
+--
+-- A component is a plain Lua class attached with go:addScript("Spinner").
+-- The engine fills in self.gameObject and looks for these methods:
+--   init(), update(dt), physicsUpdate(dt), onCollision(other), onDestroy()
 -- =============================================================================
 Spinner = {}
 Spinner.__index = Spinner
@@ -17,7 +36,7 @@ function Spinner:new()
 end
 
 function Spinner:init()
-    print("[Spinner] Initialized on " .. tostring(self.gameObject))
+    print("[Spinner] attached to " .. tostring(self.gameObject))
 end
 
 function Spinner:update(dt)
@@ -28,8 +47,7 @@ function Spinner:update(dt)
 end
 
 -- =============================================================================
--- Example ScriptableComponent: Bobber
--- A component that bobs a GameObject up and down
+-- ScriptableComponent: Bobber - moves its GameObject up and down.
 -- =============================================================================
 Bobber = {}
 Bobber.__index = Bobber
@@ -44,9 +62,8 @@ function Bobber:new()
 end
 
 function Bobber:init()
-    -- Store the initial Y position
+    -- Remember where we started so the bob is relative to it.
     self.baseY = self.gameObject.position.y
-    print("[Bobber] Initialized with baseY=" .. self.baseY)
 end
 
 function Bobber:update(dt)
@@ -57,9 +74,108 @@ function Bobber:update(dt)
 end
 
 -- =============================================================================
--- Example ScriptableComponent: CharacterController
--- A physics-based character with ground detection and collision handling
+-- Game
 -- =============================================================================
+function load()
+    print("[Lua] load()")
+
+    -- A directional light (type 0), angled down.
+    local sun = atmos.world.spawn(0, 10, 0)
+    sun.name = "Sun"
+    sun.rotation = vec3.new(math.rad(45), math.rad(45), 0)
+    sun:addLight({
+        type = 0,
+        intensity = 1.0,
+        castShadow = true
+    })
+
+    -- Meshes are created by name, then attached by name.
+    atmos.assets.createCubeMesh("Cube", 1.0)
+    atmos.assets.createSphereMesh("Ball", 0.5, 24)
+
+    -- The cube spins and bobs through two ScriptableComponents.
+    cube = atmos.world.spawn(5, 0, 0)
+    cube.name = "Cube"
+    cube.rotation = vec3.new(0, 0, math.rad(45))
+    cube:addMesh("Cube")
+    cube:addScript("Spinner")
+    cube:addScript("Bobber")
+
+    -- getScript() returns the first component attached (the Spinner);
+    -- .instance is the Lua table behind it, so its fields are yours to tweak.
+    local spinner = cube:getScript()
+    if spinner then
+        spinner.instance.speed = 5.0
+    end
+
+    -- The ball you drive around with WASD.
+    ball = atmos.world.spawn(0, 1, -5)
+    ball.name = "Ball"
+    ball:addMesh("Ball")
+
+    print("[Lua] Ready. WASD moves the ball, SPACE spins the cube faster, ESC restarts.")
+end
+
+function update(dt)
+    time = time + dt
+
+    if ball then
+        local speed = 5.0
+        local pos = ball.position
+        local moved = false
+
+        if atmos.input.isKeyDown(atmos.keys.W) then
+            pos.z = pos.z + speed * dt
+            moved = true
+        end
+        if atmos.input.isKeyDown(atmos.keys.S) then
+            pos.z = pos.z - speed * dt
+            moved = true
+        end
+        if atmos.input.isKeyDown(atmos.keys.A) then
+            pos.x = pos.x - speed * dt
+            moved = true
+        end
+        if atmos.input.isKeyDown(atmos.keys.D) then
+            pos.x = pos.x + speed * dt
+            moved = true
+        end
+
+        if moved then
+            ball.position = pos
+        end
+    end
+
+    -- SPACE: spin the cube faster (tap it a few times).
+    if cube and atmos.input.isKeyPressed(atmos.keys.SPACE) then
+        local spinner = cube:getScript()
+        if spinner then
+            spinner.instance.speed = math.min(spinner.instance.speed * 1.5, 40)
+            print(string.format("[Lua] cube spin speed: %.1f", spinner.instance.speed))
+        end
+    end
+
+    -- R: reload shaders from disk.
+    if atmos.input.isKeyPressed(atmos.keys.R) then
+        print("[Lua] reloading shaders")
+        atmos.graphics.reloadShaders()
+    end
+
+    -- ESC: restarts the scene in the web playground, quits the native runtime.
+    if atmos.input.isKeyPressed(atmos.keys.ESCAPE) then
+        atmos.quit()
+    end
+end
+
+function draw()
+    -- Optional: custom draw logic. Rendering is handled by the C++ engine.
+end
+
+-- =============================================================================
+-- More component examples (not attached above; try cube:addScript("Collectible"))
+-- =============================================================================
+
+-- CharacterController: physics-based movement with a ground raycast.
 CharacterController = {}
 CharacterController.__index = CharacterController
 
@@ -133,10 +249,7 @@ function CharacterController:onCollision(other)
     print("[CharacterController] Collided with: " .. tostring(other))
 end
 
--- =============================================================================
--- Example ScriptableComponent: Collectible
--- Shows collision callback usage
--- =============================================================================
+-- Collectible: reacts to collisions (needs rigidbodies on both objects).
 Collectible = {}
 Collectible.__index = Collectible
 
@@ -151,124 +264,10 @@ function Collectible:init()
 end
 
 function Collectible:onCollision(other)
-    if not self.collected and other.name == "Player" then
+    if not self.collected and other.name == "Ball" then
         self.collected = true
-        print("[Collectible] Picked up by player!")
+        print("[Collectible] Picked up by the ball!")
         -- Disable the object
         self.gameObject.isActive = false
     end
-end
-
--- =============================================================================
--- Game Code
--- =============================================================================
-
-function load()
-    print("Lua: load() called")
-
-    -- -- Create Camera
-    -- local camObj = atmos.world.spawn(0, 5, 10)
-    -- camObj.name = "MainCamera"
-    -- camObj:addCamera({
-    --     fov = 60.0,
-    --     aspect = 16.0/9.0,
-    --     near = 0.1,
-    --     far = 100.0
-    -- })
-
-    -- Create Directional Light
-    local lightObj = atmos.world.spawn(0, 10, 0)
-    lightObj.name = "Sun"
-    lightObj.rotation = vec3.new(math.rad(45), math.rad(45), 0) -- Angled down
-    lightObj:addLight({
-        type = 0, -- Directional
-        intensity = 1.0,
-        castShadow = true
-    })
-
-    -- Create the cube mesh
-    local cubeMesh = atmos.assets.createCubeMesh("Cube", 1.0)
-
-    -- Create a simple cube with ScriptableComponents
-    cube = atmos.world.spawn(0, 0, 0)
-    if cube then
-        cube.name = "MyCube"
-        cube.position = vec3.new(5, 0, 0)
-        cube.rotation = vec3.new(0, 0, math.rad(45))
-        
-        cube:addMesh("Cube")
-        cube:addScript("Spinner")
-        cube:addScript("Bobber")
-
-        local spinner = cube:getScript()
-        if spinner then
-            spinner.instance.speed = 5.0  -- Faster rotation
-        end
-    end
-
-    -- Create player entity
-    player = atmos.world.spawn(0, 1, -5)
-    player.name = "Player"
-
-    -- Web Audio test sound
-    testSound = atmos.audio.loadSound("assets/target.ogg")
-    print("[Lua] Loaded test sound ID: " .. tostring(testSound))
-
-    print("[Lua] Game loaded!")
-    print("[Lua] Press WASD to move, ESC to quit")
-    print("[Lua] The cube will rotate and bob using ScriptableComponents!")
-end
-
-function update(dt)
-    time = time + dt
-
-    if player then
-        local speed = 5.0
-        local pos = player.position
-        local moved = false
-
-        if atmos.input.isKeyDown(atmos.keys.W) then
-            pos.z = pos.z + speed * dt
-            moved = true
-        end
-        if atmos.input.isKeyDown(atmos.keys.S) then
-            pos.z = pos.z - speed * dt
-            moved = true
-        end
-        if atmos.input.isKeyDown(atmos.keys.A) then
-            pos.x = pos.x - speed * dt
-            moved = true
-        end
-        if atmos.input.isKeyDown(atmos.keys.D) then
-            pos.x = pos.x + speed * dt
-            moved = true
-        end
-
-        if moved then
-            player.position = pos
-        end
-    end
-
-    -- Quit on ESC
-    if atmos.input.isKeyDown(atmos.keys.ESCAPE) then
-        print("[Lua] Quitting...")
-        atmos.quit()
-    end
-
-    -- Reload shaders on R
-    if atmos.input.isKeyPressed(atmos.keys.R) then
-        print("[Lua] Reloading shaders...")
-        atmos.graphics.reloadShaders()
-    end
-
-    -- Play sound on SPACE
-    if atmos.input.isKeyPressed(atmos.keys.SPACE) then
-        print("[Lua] Playing test sound (Web Audio)...")
-        atmos.audio.playSoundVariation(testSound, 0.15, 0.1)
-    end
-end
-
-function draw()
-    -- Optional: Custom draw logic
-    -- For now, rendering is handled by the C++ engine
 end

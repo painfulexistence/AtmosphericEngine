@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Atmospheric.hpp"
+#include "lua_diagnostics.hpp"
 #include <sol/sol.hpp>
 #include <string>
 
@@ -55,9 +56,9 @@ public:
     /// Called every frame
     void OnTick(float dt) override;
 
-    /// Override CanTick to optimize updates
+    /// Override CanTick to optimize updates (and stay quiet once a script raised)
     bool CanTick() const override {
-        return enabled && _updateFunc.valid();
+        return enabled && _updateFunc.valid() && !IsLuaHalted();
     }
 
     /// Called on physics tick (if the script defines it)
@@ -65,7 +66,7 @@ public:
 
     /// Override CanPhysicsTick to optimize updates
     bool CanPhysicsTick() const override {
-        return enabled && _physicsUpdateFunc.valid();
+        return enabled && _physicsUpdateFunc.valid() && !IsLuaHalted();
     }
 
     /// Handle collision events (called from C++ collision system)
@@ -122,7 +123,8 @@ template<typename... Args> void ScriptableComponent::CallMethod(const std::strin
         auto result = method(_instance, std::forward<Args>(args)...);
         if (!result.valid()) {
             sol::error err = result;
-            fmt::print(stderr, "[Lua Error] {}:{} - {}\n", _className, methodName, err.what());
+            SetLuaHalted(true);
+            ReportLuaError(_className + ":" + methodName + "()", err.what());
         }
     }
 }
@@ -136,6 +138,7 @@ void ScriptableComponent::CallMethodSafeWithArgs(
     auto result = func(_instance, std::forward<Args>(args)...);
     if (!result.valid()) {
         sol::error err = result;
-        fmt::print(stderr, "[Lua Error] {}:{} - {}\n", _className, methodName, err.what());
+        SetLuaHalted(true);
+        ReportLuaError(_className + ":" + methodName + "()", err.what());
     }
 }

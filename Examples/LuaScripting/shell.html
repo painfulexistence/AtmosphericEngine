@@ -3,62 +3,233 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Atmospheric Engine - WASM Demo</title>
+    <title>Atmospheric Engine - Lua Playground</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 16 16%27%3E%3Ctext y=%2713%27 font-size=%2713%27%3E%F0%9F%8C%99%3C/text%3E%3C/svg%3E">
+    <!--
+        Lua playground shell (Emscripten --shell-file for Release builds).
+
+        Left: the game canvas. Right: a live editor (playground/editor.html in an
+        iframe) with a console panel. Run hands the editor text to the runtime
+        through ae_lua_run() (Engine/frontends/lua/runtime.cpp); the runtime
+        reports back through Module.onLuaError / onLuaSceneLoaded / onLuaQuit.
+    -->
     <style>
+        :root {
+            --bar-h: 44px;
+            --left: 58%;
+            --console-h: 30%;
+            --bg: #121212;
+            --panel: #1b1b1b;
+            --line: rgba(255, 255, 255, 0.08);
+            --text: #e5e7eb;
+            --muted: #9ca3af;
+            --accent: #3b82f6;
+            --err: #ef4444;
+            --ok: #22c55e;
+            --warn: #f59e0b;
+            --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+        }
         html, body {
             margin: 0;
             padding: 0;
             width: 100%;
             height: 100%;
-            background-color: #000000;
-            overflow: hidden;
+            background: var(--bg);
+            color: var(--text);
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-size: 13px;
+            overflow: hidden;
         }
-        
-        #canvas {
+        [hidden] { display: none !important; }
+
+        /* ── Top bar ─────────────────────────────────────────────────────── */
+        #topbar {
+            box-sizing: border-box;
+            height: var(--bar-h);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 0 12px;
+            border-bottom: 1px solid var(--line);
+            background: var(--panel);
+        }
+        .brand { font-weight: 600; letter-spacing: 0.02em; white-space: nowrap; }
+        .brand .sep { color: var(--muted); margin: 0 6px; }
+        .brand .sub { color: var(--muted); font-weight: 500; }
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--muted);
+            white-space: nowrap;
+        }
+        .status .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+        .status.running .dot { background: var(--ok); }
+        .status.error .dot { background: var(--err); }
+        .status.loading .dot { background: var(--warn); animation: pulse 1s ease-in-out infinite; }
+        .spacer { flex: 1; }
+        .actions { display: flex; align-items: center; gap: 8px; }
+        button {
+            font: inherit;
+            color: var(--text);
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid var(--line);
+            border-radius: 6px;
+            padding: 5px 10px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        button:hover { background: rgba(255, 255, 255, 0.12); }
+        button:disabled { opacity: 0.45; cursor: default; }
+        button.primary { background: var(--accent); border-color: transparent; }
+        button.primary:hover { filter: brightness(1.1); }
+        button.icon { width: 32px; padding: 5px 0; display: inline-flex; align-items: center; justify-content: center; }
+        button.icon svg { display: block; }
+        kbd { font: 11px var(--mono); color: rgba(255, 255, 255, 0.7); margin-left: 6px; }
+
+        /* ── Split layout ────────────────────────────────────────────────── */
+        #split {
             position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            max-width: 100vw;
-            max-height: 100vh;
-            border: 0px none;
-            background-color: #000000;
+            top: var(--bar-h);
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: grid;
+            grid-template-columns: var(--left) 6px minmax(0, 1fr);
+        }
+        .pane { position: relative; min-width: 0; min-height: 0; overflow: hidden; }
+        #game-pane {
+            background: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        #canvas {
             display: block;
-            /* To scale up to fill the viewport while keeping aspect ratio (contain), uncomment below: */
-            /* width: 100vw; height: 100vh; object-fit: contain; */
+            width: var(--cw, 100%);
+            height: var(--ch, auto);
+            background: #000;
+            border: 0;
         }
-        
-        #canvas:focus {
-            outline: none;
+        #canvas:focus { outline: none; }
+        #splitter {
+            background: var(--panel);
+            border-left: 1px solid var(--line);
+            border-right: 1px solid var(--line);
+            cursor: col-resize;
+            touch-action: none;
         }
-        
+        #splitter:hover, #splitter.active { background: var(--accent); }
+
+        /* ── Editor + console ────────────────────────────────────────────── */
+        #editor-pane {
+            display: grid;
+            grid-template-rows: 30px minmax(0, 1fr) var(--console-h);
+            background: var(--panel);
+        }
+        .toolbar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 0 10px;
+            border-bottom: 1px solid var(--line);
+            color: var(--muted);
+            font-size: 12px;
+        }
+        .toolbar .filename { color: var(--text); font-family: var(--mono); }
+        .toolbar a { color: var(--accent); text-decoration: none; }
+        .toolbar a:hover { text-decoration: underline; }
+        #dirty { color: var(--warn); }
+        #editor { width: 100%; height: 100%; border: 0; background: #212121; display: block; }
+        #console-pane {
+            display: flex;
+            flex-direction: column;
+            border-top: 1px solid var(--line);
+            min-height: 0;
+        }
+        .console-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 3px 10px;
+            font-size: 12px;
+            color: var(--muted);
+            border-bottom: 1px solid var(--line);
+        }
+        .console-bar button { padding: 2px 8px; font-size: 12px; }
+        #console-out {
+            flex: 1;
+            overflow: auto;
+            padding: 6px 10px;
+            font: 12px/1.5 var(--mono);
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        #console-out .line.err { color: #fca5a5; }
+        #console-out .line.warn { color: #fcd34d; }
+        #console-out .line.sys { color: var(--muted); font-style: italic; }
+
+        /* ── Overlays on the game view ───────────────────────────────────── */
+        #error-banner {
+            position: absolute;
+            left: 12px;
+            right: 12px;
+            bottom: 12px;
+            z-index: 3;
+            background: rgba(127, 29, 29, 0.92);
+            border: 1px solid rgba(248, 113, 113, 0.6);
+            border-radius: 8px;
+            padding: 10px 12px;
+            color: #fee2e2;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+        }
+        #error-banner .title { font-weight: 600; margin-bottom: 4px; }
+        #error-banner .title span { font-weight: 400; color: #fecaca; }
+        #error-banner pre {
+            margin: 0;
+            white-space: pre-wrap;
+            word-break: break-word;
+            font: 12px/1.45 var(--mono);
+            max-height: 30vh;
+            overflow: auto;
+        }
+        #error-banner .foot { margin-top: 6px; color: #fecaca; font-size: 12px; }
+        #focus-hint {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 2;
+            padding: 4px 10px;
+            border-radius: 999px;
+            background: rgba(0, 0, 0, 0.55);
+            border: 1px solid var(--line);
+            color: var(--muted);
+            font-size: 12px;
+            pointer-events: none;
+            white-space: nowrap;
+        }
         #loading-container {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: #000000;
+            inset: 0;
+            z-index: 5;
+            background: #000;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            z-index: 9999;
             transition: opacity 0.5s ease;
         }
-        
         .spinner {
             width: 50px;
             height: 50px;
             border: 3px solid rgba(255, 255, 255, 0.05);
             border-radius: 50%;
-            border-top-color: #3b82f6;
+            border-top-color: var(--accent);
             animation: spin 1s ease-in-out infinite;
             margin-bottom: 20px;
             box-shadow: 0 0 15px rgba(59, 130, 246, 0.2);
         }
-        
         #loading-title {
             font-size: 20px;
             font-weight: 600;
@@ -67,245 +238,522 @@
             letter-spacing: 0.05em;
             text-transform: uppercase;
         }
-        
-        #loading-status {
-            font-size: 14px;
-            color: #9ca3af;
-            font-weight: 300;
+        #loading-status { font-size: 14px; color: var(--muted); font-weight: 300; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes pulse { 50% { opacity: 0.35; } }
+
+        /* ── Narrow screens: stack the panes ─────────────────────────────── */
+        @media (max-width: 860px) {
+            #split {
+                grid-template-columns: minmax(0, 1fr);
+                grid-template-rows: minmax(180px, 42%) 6px minmax(0, 1fr);
+            }
+            #splitter {
+                cursor: default;
+                border-left: 0;
+                border-right: 0;
+                border-top: 1px solid var(--line);
+                border-bottom: 1px solid var(--line);
+            }
+            #splitter:hover { background: var(--panel); }
+            #editor-pane { grid-template-rows: 30px minmax(0, 1fr) 140px; }
+            .brand .sub, kbd, #focus-hint { display: none; }
         }
-        
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-        #btn-fullscreen {
-            position: fixed;
-            top: 12px;
-            right: 12px;
-            z-index: 400;
-            width: 34px;
-            height: 34px;
-            padding: 0;
-            background: rgba(0, 0, 0, 0.45);
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            border-radius: 6px;
-            color: rgba(255, 255, 255, 0.7);
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: background 0.15s, color 0.15s;
-        }
-        #btn-fullscreen:hover {
-            background: rgba(0, 0, 0, 0.7);
-            color: #fff;
-        }
-        #btn-fullscreen svg { display: block; }
     </style>
+    <script>
+        // Handshake with the editor iframe (playground/editor.html). Defined up
+        // here, before the iframe element exists, so the editor can always find
+        // it; the main script at the bottom fills in the real implementations.
+        window.aePlayground = {
+            editor: null,
+            onEditorReady: function (api) { this.editor = api; if (this._ready) this._ready(api); },
+            onEditorChange: function (value) { if (this._change) this._change(value); },
+            run: function () { if (this._run) this._run(); }
+        };
+    </script>
 </head>
 <body>
+    <header id="topbar">
+        <div class="brand">Atmospheric<span class="sep">/</span><span class="sub">Lua Playground</span></div>
+        <div id="status" class="status loading"><span class="dot"></span><span id="status-text">Loading engine…</span></div>
+        <div class="spacer"></div>
+        <div class="actions">
+            <button id="btn-run" class="primary" disabled title="Rebuild the scene from the editor (Ctrl+Enter)">▶ Run<kbd>Ctrl+↵</kbd></button>
+            <button id="btn-reset" disabled title="Restore the original example and run it">↺ Reset</button>
+            <button id="btn-fullscreen" class="icon" title="Fullscreen game view (Shift+F)">
+                <svg id="fs-icon-expand" width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                    <path d="M1 1h5v1.5H2.5V5H1V1zm9 0h5v4h-1.5V2.5H10V1zM1 10h1.5v2.5H5V14H1v-4zm9.5 2.5V10H11v4h4v-1.5h-2.5v-2z"/>
+                </svg>
+                <svg id="fs-icon-collapse" width="16" height="16" viewBox="0 0 16 16" fill="currentColor" style="display:none">
+                    <path d="M5 1v1.5H2.5V5H1V1h4zm6 0h4v4h-1.5V2.5H11V1zM1 11h1.5v2.5H5V15H1v-4zm9.5 2.5V11H11v4h4v-1.5h-2.5V13.5z"/>
+                </svg>
+            </button>
+        </div>
+    </header>
 
-    <canvas id="canvas" oncontextmenu="event.preventDefault()" tabindex="-1"></canvas>
-    <button id="btn-fullscreen" title="Toggle fullscreen" onclick="toggleFullscreen()">
-        <svg id="fs-icon-expand" width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-            <path d="M1 1h5v1.5H2.5V5H1V1zm9 0h5v4h-1.5V2.5H10V1zM1 10h1.5v2.5H5V14H1v-4zm9.5 2.5V10H11v4h4v-1.5h-2.5v-2z"/>
-        </svg>
-        <svg id="fs-icon-collapse" width="16" height="16" viewBox="0 0 16 16" fill="currentColor" style="display:none">
-            <path d="M5 1v1.5H2.5V5H1V1h4zm6 0h4v4h-1.5V2.5H11V1zM1 11h1.5v2.5H5V15H1v-4zm9.5 2.5V11H11v4h4v-1.5h-2.5V13.5z"/>
-        </svg>
-    </button>
-
-    <div id="loading-container">
-        <div class="spinner" id="loading-spinner"></div>
-        <div id="loading-title">Atmospheric Engine</div>
-        <div id="loading-status">Downloading...</div>
-    </div>
+    <main id="split">
+        <section id="game-pane" class="pane">
+            <canvas id="canvas" oncontextmenu="event.preventDefault()" tabindex="-1"></canvas>
+            <div id="focus-hint" hidden>Click here to play · WASD moves the ball</div>
+            <div id="error-banner" hidden>
+                <div class="title">Lua error <span id="error-context"></span></div>
+                <pre id="error-message"></pre>
+                <div class="foot">Fix the code on the right and press Run.</div>
+            </div>
+            <div id="loading-container">
+                <div class="spinner" id="loading-spinner"></div>
+                <div id="loading-title">Atmospheric Engine</div>
+                <div id="loading-status">Downloading...</div>
+            </div>
+        </section>
+        <div id="splitter" role="separator" aria-orientation="vertical" title="Drag to resize"></div>
+        <section id="editor-pane" class="pane">
+            <div class="toolbar">
+                <span class="filename">main.lua</span>
+                <span id="dirty" hidden>● modified</span>
+                <span class="spacer"></span>
+                <span id="draft-note" hidden>draft restored · <a href="#" id="draft-discard">discard</a></span>
+            </div>
+            <iframe id="editor" src="playground/editor.html" title="Lua code editor"></iframe>
+            <div id="console-pane">
+                <div class="console-bar"><span>Console</span><button id="btn-clear">Clear</button></div>
+                <div id="console-out"></div>
+            </div>
+        </section>
+    </main>
 
     <script type="text/javascript">
-      var statusElement = document.getElementById('loading-status');
-      var spinnerElement = document.getElementById('loading-spinner');
-      
-      var Module = {
-        preRun: [],
-        postRun: [function() {
-          var loader = document.getElementById('loading-container');
-          loader.style.opacity = 0;
-          setTimeout(function() {
-            loader.style.display = 'none';
-          }, 500);
-        }],
-        canvas: (function() {
-          var canvas = document.getElementById('canvas');
-          canvas.addEventListener("webglcontextlost", function(e) { 
-              if (typeof cleanupRan !== 'undefined' && cleanupRan) {
-                  e.preventDefault();
-                  return;
-              }
-              alert('WebGL context lost. Please reload the page.'); 
-              e.preventDefault(); 
-          }, false);
-          return canvas;
-        })(),
-        setStatus: function(text) {
-          if (!Module.setStatus.last) Module.setStatus.last = { time: Date.now(), text: '' };
-          if (text === Module.setStatus.last.text) return;
-          var m = text.match(/([^(]+)\((\d+(\.\d+)?)\/(\d+)\)/);
-          var now = Date.now();
-          if (m && now - Module.setStatus.last.time < 30) return; // limit update rate
-          Module.setStatus.last.time = now;
-          Module.setStatus.last.text = text;
-          if (m) {
-            text = m[1];
-          }
-          statusElement.innerHTML = text;
-        },
-        totalDependencies: 0,
-        monitorRunDependencies: function(left) {
-          this.totalDependencies = Math.max(this.totalDependencies, left);
-          Module.setStatus(left ? 'Preparing... (' + (this.totalDependencies-left) + '/' + this.totalDependencies + ')' : 'All downloads complete.');
-        }
-      };
-      Module.setStatus('Downloading...');
-    
-      // Clean up Web Workers, WebGL contexts, and Audio contexts on page unload
-      // to prevent memory leaks in iframes and avoid iOS WebContent jetsam on
-      // reload. See docs/resource-cleaning-up.md for the rationale behind
-      // ordering and the Path A / Path B split.
-      var cleanupRan = false;
-      function cleanupWorkers(e) {
-        // ── Path A: BFCache freeze ──────────────────────────────────────
-        // Page being frozen, not torn down. Destructive cleanup here would
-        // wreck the runtime if user navigates back. Only safe action is to
-        // disqualify BFCache so the next real reload uses Path B.
-        if (e && e.persisted) {
-          try {
-            var req = indexedDB.open('__bfcache_evict__');
-            req.onsuccess = function(ev) { ev.target.result.close(); };
-          } catch (_) {}
-          return;
+    (function () {
+        'use strict';
+
+        var $ = function (id) { return document.getElementById(id); };
+        var canvas = $('canvas');
+        var gamePane = $('game-pane');
+        var split = $('split');
+        var splitter = $('splitter');
+        var consoleOut = $('console-out');
+
+        var SOURCE_URL = 'assets/scripts/main.lua';
+        var DRAFT_KEY = 'atmospheric.lua-playground.draft';
+        var SPLIT_KEY = 'atmospheric.lua-playground.split';
+        var MAX_CONSOLE_LINES = 500;
+
+        var state = {
+            runtimeReady: false,   // first onLuaSceneLoaded seen → ae_lua_run is usable
+            editor: null,          // API handed over by playground/editor.html
+            originalSource: null,  // main.lua as served
+            draft: null,           // localStorage draft, if any
+            lastRun: null,         // source the runtime is currently running
+            errorThisRun: false    // an error arrived since the last Run
+        };
+
+        // ── Status, console, error banner ───────────────────────────────────
+        function setStatus(kind, text) {
+            var el = $('status');
+            el.className = 'status ' + kind;
+            $('status-text').textContent = text;
         }
 
-        // ── Path B: real unload ────────────────────────────────────────
-        // pagehide + unload can both fire on desktop Safari; idempotency
-        // guard makes the second call a no-op.
-        if (cleanupRan) return;
-        cleanupRan = true;
-        console.log("Cleaning up Emscripten Web Workers, WebGL, and Audio contexts...");
-
-        // B2. Explicitly lose the WebGL context to release GPU resources immediately.
-        var canvas = document.getElementById('canvas');
-        try {
-          if (canvas) {
-            var gl = canvas.getContext('webgl2') || canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
-            if (gl) {
-              var loseContextExt = gl.getExtension('WEBGL_lose_context');
-              if (loseContextExt) {
-                loseContextExt.loseContext();
-                console.log("WebGL context lost explicitly.");
-              }
-            }
-          }
-        } catch (e) {
-          console.error("Error losing WebGL context:", e);
+        var ANSI = /\x1b\[[0-9;]*[A-Za-z]/g;
+        function logLine(text, kind) {
+            text = String(text).replace(ANSI, '');
+            var atBottom = consoleOut.scrollTop + consoleOut.clientHeight >= consoleOut.scrollHeight - 4;
+            var line = document.createElement('div');
+            line.className = 'line ' + (kind || 'out');
+            line.textContent = text;
+            consoleOut.appendChild(line);
+            while (consoleOut.childNodes.length > MAX_CONSOLE_LINES) consoleOut.removeChild(consoleOut.firstChild);
+            if (atBottom) consoleOut.scrollTop = consoleOut.scrollHeight;
         }
 
-        // B2a. Detach canvas backing store. loseContext invalidates GL state
-        //      but does NOT free the canvas framebuffer (multi-MB on retina).
-        try {
-          if (canvas) {
-            canvas.width = 1; canvas.height = 1;
-            if (canvas.parentNode) canvas.parentNode.removeChild(canvas);
-          }
-        } catch (e) { console.error(e); }
+        function showError(context, message) {
+            $('error-context').textContent = context ? '· ' + context : '';
+            $('error-message').textContent = message;
+            $('error-banner').hidden = false;
+        }
+        function hideError() { $('error-banner').hidden = true; }
 
-        // B3. Close all Web Audio API contexts. AudioContext.close() returns
-        //     a Promise — DO NOT await. The synchronous detach happens before
-        //     close() returns; awaiting freezes pagehide.
-        try {
-          if (window.AudioManager && typeof window.AudioManager.shutdown === 'function') {
+        // Runtime errors carry "main.lua:<line>:" (the playground chunk name);
+        // a watchdog error has it in the traceback instead. First match wins.
+        function errorLine(message) {
+            var m = /main\.lua:(\d+):/.exec(message || '');
+            return m ? parseInt(m[1], 10) : null;
+        }
+
+        // ── Talking to the runtime ──────────────────────────────────────────
+        // ae_lua_run(ptr, len): compiles right away (syntax errors come back as
+        // 0, already reported through onLuaError) and applies a valid chunk at
+        // the start of the next frame. Copy through the WASM heap rather than
+        // ccall's stack-allocated strings so large scripts are fine.
+        function pushSource(source) {
+            var bytes = new TextEncoder().encode(source);
+            var ptr = Module._malloc(bytes.length + 1);
+            if (!ptr) return false;
             try {
-              window.AudioManager.shutdown();
-              window.AudioManager = null;
-              console.log("window.AudioManager shut down successfully.");
-            } catch (err) {
-              console.error("Error shutting down window.AudioManager:", err);
+                Module.HEAPU8.set(bytes, ptr);
+                Module.HEAPU8[ptr + bytes.length] = 0;
+                return Module._ae_lua_run(ptr, bytes.length) === 1;
+            } finally {
+                Module._free(ptr);
             }
-          }
-          if (typeof AL !== 'undefined' && AL.contexts) {
-            AL.contexts.forEach(function(ctx) {
-              if (ctx && ctx.audioCtx && typeof ctx.audioCtx.close === 'function') {
-                ctx.audioCtx.close();
-              }
+        }
+
+        function run(source) {
+            if (!state.runtimeReady) { logLine('The engine is still loading…', 'sys'); return; }
+            if (source == null) source = state.editor ? state.editor.getValue() : null;
+            if (source == null) return;
+            state.errorThisRun = false;
+            if (state.editor) state.editor.clearErrors();
+            hideError();
+            setStatus('loading', 'Reloading…');
+            if (pushSource(source)) {
+                state.lastRun = source;
+                updateDirty();
+                logLine('── reload ──', 'sys');
+            }
+            // else: a syntax error already arrived through Module.onLuaError
+        }
+
+        function reset() {
+            if (state.originalSource == null) return;
+            var current = state.editor ? state.editor.getValue() : null;
+            if (current != null && current !== state.originalSource &&
+                !window.confirm('Discard your changes and restore the original example?')) return;
+            discardDraft();
+            if (state.editor) state.editor.setValue(state.originalSource);
+            run(state.originalSource);
+        }
+
+        // ── Editor handshake + drafts ───────────────────────────────────────
+        function discardDraft() {
+            state.draft = null;
+            $('draft-note').hidden = true;
+            try { localStorage.removeItem(DRAFT_KEY); } catch (e) { /* storage unavailable */ }
+        }
+
+        function loadInitialSource() {
+            if (!state.editor || state.originalSource == null) return;
+            var draft = state.draft != null ? state.draft : null;
+            state.editor.setValue(draft != null ? draft : state.originalSource);
+            $('draft-note').hidden = draft == null;
+            updateDirty();
+        }
+
+        function updateDirty() {
+            var current = state.editor ? state.editor.getValue() : null;
+            $('dirty').hidden = !(current != null && state.lastRun != null && current !== state.lastRun);
+        }
+
+        var draftTimer = null;
+        function onEditorChange(value) {
+            updateDirty();
+            clearTimeout(draftTimer);
+            draftTimer = setTimeout(function () {
+                try {
+                    if (value === state.originalSource) localStorage.removeItem(DRAFT_KEY);
+                    else localStorage.setItem(DRAFT_KEY, value);
+                } catch (e) { /* storage unavailable */ }
+            }, 400);
+        }
+
+        window.aePlayground._ready = function (api) { state.editor = api; loadInitialSource(); };
+        window.aePlayground._change = onEditorChange;
+        window.aePlayground._run = function () { run(); };
+        if (window.aePlayground.editor) window.aePlayground._ready(window.aePlayground.editor);
+
+        try { state.draft = localStorage.getItem(DRAFT_KEY); } catch (e) { state.draft = null; }
+
+        fetch(SOURCE_URL, { cache: 'no-cache' })
+            .then(function (r) { return r.ok ? r.text() : Promise.reject(new Error('HTTP ' + r.status)); })
+            .then(function (text) {
+                state.originalSource = text;
+                if (state.lastRun == null) state.lastRun = text; // what the runtime boots with
+                if (state.draft === text) discardDraft();
+                loadInitialSource();
+            })
+            .catch(function (err) { logLine('Could not fetch ' + SOURCE_URL + ': ' + err.message, 'err'); });
+
+        // ── Canvas fit: keep the GL backing store (1280×720) and scale it into
+        //    the pane with CSS. Emscripten's GLFW maps mouse coordinates through
+        //    getBoundingClientRect(), so CSS scaling stays correct. ────────────
+        function fitCanvas() {
+            var pw = gamePane.clientWidth, ph = gamePane.clientHeight;
+            if (!pw || !ph) return;
+            var aw = canvas.width || 16, ah = canvas.height || 9;
+            var scale = Math.min(pw / aw, ph / ah);
+            gamePane.style.setProperty('--cw', Math.floor(aw * scale) + 'px');
+            gamePane.style.setProperty('--ch', Math.floor(ah * scale) + 'px');
+        }
+        if (window.ResizeObserver) new ResizeObserver(fitCanvas).observe(gamePane);
+        else window.addEventListener('resize', fitCanvas);
+        // The runtime sets canvas.width/height once GLFW creates its window.
+        new MutationObserver(fitCanvas).observe(canvas, { attributes: true, attributeFilter: ['width', 'height'] });
+        fitCanvas();
+
+        // ── Focus hint: GLFW listens on this window, so keys reach the game
+        //    whenever focus is outside the editor iframe. ─────────────────────
+        canvas.addEventListener('focus', function () { $('focus-hint').hidden = true; });
+        canvas.addEventListener('blur', function () { if (state.runtimeReady) $('focus-hint').hidden = false; });
+        gamePane.addEventListener('pointerdown', function () { canvas.focus(); });
+
+        // ── Splitter ────────────────────────────────────────────────────────
+        (function () {
+            var dragging = false;
+            var stacked = function () { return window.matchMedia('(max-width: 860px)').matches; };
+            try { var saved = localStorage.getItem(SPLIT_KEY); if (saved) split.style.setProperty('--left', saved); } catch (e) { /* ignore */ }
+            splitter.addEventListener('pointerdown', function (e) {
+                if (stacked()) return;
+                dragging = true;
+                splitter.classList.add('active');
+                splitter.setPointerCapture(e.pointerId);
+                $('editor').style.pointerEvents = 'none'; // the iframe would swallow the moves
+                document.body.style.userSelect = 'none';
             });
-          }
-          if (typeof SDL2 !== 'undefined' && SDL2.audioContext && typeof SDL2.audioContext.close === 'function') {
-            SDL2.audioContext.close();
-          }
-          if (typeof Module !== 'undefined' && Module) {
-            for (var prop in Module) {
-              if (Module[prop] && typeof Module[prop].close === 'function' &&
-                  (Module[prop].constructor && (Module[prop].constructor.name === 'AudioContext' || Module[prop].constructor.name === 'webkitAudioContext'))) {
-                Module[prop].close();
-              }
+            splitter.addEventListener('pointermove', function (e) {
+                if (!dragging) return;
+                var rect = split.getBoundingClientRect();
+                var pct = Math.min(80, Math.max(25, (e.clientX - rect.left) / rect.width * 100));
+                split.style.setProperty('--left', pct.toFixed(1) + '%');
+            });
+            function end() {
+                if (!dragging) return;
+                dragging = false;
+                splitter.classList.remove('active');
+                $('editor').style.pointerEvents = '';
+                document.body.style.userSelect = '';
+                try { localStorage.setItem(SPLIT_KEY, split.style.getPropertyValue('--left')); } catch (e) { /* ignore */ }
+            }
+            splitter.addEventListener('pointerup', end);
+            splitter.addEventListener('pointercancel', end);
+        })();
+
+        // ── Fullscreen (game pane only, so the canvas takes the screen) ─────
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) gamePane.requestFullscreen().catch(function () {});
+            else document.exitFullscreen();
+        }
+        document.addEventListener('fullscreenchange', function () {
+            var fs = !!document.fullscreenElement;
+            $('fs-icon-expand').style.display = fs ? 'none' : '';
+            $('fs-icon-collapse').style.display = fs ? '' : 'none';
+            fitCanvas();
+        });
+
+        // ── Buttons & keys (the editor iframe handles its own Ctrl+Enter) ───
+        $('btn-run').addEventListener('click', function () { run(); });
+        $('btn-reset').addEventListener('click', reset);
+        $('btn-fullscreen').addEventListener('click', toggleFullscreen);
+        $('btn-clear').addEventListener('click', function () { consoleOut.textContent = ''; });
+        $('draft-discard').addEventListener('click', function (e) { e.preventDefault(); reset(); });
+        document.addEventListener('keydown', function (e) {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); run(); return; }
+            if (e.key === 'F' && !e.ctrlKey && !e.metaKey && !e.altKey) toggleFullscreen();
+        });
+
+        // ── Emscripten Module ───────────────────────────────────────────────
+        var statusElement = $('loading-status');
+
+        window.Module = {
+            preRun: [],
+            postRun: [function () {
+                // main() has returned; assets are still being prefetched and the
+                // engine draws its own loading overlay in the canvas from here on.
+                var loader = $('loading-container');
+                loader.style.opacity = 0;
+                setTimeout(function () { loader.style.display = 'none'; }, 500);
+                setStatus('loading', 'Loading assets…');
+                fitCanvas();
+            }],
+            canvas: (function () {
+                canvas.addEventListener('webglcontextlost', function (e) {
+                    if (typeof cleanupRan !== 'undefined' && cleanupRan) { e.preventDefault(); return; }
+                    alert('WebGL context lost. Please reload the page.');
+                    e.preventDefault();
+                }, false);
+                return canvas;
+            })(),
+            print: function (text) {
+                console.log(text);
+                logLine(text, 'out');
+            },
+            printErr: function (text) {
+                console.error(text);
+                logLine(text, /^\[Lua Error\]/.test(text) ? 'err' : 'warn');
+            },
+            setStatus: function (text) {
+                if (!Module.setStatus.last) Module.setStatus.last = { time: Date.now(), text: '' };
+                if (text === Module.setStatus.last.text) return;
+                var m = text.match(/([^(]+)\((\d+(\.\d+)?)\/(\d+)\)/);
+                var now = Date.now();
+                if (m && now - Module.setStatus.last.time < 30) return; // limit update rate
+                Module.setStatus.last.time = now;
+                Module.setStatus.last.text = text;
+                if (m) text = m[1];
+                statusElement.textContent = text;
+            },
+            totalDependencies: 0,
+            monitorRunDependencies: function (left) {
+                this.totalDependencies = Math.max(this.totalDependencies, left);
+                Module.setStatus(left ? 'Preparing... (' + (this.totalDependencies - left) + '/' + this.totalDependencies + ')' : 'All downloads complete.');
+            },
+
+            // ── Runtime → page hooks (Engine/frontends/lua/runtime.cpp) ──────
+            onLuaError: function (context, message) {
+                // The text itself already reached the console via stderr.
+                state.errorThisRun = true;
+                setStatus('error', 'Error');
+                showError(context, message);
+                var line = errorLine(message);
+                if (line != null && state.editor) state.editor.markError(line, String(message).split('\n')[0]);
+            },
+            onLuaSceneLoaded: function () {
+                var first = !state.runtimeReady;
+                state.runtimeReady = true;
+                $('btn-run').disabled = false;
+                $('btn-reset').disabled = false;
+                if (!state.errorThisRun) { setStatus('running', 'Running'); hideError(); }
+                if (document.activeElement !== canvas) $('focus-hint').hidden = false;
+                if (first && state.draft != null && state.draft !== state.originalSource) {
+                    // The runtime booted the served main.lua; bring it in line with
+                    // the editor, which shows the restored draft.
+                    logLine('Running your restored draft…', 'sys');
+                    run(state.draft);
+                }
+            },
+            onLuaQuit: function () {
+                // atmos.quit() from inside update(): defer so the reload request is
+                // issued outside the running frame.
+                logLine('atmos.quit() → restarting the scene', 'sys');
+                setTimeout(function () { run(state.lastRun != null ? state.lastRun : undefined); }, 0);
+            }
+        };
+        Module.setStatus('Downloading...');
+    })();
+
+    // Clean up Web Workers, WebGL contexts, and Audio contexts on page unload
+    // to prevent memory leaks in iframes and avoid iOS WebContent jetsam on
+    // reload. See docs/resource-cleaning-up.md for the rationale behind
+    // ordering and the Path A / Path B split.
+    var cleanupRan = false;
+    function cleanupWorkers(e) {
+      // ── Path A: BFCache freeze ──────────────────────────────────────
+      // Page being frozen, not torn down. Destructive cleanup here would
+      // wreck the runtime if user navigates back. Only safe action is to
+      // disqualify BFCache so the next real reload uses Path B.
+      if (e && e.persisted) {
+        try {
+          var req = indexedDB.open('__bfcache_evict__');
+          req.onsuccess = function(ev) { ev.target.result.close(); };
+        } catch (_) {}
+        return;
+      }
+
+      // ── Path B: real unload ────────────────────────────────────────
+      // pagehide + unload can both fire on desktop Safari; idempotency
+      // guard makes the second call a no-op.
+      if (cleanupRan) return;
+      cleanupRan = true;
+      console.log("Cleaning up Emscripten Web Workers, WebGL, and Audio contexts...");
+
+      // B2. Explicitly lose the WebGL context to release GPU resources immediately.
+      var canvas = document.getElementById('canvas');
+      try {
+        if (canvas) {
+          var gl = canvas.getContext('webgl2') || canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+          if (gl) {
+            var loseContextExt = gl.getExtension('WEBGL_lose_context');
+            if (loseContextExt) {
+              loseContextExt.loseContext();
+              console.log("WebGL context lost explicitly.");
             }
           }
-        } catch (e) {
-          console.error("Error closing AudioContext:", e);
         }
-
-        // B4. Null HEAP* views + WASM module handles. Each view is an independent
-        //     strong reference to the linear-memory ArrayBuffer; Safari needs
-        //     all of them dropped before the heap can GC.
-        try {
-          if (typeof Module !== 'undefined') {
-            Module.HEAPU8  = null; Module.HEAP8   = null;
-            Module.HEAPU16 = null; Module.HEAP16  = null;
-            Module.HEAPU32 = null; Module.HEAP32  = null;
-            Module.HEAPF32 = null; Module.HEAPF64 = null;
-            if (Module.wasmMemory)      Module.wasmMemory      = null;
-            if (Module.asm)             Module.asm             = null;
-            if (Module.wasmExports)     Module.wasmExports     = null;  // Emscripten 3.x renamed asm → wasmExports
-            if (Module.preloadedImages) Module.preloadedImages = null;
-            if (Module.preloadedAudios) Module.preloadedAudios = null;
-            if (Module.preloadedWasm)   Module.preloadedWasm   = null;
-          }
-        } catch (e) { console.error(e); }
-
-        // B5. Terminate Emscripten pthread Workers. POINT OF NO RETURN —
-        //     any cross-thread WASM call after this hangs forever. Must come
-        //     last among runtime-touching steps. Engine's post.js wrap of
-        //     terminateAllThreads already includes a manual worker.terminate
-        //     sweep, so no extra sweep needed here.
-        try {
-          if (typeof Module !== 'undefined' && typeof Module.terminateAllThreads === 'function') {
-            Module.terminateAllThreads();
-            console.log("Emscripten threads terminated successfully.");
-          }
-        } catch (e) {
-          console.error("Error during thread cleanup:", e);
-        }
-
-        // B6. Null Module last — every previous step reads Module.
-        if (typeof Module !== 'undefined') Module = null;
+      } catch (e) {
+        console.error("Error losing WebGL context:", e);
       }
-      // ── Fullscreen ────────────────────────────────────────────────────────
-      function toggleFullscreen() {
-        if (!document.fullscreenElement) {
-          document.documentElement.requestFullscreen().catch(function() {});
-        } else {
-          document.exitFullscreen();
-        }
-      }
-      document.addEventListener("fullscreenchange", function() {
-        var fs = !!document.fullscreenElement;
-        document.getElementById("fs-icon-expand").style.display  = fs ? "none" : "";
-        document.getElementById("fs-icon-collapse").style.display = fs ? "" : "none";
-      });
-      document.addEventListener("keydown", function(e) {
-        if (e.key === "F" && !e.ctrlKey && !e.metaKey && !e.altKey) toggleFullscreen();
-      });
 
-      window.addEventListener('pagehide', cleanupWorkers);
-      window.addEventListener('unload', cleanupWorkers);
+      // B2a. Detach canvas backing store. loseContext invalidates GL state
+      //      but does NOT free the canvas framebuffer (multi-MB on retina).
+      try {
+        if (canvas) {
+          canvas.width = 1; canvas.height = 1;
+          if (canvas.parentNode) canvas.parentNode.removeChild(canvas);
+        }
+      } catch (e) { console.error(e); }
+
+      // B3. Close all Web Audio API contexts. AudioContext.close() returns
+      //     a Promise — DO NOT await. The synchronous detach happens before
+      //     close() returns; awaiting freezes pagehide.
+      try {
+        if (window.AudioManager && typeof window.AudioManager.shutdown === 'function') {
+          try {
+            window.AudioManager.shutdown();
+            window.AudioManager = null;
+            console.log("window.AudioManager shut down successfully.");
+          } catch (err) {
+            console.error("Error shutting down window.AudioManager:", err);
+          }
+        }
+        if (typeof AL !== 'undefined' && AL.contexts) {
+          AL.contexts.forEach(function(ctx) {
+            if (ctx && ctx.audioCtx && typeof ctx.audioCtx.close === 'function') {
+              ctx.audioCtx.close();
+            }
+          });
+        }
+        if (typeof SDL2 !== 'undefined' && SDL2.audioContext && typeof SDL2.audioContext.close === 'function') {
+          SDL2.audioContext.close();
+        }
+        if (typeof Module !== 'undefined' && Module) {
+          for (var prop in Module) {
+            if (Module[prop] && typeof Module[prop].close === 'function' &&
+                (Module[prop].constructor && (Module[prop].constructor.name === 'AudioContext' || Module[prop].constructor.name === 'webkitAudioContext'))) {
+              Module[prop].close();
+            }
+          }
+        }
+      } catch (e) {
+        console.error("Error closing AudioContext:", e);
+      }
+
+      // B4. Null HEAP* views + WASM module handles. Each view is an independent
+      //     strong reference to the linear-memory ArrayBuffer; Safari needs
+      //     all of them dropped before the heap can GC.
+      try {
+        if (typeof Module !== 'undefined') {
+          Module.HEAPU8  = null; Module.HEAP8   = null;
+          Module.HEAPU16 = null; Module.HEAP16  = null;
+          Module.HEAPU32 = null; Module.HEAP32  = null;
+          Module.HEAPF32 = null; Module.HEAPF64 = null;
+          if (Module.wasmMemory)      Module.wasmMemory      = null;
+          if (Module.asm)             Module.asm             = null;
+          if (Module.wasmExports)     Module.wasmExports     = null;  // Emscripten 3.x renamed asm → wasmExports
+          if (Module.preloadedImages) Module.preloadedImages = null;
+          if (Module.preloadedAudios) Module.preloadedAudios = null;
+          if (Module.preloadedWasm)   Module.preloadedWasm   = null;
+        }
+      } catch (e) { console.error(e); }
+
+      // B5. Terminate Emscripten pthread Workers. POINT OF NO RETURN —
+      //     any cross-thread WASM call after this hangs forever. Must come
+      //     last among runtime-touching steps. Engine's post.js wrap of
+      //     terminateAllThreads already includes a manual worker.terminate
+      //     sweep, so no extra sweep needed here.
+      try {
+        if (typeof Module !== 'undefined' && typeof Module.terminateAllThreads === 'function') {
+          Module.terminateAllThreads();
+          console.log("Emscripten threads terminated successfully.");
+        }
+      } catch (e) {
+        console.error("Error during thread cleanup:", e);
+      }
+
+      // B6. Null Module last — every previous step reads Module.
+      if (typeof Module !== 'undefined') Module = null;
+    }
+
+    window.addEventListener('pagehide', cleanupWorkers);
+    window.addEventListener('unload', cleanupWorkers);
     </script>
     {{{ SCRIPT }}}
 </body>

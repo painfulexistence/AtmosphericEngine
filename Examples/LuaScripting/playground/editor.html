@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Lua editor</title>
+    <!--
+        Code editor for the Lua playground. It lives in its own iframe on purpose:
+        keyboard events never cross a document boundary, so typing here can never
+        reach the game's GLFW key listeners (which sit on the parent window), and
+        the game's Backspace/Tab preventDefault() never reaches the editor.
+        The parent page (shell.html) exposes window.aePlayground; this document
+        hands back a small editor API through aePlayground.onEditorReady().
+    -->
+    <link rel="stylesheet" href="vendor/codemirror/codemirror.min.css">
+    <link rel="stylesheet" href="vendor/codemirror/material-darker.min.css">
+    <style>
+        html, body {
+            margin: 0;
+            height: 100%;
+            background: #212121;
+            color: #eeffff;
+            overflow: hidden;
+        }
+        .CodeMirror {
+            height: 100%;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+        .CodeMirror-gutters {
+            border-right: 1px solid rgba(255, 255, 255, 0.06);
+        }
+        .ae-error-line {
+            background: rgba(239, 68, 68, 0.16) !important;
+        }
+        .ae-error-marker {
+            color: #f87171;
+            font-weight: 700;
+            padding-left: 2px;
+        }
+        /* Plain textarea fallback, shown only when the vendored editor failed to load. */
+        #code.fallback {
+            display: block;
+            box-sizing: border-box;
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 12px;
+            border: 0;
+            resize: none;
+            outline: none;
+            background: #212121;
+            color: #eeffff;
+            font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+            tab-size: 4;
+            white-space: pre;
+        }
+    </style>
+</head>
+<body>
+    <textarea id="code" spellcheck="false" autocomplete="off" autocapitalize="off"></textarea>
+
+    <script src="vendor/codemirror/codemirror.min.js"></script>
+    <script src="vendor/codemirror/lua.min.js"></script>
+    <script src="vendor/codemirror/addons.min.js"></script>
+    <script>
+    (function () {
+        'use strict';
+
+        var host = null;
+        try {
+            host = (window.parent && window.parent !== window) ? window.parent.aePlayground : null;
+        } catch (e) {
+            host = null; // cross-origin parent: run standalone
+        }
+
+        function notifyChange(value) { if (host && host.onEditorChange) host.onEditorChange(value); }
+        function run() { if (host && host.run) host.run(); }
+
+        var textarea = document.getElementById('code');
+        var api;
+
+        if (window.CodeMirror) {
+            var cm = CodeMirror.fromTextArea(textarea, {
+                mode: 'lua',
+                theme: 'material-darker',
+                lineNumbers: true,
+                indentUnit: 4,
+                tabSize: 4,
+                indentWithTabs: false,
+                matchBrackets: true,
+                autoCloseBrackets: true,
+                styleActiveLine: true,
+                lineWrapping: false,
+                gutters: ['CodeMirror-linenumbers', 'ae-errors'],
+                extraKeys: {
+                    'Ctrl-Enter': run,
+                    'Cmd-Enter': run,
+                    'Ctrl-/': 'toggleComment',
+                    'Cmd-/': 'toggleComment',
+                    'Shift-Tab': 'indentLess',
+                    'Tab': function (cm) {
+                        if (cm.somethingSelected()) cm.indentSelection('add');
+                        else cm.replaceSelection(' '.repeat(cm.getOption('indentUnit')), 'end');
+                    }
+                }
+            });
+            var errorLines = [];
+            api = {
+                kind: 'codemirror',
+                getValue: function () { return cm.getValue(); },
+                setValue: function (value) { cm.setValue(value); cm.clearHistory(); },
+                markError: function (line, text) {
+                    var idx = Math.max(0, Math.min(cm.lineCount() - 1, (line | 0) - 1));
+                    var marker = document.createElement('span');
+                    marker.className = 'ae-error-marker';
+                    marker.textContent = '●';
+                    marker.title = text || 'Lua error';
+                    cm.setGutterMarker(idx, 'ae-errors', marker);
+                    cm.addLineClass(idx, 'background', 'ae-error-line');
+                    errorLines.push(idx);
+                    cm.scrollIntoView({ line: idx, ch: 0 }, 80);
+                },
+                clearErrors: function () {
+                    errorLines.forEach(function (idx) {
+                        cm.setGutterMarker(idx, 'ae-errors', null);
+                        cm.removeLineClass(idx, 'background', 'ae-error-line');
+                    });
+                    errorLines = [];
+                },
+                focus: function () { cm.focus(); },
+                refresh: function () { cm.refresh(); }
+            };
+            cm.on('change', function () { notifyChange(cm.getValue()); });
+        } else {
+            // Vendored editor missing: a plain textarea with the same API.
+            textarea.classList.add('fallback');
+            textarea.addEventListener('keydown', function (e) {
+                if (e.key === 'Tab') {
+                    e.preventDefault();
+                    textarea.setRangeText('    ', textarea.selectionStart, textarea.selectionEnd, 'end');
+                    notifyChange(textarea.value);
+                } else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                    e.preventDefault();
+                    run();
+                }
+            });
+            textarea.addEventListener('input', function () { notifyChange(textarea.value); });
+            api = {
+                kind: 'textarea',
+                getValue: function () { return textarea.value; },
+                setValue: function (value) { textarea.value = value; },
+                markError: function (line) {
+                    // Put the caret on the offending line so it is at least visible.
+                    var lines = textarea.value.split('\n');
+                    var idx = Math.max(0, Math.min(lines.length - 1, (line | 0) - 1));
+                    var pos = 0;
+                    for (var i = 0; i < idx; i++) pos += lines[i].length + 1;
+                    textarea.setSelectionRange(pos, pos + lines[idx].length);
+                    textarea.blur();
+                },
+                clearErrors: function () {},
+                focus: function () { textarea.focus(); },
+                refresh: function () {}
+            };
+        }
+
+        window.editorAPI = api;
+        if (host && host.onEditorReady) host.onEditorReady(api);
+    })();
+    </script>
+</body>
+</html>

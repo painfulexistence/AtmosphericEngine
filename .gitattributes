@@ -1,0 +1,3 @@
+Examples/LuaScripting/playground/vendor/** linguist-vendored
+Examples/LuaScripting/playground/vendor/*.min.js -diff
+Examples/LuaScripting/playground/vendor/*.min.css -diff

@@ -5,7 +5,9 @@ ScriptableComponent::ScriptableComponent(GameObject* go, sol::state& lua, const 
     gameObject = go;
 
     if (!CreateInstance()) {
-        fmt::print(stderr, "[ScriptableComponent] Failed to create instance of class '{}'\n", _className);
+        // The script asked for a component it cannot have; treat it like any
+        // other script error so the author sees it and the scene stops.
+        SetLuaHalted(true);
     }
 }
 
@@ -32,13 +34,15 @@ bool ScriptableComponent::CreateInstance() {
     // Look up the class in global scope
     sol::object classObj = _lua[_className];
     if (!classObj.valid()) {
-        fmt::print(stderr, "[ScriptableComponent] Class '{}' not found in Lua state\n", _className);
+        ReportLuaError(
+            "addScript(\"" + _className + "\")", "class '" + _className + "' is not defined (expected a global table)"
+        );
         return false;
     }
 
     // Check if it's a table (Lua class)
     if (!classObj.is<sol::table>()) {
-        fmt::print(stderr, "[ScriptableComponent] '{}' is not a table/class\n", _className);
+        ReportLuaError("addScript(\"" + _className + "\")", "'" + _className + "' is not a table/class");
         return false;
     }
 
@@ -52,7 +56,7 @@ bool ScriptableComponent::CreateInstance() {
 
         if (!result.valid()) {
             sol::error err = result;
-            fmt::print(stderr, "[ScriptableComponent] Error calling {}.new(): {}\n", _className, err.what());
+            ReportLuaError(_className + ".new()", err.what());
             return false;
         }
 
@@ -60,7 +64,7 @@ bool ScriptableComponent::CreateInstance() {
         if (instance.is<sol::table>()) {
             _instance = instance.as<sol::table>();
         } else {
-            fmt::print(stderr, "[ScriptableComponent] {}.new() did not return a table\n", _className);
+            ReportLuaError(_className + ".new()", "constructor did not return a table");
             return false;
         }
     } else {
@@ -124,6 +128,7 @@ void ScriptableComponent::OnPhysicsTick(float dt) {
 }
 
 void ScriptableComponent::OnCollision(GameObject* other) {
+    if (IsLuaHalted()) return;
     if (_onCollisionFunc.valid()) {
         CallMethodSafeWithArgs(_onCollisionFunc, "onCollision", other);
     }
@@ -142,6 +147,7 @@ void ScriptableComponent::CallMethodSafe(sol::protected_function& func, const st
     auto result = func(_instance);
     if (!result.valid()) {
         sol::error err = result;
-        fmt::print(stderr, "[Lua Error] {}:{} - {}\n", _className, methodName, err.what());
+        SetLuaHalted(true);
+        ReportLuaError(_className + ":" + methodName + "()", err.what());
     }
 }

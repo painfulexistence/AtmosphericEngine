@@ -67,7 +67,12 @@ if(EMSCRIPTEN)
         COMMAND ${CMAKE_COMMAND} -E copy_directory
             ${CMAKE_CURRENT_SOURCE_DIR}/assets/scripts
             ${EM_PRELOAD_STAGING_DIR}/scripts
-        COMMENT "Staging Emscripten preload assets (shaders, scenes, ui) for ${TARGET_NAME}"
+        # Playground page assets (editor iframe + vendored CodeMirror); served
+        # next to the .html, not preloaded into the .data bundle.
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+            ${CMAKE_CURRENT_SOURCE_DIR}/playground
+            ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${TARGET_NAME}/playground
+        COMMENT "Staging Emscripten preload assets (shaders, scenes, ui) and playground files for ${TARGET_NAME}"
     )
     add_dependencies(${TARGET_NAME} stage_${TARGET_NAME}_em_preload)
 
@@ -77,7 +82,9 @@ if(EMSCRIPTEN)
         -sFETCH=1 -sFORCE_FILESYSTEM=1 -sALLOW_MEMORY_GROWTH=1
         -sASSERTIONS=1
         -sDISABLE_EXCEPTION_CATCHING=0
-        -sEXPORTED_FUNCTIONS=["_main","_printMemoryStats"]
+        # ae_lua_* are the playground bridge (runtime.cpp); EMSCRIPTEN_KEEPALIVE
+        # already exports them, the list just documents the page-facing surface.
+        -sEXPORTED_FUNCTIONS=["_main","_printMemoryStats","_ae_lua_run","_ae_lua_is_ready"]
         -Wl,--undefined=printMemoryStats
         "SHELL:--preload-file ${EM_PRELOAD_STAGING_DIR}/shaders@assets/shaders"
         "SHELL:--preload-file ${EM_PRELOAD_STAGING_DIR}/scenes@assets/scenes"
@@ -86,8 +93,9 @@ if(EMSCRIPTEN)
     )
 
 
-    # Use custom centered template only for Release builds
-    # Keep default Emscripten shell layout in Debug builds for easier console/stdout debugging
+    # Use the playground shell (game view + live Lua editor, see shell.html)
+    # only for Release builds. Keep the default Emscripten shell layout in Debug
+    # builds for easier console/stdout debugging.
     if(NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
         target_link_options(${TARGET_NAME} PRIVATE "SHELL:--shell-file ${CMAKE_CURRENT_SOURCE_DIR}/shell.html")
     endif()
